@@ -1,0 +1,426 @@
+const pool = require('../../config/db');
+
+function sanitizeProduct(row) {
+  if (!row) return null;
+
+  return {
+    id: row.id,
+    title: row.title,
+    slug: row.slug,
+    product_image: row.product_image,
+    pricing_type: row.pricing_type,
+    price: row.price !== null ? Number(row.price) : null,
+    min_price: row.min_price !== null ? Number(row.min_price) : null,
+    max_price: row.max_price !== null ? Number(row.max_price) : null,
+    homepage_cta_label: row.homepage_cta_label,
+    storefront_cta_label: row.storefront_cta_label,
+    affiliate_buy_url: row.affiliate_buy_url,
+    short_description: row.short_description,
+    status: row.status,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+    affiliate: {
+      id: row.affiliate_id,
+      name: row.affiliate_name,
+      website_name: row.website_name,
+      website_slug: row.website_slug,
+    },
+    category: row.category_id
+      ? {
+          id: row.category_id,
+          name: row.category_name,
+          slug: row.category_slug,
+        }
+      : null,
+    read_more_url: `/${row.website_slug}/product/${row.slug}`,
+    posts_url: `/${row.website_slug}/product/${row.slug}/posts`,
+  };
+}
+
+function sanitizePost(row) {
+  if (!row) return null;
+
+  return {
+    id: row.id,
+    product_id: row.product_id,
+    title: row.title,
+    slug: row.slug,
+    excerpt: row.excerpt,
+    seo_title: row.seo_title,
+    seo_description: row.seo_description,
+    featured_image: row.featured_image,
+    status: row.status,
+    published_at: row.published_at,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+    template: row.template_id
+      ? {
+          id: row.template_id,
+          name: row.template_name,
+          slug: row.template_slug,
+        }
+      : null,
+    category: row.category_id
+      ? {
+          id: row.category_id,
+          name: row.category_name,
+          slug: row.category_slug,
+        }
+      : null,
+    url: `/${row.website_slug}/post/${row.slug}`,
+  };
+}
+
+async function trackProductView(productId, websiteId, req) {
+  try {
+    await pool.query(
+      `
+      INSERT INTO analytics_product_views
+      (
+        product_id,
+        website_id,
+        user_id,
+        ip_address,
+        referrer,
+        user_agent,
+        created_at
+      )
+      VALUES (?, ?, NULL, ?, ?, ?, NOW())
+      `,
+      [
+        productId,
+        websiteId,
+        req.ip || null,
+        req.get('referer') || null,
+        req.get('user-agent') || null,
+      ]
+    );
+  } catch (error) {
+    console.error('trackProductView error:', error.message);
+  }
+}
+
+async function getPublicProductBySlug(websiteSlug, productSlug) {
+  const [rows] = await pool.query(
+    `
+    SELECT
+      p.id,
+      p.website_id,
+      p.user_id,
+      p.category_id,
+      p.title,
+      p.slug,
+      p.product_image,
+      p.pricing_type,
+      p.price,
+      p.min_price,
+      p.max_price,
+      p.homepage_cta_label,
+      p.storefront_cta_label,
+      p.affiliate_buy_url,
+      p.short_description,
+      p.status,
+      p.created_at,
+      p.updated_at,
+
+      u.id AS affiliate_id,
+      u.name AS affiliate_name,
+
+      aw.website_name,
+      aw.slug AS website_slug,
+      aw.status AS website_status,
+
+      c.name AS category_name,
+      c.slug AS category_slug
+
+    FROM products p
+    INNER JOIN affiliate_websites aw
+      ON aw.id = p.website_id
+     AND aw.status = 'active'
+    INNER JOIN users u
+      ON u.id = p.user_id
+     AND u.role = 'affiliate'
+     AND u.status = 'active'
+    LEFT JOIN categories c
+      ON c.id = p.category_id
+     AND c.status = 'active'
+    WHERE aw.slug = ?
+      AND p.slug = ?
+      AND p.status = 'published'
+    LIMIT 1
+    `,
+    [websiteSlug, productSlug]
+  );
+
+  return rows[0] || null;
+}
+
+async function getPublishedPostsForProduct(productId, websiteSlug) {
+  const [rows] = await pool.query(
+    `
+    SELECT
+      pp.id,
+      pp.product_id,
+      pp.category_id,
+      pp.template_id,
+      pp.title,
+      pp.slug,
+      pp.excerpt,
+      pp.seo_title,
+      pp.seo_description,
+      pp.featured_image,
+      pp.status,
+      pp.published_at,
+      pp.created_at,
+      pp.updated_at,
+      bt.name AS template_name,
+      bt.slug AS template_slug,
+      c.name AS category_name,
+      c.slug AS category_slug,
+      ? AS website_slug
+    FROM product_posts pp
+    LEFT JOIN blog_templates bt
+      ON bt.id = pp.template_id
+    LEFT JOIN categories c
+      ON c.id = pp.category_id
+     AND c.status = 'active'
+    WHERE pp.product_id = ?
+      AND pp.status = 'published'
+    ORDER BY pp.id DESC
+    `,
+    [websiteSlug, productId]
+  );
+
+  return rows.map(sanitizePost);
+}
+
+async function getRelatedProducts(websiteId, categoryId, currentProductId, websiteSlug, limit = 8) {
+  let sql = `
+    SELECT
+      p.id,
+      p.title,
+      p.slug,
+      p.product_image,
+      p.pricing_type,
+      p.price,
+      p.min_price,
+      p.max_price,
+      p.homepage_cta_label,
+      p.storefront_cta_label,
+      p.affiliate_buy_url,
+      p.short_description,
+      p.status,
+      p.created_at,
+      p.updated_at,
+      p.category_id,
+
+      u.id AS affiliate_id,
+      u.name AS affiliate_name,
+
+      aw.website_name,
+      aw.slug AS website_slug,
+
+      c.name AS category_name,
+      c.slug AS category_slug
+    FROM products p
+    INNER JOIN affiliate_websites aw
+      ON aw.id = p.website_id
+     AND aw.status = 'active'
+    INNER JOIN users u
+      ON u.id = p.user_id
+     AND u.role = 'affiliate'
+     AND u.status = 'active'
+    LEFT JOIN categories c
+      ON c.id = p.category_id
+     AND c.status = 'active'
+    WHERE p.website_id = ?
+      AND p.status = 'published'
+      AND p.id <> ?
+  `;
+
+  const params = [websiteId, currentProductId];
+
+  if (categoryId) {
+    sql += ` AND p.category_id = ?`;
+    params.push(categoryId);
+  }
+
+  sql += ` ORDER BY p.id DESC LIMIT ?`;
+  params.push(limit);
+
+  const [rows] = await pool.query(sql, params);
+
+  return rows.map((row) =>
+    sanitizeProduct({
+      ...row,
+      website_slug: websiteSlug,
+    })
+  );
+}
+
+async function getPublicProduct(req, res) {
+  try {
+    const websiteSlug = String(req.params.websiteSlug || '').trim().toLowerCase();
+    const productSlug = String(req.params.slug || '').trim().toLowerCase();
+
+    if (!websiteSlug || !productSlug) {
+      return res.status(400).json({
+        ok: false,
+        message: 'Website slug and product slug are required',
+      });
+    }
+
+    const product = await getPublicProductBySlug(websiteSlug, productSlug);
+
+    if (!product) {
+      return res.status(404).json({
+        ok: false,
+        message: 'Product not found',
+      });
+    }
+
+    await trackProductView(product.id, product.website_id, req);
+
+    const [posts, related_products] = await Promise.all([
+      getPublishedPostsForProduct(product.id, product.website_slug),
+      getRelatedProducts(
+        product.website_id,
+        product.category_id,
+        product.id,
+        product.website_slug
+      ),
+    ]);
+
+    return res.status(200).json({
+      ok: true,
+      product: sanitizeProduct(product),
+      posts,
+      related_products,
+    });
+  } catch (error) {
+    console.error('getPublicProduct error:', error);
+
+    return res.status(500).json({
+      ok: false,
+      message: 'Failed to fetch product',
+      error: error.message,
+    });
+  }
+}
+
+async function getPublicProductPosts(req, res) {
+  try {
+    const websiteSlug = String(req.params.websiteSlug || '').trim().toLowerCase();
+    const productSlug = String(req.params.slug || '').trim().toLowerCase();
+
+    if (!websiteSlug || !productSlug) {
+      return res.status(400).json({
+        ok: false,
+        message: 'Website slug and product slug are required',
+      });
+    }
+
+    const product = await getPublicProductBySlug(websiteSlug, productSlug);
+
+    if (!product) {
+      return res.status(404).json({
+        ok: false,
+        message: 'Product not found',
+      });
+    }
+
+    const posts = await getPublishedPostsForProduct(product.id, product.website_slug);
+
+    return res.status(200).json({
+      ok: true,
+      product: sanitizeProduct(product),
+      posts,
+    });
+  } catch (error) {
+    console.error('getPublicProductPosts error:', error);
+
+    return res.status(500).json({
+      ok: false,
+      message: 'Failed to fetch product posts',
+      error: error.message,
+    });
+  }
+}
+
+async function trackPublicProductClick(req, res) {
+  try {
+    const websiteSlug = String(req.params.websiteSlug || '').trim().toLowerCase();
+    const productSlug = String(req.params.slug || '').trim().toLowerCase();
+    const { click_type } = req.body;
+
+    if (!websiteSlug || !productSlug) {
+      return res.status(400).json({
+        ok: false,
+        message: 'Website slug and product slug are required',
+      });
+    }
+
+    if (!['buy_now', 'read_more', 'learn_more'].includes(click_type)) {
+      return res.status(400).json({
+        ok: false,
+        message: 'Invalid click type',
+      });
+    }
+
+    const product = await getPublicProductBySlug(websiteSlug, productSlug);
+
+    if (!product) {
+      return res.status(404).json({
+        ok: false,
+        message: 'Product not found',
+      });
+    }
+
+    await pool.query(
+      `
+      INSERT INTO analytics_product_clicks
+      (
+        product_id,
+        website_id,
+        click_type,
+        referrer,
+        ip_address,
+        user_agent,
+        created_at
+      )
+      VALUES (?, ?, ?, ?, ?, ?, NOW())
+      `,
+      [
+        product.id,
+        product.website_id,
+        click_type,
+        req.get('referer') || null,
+        req.ip || null,
+        req.get('user-agent') || null,
+      ]
+    );
+
+    return res.status(200).json({
+      ok: true,
+      message: 'Product click tracked successfully',
+      redirect_url:
+        click_type === 'buy_now'
+          ? product.affiliate_buy_url
+          : `/${product.website_slug}/product/${product.slug}`,
+    });
+  } catch (error) {
+    console.error('trackPublicProductClick error:', error);
+
+    return res.status(500).json({
+      ok: false,
+      message: 'Failed to track product click',
+      error: error.message,
+    });
+  }
+}
+
+module.exports = {
+  getPublicProduct,
+  getPublicProductPosts,
+  trackPublicProductClick,
+};
