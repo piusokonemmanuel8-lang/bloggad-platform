@@ -1,7 +1,32 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import {
+  FileText,
+  Save,
+  Plus,
+  Trash2,
+  AlertCircle,
+  CheckCircle2,
+  Link as LinkIcon,
+  LayoutTemplate,
+  Package,
+  FolderKanban,
+  Image as ImageIcon,
+  ArrowLeft,
+  Type,
+} from 'lucide-react';
 import api from '../../api/axios';
 import validateSupgadUrl from '../../utils/validateSupgadUrl';
+
+function getStatusClass(status = '') {
+  const value = String(status).toLowerCase();
+
+  if (value === 'published' || value === 'active') return 'affiliate-edit-post-status active';
+  if (value === 'draft' || value === 'pending') return 'affiliate-edit-post-status draft';
+  if (value === 'inactive') return 'affiliate-edit-post-status inactive';
+
+  return 'affiliate-edit-post-status neutral';
+}
 
 export default function AffiliateEditPostPage() {
   const navigate = useNavigate();
@@ -287,236 +312,390 @@ export default function AffiliateEditPostPage() {
     }
   };
 
+  const selectedProduct = useMemo(
+    () => products.find((item) => String(item.id) === String(form.product_id)),
+    [products, form.product_id]
+  );
+
+  const selectedTemplate = useMemo(
+    () => templates.find((item) => String(item.id) === String(form.template_id)),
+    [templates, form.template_id]
+  );
+
+  const selectedCategory = useMemo(
+    () => categories.find((item) => String(item.id) === String(form.category_id)),
+    [categories, form.category_id]
+  );
+
   if (loading) {
     return (
-      <div className="page-shell">
-        <div className="container section-space">Loading post...</div>
+      <div className="affiliate-edit-post-page">
+        <style>{styles}</style>
+
+        <div className="affiliate-edit-post-loading-wrap">
+          <div className="affiliate-edit-post-loading-card">
+            <div className="affiliate-edit-post-spinner" />
+            <p>Loading post...</p>
+          </div>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="page-shell">
-      <div className="container section-space">
-        <div className="surface-card surface-card-padding" style={{ marginBottom: 20 }}>
-          <h1 className="page-title">Edit Post</h1>
-          <p className="page-subtitle">
-            Update post content, template fields, and CTA buttons.
+    <div className="affiliate-edit-post-page">
+      <style>{styles}</style>
+
+      <section className="affiliate-edit-post-hero">
+        <div className="affiliate-edit-post-hero-copy">
+          <div className="affiliate-edit-post-badge">Post editor</div>
+          <h1 className="affiliate-edit-post-title">Edit Post</h1>
+          <p className="affiliate-edit-post-subtitle">
+            Update post content, template fields, SEO details, and CTA buttons.
           </p>
         </div>
 
-        <div className="surface-card surface-card-padding">
-          <form className="form-stack" onSubmit={handleSubmit}>
-            <select
-              className="input-control"
-              name="product_id"
-              value={form.product_id}
-              onChange={handleChange}
-            >
-              <option value="">Select product</option>
-              {products.map((product) => (
-                <option key={product.id} value={product.id}>
-                  {product.title}
-                </option>
-              ))}
-            </select>
+        <div className="affiliate-edit-post-hero-actions">
+          <button
+            className="affiliate-edit-post-btn secondary"
+            type="button"
+            onClick={() => navigate('/affiliate/products')}
+          >
+            <ArrowLeft size={16} />
+            Back to Products
+          </button>
+        </div>
+      </section>
 
-            <select
-              className="input-control"
-              name="category_id"
-              value={form.category_id}
-              onChange={handleChange}
-            >
-              <option value="">Select category</option>
-              {categories.map((category) => (
-                <option key={category.id} value={category.id}>
-                  {category.name}
-                </option>
-              ))}
-            </select>
+      <section className="affiliate-edit-post-grid">
+        <div className="affiliate-edit-post-panel affiliate-edit-post-panel-main">
+          <div className="affiliate-edit-post-panel-head">
+            <div>
+              <p className="affiliate-edit-post-panel-kicker">Post details</p>
+              <h2 className="affiliate-edit-post-panel-title">Update content</h2>
+            </div>
+          </div>
 
-            <select
-              className="input-control"
-              name="template_id"
-              value={form.template_id}
-              onChange={handleChange}
-            >
-              <option value="">Select blog template</option>
-              {templates.map((template) => (
-                <option key={template.id} value={template.id}>
-                  {template.name}
-                </option>
-              ))}
-            </select>
+          <form className="affiliate-edit-post-form" onSubmit={handleSubmit}>
+            <div className="affiliate-edit-post-form-grid">
+              <label className="affiliate-edit-post-field">
+                <span className="affiliate-edit-post-label">
+                  <Package size={16} />
+                  Product
+                </span>
+                <select
+                  className="affiliate-edit-post-input"
+                  name="product_id"
+                  value={form.product_id}
+                  onChange={handleChange}
+                >
+                  <option value="">Select product</option>
+                  {products.map((product) => (
+                    <option key={product.id} value={product.id}>
+                      {product.title}
+                    </option>
+                  ))}
+                </select>
+              </label>
 
-            <input
-              className="input-control"
-              name="title"
-              placeholder="Post title"
-              value={form.title}
-              onChange={handleChange}
-            />
+              <label className="affiliate-edit-post-field">
+                <span className="affiliate-edit-post-label">
+                  <FolderKanban size={16} />
+                  Category
+                </span>
+                <select
+                  className="affiliate-edit-post-input"
+                  name="category_id"
+                  value={form.category_id}
+                  onChange={handleChange}
+                >
+                  <option value="">Select category</option>
+                  {categories.map((category) => (
+                    <option key={category.id} value={category.id}>
+                      {category.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
 
-            <input
-              className="input-control"
-              name="slug"
-              placeholder="Custom slug"
-              value={form.slug}
-              onChange={handleChange}
-            />
+              <label className="affiliate-edit-post-field">
+                <span className="affiliate-edit-post-label">
+                  <LayoutTemplate size={16} />
+                  Template
+                </span>
+                <select
+                  className="affiliate-edit-post-input"
+                  name="template_id"
+                  value={form.template_id}
+                  onChange={handleChange}
+                >
+                  <option value="">Select blog template</option>
+                  {templates.map((template) => (
+                    <option key={template.id} value={template.id}>
+                      {template.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
 
-            <textarea
-              className="input-control"
-              name="excerpt"
-              placeholder="Excerpt"
-              rows="3"
-              value={form.excerpt}
-              onChange={handleChange}
-            />
+              <label className="affiliate-edit-post-field">
+                <span className="affiliate-edit-post-label">
+                  <Type size={16} />
+                  Post title
+                </span>
+                <input
+                  className="affiliate-edit-post-input"
+                  name="title"
+                  placeholder="Post title"
+                  value={form.title}
+                  onChange={handleChange}
+                />
+              </label>
 
-            <input
-              className="input-control"
-              name="seo_title"
-              placeholder="SEO title"
-              value={form.seo_title}
-              onChange={handleChange}
-            />
+              <label className="affiliate-edit-post-field">
+                <span className="affiliate-edit-post-label">
+                  <LinkIcon size={16} />
+                  Slug
+                </span>
+                <input
+                  className="affiliate-edit-post-input"
+                  name="slug"
+                  placeholder="Custom slug"
+                  value={form.slug}
+                  onChange={handleChange}
+                />
+              </label>
 
-            <textarea
-              className="input-control"
-              name="seo_description"
-              placeholder="SEO description"
-              rows="3"
-              value={form.seo_description}
-              onChange={handleChange}
-            />
+              <label className="affiliate-edit-post-field">
+                <span className="affiliate-edit-post-label">
+                  <ImageIcon size={16} />
+                  Featured image URL
+                </span>
+                <input
+                  className="affiliate-edit-post-input"
+                  name="featured_image"
+                  placeholder="Featured image URL"
+                  value={form.featured_image}
+                  onChange={handleChange}
+                />
+              </label>
 
-            <input
-              className="input-control"
-              name="featured_image"
-              placeholder="Featured image URL"
-              value={form.featured_image}
-              onChange={handleChange}
-            />
+              <label className="affiliate-edit-post-field affiliate-edit-post-field-full">
+                <span className="affiliate-edit-post-label">
+                  <FileText size={16} />
+                  Excerpt
+                </span>
+                <textarea
+                  className="affiliate-edit-post-input affiliate-edit-post-textarea"
+                  name="excerpt"
+                  placeholder="Excerpt"
+                  rows="3"
+                  value={form.excerpt}
+                  onChange={handleChange}
+                />
+              </label>
 
-            <select
-              className="input-control"
-              name="status"
-              value={form.status}
-              onChange={handleChange}
-            >
-              <option value="draft">Draft</option>
-              <option value="published">Published</option>
-              <option value="inactive">Inactive</option>
-            </select>
+              <label className="affiliate-edit-post-field">
+                <span className="affiliate-edit-post-label">SEO title</span>
+                <input
+                  className="affiliate-edit-post-input"
+                  name="seo_title"
+                  placeholder="SEO title"
+                  value={form.seo_title}
+                  onChange={handleChange}
+                />
+              </label>
 
-            <div className="surface-card surface-card-padding">
-              <h2 className="section-title">Template Fields</h2>
+              <label className="affiliate-edit-post-field">
+                <span className="affiliate-edit-post-label">Status</span>
+                <select
+                  className="affiliate-edit-post-input"
+                  name="status"
+                  value={form.status}
+                  onChange={handleChange}
+                >
+                  <option value="draft">Draft</option>
+                  <option value="published">Published</option>
+                  <option value="inactive">Inactive</option>
+                </select>
+              </label>
 
-              <div className="form-stack">
+              <label className="affiliate-edit-post-field affiliate-edit-post-field-full">
+                <span className="affiliate-edit-post-label">SEO description</span>
+                <textarea
+                  className="affiliate-edit-post-input affiliate-edit-post-textarea"
+                  name="seo_description"
+                  placeholder="SEO description"
+                  rows="3"
+                  value={form.seo_description}
+                  onChange={handleChange}
+                />
+              </label>
+            </div>
+
+            <div className="affiliate-edit-post-block">
+              <div className="affiliate-edit-post-block-head">
+                <div>
+                  <p className="affiliate-edit-post-panel-kicker">Template fields</p>
+                  <h3 className="affiliate-edit-post-block-title">Content blocks</h3>
+                </div>
+
+                <button
+                  className="affiliate-edit-post-btn secondary"
+                  type="button"
+                  onClick={addTemplateField}
+                >
+                  <Plus size={16} />
+                  Add Field
+                </button>
+              </div>
+
+              <div className="affiliate-edit-post-stack">
                 {form.template_fields.map((field, index) => (
-                  <div key={index} className="surface-card surface-card-padding">
-                    <div className="form-stack">
-                      <input
-                        className="input-control"
-                        placeholder="Field key"
-                        value={field.field_key}
-                        onChange={(e) =>
-                          handleTemplateFieldChange(index, 'field_key', e.target.value)
-                        }
-                      />
-
-                      <select
-                        className="input-control"
-                        value={field.field_type}
-                        onChange={(e) =>
-                          handleTemplateFieldChange(index, 'field_type', e.target.value)
-                        }
-                      >
-                        <option value="text">Text</option>
-                        <option value="textarea">Textarea</option>
-                        <option value="url">URL</option>
-                        <option value="image">Image</option>
-                      </select>
-
-                      <textarea
-                        className="input-control"
-                        rows="3"
-                        placeholder="Field value"
-                        value={field.field_value}
-                        onChange={(e) =>
-                          handleTemplateFieldChange(index, 'field_value', e.target.value)
-                        }
-                      />
+                  <div key={index} className="affiliate-edit-post-card">
+                    <div className="affiliate-edit-post-card-top">
+                      <div className="affiliate-edit-post-chip">Field {index + 1}</div>
 
                       <button
-                        className="btn btn-secondary"
+                        className="affiliate-edit-post-icon-btn"
                         type="button"
                         onClick={() => removeTemplateField(index)}
                       >
-                        Remove Field
+                        <Trash2 size={15} />
                       </button>
+                    </div>
+
+                    <div className="affiliate-edit-post-form-grid">
+                      <label className="affiliate-edit-post-field">
+                        <span className="affiliate-edit-post-label">Field key</span>
+                        <input
+                          className="affiliate-edit-post-input"
+                          placeholder="Field key"
+                          value={field.field_key}
+                          onChange={(e) =>
+                            handleTemplateFieldChange(index, 'field_key', e.target.value)
+                          }
+                        />
+                      </label>
+
+                      <label className="affiliate-edit-post-field">
+                        <span className="affiliate-edit-post-label">Field type</span>
+                        <select
+                          className="affiliate-edit-post-input"
+                          value={field.field_type}
+                          onChange={(e) =>
+                            handleTemplateFieldChange(index, 'field_type', e.target.value)
+                          }
+                        >
+                          <option value="text">Text</option>
+                          <option value="textarea">Textarea</option>
+                          <option value="url">URL</option>
+                          <option value="image">Image</option>
+                        </select>
+                      </label>
+
+                      <label className="affiliate-edit-post-field affiliate-edit-post-field-full">
+                        <span className="affiliate-edit-post-label">Field value</span>
+                        <textarea
+                          className="affiliate-edit-post-input affiliate-edit-post-textarea"
+                          rows="3"
+                          placeholder="Field value"
+                          value={field.field_value}
+                          onChange={(e) =>
+                            handleTemplateFieldChange(index, 'field_value', e.target.value)
+                          }
+                        />
+                      </label>
                     </div>
                   </div>
                 ))}
               </div>
-
-              <button
-                className="btn btn-secondary"
-                type="button"
-                onClick={addTemplateField}
-                style={{ marginTop: 14 }}
-              >
-                Add Field
-              </button>
             </div>
 
-            <div className="surface-card surface-card-padding">
-              <h2 className="section-title">CTA Buttons</h2>
+            <div className="affiliate-edit-post-block">
+              <div className="affiliate-edit-post-block-head">
+                <div>
+                  <p className="affiliate-edit-post-panel-kicker">CTA buttons</p>
+                  <h3 className="affiliate-edit-post-block-title">Action buttons</h3>
+                </div>
 
-              <div className="form-stack">
+                <button
+                  className="affiliate-edit-post-btn secondary"
+                  type="button"
+                  onClick={addCtaButton}
+                >
+                  <Plus size={16} />
+                  Add CTA Button
+                </button>
+              </div>
+
+              <div className="affiliate-edit-post-stack">
                 {form.cta_buttons.map((button, index) => (
-                  <div key={index} className="surface-card surface-card-padding">
-                    <div className="form-stack">
-                      <input
-                        className="input-control"
-                        placeholder="Button key"
-                        value={button.button_key}
-                        onChange={(e) =>
-                          handleCtaChange(index, 'button_key', e.target.value)
-                        }
-                      />
+                  <div key={index} className="affiliate-edit-post-card">
+                    <div className="affiliate-edit-post-card-top">
+                      <div className="affiliate-edit-post-chip">Button {index + 1}</div>
 
-                      <input
-                        className="input-control"
-                        placeholder="Button label"
-                        value={button.button_label}
-                        onChange={(e) =>
-                          handleCtaChange(index, 'button_label', e.target.value)
-                        }
-                      />
-
-                      <input
-                        className="input-control"
-                        placeholder="Button URL (must be supgad.com)"
-                        value={button.button_url}
-                        onChange={(e) =>
-                          handleCtaChange(index, 'button_url', e.target.value)
-                        }
-                      />
-
-                      <select
-                        className="input-control"
-                        value={button.button_style}
-                        onChange={(e) =>
-                          handleCtaChange(index, 'button_style', e.target.value)
-                        }
+                      <button
+                        className="affiliate-edit-post-icon-btn"
+                        type="button"
+                        onClick={() => removeCtaButton(index)}
                       >
-                        <option value="primary">Primary</option>
-                        <option value="secondary">Secondary</option>
-                      </select>
+                        <Trash2 size={15} />
+                      </button>
+                    </div>
 
-                      <label style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                    <div className="affiliate-edit-post-form-grid">
+                      <label className="affiliate-edit-post-field">
+                        <span className="affiliate-edit-post-label">Button key</span>
+                        <input
+                          className="affiliate-edit-post-input"
+                          placeholder="Button key"
+                          value={button.button_key}
+                          onChange={(e) =>
+                            handleCtaChange(index, 'button_key', e.target.value)
+                          }
+                        />
+                      </label>
+
+                      <label className="affiliate-edit-post-field">
+                        <span className="affiliate-edit-post-label">Button label</span>
+                        <input
+                          className="affiliate-edit-post-input"
+                          placeholder="Button label"
+                          value={button.button_label}
+                          onChange={(e) =>
+                            handleCtaChange(index, 'button_label', e.target.value)
+                          }
+                        />
+                      </label>
+
+                      <label className="affiliate-edit-post-field affiliate-edit-post-field-full">
+                        <span className="affiliate-edit-post-label">Button URL</span>
+                        <input
+                          className="affiliate-edit-post-input"
+                          placeholder="Button URL (must be supgad.com)"
+                          value={button.button_url}
+                          onChange={(e) =>
+                            handleCtaChange(index, 'button_url', e.target.value)
+                          }
+                        />
+                      </label>
+
+                      <label className="affiliate-edit-post-field">
+                        <span className="affiliate-edit-post-label">Button style</span>
+                        <select
+                          className="affiliate-edit-post-input"
+                          value={button.button_style}
+                          onChange={(e) =>
+                            handleCtaChange(index, 'button_style', e.target.value)
+                          }
+                        >
+                          <option value="primary">Primary</option>
+                          <option value="secondary">Secondary</option>
+                        </select>
+                      </label>
+
+                      <label className="affiliate-edit-post-check">
                         <input
                           type="checkbox"
                           checked={!!button.open_in_new_tab}
@@ -524,71 +703,577 @@ export default function AffiliateEditPostPage() {
                             handleCtaChange(index, 'open_in_new_tab', e.target.checked)
                           }
                         />
-                        Open in new tab
+                        <span>Open in new tab</span>
                       </label>
-
-                      <button
-                        className="btn btn-secondary"
-                        type="button"
-                        onClick={() => removeCtaButton(index)}
-                      >
-                        Remove Button
-                      </button>
                     </div>
                   </div>
                 ))}
               </div>
-
-              <button
-                className="btn btn-secondary"
-                type="button"
-                onClick={addCtaButton}
-                style={{ marginTop: 14 }}
-              >
-                Add CTA Button
-              </button>
             </div>
 
             {error ? (
-              <div
-                style={{
-                  padding: '12px 14px',
-                  borderRadius: 12,
-                  background: 'rgba(255, 80, 80, 0.12)',
-                  border: '1px solid rgba(255, 80, 80, 0.22)',
-                }}
-              >
-                {error}
+              <div className="affiliate-edit-post-alert error">
+                <AlertCircle size={18} />
+                <span>{error}</span>
               </div>
             ) : null}
 
             {success ? (
-              <div
-                style={{
-                  padding: '12px 14px',
-                  borderRadius: 12,
-                  background: 'rgba(80, 200, 120, 0.12)',
-                  border: '1px solid rgba(80, 200, 120, 0.22)',
-                }}
-              >
-                {success}
+              <div className="affiliate-edit-post-alert success">
+                <CheckCircle2 size={18} />
+                <span>{success}</span>
               </div>
             ) : null}
 
-            <button className="btn btn-primary" type="submit" disabled={saving}>
-              {saving ? 'Saving...' : 'Update Post'}
-            </button>
+            <div className="affiliate-edit-post-actions">
+              <button className="affiliate-edit-post-btn primary" type="submit" disabled={saving}>
+                <Save size={16} />
+                {saving ? 'Saving...' : 'Update Post'}
+              </button>
 
-            <button
-              className="btn btn-secondary"
-              type="button"
-              onClick={() => navigate('/affiliate/products')}
-            >
-              Back to Products
-            </button>
+              <button
+                className="affiliate-edit-post-btn secondary"
+                type="button"
+                onClick={() => navigate('/affiliate/products')}
+              >
+                <ArrowLeft size={16} />
+                Back to Products
+              </button>
+            </div>
           </form>
         </div>
-      </div>
+
+        <div className="affiliate-edit-post-side-stack">
+          <div className="affiliate-edit-post-panel">
+            <div className="affiliate-edit-post-panel-head">
+              <div>
+                <p className="affiliate-edit-post-panel-kicker">Summary</p>
+                <h2 className="affiliate-edit-post-panel-title">Post overview</h2>
+              </div>
+            </div>
+
+            <div className="affiliate-edit-post-summary">
+              <div className="affiliate-edit-post-summary-row">
+                <span>Title</span>
+                <strong>{form.title || '-'}</strong>
+              </div>
+
+              <div className="affiliate-edit-post-summary-row">
+                <span>Product</span>
+                <strong>{selectedProduct?.title || '-'}</strong>
+              </div>
+
+              <div className="affiliate-edit-post-summary-row">
+                <span>Category</span>
+                <strong>{selectedCategory?.name || '-'}</strong>
+              </div>
+
+              <div className="affiliate-edit-post-summary-row">
+                <span>Template</span>
+                <strong>{selectedTemplate?.name || '-'}</strong>
+              </div>
+
+              <div className="affiliate-edit-post-summary-row">
+                <span>Status</span>
+                <strong>
+                  <span className={getStatusClass(form.status)}>{form.status || '-'}</span>
+                </strong>
+              </div>
+
+              <div className="affiliate-edit-post-summary-row">
+                <span>Fields</span>
+                <strong>{form.template_fields.length}</strong>
+              </div>
+
+              <div className="affiliate-edit-post-summary-row">
+                <span>CTA Buttons</span>
+                <strong>{form.cta_buttons.length}</strong>
+              </div>
+            </div>
+          </div>
+
+          <div className="affiliate-edit-post-panel">
+            <div className="affiliate-edit-post-panel-head">
+              <div>
+                <p className="affiliate-edit-post-panel-kicker">Preview</p>
+                <h2 className="affiliate-edit-post-panel-title">Featured image</h2>
+              </div>
+            </div>
+
+            {form.featured_image ? (
+              <img
+                src={form.featured_image}
+                alt={form.title || 'Post preview'}
+                className="affiliate-edit-post-preview-image"
+              />
+            ) : (
+              <div className="affiliate-edit-post-preview-empty">
+                <ImageIcon size={26} />
+                <span>No featured image</span>
+              </div>
+            )}
+          </div>
+        </div>
+      </section>
     </div>
   );
 }
+
+const styles = `
+  * {
+    box-sizing: border-box;
+  }
+
+  .affiliate-edit-post-page {
+    width: 100%;
+  }
+
+  .affiliate-edit-post-loading-wrap {
+    min-height: 60vh;
+    display: grid;
+    place-items: center;
+  }
+
+  .affiliate-edit-post-loading-card {
+    min-width: 260px;
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 24px;
+    padding: 28px 22px;
+    text-align: center;
+    box-shadow: 0 18px 45px rgba(15, 23, 42, 0.06);
+  }
+
+  .affiliate-edit-post-spinner {
+    width: 38px;
+    height: 38px;
+    border-radius: 999px;
+    border: 3px solid #e5e7eb;
+    border-top-color: #111827;
+    margin: 0 auto 12px;
+    animation: affiliateEditPostSpin 0.8s linear infinite;
+  }
+
+  @keyframes affiliateEditPostSpin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  .affiliate-edit-post-hero {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 18px;
+    background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+    border: 1px solid #e5e7eb;
+    border-radius: 28px;
+    padding: 24px;
+    box-shadow: 0 18px 45px rgba(15, 23, 42, 0.05);
+    margin-bottom: 20px;
+  }
+
+  .affiliate-edit-post-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 8px 12px;
+    border-radius: 999px;
+    background: #111827;
+    color: #ffffff;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    margin-bottom: 14px;
+  }
+
+  .affiliate-edit-post-title {
+    margin: 0;
+    font-size: 30px;
+    line-height: 1.1;
+    font-weight: 900;
+    color: #111827;
+  }
+
+  .affiliate-edit-post-subtitle {
+    margin: 12px 0 0;
+    max-width: 760px;
+    color: #6b7280;
+    font-size: 15px;
+    line-height: 1.7;
+  }
+
+  .affiliate-edit-post-hero-actions,
+  .affiliate-edit-post-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .affiliate-edit-post-btn {
+    height: 46px;
+    padding: 0 16px;
+    border-radius: 14px;
+    border: 1px solid #dbe2ea;
+    background: #ffffff;
+    color: #111827;
+    font-size: 14px;
+    font-weight: 800;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    cursor: pointer;
+    transition: 0.2s ease;
+  }
+
+  .affiliate-edit-post-btn.primary {
+    background: #111827;
+    color: #ffffff;
+    border-color: #111827;
+  }
+
+  .affiliate-edit-post-btn:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+  }
+
+  .affiliate-edit-post-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.85fr);
+    gap: 20px;
+  }
+
+  .affiliate-edit-post-side-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .affiliate-edit-post-panel {
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 24px;
+    padding: 22px;
+    box-shadow: 0 16px 35px rgba(15, 23, 42, 0.04);
+  }
+
+  .affiliate-edit-post-panel-head,
+  .affiliate-edit-post-block-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 14px;
+    margin-bottom: 18px;
+  }
+
+  .affiliate-edit-post-panel-kicker {
+    margin: 0 0 6px;
+    font-size: 12px;
+    font-weight: 800;
+    color: #6b7280;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  .affiliate-edit-post-panel-title,
+  .affiliate-edit-post-block-title {
+    margin: 0;
+    font-size: 22px;
+    font-weight: 900;
+    color: #111827;
+    line-height: 1.2;
+  }
+
+  .affiliate-edit-post-form {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+
+  .affiliate-edit-post-form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+  }
+
+  .affiliate-edit-post-field {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .affiliate-edit-post-field-full {
+    grid-column: span 2;
+  }
+
+  .affiliate-edit-post-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    font-weight: 800;
+    color: #111827;
+  }
+
+  .affiliate-edit-post-input {
+    width: 100%;
+    min-height: 50px;
+    border-radius: 16px;
+    border: 1px solid #dbe2ea;
+    background: #ffffff;
+    padding: 0 14px;
+    font-size: 14px;
+    color: #111827;
+    outline: none;
+    transition: 0.2s ease;
+  }
+
+  .affiliate-edit-post-input:focus {
+    border-color: #111827;
+    box-shadow: 0 0 0 4px rgba(17, 24, 39, 0.06);
+  }
+
+  .affiliate-edit-post-textarea {
+    min-height: 110px;
+    padding: 14px;
+    resize: vertical;
+  }
+
+  .affiliate-edit-post-block {
+    background: #f8fafc;
+    border: 1px solid #edf2f7;
+    border-radius: 22px;
+    padding: 18px;
+  }
+
+  .affiliate-edit-post-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .affiliate-edit-post-card {
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 18px;
+    padding: 16px;
+  }
+
+  .affiliate-edit-post-card-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+
+  .affiliate-edit-post-chip {
+    display: inline-flex;
+    align-items: center;
+    min-height: 34px;
+    padding: 0 12px;
+    border-radius: 999px;
+    background: #f8fafc;
+    border: 1px solid #e5e7eb;
+    color: #111827;
+    font-size: 12px;
+    font-weight: 800;
+  }
+
+  .affiliate-edit-post-icon-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 12px;
+    border: 1px solid #e5e7eb;
+    background: #ffffff;
+    color: #111827;
+    display: grid;
+    place-items: center;
+    cursor: pointer;
+  }
+
+  .affiliate-edit-post-check {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 50px;
+    padding: 0 14px;
+    border-radius: 16px;
+    border: 1px solid #dbe2ea;
+    background: #ffffff;
+    font-size: 14px;
+    font-weight: 700;
+    color: #111827;
+  }
+
+  .affiliate-edit-post-alert {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 14px 16px;
+    border-radius: 16px;
+    font-size: 14px;
+    font-weight: 700;
+  }
+
+  .affiliate-edit-post-alert.error {
+    background: #fff7ed;
+    border: 1px solid #fed7aa;
+    color: #9a3412;
+  }
+
+  .affiliate-edit-post-alert.success {
+    background: #ecfdf3;
+    border: 1px solid #abefc6;
+    color: #027a48;
+  }
+
+  .affiliate-edit-post-summary {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .affiliate-edit-post-summary-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 14px 16px;
+    background: #f8fafc;
+    border: 1px solid #edf2f7;
+    border-radius: 16px;
+  }
+
+  .affiliate-edit-post-summary-row span {
+    color: #6b7280;
+    font-weight: 700;
+    font-size: 13px;
+  }
+
+  .affiliate-edit-post-summary-row strong {
+    color: #111827;
+    font-weight: 900;
+    text-align: right;
+    word-break: break-word;
+  }
+
+  .affiliate-edit-post-status {
+    display: inline-flex;
+    width: fit-content;
+    align-items: center;
+    justify-content: center;
+    min-height: 34px;
+    padding: 0 12px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 800;
+    text-transform: capitalize;
+    border: 1px solid transparent;
+  }
+
+  .affiliate-edit-post-status.active {
+    background: #ecfdf3;
+    color: #027a48;
+    border-color: #abefc6;
+  }
+
+  .affiliate-edit-post-status.inactive {
+    background: #fff7ed;
+    color: #b54708;
+    border-color: #fed7aa;
+  }
+
+  .affiliate-edit-post-status.draft {
+    background: #f8fafc;
+    color: #475467;
+    border-color: #e4e7ec;
+  }
+
+  .affiliate-edit-post-status.neutral {
+    background: #eef2f7;
+    color: #344054;
+    border-color: #dbe2ea;
+  }
+
+  .affiliate-edit-post-preview-image,
+  .affiliate-edit-post-preview-empty {
+    width: 100%;
+    height: 240px;
+    border-radius: 18px;
+    border: 1px solid #edf2f7;
+    background: #f8fafc;
+  }
+
+  .affiliate-edit-post-preview-image {
+    object-fit: cover;
+    display: block;
+  }
+
+  .affiliate-edit-post-preview-empty {
+    display: grid;
+    place-items: center;
+    color: #6b7280;
+    gap: 8px;
+    text-align: center;
+  }
+
+  @media (max-width: 1100px) {
+    .affiliate-edit-post-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  @media (max-width: 991px) {
+    .affiliate-edit-post-hero {
+      flex-direction: column;
+      padding: 20px;
+    }
+
+    .affiliate-edit-post-title {
+      font-size: 26px;
+    }
+
+    .affiliate-edit-post-panel {
+      padding: 18px;
+    }
+  }
+
+  @media (max-width: 767px) {
+    .affiliate-edit-post-title {
+      font-size: 22px;
+    }
+
+    .affiliate-edit-post-subtitle {
+      font-size: 14px;
+    }
+
+    .affiliate-edit-post-form-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .affiliate-edit-post-field-full {
+      grid-column: span 1;
+    }
+
+    .affiliate-edit-post-hero-actions,
+    .affiliate-edit-post-actions,
+    .affiliate-edit-post-block-head {
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    .affiliate-edit-post-btn {
+      width: 100%;
+    }
+
+    .affiliate-edit-post-summary-row,
+    .affiliate-edit-post-card-top {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+  }
+`;

@@ -40,7 +40,7 @@ function createApp() {
   const app = express();
 
   const NODE_ENV = process.env.NODE_ENV || 'development';
-  const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
+  const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5175';
 
   app.disable('x-powered-by');
 

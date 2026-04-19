@@ -1,4 +1,19 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import {
+  CheckCircle2,
+  Crown,
+  Globe,
+  Loader2,
+  RefreshCw,
+  Search,
+  ShieldAlert,
+  ShieldCheck,
+  Trash2,
+  User2,
+  Users,
+  Wallet,
+  XCircle,
+} from 'lucide-react';
 import api from '../../api/axios';
 import formatCurrency from '../../utils/formatCurrency';
 
@@ -14,12 +29,76 @@ function emptySubscriptionForm() {
   };
 }
 
+function formatDateTime(value) {
+  if (!value) return '-';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString();
+}
+
+function statusBadgeClass(status) {
+  const clean = String(status || '').toLowerCase();
+
+  if (clean === 'active') {
+    return 'border-emerald-200 bg-emerald-50 text-emerald-700';
+  }
+
+  if (clean === 'trial') {
+    return 'border-sky-200 bg-sky-50 text-sky-700';
+  }
+
+  if (clean === 'inactive' || clean === 'expired') {
+    return 'border-amber-200 bg-amber-50 text-amber-700';
+  }
+
+  if (clean === 'suspended' || clean === 'cancelled') {
+    return 'border-rose-200 bg-rose-50 text-rose-700';
+  }
+
+  return 'border-slate-200 bg-slate-100 text-slate-700';
+}
+
+function StatCard({ label, value, icon: Icon, tone = 'default' }) {
+  const toneClass =
+    tone === 'primary'
+      ? 'bg-slate-950 text-white border-slate-950'
+      : tone === 'success'
+      ? 'bg-emerald-50 text-emerald-900 border-emerald-200'
+      : tone === 'warning'
+      ? 'bg-amber-50 text-amber-900 border-amber-200'
+      : 'bg-white text-slate-900 border-slate-200';
+
+  const iconWrapClass =
+    tone === 'primary'
+      ? 'bg-white/10 text-white'
+      : tone === 'success'
+      ? 'bg-emerald-100 text-emerald-700'
+      : tone === 'warning'
+      ? 'bg-amber-100 text-amber-700'
+      : 'bg-slate-100 text-slate-700';
+
+  return (
+    <div className={`rounded-3xl border p-5 shadow-sm ${toneClass}`}>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] opacity-70">{label}</p>
+          <p className="mt-3 text-2xl font-bold">{value}</p>
+        </div>
+        <span className={`inline-flex h-12 w-12 items-center justify-center rounded-2xl ${iconWrapClass}`}>
+          <Icon size={20} />
+        </span>
+      </div>
+    </div>
+  );
+}
+
 export default function AdminAffiliatesPage() {
   const [affiliates, setAffiliates] = useState([]);
   const [plans, setPlans] = useState([]);
   const [selectedAffiliateId, setSelectedAffiliateId] = useState('');
   const [affiliateDetails, setAffiliateDetails] = useState(null);
   const [subscriptionForm, setSubscriptionForm] = useState(emptySubscriptionForm());
+  const [search, setSearch] = useState('');
 
   const [loading, setLoading] = useState(true);
   const [detailsLoading, setDetailsLoading] = useState(false);
@@ -27,6 +106,7 @@ export default function AdminAffiliatesPage() {
   const [websiteStatusSaving, setWebsiteStatusSaving] = useState(false);
   const [subscriptionSaving, setSubscriptionSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
@@ -60,6 +140,7 @@ export default function AdminAffiliatesPage() {
     const init = async () => {
       try {
         setLoading(true);
+        setError('');
         await Promise.all([fetchAffiliates(), fetchPlans()]);
       } catch (err) {
         setError(err?.response?.data?.message || 'Failed to load affiliates');
@@ -91,6 +172,20 @@ export default function AdminAffiliatesPage() {
     const chosenId = targetId || selectedAffiliateId;
     if (chosenId) {
       await fetchSingleAffiliate(chosenId);
+    }
+  };
+
+  const handleRefresh = async () => {
+    try {
+      setRefreshing(true);
+      setError('');
+      setSuccess('');
+      await refreshAll();
+      setSuccess('Affiliate data refreshed successfully');
+    } catch (err) {
+      setError(err?.response?.data?.message || 'Failed to refresh affiliate data');
+    } finally {
+      setRefreshing(false);
     }
   };
 
@@ -189,6 +284,12 @@ export default function AdminAffiliatesPage() {
   const handleDeleteAffiliate = async () => {
     if (!selectedAffiliateId) return;
 
+    const confirmed = window.confirm(
+      'Are you sure you want to delete this affiliate account? This action cannot be undone.'
+    );
+
+    if (!confirmed) return;
+
     try {
       setDeleting(true);
       setError('');
@@ -207,288 +308,669 @@ export default function AdminAffiliatesPage() {
     }
   };
 
+  const filteredAffiliates = useMemo(() => {
+    const keyword = search.trim().toLowerCase();
+    if (!keyword) return affiliates;
+
+    return affiliates.filter((affiliate) => {
+      const name = String(affiliate?.name || '').toLowerCase();
+      const email = String(affiliate?.email || '').toLowerCase();
+      const website = String(affiliate?.website?.website_name || '').toLowerCase();
+      const status = String(affiliate?.status || '').toLowerCase();
+      return (
+        name.includes(keyword) ||
+        email.includes(keyword) ||
+        website.includes(keyword) ||
+        status.includes(keyword)
+      );
+    });
+  }, [affiliates, search]);
+
+  const stats = useMemo(() => {
+    const total = affiliates.length;
+    const active = affiliates.filter(
+      (item) => String(item?.status || '').toLowerCase() === 'active'
+    ).length;
+    const suspended = affiliates.filter(
+      (item) => String(item?.status || '').toLowerCase() === 'suspended'
+    ).length;
+    const withWebsite = affiliates.filter((item) => item?.website?.id).length;
+
+    return { total, active, suspended, withWebsite };
+  }, [affiliates]);
+
   if (loading) {
     return (
-      <div className="page-shell">
-        <div className="container section-space">Loading affiliates...</div>
+      <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
+        <div className="flex items-center gap-3 text-slate-600">
+          <Loader2 className="animate-spin" size={18} />
+          <span className="text-sm font-medium">Loading affiliates...</span>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="page-shell">
-      <div className="container section-space">
-        <div className="surface-card surface-card-padding" style={{ marginBottom: 20 }}>
-          <h1 className="page-title">Admin Affiliates</h1>
-          <p className="page-subtitle">
-            View affiliate accounts, update statuses, manage websites, and assign subscriptions.
-          </p>
+    <div className="space-y-6">
+      <section className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm">
+        <div className="border-b border-slate-200 bg-gradient-to-r from-slate-950 via-slate-900 to-slate-800 px-6 py-7 text-white sm:px-8">
+          <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+            <div className="max-w-3xl">
+              <p className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-300">
+                Administrator
+              </p>
+              <h1 className="mt-2 text-2xl font-bold sm:text-3xl">Affiliate Management</h1>
+              <p className="mt-3 max-w-2xl text-sm text-slate-300 sm:text-base">
+                View affiliate accounts, review website setup, control access status, and assign
+                subscription plans from one clean admin page.
+              </p>
+            </div>
+
+            <div className="flex flex-wrap gap-3">
+              <button
+                type="button"
+                onClick={handleRefresh}
+                disabled={refreshing}
+                className="inline-flex items-center gap-2 rounded-2xl border border-white/15 bg-white/10 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <RefreshCw size={16} className={refreshing ? 'animate-spin' : ''} />
+                {refreshing ? 'Refreshing...' : 'Refresh'}
+              </button>
+            </div>
+          </div>
         </div>
 
-        <div className="grid-2">
-          <div className="surface-card surface-card-padding">
-            <h2 className="section-title">Affiliate List</h2>
+        <div className="grid gap-4 px-6 py-6 sm:grid-cols-2 xl:grid-cols-4 sm:px-8">
+          <StatCard label="Total Affiliates" value={stats.total} icon={Users} tone="primary" />
+          <StatCard label="Active Accounts" value={stats.active} icon={ShieldCheck} tone="success" />
+          <StatCard label="Suspended" value={stats.suspended} icon={ShieldAlert} tone="warning" />
+          <StatCard label="With Website" value={stats.withWebsite} icon={Globe} />
+        </div>
+      </section>
 
-            <div className="form-stack">
-              {affiliates.length ? (
-                affiliates.map((affiliate) => (
-                  <button
-                    key={affiliate.id}
-                    type="button"
-                    className="surface-card surface-card-padding"
-                    onClick={() => handleSelectAffiliate(affiliate)}
-                    style={{
-                      textAlign: 'left',
-                      cursor: 'pointer',
-                      border:
-                        String(selectedAffiliateId) === String(affiliate.id)
-                          ? '1px solid rgba(122, 92, 255, 0.9)'
-                          : '1px solid rgba(255,255,255,0.08)',
-                      background:
-                        String(selectedAffiliateId) === String(affiliate.id)
-                          ? 'rgba(122, 92, 255, 0.12)'
-                          : 'rgba(255,255,255,0.06)',
-                    }}
-                  >
-                    <div style={{ fontWeight: 700 }}>{affiliate.name}</div>
-                    <div style={{ color: 'rgba(245,247,251,0.72)' }}>{affiliate.email}</div>
-                    <div style={{ color: 'rgba(245,247,251,0.72)' }}>
-                      Status: {affiliate.status}
-                    </div>
-                    <div style={{ color: 'rgba(245,247,251,0.72)' }}>
-                      Website: {affiliate.website?.website_name || '-'}
-                    </div>
-                  </button>
-                ))
-              ) : (
-                <div>No affiliates yet.</div>
-              )}
+      {error ? (
+        <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700">
+          {error}
+        </div>
+      ) : null}
+
+      {success ? (
+        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
+          {success}
+        </div>
+      ) : null}
+
+      <div className="grid gap-6 xl:grid-cols-[360px_minmax(0,1fr)]">
+        <section className="rounded-[28px] border border-slate-200 bg-white shadow-sm">
+          <div className="border-b border-slate-200 px-5 py-5 sm:px-6">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-bold text-slate-900">Affiliate List</h2>
+                <p className="mt-1 text-sm text-slate-500">
+                  Select any affiliate to manage account details.
+                </p>
+              </div>
+              <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
+                {filteredAffiliates.length} shown
+              </span>
+            </div>
+
+            <div className="relative mt-4">
+              <Search
+                size={16}
+                className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
+              />
+              <input
+                type="text"
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Search name, email, website, status..."
+                className="w-full rounded-2xl border border-slate-200 bg-slate-50 py-3 pl-11 pr-4 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-400 focus:bg-white"
+              />
             </div>
           </div>
 
-          <div className="surface-card surface-card-padding">
-            <h2 className="section-title">Affiliate Details</h2>
+          <div className="max-h-[980px] space-y-3 overflow-y-auto px-4 py-4 sm:px-5">
+            {filteredAffiliates.length ? (
+              filteredAffiliates.map((affiliate) => {
+                const selected = String(selectedAffiliateId) === String(affiliate.id);
 
-            {detailsLoading ? (
-              <div>Loading affiliate details...</div>
-            ) : affiliateDetails ? (
-              <div className="form-stack">
-                <div className="surface-card surface-card-padding">
-                  <div><strong>Name:</strong> {affiliateDetails.name}</div>
-                  <div><strong>Email:</strong> {affiliateDetails.email}</div>
-                  <div><strong>Status:</strong> {affiliateDetails.status}</div>
-                  <div><strong>Role:</strong> {affiliateDetails.role}</div>
-                  <div><strong>Total Products:</strong> {affiliateDetails.stats?.total_products || 0}</div>
-                  <div><strong>Total Posts:</strong> {affiliateDetails.stats?.total_posts || 0}</div>
-                </div>
+                return (
+                  <button
+                    key={affiliate.id}
+                    type="button"
+                    onClick={() => handleSelectAffiliate(affiliate)}
+                    className={[
+                      'w-full rounded-3xl border p-4 text-left transition',
+                      selected
+                        ? 'border-slate-900 bg-slate-950 text-white shadow-sm'
+                        : 'border-slate-200 bg-white text-slate-900 hover:border-slate-300 hover:bg-slate-50',
+                    ].join(' ')}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span
+                            className={[
+                              'inline-flex h-10 w-10 items-center justify-center rounded-2xl',
+                              selected ? 'bg-white/10 text-white' : 'bg-slate-100 text-slate-700',
+                            ].join(' ')}
+                          >
+                            <User2 size={18} />
+                          </span>
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-bold">{affiliate.name}</p>
+                            <p
+                              className={[
+                                'truncate text-xs',
+                                selected ? 'text-slate-300' : 'text-slate-500',
+                              ].join(' ')}
+                            >
+                              {affiliate.email}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
 
-                <div className="surface-card surface-card-padding">
-                  <h3 className="section-title">Website</h3>
-                  <div><strong>Name:</strong> {affiliateDetails.website?.website_name || '-'}</div>
-                  <div><strong>Slug:</strong> {affiliateDetails.website?.slug || '-'}</div>
-                  <div><strong>Status:</strong> {affiliateDetails.website?.website_status || '-'}</div>
+                      <span
+                        className={[
+                          'rounded-full border px-2.5 py-1 text-[11px] font-semibold capitalize',
+                          selected
+                            ? 'border-white/15 bg-white/10 text-white'
+                            : statusBadgeClass(affiliate.status),
+                        ].join(' ')}
+                      >
+                        {affiliate.status || '-'}
+                      </span>
+                    </div>
 
-                  <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 14 }}>
-                    <button
-                      className="btn btn-secondary"
-                      type="button"
-                      onClick={() => handleWebsiteStatusChange('active')}
-                      disabled={websiteStatusSaving || !affiliateDetails.website?.id}
+                    <div
+                      className={[
+                        'mt-4 grid gap-2 text-xs',
+                        selected ? 'text-slate-300' : 'text-slate-500',
+                      ].join(' ')}
                     >
-                      Set Website Active
-                    </button>
-                    <button
-                      className="btn btn-secondary"
-                      type="button"
-                      onClick={() => handleWebsiteStatusChange('inactive')}
-                      disabled={websiteStatusSaving || !affiliateDetails.website?.id}
-                    >
-                      Set Website Inactive
-                    </button>
-                    <button
-                      className="btn btn-secondary"
-                      type="button"
-                      onClick={() => handleWebsiteStatusChange('suspended')}
-                      disabled={websiteStatusSaving || !affiliateDetails.website?.id}
-                    >
-                      Suspend Website
-                    </button>
+                      <div className="flex items-center justify-between gap-3">
+                        <span>Website</span>
+                        <span className="truncate font-medium">
+                          {affiliate.website?.website_name || '-'}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between gap-3">
+                        <span>Role</span>
+                        <span className="font-medium capitalize">{affiliate.role || '-'}</span>
+                      </div>
+                    </div>
+                  </button>
+                );
+              })
+            ) : (
+              <div className="rounded-3xl border border-dashed border-slate-200 bg-slate-50 px-4 py-10 text-center">
+                <p className="text-sm font-medium text-slate-500">No affiliates found.</p>
+              </div>
+            )}
+          </div>
+        </section>
+
+        <section className="space-y-6">
+          {detailsLoading ? (
+            <div className="rounded-[28px] border border-slate-200 bg-white p-8 shadow-sm">
+              <div className="flex items-center gap-3 text-slate-600">
+                <Loader2 className="animate-spin" size={18} />
+                <span className="text-sm font-medium">Loading affiliate details...</span>
+              </div>
+            </div>
+          ) : affiliateDetails ? (
+            <>
+              <div className="grid gap-6 2xl:grid-cols-[minmax(0,1.1fr)_380px]">
+                <div className="space-y-6">
+                  <div className="rounded-[28px] border border-slate-200 bg-white shadow-sm">
+                    <div className="border-b border-slate-200 px-6 py-5">
+                      <h3 className="text-lg font-bold text-slate-900">Affiliate Profile</h3>
+                      <p className="mt-1 text-sm text-slate-500">
+                        Account identity, role and basic activity figures.
+                      </p>
+                    </div>
+
+                    <div className="grid gap-4 px-6 py-6 md:grid-cols-2">
+                      <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+                          Full Name
+                        </p>
+                        <p className="mt-2 text-sm font-bold text-slate-900">
+                          {affiliateDetails.name}
+                        </p>
+                      </div>
+
+                      <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+                          Email
+                        </p>
+                        <p className="mt-2 break-all text-sm font-bold text-slate-900">
+                          {affiliateDetails.email}
+                        </p>
+                      </div>
+
+                      <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+                          Status
+                        </p>
+                        <div className="mt-2">
+                          <span
+                            className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold capitalize ${statusBadgeClass(
+                              affiliateDetails.status
+                            )}`}
+                          >
+                            {affiliateDetails.status || '-'}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+                          Role
+                        </p>
+                        <p className="mt-2 text-sm font-bold capitalize text-slate-900">
+                          {affiliateDetails.role || '-'}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="grid gap-4 border-t border-slate-200 px-6 py-6 sm:grid-cols-2">
+                      <StatCard
+                        label="Total Products"
+                        value={affiliateDetails.stats?.total_products || 0}
+                        icon={Crown}
+                      />
+                      <StatCard
+                        label="Total Posts"
+                        value={affiliateDetails.stats?.total_posts || 0}
+                        icon={Globe}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="rounded-[28px] border border-slate-200 bg-white shadow-sm">
+                    <div className="border-b border-slate-200 px-6 py-5">
+                      <h3 className="text-lg font-bold text-slate-900">Website Control</h3>
+                      <p className="mt-1 text-sm text-slate-500">
+                        Review site profile and control website status.
+                      </p>
+                    </div>
+
+                    <div className="grid gap-4 px-6 py-6 md:grid-cols-3">
+                      <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+                          Website Name
+                        </p>
+                        <p className="mt-2 text-sm font-bold text-slate-900">
+                          {affiliateDetails.website?.website_name || '-'}
+                        </p>
+                      </div>
+
+                      <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+                          Slug
+                        </p>
+                        <p className="mt-2 break-all text-sm font-bold text-slate-900">
+                          {affiliateDetails.website?.slug || '-'}
+                        </p>
+                      </div>
+
+                      <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+                          Website Status
+                        </p>
+                        <div className="mt-2">
+                          <span
+                            className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold capitalize ${statusBadgeClass(
+                              affiliateDetails.website?.website_status
+                            )}`}
+                          >
+                            {affiliateDetails.website?.website_status || '-'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap gap-3 border-t border-slate-200 px-6 py-6">
+                      <button
+                        type="button"
+                        onClick={() => handleWebsiteStatusChange('active')}
+                        disabled={websiteStatusSaving || !affiliateDetails.website?.id}
+                        className="inline-flex items-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        <CheckCircle2 size={16} />
+                        Set Website Active
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => handleWebsiteStatusChange('inactive')}
+                        disabled={websiteStatusSaving || !affiliateDetails.website?.id}
+                        className="inline-flex items-center gap-2 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-700 transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        <XCircle size={16} />
+                        Set Website Inactive
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => handleWebsiteStatusChange('suspended')}
+                        disabled={websiteStatusSaving || !affiliateDetails.website?.id}
+                        className="inline-flex items-center gap-2 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        <ShieldAlert size={16} />
+                        Suspend Website
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="rounded-[28px] border border-slate-200 bg-white shadow-sm">
+                    <div className="border-b border-slate-200 px-6 py-5">
+                      <h3 className="text-lg font-bold text-slate-900">Affiliate Status Control</h3>
+                      <p className="mt-1 text-sm text-slate-500">
+                        Activate, deactivate or suspend this affiliate account.
+                      </p>
+                    </div>
+
+                    <div className="flex flex-wrap gap-3 px-6 py-6">
+                      <button
+                        type="button"
+                        onClick={() => handleAffiliateStatusChange('active')}
+                        disabled={statusSaving}
+                        className="inline-flex items-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        <CheckCircle2 size={16} />
+                        Set Active
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => handleAffiliateStatusChange('inactive')}
+                        disabled={statusSaving}
+                        className="inline-flex items-center gap-2 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-700 transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        <XCircle size={16} />
+                        Set Inactive
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => handleAffiliateStatusChange('suspended')}
+                        disabled={statusSaving}
+                        className="inline-flex items-center gap-2 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        <ShieldAlert size={16} />
+                        Suspend
+                      </button>
+                    </div>
                   </div>
                 </div>
 
-                <div className="surface-card surface-card-padding">
-                  <h3 className="section-title">Affiliate Status</h3>
+                <div className="space-y-6">
+                  <div className="rounded-[28px] border border-slate-200 bg-white shadow-sm">
+                    <div className="border-b border-slate-200 px-6 py-5">
+                      <h3 className="text-lg font-bold text-slate-900">Current Subscription</h3>
+                      <p className="mt-1 text-sm text-slate-500">
+                        Current plan overview and billing status.
+                      </p>
+                    </div>
 
-                  <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                    <button
-                      className="btn btn-secondary"
-                      type="button"
-                      onClick={() => handleAffiliateStatusChange('active')}
-                      disabled={statusSaving}
-                    >
-                      Set Active
-                    </button>
-                    <button
-                      className="btn btn-secondary"
-                      type="button"
-                      onClick={() => handleAffiliateStatusChange('inactive')}
-                      disabled={statusSaving}
-                    >
-                      Set Inactive
-                    </button>
-                    <button
-                      className="btn btn-secondary"
-                      type="button"
-                      onClick={() => handleAffiliateStatusChange('suspended')}
-                      disabled={statusSaving}
-                    >
-                      Suspend
-                    </button>
+                    <div className="space-y-4 px-6 py-6">
+                      <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+                          Plan
+                        </p>
+                        <p className="mt-2 text-sm font-bold text-slate-900">
+                          {affiliateDetails.subscription?.plan_name || '-'}
+                        </p>
+                      </div>
+
+                      <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+                          Status
+                        </p>
+                        <div className="mt-2">
+                          <span
+                            className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold capitalize ${statusBadgeClass(
+                              affiliateDetails.subscription?.subscription_status
+                            )}`}
+                          >
+                            {affiliateDetails.subscription?.subscription_status || '-'}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+                          Plan Price
+                        </p>
+                        <p className="mt-2 text-sm font-bold text-slate-900">
+                          {affiliateDetails.subscription?.plan_price !== null &&
+                          affiliateDetails.subscription?.plan_price !== undefined
+                            ? formatCurrency(affiliateDetails.subscription.plan_price)
+                            : '-'}
+                        </p>
+                      </div>
+
+                      <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+                          Amount Paid
+                        </p>
+                        <p className="mt-2 text-sm font-bold text-slate-900">
+                          {affiliateDetails.subscription?.amount_paid !== null &&
+                          affiliateDetails.subscription?.amount_paid !== undefined
+                            ? formatCurrency(affiliateDetails.subscription.amount_paid)
+                            : '-'}
+                        </p>
+                      </div>
+
+                      <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+                          Start Date
+                        </p>
+                        <p className="mt-2 text-sm font-bold text-slate-900">
+                          {formatDateTime(affiliateDetails.subscription?.start_date)}
+                        </p>
+                      </div>
+
+                      <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+                          End Date
+                        </p>
+                        <p className="mt-2 text-sm font-bold text-slate-900">
+                          {formatDateTime(affiliateDetails.subscription?.end_date)}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="rounded-[28px] border border-slate-200 bg-white shadow-sm">
+                    <div className="border-b border-slate-200 px-6 py-5">
+                      <h3 className="text-lg font-bold text-slate-900">Danger Zone</h3>
+                      <p className="mt-1 text-sm text-slate-500">
+                        Permanently remove this affiliate account.
+                      </p>
+                    </div>
+
+                    <div className="px-6 py-6">
+                      <button
+                        type="button"
+                        onClick={handleDeleteAffiliate}
+                        disabled={deleting}
+                        className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        <Trash2 size={16} />
+                        {deleting ? 'Deleting...' : 'Delete Affiliate'}
+                      </button>
+                    </div>
                   </div>
                 </div>
+              </div>
 
-                <div className="surface-card surface-card-padding">
-                  <h3 className="section-title">Current Subscription</h3>
-                  <div><strong>Plan:</strong> {affiliateDetails.subscription?.plan_name || '-'}</div>
-                  <div><strong>Status:</strong> {affiliateDetails.subscription?.subscription_status || '-'}</div>
-                  <div>
-                    <strong>Price:</strong>{' '}
-                    {affiliateDetails.subscription?.plan_price !== null &&
-                    affiliateDetails.subscription?.plan_price !== undefined
-                      ? formatCurrency(affiliateDetails.subscription.plan_price)
-                      : '-'}
-                  </div>
-                  <div>
-                    <strong>Amount Paid:</strong>{' '}
-                    {affiliateDetails.subscription?.amount_paid !== null &&
-                    affiliateDetails.subscription?.amount_paid !== undefined
-                      ? formatCurrency(affiliateDetails.subscription.amount_paid)
-                      : '-'}
-                  </div>
+              <div className="rounded-[28px] border border-slate-200 bg-white shadow-sm">
+                <div className="border-b border-slate-200 px-6 py-5">
+                  <h3 className="text-lg font-bold text-slate-900">Assign Subscription</h3>
+                  <p className="mt-1 text-sm text-slate-500">
+                    Attach a plan and control trial, amount paid and validity period.
+                  </p>
                 </div>
 
-                <div className="surface-card surface-card-padding">
-                  <h3 className="section-title">Assign Subscription</h3>
+                <form onSubmit={handleAssignSubscription} className="space-y-6 px-6 py-6">
+                  <div className="grid gap-4 lg:grid-cols-3">
+                    <div>
+                      <label className="mb-2 block text-sm font-semibold text-slate-700">Plan</label>
+                      <select
+                        className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-slate-400"
+                        name="plan_id"
+                        value={subscriptionForm.plan_id}
+                        onChange={handleSubscriptionChange}
+                      >
+                        <option value="">Select plan</option>
+                        {plans.map((plan) => (
+                          <option key={plan.id} value={plan.id}>
+                            {plan.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
 
-                  <form className="form-stack" onSubmit={handleAssignSubscription}>
-                    <select
-                      className="input-control"
-                      name="plan_id"
-                      value={subscriptionForm.plan_id}
-                      onChange={handleSubscriptionChange}
-                    >
-                      <option value="">Select plan</option>
-                      {plans.map((plan) => (
-                        <option key={plan.id} value={plan.id}>
-                          {plan.name}
-                        </option>
-                      ))}
-                    </select>
+                    <div>
+                      <label className="mb-2 block text-sm font-semibold text-slate-700">
+                        Subscription Status
+                      </label>
+                      <select
+                        className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-slate-400"
+                        name="status"
+                        value={subscriptionForm.status}
+                        onChange={handleSubscriptionChange}
+                      >
+                        <option value="trial">Trial</option>
+                        <option value="active">Active</option>
+                        <option value="expired">Expired</option>
+                        <option value="cancelled">Cancelled</option>
+                      </select>
+                    </div>
 
-                    <select
-                      className="input-control"
-                      name="status"
-                      value={subscriptionForm.status}
-                      onChange={handleSubscriptionChange}
-                    >
-                      <option value="trial">Trial</option>
-                      <option value="active">Active</option>
-                      <option value="expired">Expired</option>
-                      <option value="cancelled">Cancelled</option>
-                    </select>
+                    <div>
+                      <label className="mb-2 block text-sm font-semibold text-slate-700">
+                        Amount Paid
+                      </label>
+                      <div className="relative">
+                        <Wallet
+                          size={16}
+                          className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
+                        />
+                        <input
+                          className="w-full rounded-2xl border border-slate-200 bg-white py-3 pl-11 pr-4 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-400"
+                          name="amount_paid"
+                          type="number"
+                          placeholder="Amount paid"
+                          value={subscriptionForm.amount_paid}
+                          onChange={handleSubscriptionChange}
+                        />
+                      </div>
+                    </div>
+                  </div>
 
-                    <input
-                      className="input-control"
-                      name="amount_paid"
-                      type="number"
-                      placeholder="Amount paid"
-                      value={subscriptionForm.amount_paid}
-                      onChange={handleSubscriptionChange}
-                    />
-
-                    <div className="grid-2">
+                  <div className="grid gap-4 lg:grid-cols-2">
+                    <div>
+                      <label className="mb-2 block text-sm font-semibold text-slate-700">
+                        Trial Start
+                      </label>
                       <input
-                        className="input-control"
+                        className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-slate-400"
                         name="trial_start"
                         type="datetime-local"
                         value={subscriptionForm.trial_start}
                         onChange={handleSubscriptionChange}
                       />
+                    </div>
+
+                    <div>
+                      <label className="mb-2 block text-sm font-semibold text-slate-700">
+                        Trial End
+                      </label>
                       <input
-                        className="input-control"
+                        className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-slate-400"
                         name="trial_end"
                         type="datetime-local"
                         value={subscriptionForm.trial_end}
                         onChange={handleSubscriptionChange}
                       />
                     </div>
+                  </div>
 
-                    <div className="grid-2">
+                  <div className="grid gap-4 lg:grid-cols-2">
+                    <div>
+                      <label className="mb-2 block text-sm font-semibold text-slate-700">
+                        Start Date
+                      </label>
                       <input
-                        className="input-control"
+                        className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-slate-400"
                         name="start_date"
                         type="datetime-local"
                         value={subscriptionForm.start_date}
                         onChange={handleSubscriptionChange}
                       />
+                    </div>
+
+                    <div>
+                      <label className="mb-2 block text-sm font-semibold text-slate-700">
+                        End Date
+                      </label>
                       <input
-                        className="input-control"
+                        className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-slate-400"
                         name="end_date"
                         type="datetime-local"
                         value={subscriptionForm.end_date}
                         onChange={handleSubscriptionChange}
                       />
                     </div>
+                  </div>
 
-                    <button className="btn btn-primary" type="submit" disabled={subscriptionSaving}>
-                      {subscriptionSaving ? 'Saving...' : 'Assign Subscription'}
+                  <div className="flex flex-wrap items-center justify-between gap-3 rounded-3xl border border-slate-200 bg-slate-50 px-4 py-4">
+                    <div>
+                      <p className="text-sm font-semibold text-slate-900">Save subscription changes</p>
+                      <p className="mt-1 text-xs text-slate-500">
+                        This keeps the current API flow and only upgrades the admin UI.
+                      </p>
+                    </div>
+
+                    <button
+                      className="inline-flex items-center gap-2 rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                      type="submit"
+                      disabled={subscriptionSaving}
+                    >
+                      {subscriptionSaving ? (
+                        <>
+                          <Loader2 size={16} className="animate-spin" />
+                          Saving...
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle2 size={16} />
+                          Assign Subscription
+                        </>
+                      )}
                     </button>
-                  </form>
-                </div>
-
-                <div className="surface-card surface-card-padding">
-                  <h3 className="section-title">Danger Zone</h3>
-                  <button
-                    className="btn btn-secondary"
-                    type="button"
-                    onClick={handleDeleteAffiliate}
-                    disabled={deleting}
-                  >
-                    {deleting ? 'Deleting...' : 'Delete Affiliate'}
-                  </button>
-                </div>
-
-                {error ? (
-                  <div
-                    style={{
-                      padding: '12px 14px',
-                      borderRadius: 12,
-                      background: 'rgba(255, 80, 80, 0.12)',
-                      border: '1px solid rgba(255, 80, 80, 0.22)',
-                    }}
-                  >
-                    {error}
                   </div>
-                ) : null}
-
-                {success ? (
-                  <div
-                    style={{
-                      padding: '12px 14px',
-                      borderRadius: 12,
-                      background: 'rgba(80, 200, 120, 0.12)',
-                      border: '1px solid rgba(80, 200, 120, 0.22)',
-                    }}
-                  >
-                    {success}
-                  </div>
-                ) : null}
+                </form>
               </div>
-            ) : (
-              <div>Select an affiliate to view details.</div>
-            )}
-          </div>
-        </div>
+            </>
+          ) : (
+            <div className="rounded-[28px] border border-dashed border-slate-300 bg-white px-6 py-16 text-center shadow-sm">
+              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-slate-100 text-slate-500">
+                <Users size={24} />
+              </div>
+              <h3 className="mt-5 text-lg font-bold text-slate-900">No affiliate selected</h3>
+              <p className="mt-2 text-sm text-slate-500">
+                Choose an affiliate from the left panel to view details and manage the account.
+              </p>
+            </div>
+          )}
+        </section>
       </div>
     </div>
   );
