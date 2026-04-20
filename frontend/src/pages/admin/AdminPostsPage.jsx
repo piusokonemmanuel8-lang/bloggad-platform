@@ -1,15 +1,128 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import {
+  BadgeCheck,
+  ExternalLink,
+  FileText,
+  Globe,
+  Image as ImageIcon,
+  Loader2,
+  RefreshCw,
+  Search,
+  ShieldAlert,
+  SquarePen,
+  Tag,
+  Trash2,
+  User2,
+  XCircle,
+} from 'lucide-react';
 import api from '../../api/axios';
+
+function formatDateTime(value) {
+  if (!value) return '-';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString();
+}
+
+function cardStyle(extra = {}) {
+  return {
+    background: '#ffffff',
+    border: '1px solid #dcdcde',
+    borderRadius: 0,
+    boxShadow: 'none',
+    ...extra,
+  };
+}
+
+function badgeStyle(status) {
+  const clean = String(status || '').toLowerCase();
+
+  if (clean === 'published') {
+    return {
+      border: '1px solid #b7e4c7',
+      background: '#ecfdf3',
+      color: '#166534',
+    };
+  }
+
+  if (clean === 'draft') {
+    return {
+      border: '1px solid #f3d28b',
+      background: '#fff7e6',
+      color: '#9a6700',
+    };
+  }
+
+  if (clean === 'inactive') {
+    return {
+      border: '1px solid #f1b5b8',
+      background: '#fff1f2',
+      color: '#b42318',
+    };
+  }
+
+  return {
+    border: '1px solid #dcdcde',
+    background: '#f6f7f7',
+    color: '#50575e',
+  };
+}
+
+function StatCard({ label, value, icon: Icon, tone = 'default' }) {
+  const iconTone =
+    tone === 'primary'
+      ? { background: '#2271b1', color: '#fff', border: '1px solid #2271b1' }
+      : tone === 'success'
+      ? { background: '#ecfdf3', color: '#166534', border: '1px solid #b7e4c7' }
+      : tone === 'warning'
+      ? { background: '#fff7e6', color: '#9a6700', border: '1px solid #f3d28b' }
+      : { background: '#f6f7f7', color: '#1d2327', border: '1px solid #dcdcde' };
+
+  return (
+    <div style={cardStyle({ padding: 20 })}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'flex-start',
+          justifyContent: 'space-between',
+          gap: 16,
+        }}
+      >
+        <div>
+          <div style={{ fontSize: 13, color: '#646970', marginBottom: 10 }}>{label}</div>
+          <div style={{ fontSize: 34, lineHeight: 1, fontWeight: 700, color: '#1d2327' }}>
+            {value}
+          </div>
+        </div>
+
+        <div
+          style={{
+            width: 44,
+            height: 44,
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            ...iconTone,
+          }}
+        >
+          <Icon size={18} />
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function AdminPostsPage() {
   const [posts, setPosts] = useState([]);
   const [selectedPostId, setSelectedPostId] = useState('');
   const [postDetails, setPostDetails] = useState(null);
+  const [search, setSearch] = useState('');
 
   const [loading, setLoading] = useState(true);
   const [detailsLoading, setDetailsLoading] = useState(false);
   const [statusSaving, setStatusSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
@@ -27,6 +140,7 @@ export default function AdminPostsPage() {
     const init = async () => {
       try {
         setLoading(true);
+        setError('');
         await fetchPosts();
       } catch (err) {
         setError(err?.response?.data?.message || 'Failed to load posts');
@@ -61,6 +175,20 @@ export default function AdminPostsPage() {
     }
   };
 
+  const handleRefresh = async () => {
+    try {
+      setRefreshing(true);
+      setError('');
+      setSuccess('');
+      await refreshAll();
+      setSuccess('Posts refreshed successfully');
+    } catch (err) {
+      setError(err?.response?.data?.message || 'Failed to refresh posts');
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
   const handleStatusChange = async (status) => {
     if (!selectedPostId) return;
 
@@ -85,6 +213,9 @@ export default function AdminPostsPage() {
   const handleDelete = async () => {
     if (!selectedPostId) return;
 
+    const confirmed = window.confirm('Are you sure you want to delete this post?');
+    if (!confirmed) return;
+
     try {
       setDeleting(true);
       setError('');
@@ -102,223 +233,825 @@ export default function AdminPostsPage() {
     }
   };
 
+  const filteredPosts = useMemo(() => {
+    const keyword = search.trim().toLowerCase();
+    if (!keyword) return posts;
+
+    return posts.filter((post) => {
+      const title = String(post?.title || '').toLowerCase();
+      const affiliate = String(post?.affiliate?.name || '').toLowerCase();
+      const product = String(post?.product?.title || '').toLowerCase();
+      const status = String(post?.status || '').toLowerCase();
+
+      return (
+        title.includes(keyword) ||
+        affiliate.includes(keyword) ||
+        product.includes(keyword) ||
+        status.includes(keyword)
+      );
+    });
+  }, [posts, search]);
+
+  const stats = useMemo(() => {
+    const total = posts.length;
+    const published = posts.filter(
+      (item) => String(item?.status || '').toLowerCase() === 'published'
+    ).length;
+    const draft = posts.filter(
+      (item) => String(item?.status || '').toLowerCase() === 'draft'
+    ).length;
+    const inactive = posts.filter(
+      (item) => String(item?.status || '').toLowerCase() === 'inactive'
+    ).length;
+
+    return { total, published, draft, inactive };
+  }, [posts]);
+
   if (loading) {
     return (
-      <div className="page-shell">
-        <div className="container section-space">Loading posts...</div>
+      <div style={cardStyle({ padding: 20 })}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: '#646970' }}>
+          <Loader2 size={18} className="spin-soft" />
+          <span>Loading posts...</span>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="page-shell">
-      <div className="container section-space">
-        <div className="surface-card surface-card-padding" style={{ marginBottom: 20 }}>
-          <h1 className="page-title">Admin Posts</h1>
-          <p className="page-subtitle">
-            Review affiliate posts, inspect fields and CTA buttons, change status, and delete posts.
-          </p>
+    <div>
+      <style>{`
+        .admin-post-grid-4 {
+          display: grid;
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+          gap: 20px;
+        }
+        .admin-post-main-grid {
+          display: grid;
+          grid-template-columns: 380px minmax(0, 1fr);
+          gap: 20px;
+        }
+        .admin-post-split-grid {
+          display: grid;
+          grid-template-columns: minmax(0, 1fr) 340px;
+          gap: 20px;
+        }
+        .admin-post-two-grid {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 16px;
+        }
+        .spin-soft {
+          animation: spinSoft 0.9s linear infinite;
+        }
+        @keyframes spinSoft {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+        @media (max-width: 1200px) {
+          .admin-post-grid-4,
+          .admin-post-main-grid,
+          .admin-post-split-grid,
+          .admin-post-two-grid {
+            grid-template-columns: 1fr;
+          }
+        }
+      `}</style>
+
+      <div style={{ marginBottom: 22 }}>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'flex-start',
+            justifyContent: 'space-between',
+            gap: 16,
+            flexWrap: 'wrap',
+            marginBottom: 10,
+          }}
+        >
+          <div>
+            <h1
+              style={{
+                margin: 0,
+                fontSize: 28,
+                lineHeight: 1.2,
+                fontWeight: 700,
+                color: '#1d2327',
+              }}
+            >
+              Posts
+            </h1>
+            <p style={{ margin: '8px 0 0', fontSize: 14, color: '#646970' }}>
+              Review affiliate posts, inspect content details, verify CTA buttons, and manage status.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleRefresh}
+            disabled={refreshing}
+            style={{
+              border: '1px solid #2271b1',
+              background: refreshing ? '#f6f7f7' : '#ffffff',
+              color: '#2271b1',
+              padding: '10px 16px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 8,
+            }}
+          >
+            <RefreshCw size={16} className={refreshing ? 'spin-soft' : ''} />
+            {refreshing ? 'Refreshing...' : 'Refresh'}
+          </button>
         </div>
+      </div>
 
-        <div className="grid-2">
-          <div className="surface-card surface-card-padding">
-            <h2 className="section-title">Post List</h2>
+      {error ? (
+        <div
+          style={{
+            ...cardStyle({
+              padding: 14,
+              borderLeft: '4px solid #d63638',
+              color: '#b42318',
+              marginBottom: 20,
+            }),
+          }}
+        >
+          {error}
+        </div>
+      ) : null}
 
-            <div className="form-stack">
-              {posts.length ? (
-                posts.map((post) => (
-                  <button
-                    key={post.id}
-                    type="button"
-                    className="surface-card surface-card-padding"
-                    onClick={() => handleSelectPost(post)}
-                    style={{
-                      textAlign: 'left',
-                      cursor: 'pointer',
-                      border:
-                        String(selectedPostId) === String(post.id)
-                          ? '1px solid rgba(122, 92, 255, 0.9)'
-                          : '1px solid rgba(255,255,255,0.08)',
-                      background:
-                        String(selectedPostId) === String(post.id)
-                          ? 'rgba(122, 92, 255, 0.12)'
-                          : 'rgba(255,255,255,0.06)',
-                    }}
-                  >
-                    <div style={{ fontWeight: 700 }}>{post.title}</div>
-                    <div style={{ color: 'rgba(245,247,251,0.72)' }}>
-                      Affiliate: {post.affiliate?.name || '-'}
-                    </div>
-                    <div style={{ color: 'rgba(245,247,251,0.72)' }}>
-                      Product: {post.product?.title || '-'}
-                    </div>
-                    <div style={{ color: 'rgba(245,247,251,0.72)' }}>
-                      Status: {post.status}
-                    </div>
-                  </button>
-                ))
-              ) : (
-                <div>No posts found.</div>
-              )}
+      {success ? (
+        <div
+          style={{
+            ...cardStyle({
+              padding: 14,
+              borderLeft: '4px solid #00a32a',
+              color: '#166534',
+              marginBottom: 20,
+            }),
+          }}
+        >
+          {success}
+        </div>
+      ) : null}
+
+      <div style={{ ...cardStyle({ padding: 16, marginBottom: 20, borderLeft: '4px solid #72aee6' }) }}>
+        Post records control article content, SEO fields, template fields, and CTA button setup.
+      </div>
+
+      <div className="admin-post-grid-4" style={{ marginBottom: 20 }}>
+        <StatCard label="Total Posts" value={stats.total} icon={FileText} tone="primary" />
+        <StatCard label="Published" value={stats.published} icon={BadgeCheck} tone="success" />
+        <StatCard label="Draft" value={stats.draft} icon={SquarePen} tone="warning" />
+        <StatCard label="Inactive" value={stats.inactive} icon={ShieldAlert} />
+      </div>
+
+      <div className="admin-post-main-grid">
+        <section style={cardStyle()}>
+          <div style={{ padding: '16px 18px', borderBottom: '1px solid #dcdcde' }}>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'flex-start',
+                justifyContent: 'space-between',
+                gap: 12,
+                marginBottom: 14,
+              }}
+            >
+              <div>
+                <div style={{ fontSize: 16, fontWeight: 600, color: '#1d2327', marginBottom: 6 }}>
+                  Post List
+                </div>
+                <div style={{ fontSize: 13, color: '#646970' }}>
+                  Select a post to inspect full details.
+                </div>
+              </div>
+
+              <div
+                style={{
+                  padding: '6px 10px',
+                  background: '#f6f7f7',
+                  border: '1px solid #dcdcde',
+                  fontSize: 12,
+                  fontWeight: 600,
+                  color: '#50575e',
+                }}
+              >
+                {filteredPosts.length} shown
+              </div>
+            </div>
+
+            <div style={{ position: 'relative' }}>
+              <Search
+                size={16}
+                style={{
+                  position: 'absolute',
+                  left: 14,
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  color: '#646970',
+                }}
+              />
+              <input
+                type="text"
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Search title, affiliate, product, status..."
+                style={{
+                  width: '100%',
+                  padding: '12px 14px 12px 40px',
+                  border: '1px solid #8c8f94',
+                  background: '#fff',
+                  color: '#1d2327',
+                  outline: 'none',
+                }}
+              />
             </div>
           </div>
 
-          <div className="surface-card surface-card-padding">
-            <h2 className="section-title">Post Details</h2>
+          <div style={{ maxHeight: 900, overflowY: 'auto', padding: 18 }}>
+            {filteredPosts.length ? (
+              filteredPosts.map((post) => {
+                const selected = String(selectedPostId) === String(post.id);
 
-            {detailsLoading ? (
-              <div>Loading post details...</div>
-            ) : postDetails ? (
-              <div className="form-stack">
-                <div className="surface-card surface-card-padding">
-                  {postDetails.featured_image ? (
+                return (
+                  <button
+                    key={post.id}
+                    type="button"
+                    onClick={() => handleSelectPost(post)}
+                    style={{
+                      width: '100%',
+                      textAlign: 'left',
+                      marginBottom: 12,
+                      padding: 16,
+                      cursor: 'pointer',
+                      background: selected ? '#f0f6fc' : '#ffffff',
+                      border: selected ? '1px solid #72aee6' : '1px solid #dcdcde',
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'flex-start',
+                        justifyContent: 'space-between',
+                        gap: 12,
+                        marginBottom: 12,
+                      }}
+                    >
+                      <div style={{ display: 'flex', gap: 12, minWidth: 0 }}>
+                        <div
+                          style={{
+                            width: 38,
+                            height: 38,
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            background: '#f6f7f7',
+                            border: '1px solid #dcdcde',
+                            color: '#1d2327',
+                            flexShrink: 0,
+                          }}
+                        >
+                          <FileText size={18} />
+                        </div>
+
+                        <div style={{ minWidth: 0 }}>
+                          <div
+                            style={{
+                              fontSize: 15,
+                              fontWeight: 600,
+                              color: '#1d2327',
+                              marginBottom: 4,
+                              wordBreak: 'break-word',
+                            }}
+                          >
+                            {post.title}
+                          </div>
+                          <div style={{ fontSize: 13, color: '#646970', wordBreak: 'break-word' }}>
+                            Affiliate: {post.affiliate?.name || '-'}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div
+                        style={{
+                          padding: '5px 10px',
+                          fontSize: 12,
+                          fontWeight: 600,
+                          whiteSpace: 'nowrap',
+                          ...badgeStyle(post.status),
+                        }}
+                      >
+                        {post.status || '-'}
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'grid', gap: 8, fontSize: 13, color: '#646970' }}>
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          gap: 10,
+                        }}
+                      >
+                        <span>Product</span>
+                        <strong style={{ color: '#1d2327' }}>
+                          {post.product?.title || '-'}
+                        </strong>
+                      </div>
+                    </div>
+                  </button>
+                );
+              })
+            ) : (
+              <div style={{ padding: 18, color: '#646970' }}>No posts found.</div>
+            )}
+          </div>
+        </section>
+
+        <section>
+          {detailsLoading ? (
+            <div style={cardStyle({ padding: 20 })}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: '#646970' }}>
+                <Loader2 size={18} className="spin-soft" />
+                <span>Loading post details...</span>
+              </div>
+            </div>
+          ) : postDetails ? (
+            <>
+              <div style={{ ...cardStyle(), marginBottom: 20, overflow: 'hidden' }}>
+                {postDetails.featured_image ? (
+                  <div style={{ borderBottom: '1px solid #dcdcde', background: '#f6f7f7' }}>
                     <img
                       src={postDetails.featured_image}
                       alt={postDetails.title}
                       style={{
                         width: '100%',
-                        height: 240,
+                        height: 260,
                         objectFit: 'cover',
-                        borderRadius: 16,
-                        marginBottom: 14,
+                        display: 'block',
                       }}
                     />
-                  ) : null}
+                  </div>
+                ) : (
+                  <div
+                    style={{
+                      height: 180,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      background: '#f6f7f7',
+                      borderBottom: '1px solid #dcdcde',
+                      color: '#646970',
+                    }}
+                  >
+                    <ImageIcon size={28} />
+                  </div>
+                )}
 
-                  <div><strong>Title:</strong> {postDetails.title}</div>
-                  <div><strong>Slug:</strong> {postDetails.slug}</div>
-                  <div><strong>Status:</strong> {postDetails.status}</div>
-                  <div><strong>Affiliate:</strong> {postDetails.affiliate?.name || '-'}</div>
-                  <div><strong>Website:</strong> {postDetails.website?.website_name || '-'}</div>
-                  <div><strong>Product:</strong> {postDetails.product?.title || '-'}</div>
-                  <div><strong>Category:</strong> {postDetails.category?.name || '-'}</div>
-                  <div><strong>Template:</strong> {postDetails.template?.name || '-'}</div>
-                  <div><strong>Published At:</strong> {postDetails.published_at || '-'}</div>
-                </div>
-
-                <div className="surface-card surface-card-padding">
-                  <h3 className="section-title">Excerpt</h3>
-                  <div>{postDetails.excerpt || 'No excerpt'}</div>
-                </div>
-
-                <div className="surface-card surface-card-padding">
-                  <h3 className="section-title">SEO</h3>
-                  <div><strong>SEO Title:</strong> {postDetails.seo_title || '-'}</div>
-                  <div><strong>SEO Description:</strong> {postDetails.seo_description || '-'}</div>
-                </div>
-
-                <div className="surface-card surface-card-padding">
-                  <h3 className="section-title">Template Fields</h3>
-
-                  <div className="form-stack">
-                    {(postDetails.template_fields || []).length ? (
-                      postDetails.template_fields.map((field) => (
-                        <div key={field.id} className="surface-card surface-card-padding">
-                          <div><strong>Key:</strong> {field.field_key}</div>
-                          <div><strong>Type:</strong> {field.field_type}</div>
-                          <div><strong>Value:</strong> {field.field_value || '-'}</div>
-                        </div>
-                      ))
-                    ) : (
-                      <div>No template fields.</div>
-                    )}
+                <div style={{ padding: '16px 18px', borderBottom: '1px solid #dcdcde' }}>
+                  <div style={{ fontSize: 16, fontWeight: 600, color: '#1d2327', marginBottom: 6 }}>
+                    Post Details
+                  </div>
+                  <div style={{ fontSize: 13, color: '#646970' }}>
+                    Content identity, source details, SEO fields, and action controls.
                   </div>
                 </div>
 
-                <div className="surface-card surface-card-padding">
-                  <h3 className="section-title">CTA Buttons</h3>
+                <div className="admin-post-two-grid" style={{ padding: 18 }}>
+                  <div style={{ ...cardStyle({ padding: 14, background: '#f6f7f7', gridColumn: '1 / -1' }) }}>
+                    <div style={{ fontSize: 12, color: '#646970', marginBottom: 8 }}>Title</div>
+                    <div style={{ fontWeight: 600, color: '#1d2327' }}>{postDetails.title || '-'}</div>
+                  </div>
 
-                  <div className="form-stack">
-                    {(postDetails.cta_buttons || []).length ? (
-                      postDetails.cta_buttons.map((button) => (
-                        <div key={button.id} className="surface-card surface-card-padding">
-                          <div><strong>Label:</strong> {button.button_label}</div>
-                          <div><strong>URL:</strong> {button.button_url || '-'}</div>
-                          <div><strong>Style:</strong> {button.button_style || '-'}</div>
+                  <div style={{ ...cardStyle({ padding: 14, background: '#f6f7f7' }) }}>
+                    <div style={{ fontSize: 12, color: '#646970', marginBottom: 8 }}>Slug</div>
+                    <div style={{ fontWeight: 600, color: '#1d2327', wordBreak: 'break-word' }}>
+                      {postDetails.slug || '-'}
+                    </div>
+                  </div>
+
+                  <div style={{ ...cardStyle({ padding: 14, background: '#f6f7f7' }) }}>
+                    <div style={{ fontSize: 12, color: '#646970', marginBottom: 8 }}>Status</div>
+                    <div
+                      style={{
+                        display: 'inline-flex',
+                        padding: '5px 10px',
+                        fontSize: 12,
+                        fontWeight: 600,
+                        ...badgeStyle(postDetails.status),
+                      }}
+                    >
+                      {postDetails.status || '-'}
+                    </div>
+                  </div>
+
+                  <div style={{ ...cardStyle({ padding: 14, background: '#f6f7f7' }) }}>
+                    <div style={{ fontSize: 12, color: '#646970', marginBottom: 8 }}>Affiliate</div>
+                    <div style={{ fontWeight: 600, color: '#1d2327' }}>
+                      {postDetails.affiliate?.name || '-'}
+                    </div>
+                  </div>
+
+                  <div style={{ ...cardStyle({ padding: 14, background: '#f6f7f7' }) }}>
+                    <div style={{ fontSize: 12, color: '#646970', marginBottom: 8 }}>Website</div>
+                    <div style={{ fontWeight: 600, color: '#1d2327' }}>
+                      {postDetails.website?.website_name || '-'}
+                    </div>
+                  </div>
+
+                  <div style={{ ...cardStyle({ padding: 14, background: '#f6f7f7' }) }}>
+                    <div style={{ fontSize: 12, color: '#646970', marginBottom: 8 }}>Product</div>
+                    <div style={{ fontWeight: 600, color: '#1d2327' }}>
+                      {postDetails.product?.title || '-'}
+                    </div>
+                  </div>
+
+                  <div style={{ ...cardStyle({ padding: 14, background: '#f6f7f7' }) }}>
+                    <div style={{ fontSize: 12, color: '#646970', marginBottom: 8 }}>Category</div>
+                    <div style={{ fontWeight: 600, color: '#1d2327' }}>
+                      {postDetails.category?.name || '-'}
+                    </div>
+                  </div>
+
+                  <div style={{ ...cardStyle({ padding: 14, background: '#f6f7f7' }) }}>
+                    <div style={{ fontSize: 12, color: '#646970', marginBottom: 8 }}>Template</div>
+                    <div style={{ fontWeight: 600, color: '#1d2327' }}>
+                      {postDetails.template?.name || '-'}
+                    </div>
+                  </div>
+
+                  <div style={{ ...cardStyle({ padding: 14, background: '#f6f7f7' }) }}>
+                    <div style={{ fontSize: 12, color: '#646970', marginBottom: 8 }}>Published At</div>
+                    <div style={{ fontWeight: 600, color: '#1d2327' }}>
+                      {formatDateTime(postDetails.published_at)}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="admin-post-split-grid">
+                <div>
+                  <div style={{ ...cardStyle(), marginBottom: 20 }}>
+                    <div style={{ padding: '16px 18px', borderBottom: '1px solid #dcdcde' }}>
+                      <div style={{ fontSize: 16, fontWeight: 600, color: '#1d2327' }}>Excerpt</div>
+                    </div>
+                    <div style={{ padding: 18, fontSize: 14, lineHeight: 1.7, color: '#1d2327' }}>
+                      {postDetails.excerpt || 'No excerpt'}
+                    </div>
+                  </div>
+
+                  <div style={{ ...cardStyle(), marginBottom: 20 }}>
+                    <div style={{ padding: '16px 18px', borderBottom: '1px solid #dcdcde' }}>
+                      <div style={{ fontSize: 16, fontWeight: 600, color: '#1d2327' }}>SEO</div>
+                    </div>
+
+                    <div style={{ padding: 18, display: 'grid', gap: 12 }}>
+                      <div style={{ ...cardStyle({ padding: 14, background: '#f6f7f7' }) }}>
+                        <div style={{ fontSize: 12, color: '#646970', marginBottom: 8 }}>SEO Title</div>
+                        <div style={{ fontWeight: 600, color: '#1d2327' }}>
+                          {postDetails.seo_title || '-'}
+                        </div>
+                      </div>
+
+                      <div style={{ ...cardStyle({ padding: 14, background: '#f6f7f7' }) }}>
+                        <div style={{ fontSize: 12, color: '#646970', marginBottom: 8 }}>SEO Description</div>
+                        <div style={{ fontWeight: 600, color: '#1d2327' }}>
+                          {postDetails.seo_description || '-'}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={{ ...cardStyle(), marginBottom: 20 }}>
+                    <div style={{ padding: '16px 18px', borderBottom: '1px solid #dcdcde' }}>
+                      <div style={{ fontSize: 16, fontWeight: 600, color: '#1d2327' }}>
+                        Template Fields
+                      </div>
+                    </div>
+
+                    <div style={{ padding: 18 }}>
+                      {(postDetails.template_fields || []).length ? (
+                        postDetails.template_fields.map((field) => (
+                          <div
+                            key={field.id}
+                            style={{
+                              border: '1px solid #dcdcde',
+                              background: '#ffffff',
+                              padding: 14,
+                              marginBottom: 12,
+                            }}
+                          >
+                            <div className="admin-post-two-grid">
+                              <div>
+                                <div style={{ fontSize: 12, color: '#646970', marginBottom: 8 }}>Key</div>
+                                <div style={{ fontWeight: 600, color: '#1d2327' }}>
+                                  {field.field_key || '-'}
+                                </div>
+                              </div>
+
+                              <div>
+                                <div style={{ fontSize: 12, color: '#646970', marginBottom: 8 }}>Type</div>
+                                <div style={{ fontWeight: 600, color: '#1d2327' }}>
+                                  {field.field_type || '-'}
+                                </div>
+                              </div>
+
+                              <div style={{ gridColumn: '1 / -1' }}>
+                                <div style={{ fontSize: 12, color: '#646970', marginBottom: 8 }}>Value</div>
+                                <div style={{ fontWeight: 600, color: '#1d2327', wordBreak: 'break-word' }}>
+                                  {field.field_value || '-'}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <div style={{ color: '#646970' }}>No template fields.</div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div style={cardStyle()}>
+                    <div style={{ padding: '16px 18px', borderBottom: '1px solid #dcdcde' }}>
+                      <div style={{ fontSize: 16, fontWeight: 600, color: '#1d2327' }}>
+                        CTA Buttons
+                      </div>
+                    </div>
+
+                    <div style={{ padding: 18 }}>
+                      {(postDetails.cta_buttons || []).length ? (
+                        postDetails.cta_buttons.map((button) => (
+                          <div
+                            key={button.id}
+                            style={{
+                              border: '1px solid #dcdcde',
+                              background: '#ffffff',
+                              padding: 14,
+                              marginBottom: 12,
+                            }}
+                          >
+                            <div className="admin-post-two-grid">
+                              <div>
+                                <div style={{ fontSize: 12, color: '#646970', marginBottom: 8 }}>Label</div>
+                                <div style={{ fontWeight: 600, color: '#1d2327' }}>
+                                  {button.button_label || '-'}
+                                </div>
+                              </div>
+
+                              <div>
+                                <div style={{ fontSize: 12, color: '#646970', marginBottom: 8 }}>Style</div>
+                                <div style={{ fontWeight: 600, color: '#1d2327' }}>
+                                  {button.button_style || '-'}
+                                </div>
+                              </div>
+
+                              <div style={{ gridColumn: '1 / -1' }}>
+                                <div style={{ fontSize: 12, color: '#646970', marginBottom: 8 }}>URL</div>
+                                <div
+                                  style={{
+                                    display: 'flex',
+                                    flexWrap: 'wrap',
+                                    alignItems: 'center',
+                                    gap: 10,
+                                  }}
+                                >
+                                  <div style={{ fontWeight: 600, color: '#1d2327', wordBreak: 'break-word' }}>
+                                    {button.button_url || '-'}
+                                  </div>
+
+                                  {button.button_url ? (
+                                    <a
+                                      href={button.button_url}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      style={{
+                                        border: '1px solid #dcdcde',
+                                        background: '#ffffff',
+                                        color: '#1d2327',
+                                        padding: '6px 10px',
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: 6,
+                                        fontSize: 12,
+                                        fontWeight: 600,
+                                      }}
+                                    >
+                                      <ExternalLink size={12} />
+                                      Open
+                                    </a>
+                                  ) : null}
+                                </div>
+                              </div>
+
+                              <div>
+                                <div style={{ fontSize: 12, color: '#646970', marginBottom: 8 }}>New Tab</div>
+                                <div style={{ fontWeight: 600, color: '#1d2327' }}>
+                                  {button.open_in_new_tab ? 'Yes' : 'No'}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <div style={{ color: '#646970' }}>No CTA buttons.</div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <div style={{ ...cardStyle(), marginBottom: 20 }}>
+                    <div style={{ padding: '16px 18px', borderBottom: '1px solid #dcdcde' }}>
+                      <div style={{ fontSize: 16, fontWeight: 600, color: '#1d2327' }}>
+                        Quick Summary
+                      </div>
+                    </div>
+
+                    <div style={{ padding: 18, display: 'grid', gap: 12 }}>
+                      <div style={{ ...cardStyle({ padding: 14, background: '#f6f7f7' }) }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                          <div
+                            style={{
+                              width: 36,
+                              height: 36,
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              background: '#ffffff',
+                              border: '1px solid #dcdcde',
+                              color: '#1d2327',
+                            }}
+                          >
+                            <User2 size={16} />
+                          </div>
                           <div>
-                            <strong>New Tab:</strong> {button.open_in_new_tab ? 'Yes' : 'No'}
+                            <div style={{ fontSize: 12, color: '#646970', marginBottom: 4 }}>Affiliate</div>
+                            <div style={{ fontWeight: 600, color: '#1d2327' }}>
+                              {postDetails.affiliate?.name || '-'}
+                            </div>
                           </div>
                         </div>
-                      ))
-                    ) : (
-                      <div>No CTA buttons.</div>
-                    )}
+                      </div>
+
+                      <div style={{ ...cardStyle({ padding: 14, background: '#f6f7f7' }) }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                          <div
+                            style={{
+                              width: 36,
+                              height: 36,
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              background: '#ffffff',
+                              border: '1px solid #dcdcde',
+                              color: '#1d2327',
+                            }}
+                          >
+                            <Globe size={16} />
+                          </div>
+                          <div>
+                            <div style={{ fontSize: 12, color: '#646970', marginBottom: 4 }}>Website</div>
+                            <div style={{ fontWeight: 600, color: '#1d2327' }}>
+                              {postDetails.website?.website_name || '-'}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div style={{ ...cardStyle({ padding: 14, background: '#f6f7f7' }) }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                          <div
+                            style={{
+                              width: 36,
+                              height: 36,
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              background: '#ffffff',
+                              border: '1px solid #dcdcde',
+                              color: '#1d2327',
+                            }}
+                          >
+                            <Tag size={16} />
+                          </div>
+                          <div>
+                            <div style={{ fontSize: 12, color: '#646970', marginBottom: 4 }}>Category</div>
+                            <div style={{ fontWeight: 600, color: '#1d2327' }}>
+                              {postDetails.category?.name || '-'}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={cardStyle()}>
+                    <div style={{ padding: '16px 18px', borderBottom: '1px solid #dcdcde' }}>
+                      <div style={{ fontSize: 16, fontWeight: 600, color: '#1d2327' }}>
+                        Actions
+                      </div>
+                    </div>
+
+                    <div style={{ padding: 18, display: 'grid', gap: 10 }}>
+                      <button
+                        type="button"
+                        onClick={() => handleStatusChange('published')}
+                        disabled={statusSaving}
+                        style={{
+                          border: '1px solid #00a32a',
+                          background: '#ffffff',
+                          color: '#00a32a',
+                          padding: '10px 14px',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: 8,
+                        }}
+                      >
+                        <BadgeCheck size={16} />
+                        Publish
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => handleStatusChange('draft')}
+                        disabled={statusSaving}
+                        style={{
+                          border: '1px solid #dba617',
+                          background: '#ffffff',
+                          color: '#9a6700',
+                          padding: '10px 14px',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: 8,
+                        }}
+                      >
+                        <SquarePen size={16} />
+                        Set Draft
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => handleStatusChange('inactive')}
+                        disabled={statusSaving}
+                        style={{
+                          border: '1px solid #d63638',
+                          background: '#ffffff',
+                          color: '#d63638',
+                          padding: '10px 14px',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: 8,
+                        }}
+                      >
+                        <XCircle size={16} />
+                        Set Inactive
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={handleDelete}
+                        disabled={deleting}
+                        style={{
+                          border: '1px solid #d63638',
+                          background: '#fff1f2',
+                          color: '#d63638',
+                          padding: '10px 14px',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: 8,
+                        }}
+                      >
+                        <Trash2 size={16} />
+                        {deleting ? 'Deleting...' : 'Delete Post'}
+                      </button>
+                    </div>
                   </div>
                 </div>
-
-                <div className="surface-card surface-card-padding">
-                  <h3 className="section-title">Actions</h3>
-
-                  <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                    <button
-                      className="btn btn-secondary"
-                      type="button"
-                      onClick={() => handleStatusChange('published')}
-                      disabled={statusSaving}
-                    >
-                      Publish
-                    </button>
-
-                    <button
-                      className="btn btn-secondary"
-                      type="button"
-                      onClick={() => handleStatusChange('draft')}
-                      disabled={statusSaving}
-                    >
-                      Set Draft
-                    </button>
-
-                    <button
-                      className="btn btn-secondary"
-                      type="button"
-                      onClick={() => handleStatusChange('inactive')}
-                      disabled={statusSaving}
-                    >
-                      Set Inactive
-                    </button>
-
-                    <button
-                      className="btn btn-secondary"
-                      type="button"
-                      onClick={handleDelete}
-                      disabled={deleting}
-                    >
-                      {deleting ? 'Deleting...' : 'Delete Post'}
-                    </button>
-                  </div>
-                </div>
-
-                {error ? (
-                  <div
-                    style={{
-                      padding: '12px 14px',
-                      borderRadius: 12,
-                      background: 'rgba(255, 80, 80, 0.12)',
-                      border: '1px solid rgba(255, 80, 80, 0.22)',
-                    }}
-                  >
-                    {error}
-                  </div>
-                ) : null}
-
-                {success ? (
-                  <div
-                    style={{
-                      padding: '12px 14px',
-                      borderRadius: 12,
-                      background: 'rgba(80, 200, 120, 0.12)',
-                      border: '1px solid rgba(80, 200, 120, 0.22)',
-                    }}
-                  >
-                    {success}
-                  </div>
-                ) : null}
               </div>
-            ) : (
-              <div>Select a post to view details.</div>
-            )}
-          </div>
-        </div>
+            </>
+          ) : (
+            <div style={cardStyle({ padding: 40, textAlign: 'center', color: '#646970' })}>
+              Choose a post from the left panel to inspect full details and manage its status.
+            </div>
+          )}
+        </section>
       </div>
     </div>
   );

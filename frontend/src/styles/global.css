@@ -210,3 +210,96 @@ img {
     padding: 24px 0;
   }
 }
+
+/* =========================
+   WordPress-style admin scope
+   ========================= */
+
+/* Main admin wrapper */
+.admin-wp-shell {
+  background: #f1f1f1;
+  color: #1d2327;
+}
+
+/* Force readable text inside admin content */
+.admin-wp-shell,
+.admin-wp-shell main,
+.admin-wp-shell section,
+.admin-wp-shell article,
+.admin-wp-shell div,
+.admin-wp-shell p,
+.admin-wp-shell span,
+.admin-wp-shell small,
+.admin-wp-shell strong,
+.admin-wp-shell label,
+.admin-wp-shell li,
+.admin-wp-shell td,
+.admin-wp-shell th,
+.admin-wp-shell h1,
+.admin-wp-shell h2,
+.admin-wp-shell h3,
+.admin-wp-shell h4,
+.admin-wp-shell h5,
+.admin-wp-shell h6 {
+  color: #1d2327;
+}
+
+/* Inputs inside admin pages */
+.admin-wp-shell input,
+.admin-wp-shell textarea,
+.admin-wp-shell select {
+  color: #1d2327;
+  background: #ffffff;
+}
+
+.admin-wp-shell input::placeholder,
+.admin-wp-shell textarea::placeholder {
+  color: #646970;
+  opacity: 1;
+}
+
+/* Links inside white admin content */
+.admin-wp-shell main a,
+.admin-wp-shell header a {
+  color: inherit;
+}
+
+/* Keep the dark sidebar dark */
+.admin-wp-shell aside {
+  color: #f0f0f1;
+}
+
+.admin-wp-shell aside a,
+.admin-wp-shell aside div,
+.admin-wp-shell aside span,
+.admin-wp-shell aside small,
+.admin-wp-shell aside strong,
+.admin-wp-shell aside p,
+.admin-wp-shell aside button,
+.admin-wp-shell aside h1,
+.admin-wp-shell aside h2,
+.admin-wp-shell aside h3,
+.admin-wp-shell aside h4,
+.admin-wp-shell aside h5,
+.admin-wp-shell aside h6,
+.admin-wp-shell aside label,
+.admin-wp-shell aside li {
+  color: inherit;
+}
+
+/* Make sure admin top bar stays readable */
+.admin-wp-shell header {
+  color: #1d2327;
+}
+
+/* Utility for any admin block still inheriting white */
+.admin-wp-shell .admin-text-dark,
+.admin-wp-shell .admin-text-dark * {
+  color: #1d2327 !important;
+}
+
+/* Utility for muted admin text */
+.admin-wp-shell .admin-text-muted,
+.admin-wp-shell .admin-text-muted * {
+  color: #646970 !important;
+}

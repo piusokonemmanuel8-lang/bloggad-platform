@@ -42,6 +42,10 @@ function normalizeNullable(value) {
   return str ? str : null;
 }
 
+function normalizeKey(value) {
+  return String(value || '').trim().toLowerCase();
+}
+
 async function getWebsiteTemplateById(templateId) {
   const [rows] = await pool.query(
     `
@@ -87,6 +91,64 @@ async function getBlogTemplateById(templateId) {
     [templateId]
   );
 
+  return rows[0] || null;
+}
+
+async function getWebsiteTemplateBySlugOrCodeKey(slug, templateCodeKey, excludeId = null) {
+  let sql = `
+    SELECT
+      id,
+      name,
+      slug,
+      preview_image,
+      template_code_key,
+      description,
+      is_premium,
+      status,
+      created_at,
+      updated_at
+    FROM website_templates
+    WHERE (LOWER(slug) = LOWER(?) OR LOWER(template_code_key) = LOWER(?))
+  `;
+  const params = [slug, templateCodeKey];
+
+  if (excludeId) {
+    sql += ` AND id <> ?`;
+    params.push(excludeId);
+  }
+
+  sql += ` LIMIT 1`;
+
+  const [rows] = await pool.query(sql, params);
+  return rows[0] || null;
+}
+
+async function getBlogTemplateBySlugOrCodeKey(slug, templateCodeKey, excludeId = null) {
+  let sql = `
+    SELECT
+      id,
+      name,
+      slug,
+      preview_image,
+      template_code_key,
+      description,
+      is_premium,
+      status,
+      created_at,
+      updated_at
+    FROM blog_templates
+    WHERE (LOWER(slug) = LOWER(?) OR LOWER(template_code_key) = LOWER(?))
+  `;
+  const params = [slug, templateCodeKey];
+
+  if (excludeId) {
+    sql += ` AND id <> ?`;
+    params.push(excludeId);
+  }
+
+  sql += ` LIMIT 1`;
+
+  const [rows] = await pool.query(sql, params);
   return rows[0] || null;
 }
 
@@ -325,6 +387,19 @@ async function createWebsiteTemplate(req, res) {
     const cleanIsPremium = is_premium ? 1 : 0;
     const cleanStatus = ['active', 'inactive'].includes(status) ? status : 'active';
 
+    const existingTemplate = await getWebsiteTemplateBySlugOrCodeKey(
+      cleanSlug,
+      cleanTemplateCodeKey
+    );
+
+    if (existingTemplate) {
+      return res.status(200).json({
+        ok: true,
+        message: 'Website template already exists',
+        template: sanitizeWebsiteTemplate(existingTemplate),
+      });
+    }
+
     const [result] = await pool.query(
       `
       INSERT INTO website_templates
@@ -410,6 +485,19 @@ async function createBlogTemplate(req, res) {
     const cleanDescription = normalizeNullable(description);
     const cleanIsPremium = is_premium ? 1 : 0;
     const cleanStatus = ['active', 'inactive'].includes(status) ? status : 'active';
+
+    const existingTemplate = await getBlogTemplateBySlugOrCodeKey(
+      cleanSlug,
+      cleanTemplateCodeKey
+    );
+
+    if (existingTemplate) {
+      return res.status(200).json({
+        ok: true,
+        message: 'Blog template already exists',
+        template: sanitizeBlogTemplate(existingTemplate),
+      });
+    }
 
     const [result] = await pool.query(
       `
@@ -497,6 +585,19 @@ async function updateWebsiteTemplate(req, res) {
       return res.status(400).json({
         ok: false,
         message: 'Name, slug, and template code key are required',
+      });
+    }
+
+    const duplicateTemplate = await getWebsiteTemplateBySlugOrCodeKey(
+      cleanSlug,
+      cleanTemplateCodeKey,
+      templateId
+    );
+
+    if (duplicateTemplate) {
+      return res.status(400).json({
+        ok: false,
+        message: 'Another website template already uses this slug or template code key',
       });
     }
 
@@ -594,6 +695,19 @@ async function updateBlogTemplate(req, res) {
       return res.status(400).json({
         ok: false,
         message: 'Name, slug, and template code key are required',
+      });
+    }
+
+    const duplicateTemplate = await getBlogTemplateBySlugOrCodeKey(
+      cleanSlug,
+      cleanTemplateCodeKey,
+      templateId
+    );
+
+    if (duplicateTemplate) {
+      return res.status(400).json({
+        ok: false,
+        message: 'Another blog template already uses this slug or template code key',
       });
     }
 

@@ -36,57 +36,97 @@ function formatDateTime(value) {
   return date.toLocaleString();
 }
 
-function statusBadgeClass(status) {
+function cardStyle(extra = {}) {
+  return {
+    background: '#ffffff',
+    border: '1px solid #dcdcde',
+    borderRadius: 0,
+    boxShadow: 'none',
+    ...extra,
+  };
+}
+
+function badgeStyle(status) {
   const clean = String(status || '').toLowerCase();
 
   if (clean === 'active') {
-    return 'border-emerald-200 bg-emerald-50 text-emerald-700';
+    return {
+      border: '1px solid #b7e4c7',
+      background: '#ecfdf3',
+      color: '#166534',
+    };
   }
 
   if (clean === 'trial') {
-    return 'border-sky-200 bg-sky-50 text-sky-700';
+    return {
+      border: '1px solid #bfdbfe',
+      background: '#eff6ff',
+      color: '#1d4ed8',
+    };
   }
 
   if (clean === 'inactive' || clean === 'expired') {
-    return 'border-amber-200 bg-amber-50 text-amber-700';
+    return {
+      border: '1px solid #f3d28b',
+      background: '#fff7e6',
+      color: '#9a6700',
+    };
   }
 
   if (clean === 'suspended' || clean === 'cancelled') {
-    return 'border-rose-200 bg-rose-50 text-rose-700';
+    return {
+      border: '1px solid #f1b5b8',
+      background: '#fff1f2',
+      color: '#b42318',
+    };
   }
 
-  return 'border-slate-200 bg-slate-100 text-slate-700';
+  return {
+    border: '1px solid #dcdcde',
+    background: '#f6f7f7',
+    color: '#50575e',
+  };
 }
 
 function StatCard({ label, value, icon: Icon, tone = 'default' }) {
-  const toneClass =
+  const iconTone =
     tone === 'primary'
-      ? 'bg-slate-950 text-white border-slate-950'
+      ? { background: '#2271b1', color: '#fff', border: '1px solid #2271b1' }
       : tone === 'success'
-      ? 'bg-emerald-50 text-emerald-900 border-emerald-200'
+      ? { background: '#ecfdf3', color: '#166534', border: '1px solid #b7e4c7' }
       : tone === 'warning'
-      ? 'bg-amber-50 text-amber-900 border-amber-200'
-      : 'bg-white text-slate-900 border-slate-200';
-
-  const iconWrapClass =
-    tone === 'primary'
-      ? 'bg-white/10 text-white'
-      : tone === 'success'
-      ? 'bg-emerald-100 text-emerald-700'
-      : tone === 'warning'
-      ? 'bg-amber-100 text-amber-700'
-      : 'bg-slate-100 text-slate-700';
+      ? { background: '#fff7e6', color: '#9a6700', border: '1px solid #f3d28b' }
+      : { background: '#f6f7f7', color: '#1d2327', border: '1px solid #dcdcde' };
 
   return (
-    <div className={`rounded-3xl border p-5 shadow-sm ${toneClass}`}>
-      <div className="flex items-start justify-between gap-4">
+    <div style={cardStyle({ padding: 20 })}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'flex-start',
+          justifyContent: 'space-between',
+          gap: 16,
+        }}
+      >
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] opacity-70">{label}</p>
-          <p className="mt-3 text-2xl font-bold">{value}</p>
+          <div style={{ fontSize: 13, color: '#646970', marginBottom: 10 }}>{label}</div>
+          <div style={{ fontSize: 34, lineHeight: 1, fontWeight: 700, color: '#1d2327' }}>
+            {value}
+          </div>
         </div>
-        <span className={`inline-flex h-12 w-12 items-center justify-center rounded-2xl ${iconWrapClass}`}>
-          <Icon size={20} />
-        </span>
+
+        <div
+          style={{
+            width: 44,
+            height: 44,
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            ...iconTone,
+          }}
+        >
+          <Icon size={18} />
+        </div>
       </div>
     </div>
   );
@@ -341,96 +381,224 @@ export default function AdminAffiliatesPage() {
 
   if (loading) {
     return (
-      <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-        <div className="flex items-center gap-3 text-slate-600">
-          <Loader2 className="animate-spin" size={18} />
-          <span className="text-sm font-medium">Loading affiliates...</span>
+      <div style={cardStyle({ padding: 20 })}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: '#646970' }}>
+          <Loader2 size={18} className="spin-soft" />
+          <span>Loading affiliates...</span>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <section className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm">
-        <div className="border-b border-slate-200 bg-gradient-to-r from-slate-950 via-slate-900 to-slate-800 px-6 py-7 text-white sm:px-8">
-          <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-            <div className="max-w-3xl">
-              <p className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-300">
-                Administrator
-              </p>
-              <h1 className="mt-2 text-2xl font-bold sm:text-3xl">Affiliate Management</h1>
-              <p className="mt-3 max-w-2xl text-sm text-slate-300 sm:text-base">
-                View affiliate accounts, review website setup, control access status, and assign
-                subscription plans from one clean admin page.
-              </p>
-            </div>
+    <div>
+      <style>{`
+        .admin-aff-grid-4 {
+          display: grid;
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+          gap: 20px;
+        }
+        .admin-aff-main-grid {
+          display: grid;
+          grid-template-columns: 380px minmax(0, 1fr);
+          gap: 20px;
+        }
+        .admin-aff-split-grid {
+          display: grid;
+          grid-template-columns: minmax(0, 1.1fr) 340px;
+          gap: 20px;
+        }
+        .admin-aff-two-grid {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 16px;
+        }
+        .admin-aff-three-grid {
+          display: grid;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          gap: 16px;
+        }
+        .spin-soft {
+          animation: spinSoft 0.9s linear infinite;
+        }
+        @keyframes spinSoft {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+        @media (max-width: 1200px) {
+          .admin-aff-grid-4,
+          .admin-aff-three-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+          }
+          .admin-aff-main-grid,
+          .admin-aff-split-grid {
+            grid-template-columns: 1fr;
+          }
+        }
+        @media (max-width: 700px) {
+          .admin-aff-grid-4,
+          .admin-aff-two-grid,
+          .admin-aff-three-grid {
+            grid-template-columns: 1fr;
+          }
+        }
+      `}</style>
 
-            <div className="flex flex-wrap gap-3">
-              <button
-                type="button"
-                onClick={handleRefresh}
-                disabled={refreshing}
-                className="inline-flex items-center gap-2 rounded-2xl border border-white/15 bg-white/10 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                <RefreshCw size={16} className={refreshing ? 'animate-spin' : ''} />
-                {refreshing ? 'Refreshing...' : 'Refresh'}
-              </button>
-            </div>
+      <div style={{ marginBottom: 22 }}>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'flex-start',
+            justifyContent: 'space-between',
+            gap: 16,
+            flexWrap: 'wrap',
+            marginBottom: 10,
+          }}
+        >
+          <div>
+            <h1
+              style={{
+                margin: 0,
+                fontSize: 28,
+                lineHeight: 1.2,
+                fontWeight: 700,
+                color: '#1d2327',
+              }}
+            >
+              Affiliates
+            </h1>
+            <p style={{ margin: '8px 0 0', fontSize: 14, color: '#646970' }}>
+              View affiliate accounts, update statuses, manage websites, and assign subscriptions.
+            </p>
           </div>
-        </div>
 
-        <div className="grid gap-4 px-6 py-6 sm:grid-cols-2 xl:grid-cols-4 sm:px-8">
-          <StatCard label="Total Affiliates" value={stats.total} icon={Users} tone="primary" />
-          <StatCard label="Active Accounts" value={stats.active} icon={ShieldCheck} tone="success" />
-          <StatCard label="Suspended" value={stats.suspended} icon={ShieldAlert} tone="warning" />
-          <StatCard label="With Website" value={stats.withWebsite} icon={Globe} />
+          <button
+            type="button"
+            onClick={handleRefresh}
+            disabled={refreshing}
+            style={{
+              border: '1px solid #2271b1',
+              background: refreshing ? '#f6f7f7' : '#ffffff',
+              color: '#2271b1',
+              padding: '10px 16px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 8,
+            }}
+          >
+            <RefreshCw size={16} className={refreshing ? 'spin-soft' : ''} />
+            {refreshing ? 'Refreshing...' : 'Refresh'}
+          </button>
         </div>
-      </section>
+      </div>
 
       {error ? (
-        <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700">
+        <div
+          style={{
+            ...cardStyle({
+              padding: 14,
+              borderLeft: '4px solid #d63638',
+              color: '#b42318',
+              marginBottom: 20,
+            }),
+          }}
+        >
           {error}
         </div>
       ) : null}
 
       {success ? (
-        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
+        <div
+          style={{
+            ...cardStyle({
+              padding: 14,
+              borderLeft: '4px solid #00a32a',
+              color: '#166534',
+              marginBottom: 20,
+            }),
+          }}
+        >
           {success}
         </div>
       ) : null}
 
-      <div className="grid gap-6 xl:grid-cols-[360px_minmax(0,1fr)]">
-        <section className="rounded-[28px] border border-slate-200 bg-white shadow-sm">
-          <div className="border-b border-slate-200 px-5 py-5 sm:px-6">
-            <div className="flex items-center justify-between gap-3">
+      <div style={{ ...cardStyle({ padding: 16, marginBottom: 20, borderLeft: '4px solid #72aee6' }) }}>
+        Affiliate account management covers profile access, website control, and subscription assignment.
+      </div>
+
+      <div className="admin-aff-grid-4" style={{ marginBottom: 20 }}>
+        <StatCard label="Total Affiliates" value={stats.total} icon={Users} tone="primary" />
+        <StatCard label="Active Accounts" value={stats.active} icon={ShieldCheck} tone="success" />
+        <StatCard label="Suspended" value={stats.suspended} icon={ShieldAlert} tone="warning" />
+        <StatCard label="With Website" value={stats.withWebsite} icon={Globe} />
+      </div>
+
+      <div className="admin-aff-main-grid">
+        <section style={cardStyle()}>
+          <div style={{ padding: '16px 18px', borderBottom: '1px solid #dcdcde' }}>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'flex-start',
+                justifyContent: 'space-between',
+                gap: 12,
+                marginBottom: 14,
+              }}
+            >
               <div>
-                <h2 className="text-lg font-bold text-slate-900">Affiliate List</h2>
-                <p className="mt-1 text-sm text-slate-500">
+                <div style={{ fontSize: 16, fontWeight: 600, color: '#1d2327', marginBottom: 6 }}>
+                  Affiliate List
+                </div>
+                <div style={{ fontSize: 13, color: '#646970' }}>
                   Select any affiliate to manage account details.
-                </p>
+                </div>
               </div>
-              <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
+
+              <div
+                style={{
+                  padding: '6px 10px',
+                  background: '#f6f7f7',
+                  border: '1px solid #dcdcde',
+                  fontSize: 12,
+                  fontWeight: 600,
+                  color: '#50575e',
+                }}
+              >
                 {filteredAffiliates.length} shown
-              </span>
+              </div>
             </div>
 
-            <div className="relative mt-4">
+            <div style={{ position: 'relative' }}>
               <Search
                 size={16}
-                className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
+                style={{
+                  position: 'absolute',
+                  left: 14,
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  color: '#646970',
+                }}
               />
               <input
                 type="text"
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
                 placeholder="Search name, email, website, status..."
-                className="w-full rounded-2xl border border-slate-200 bg-slate-50 py-3 pl-11 pr-4 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-400 focus:bg-white"
+                style={{
+                  width: '100%',
+                  padding: '12px 14px 12px 40px',
+                  border: '1px solid #8c8f94',
+                  background: '#fff',
+                  color: '#1d2327',
+                  outline: 'none',
+                }}
               />
             </div>
           </div>
 
-          <div className="max-h-[980px] space-y-3 overflow-y-auto px-4 py-4 sm:px-5">
+          <div style={{ maxHeight: 900, overflowY: 'auto', padding: 18 }}>
             {filteredAffiliates.length ? (
               filteredAffiliates.map((affiliate) => {
                 const selected = String(selectedAffiliateId) === String(affiliate.id);
@@ -440,143 +608,170 @@ export default function AdminAffiliatesPage() {
                     key={affiliate.id}
                     type="button"
                     onClick={() => handleSelectAffiliate(affiliate)}
-                    className={[
-                      'w-full rounded-3xl border p-4 text-left transition',
-                      selected
-                        ? 'border-slate-900 bg-slate-950 text-white shadow-sm'
-                        : 'border-slate-200 bg-white text-slate-900 hover:border-slate-300 hover:bg-slate-50',
-                    ].join(' ')}
+                    style={{
+                      width: '100%',
+                      textAlign: 'left',
+                      marginBottom: 12,
+                      padding: 16,
+                      cursor: 'pointer',
+                      background: selected ? '#f0f6fc' : '#ffffff',
+                      border: selected ? '1px solid #72aee6' : '1px solid #dcdcde',
+                    }}
                   >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span
-                            className={[
-                              'inline-flex h-10 w-10 items-center justify-center rounded-2xl',
-                              selected ? 'bg-white/10 text-white' : 'bg-slate-100 text-slate-700',
-                            ].join(' ')}
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'flex-start',
+                        justifyContent: 'space-between',
+                        gap: 12,
+                        marginBottom: 12,
+                      }}
+                    >
+                      <div style={{ display: 'flex', gap: 12, minWidth: 0 }}>
+                        <div
+                          style={{
+                            width: 38,
+                            height: 38,
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            background: '#f6f7f7',
+                            border: '1px solid #dcdcde',
+                            color: '#1d2327',
+                            flexShrink: 0,
+                          }}
+                        >
+                          <User2 size={18} />
+                        </div>
+
+                        <div style={{ minWidth: 0 }}>
+                          <div
+                            style={{
+                              fontSize: 15,
+                              fontWeight: 600,
+                              color: '#1d2327',
+                              marginBottom: 4,
+                              wordBreak: 'break-word',
+                            }}
                           >
-                            <User2 size={18} />
-                          </span>
-                          <div className="min-w-0">
-                            <p className="truncate text-sm font-bold">{affiliate.name}</p>
-                            <p
-                              className={[
-                                'truncate text-xs',
-                                selected ? 'text-slate-300' : 'text-slate-500',
-                              ].join(' ')}
-                            >
-                              {affiliate.email}
-                            </p>
+                            {affiliate.name}
+                          </div>
+                          <div style={{ fontSize: 13, color: '#646970', wordBreak: 'break-word' }}>
+                            {affiliate.email}
                           </div>
                         </div>
                       </div>
 
-                      <span
-                        className={[
-                          'rounded-full border px-2.5 py-1 text-[11px] font-semibold capitalize',
-                          selected
-                            ? 'border-white/15 bg-white/10 text-white'
-                            : statusBadgeClass(affiliate.status),
-                        ].join(' ')}
+                      <div
+                        style={{
+                          padding: '5px 10px',
+                          fontSize: 12,
+                          fontWeight: 600,
+                          whiteSpace: 'nowrap',
+                          ...badgeStyle(affiliate.status),
+                        }}
                       >
                         {affiliate.status || '-'}
-                      </span>
+                      </div>
                     </div>
 
-                    <div
-                      className={[
-                        'mt-4 grid gap-2 text-xs',
-                        selected ? 'text-slate-300' : 'text-slate-500',
-                      ].join(' ')}
-                    >
-                      <div className="flex items-center justify-between gap-3">
+                    <div style={{ display: 'grid', gap: 8, fontSize: 13, color: '#646970' }}>
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          gap: 10,
+                        }}
+                      >
                         <span>Website</span>
-                        <span className="truncate font-medium">
+                        <strong style={{ color: '#1d2327' }}>
                           {affiliate.website?.website_name || '-'}
-                        </span>
+                        </strong>
                       </div>
-                      <div className="flex items-center justify-between gap-3">
+
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          gap: 10,
+                        }}
+                      >
                         <span>Role</span>
-                        <span className="font-medium capitalize">{affiliate.role || '-'}</span>
+                        <strong style={{ color: '#1d2327', textTransform: 'capitalize' }}>
+                          {affiliate.role || '-'}
+                        </strong>
                       </div>
                     </div>
                   </button>
                 );
               })
             ) : (
-              <div className="rounded-3xl border border-dashed border-slate-200 bg-slate-50 px-4 py-10 text-center">
-                <p className="text-sm font-medium text-slate-500">No affiliates found.</p>
-              </div>
+              <div style={{ padding: 18, color: '#646970' }}>No affiliates found.</div>
             )}
           </div>
         </section>
 
-        <section className="space-y-6">
+        <section>
           {detailsLoading ? (
-            <div className="rounded-[28px] border border-slate-200 bg-white p-8 shadow-sm">
-              <div className="flex items-center gap-3 text-slate-600">
-                <Loader2 className="animate-spin" size={18} />
-                <span className="text-sm font-medium">Loading affiliate details...</span>
+            <div style={cardStyle({ padding: 20 })}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: '#646970' }}>
+                <Loader2 size={18} className="spin-soft" />
+                <span>Loading affiliate details...</span>
               </div>
             </div>
           ) : affiliateDetails ? (
             <>
-              <div className="grid gap-6 2xl:grid-cols-[minmax(0,1.1fr)_380px]">
-                <div className="space-y-6">
-                  <div className="rounded-[28px] border border-slate-200 bg-white shadow-sm">
-                    <div className="border-b border-slate-200 px-6 py-5">
-                      <h3 className="text-lg font-bold text-slate-900">Affiliate Profile</h3>
-                      <p className="mt-1 text-sm text-slate-500">
+              <div className="admin-aff-split-grid" style={{ marginBottom: 20 }}>
+                <div>
+                  <div style={{ ...cardStyle(), marginBottom: 20 }}>
+                    <div style={{ padding: '16px 18px', borderBottom: '1px solid #dcdcde' }}>
+                      <div style={{ fontSize: 16, fontWeight: 600, color: '#1d2327', marginBottom: 6 }}>
+                        Affiliate Profile
+                      </div>
+                      <div style={{ fontSize: 13, color: '#646970' }}>
                         Account identity, role and basic activity figures.
-                      </p>
+                      </div>
                     </div>
 
-                    <div className="grid gap-4 px-6 py-6 md:grid-cols-2">
-                      <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
-                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
-                          Full Name
-                        </p>
-                        <p className="mt-2 text-sm font-bold text-slate-900">
-                          {affiliateDetails.name}
-                        </p>
+                    <div className="admin-aff-two-grid" style={{ padding: 18 }}>
+                      <div style={{ ...cardStyle({ padding: 14, background: '#f6f7f7' }) }}>
+                        <div style={{ fontSize: 12, color: '#646970', marginBottom: 8 }}>Full Name</div>
+                        <div style={{ fontWeight: 600, color: '#1d2327' }}>{affiliateDetails.name}</div>
                       </div>
 
-                      <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
-                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
-                          Email
-                        </p>
-                        <p className="mt-2 break-all text-sm font-bold text-slate-900">
+                      <div style={{ ...cardStyle({ padding: 14, background: '#f6f7f7' }) }}>
+                        <div style={{ fontSize: 12, color: '#646970', marginBottom: 8 }}>Email</div>
+                        <div style={{ fontWeight: 600, color: '#1d2327', wordBreak: 'break-word' }}>
                           {affiliateDetails.email}
-                        </p>
-                      </div>
-
-                      <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
-                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
-                          Status
-                        </p>
-                        <div className="mt-2">
-                          <span
-                            className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold capitalize ${statusBadgeClass(
-                              affiliateDetails.status
-                            )}`}
-                          >
-                            {affiliateDetails.status || '-'}
-                          </span>
                         </div>
                       </div>
 
-                      <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
-                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
-                          Role
-                        </p>
-                        <p className="mt-2 text-sm font-bold capitalize text-slate-900">
+                      <div style={{ ...cardStyle({ padding: 14, background: '#f6f7f7' }) }}>
+                        <div style={{ fontSize: 12, color: '#646970', marginBottom: 8 }}>Status</div>
+                        <div
+                          style={{
+                            display: 'inline-flex',
+                            padding: '5px 10px',
+                            fontSize: 12,
+                            fontWeight: 600,
+                            ...badgeStyle(affiliateDetails.status),
+                          }}
+                        >
+                          {affiliateDetails.status || '-'}
+                        </div>
+                      </div>
+
+                      <div style={{ ...cardStyle({ padding: 14, background: '#f6f7f7' }) }}>
+                        <div style={{ fontSize: 12, color: '#646970', marginBottom: 8 }}>Role</div>
+                        <div style={{ fontWeight: 600, color: '#1d2327', textTransform: 'capitalize' }}>
                           {affiliateDetails.role || '-'}
-                        </p>
+                        </div>
                       </div>
                     </div>
 
-                    <div className="grid gap-4 border-t border-slate-200 px-6 py-6 sm:grid-cols-2">
+                    <div className="admin-aff-two-grid" style={{ padding: '0 18px 18px' }}>
                       <StatCard
                         label="Total Products"
                         value={affiliateDetails.stats?.total_products || 0}
@@ -590,57 +785,68 @@ export default function AdminAffiliatesPage() {
                     </div>
                   </div>
 
-                  <div className="rounded-[28px] border border-slate-200 bg-white shadow-sm">
-                    <div className="border-b border-slate-200 px-6 py-5">
-                      <h3 className="text-lg font-bold text-slate-900">Website Control</h3>
-                      <p className="mt-1 text-sm text-slate-500">
+                  <div style={{ ...cardStyle(), marginBottom: 20 }}>
+                    <div style={{ padding: '16px 18px', borderBottom: '1px solid #dcdcde' }}>
+                      <div style={{ fontSize: 16, fontWeight: 600, color: '#1d2327', marginBottom: 6 }}>
+                        Website Control
+                      </div>
+                      <div style={{ fontSize: 13, color: '#646970' }}>
                         Review site profile and control website status.
-                      </p>
+                      </div>
                     </div>
 
-                    <div className="grid gap-4 px-6 py-6 md:grid-cols-3">
-                      <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
-                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
-                          Website Name
-                        </p>
-                        <p className="mt-2 text-sm font-bold text-slate-900">
+                    <div className="admin-aff-three-grid" style={{ padding: 18 }}>
+                      <div style={{ ...cardStyle({ padding: 14, background: '#f6f7f7' }) }}>
+                        <div style={{ fontSize: 12, color: '#646970', marginBottom: 8 }}>Website Name</div>
+                        <div style={{ fontWeight: 600, color: '#1d2327' }}>
                           {affiliateDetails.website?.website_name || '-'}
-                        </p>
+                        </div>
                       </div>
 
-                      <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
-                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
-                          Slug
-                        </p>
-                        <p className="mt-2 break-all text-sm font-bold text-slate-900">
+                      <div style={{ ...cardStyle({ padding: 14, background: '#f6f7f7' }) }}>
+                        <div style={{ fontSize: 12, color: '#646970', marginBottom: 8 }}>Slug</div>
+                        <div style={{ fontWeight: 600, color: '#1d2327' }}>
                           {affiliateDetails.website?.slug || '-'}
-                        </p>
+                        </div>
                       </div>
 
-                      <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
-                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
-                          Website Status
-                        </p>
-                        <div className="mt-2">
-                          <span
-                            className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold capitalize ${statusBadgeClass(
-                              affiliateDetails.website?.website_status
-                            )}`}
-                          >
-                            {affiliateDetails.website?.website_status || '-'}
-                          </span>
+                      <div style={{ ...cardStyle({ padding: 14, background: '#f6f7f7' }) }}>
+                        <div style={{ fontSize: 12, color: '#646970', marginBottom: 8 }}>Website Status</div>
+                        <div
+                          style={{
+                            display: 'inline-flex',
+                            padding: '5px 10px',
+                            fontSize: 12,
+                            fontWeight: 600,
+                            ...badgeStyle(affiliateDetails.website?.website_status),
+                          }}
+                        >
+                          {affiliateDetails.website?.website_status || '-'}
                         </div>
                       </div>
                     </div>
 
-                    <div className="flex flex-wrap gap-3 border-t border-slate-200 px-6 py-6">
+                    <div
+                      style={{
+                        padding: '0 18px 18px',
+                        display: 'flex',
+                        flexWrap: 'wrap',
+                        gap: 10,
+                      }}
+                    >
                       <button
                         type="button"
                         onClick={() => handleWebsiteStatusChange('active')}
                         disabled={websiteStatusSaving || !affiliateDetails.website?.id}
-                        className="inline-flex items-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-60"
+                        style={{
+                          border: '1px solid #00a32a',
+                          background: '#ffffff',
+                          color: '#00a32a',
+                          padding: '10px 14px',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                        }}
                       >
-                        <CheckCircle2 size={16} />
                         Set Website Active
                       </button>
 
@@ -648,9 +854,15 @@ export default function AdminAffiliatesPage() {
                         type="button"
                         onClick={() => handleWebsiteStatusChange('inactive')}
                         disabled={websiteStatusSaving || !affiliateDetails.website?.id}
-                        className="inline-flex items-center gap-2 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-700 transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-60"
+                        style={{
+                          border: '1px solid #dba617',
+                          background: '#ffffff',
+                          color: '#9a6700',
+                          padding: '10px 14px',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                        }}
                       >
-                        <XCircle size={16} />
                         Set Website Inactive
                       </button>
 
@@ -658,30 +870,51 @@ export default function AdminAffiliatesPage() {
                         type="button"
                         onClick={() => handleWebsiteStatusChange('suspended')}
                         disabled={websiteStatusSaving || !affiliateDetails.website?.id}
-                        className="inline-flex items-center gap-2 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-60"
+                        style={{
+                          border: '1px solid #d63638',
+                          background: '#ffffff',
+                          color: '#d63638',
+                          padding: '10px 14px',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                        }}
                       >
-                        <ShieldAlert size={16} />
                         Suspend Website
                       </button>
                     </div>
                   </div>
 
-                  <div className="rounded-[28px] border border-slate-200 bg-white shadow-sm">
-                    <div className="border-b border-slate-200 px-6 py-5">
-                      <h3 className="text-lg font-bold text-slate-900">Affiliate Status Control</h3>
-                      <p className="mt-1 text-sm text-slate-500">
+                  <div style={cardStyle()}>
+                    <div style={{ padding: '16px 18px', borderBottom: '1px solid #dcdcde' }}>
+                      <div style={{ fontSize: 16, fontWeight: 600, color: '#1d2327', marginBottom: 6 }}>
+                        Affiliate Status Control
+                      </div>
+                      <div style={{ fontSize: 13, color: '#646970' }}>
                         Activate, deactivate or suspend this affiliate account.
-                      </p>
+                      </div>
                     </div>
 
-                    <div className="flex flex-wrap gap-3 px-6 py-6">
+                    <div
+                      style={{
+                        padding: 18,
+                        display: 'flex',
+                        flexWrap: 'wrap',
+                        gap: 10,
+                      }}
+                    >
                       <button
                         type="button"
                         onClick={() => handleAffiliateStatusChange('active')}
                         disabled={statusSaving}
-                        className="inline-flex items-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-60"
+                        style={{
+                          border: '1px solid #00a32a',
+                          background: '#ffffff',
+                          color: '#00a32a',
+                          padding: '10px 14px',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                        }}
                       >
-                        <CheckCircle2 size={16} />
                         Set Active
                       </button>
 
@@ -689,9 +922,15 @@ export default function AdminAffiliatesPage() {
                         type="button"
                         onClick={() => handleAffiliateStatusChange('inactive')}
                         disabled={statusSaving}
-                        className="inline-flex items-center gap-2 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-700 transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-60"
+                        style={{
+                          border: '1px solid #dba617',
+                          background: '#ffffff',
+                          color: '#9a6700',
+                          padding: '10px 14px',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                        }}
                       >
-                        <XCircle size={16} />
                         Set Inactive
                       </button>
 
@@ -699,107 +938,119 @@ export default function AdminAffiliatesPage() {
                         type="button"
                         onClick={() => handleAffiliateStatusChange('suspended')}
                         disabled={statusSaving}
-                        className="inline-flex items-center gap-2 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-60"
+                        style={{
+                          border: '1px solid #d63638',
+                          background: '#ffffff',
+                          color: '#d63638',
+                          padding: '10px 14px',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                        }}
                       >
-                        <ShieldAlert size={16} />
                         Suspend
                       </button>
                     </div>
                   </div>
                 </div>
 
-                <div className="space-y-6">
-                  <div className="rounded-[28px] border border-slate-200 bg-white shadow-sm">
-                    <div className="border-b border-slate-200 px-6 py-5">
-                      <h3 className="text-lg font-bold text-slate-900">Current Subscription</h3>
-                      <p className="mt-1 text-sm text-slate-500">
+                <div>
+                  <div style={{ ...cardStyle(), marginBottom: 20 }}>
+                    <div style={{ padding: '16px 18px', borderBottom: '1px solid #dcdcde' }}>
+                      <div style={{ fontSize: 16, fontWeight: 600, color: '#1d2327', marginBottom: 6 }}>
+                        Current Subscription
+                      </div>
+                      <div style={{ fontSize: 13, color: '#646970' }}>
                         Current plan overview and billing status.
-                      </p>
+                      </div>
                     </div>
 
-                    <div className="space-y-4 px-6 py-6">
-                      <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
-                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
-                          Plan
-                        </p>
-                        <p className="mt-2 text-sm font-bold text-slate-900">
+                    <div style={{ padding: 18, display: 'grid', gap: 12 }}>
+                      <div style={{ ...cardStyle({ padding: 14, background: '#f6f7f7' }) }}>
+                        <div style={{ fontSize: 12, color: '#646970', marginBottom: 8 }}>Plan</div>
+                        <div style={{ fontWeight: 600, color: '#1d2327' }}>
                           {affiliateDetails.subscription?.plan_name || '-'}
-                        </p>
-                      </div>
-
-                      <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
-                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
-                          Status
-                        </p>
-                        <div className="mt-2">
-                          <span
-                            className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold capitalize ${statusBadgeClass(
-                              affiliateDetails.subscription?.subscription_status
-                            )}`}
-                          >
-                            {affiliateDetails.subscription?.subscription_status || '-'}
-                          </span>
                         </div>
                       </div>
 
-                      <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
-                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
-                          Plan Price
-                        </p>
-                        <p className="mt-2 text-sm font-bold text-slate-900">
+                      <div style={{ ...cardStyle({ padding: 14, background: '#f6f7f7' }) }}>
+                        <div style={{ fontSize: 12, color: '#646970', marginBottom: 8 }}>Status</div>
+                        <div
+                          style={{
+                            display: 'inline-flex',
+                            padding: '5px 10px',
+                            fontSize: 12,
+                            fontWeight: 600,
+                            ...badgeStyle(affiliateDetails.subscription?.subscription_status),
+                          }}
+                        >
+                          {affiliateDetails.subscription?.subscription_status || '-'}
+                        </div>
+                      </div>
+
+                      <div style={{ ...cardStyle({ padding: 14, background: '#f6f7f7' }) }}>
+                        <div style={{ fontSize: 12, color: '#646970', marginBottom: 8 }}>Plan Price</div>
+                        <div style={{ fontWeight: 600, color: '#1d2327' }}>
                           {affiliateDetails.subscription?.plan_price !== null &&
                           affiliateDetails.subscription?.plan_price !== undefined
                             ? formatCurrency(affiliateDetails.subscription.plan_price)
                             : '-'}
-                        </p>
+                        </div>
                       </div>
 
-                      <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
-                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
-                          Amount Paid
-                        </p>
-                        <p className="mt-2 text-sm font-bold text-slate-900">
+                      <div style={{ ...cardStyle({ padding: 14, background: '#f6f7f7' }) }}>
+                        <div style={{ fontSize: 12, color: '#646970', marginBottom: 8 }}>Amount Paid</div>
+                        <div style={{ fontWeight: 600, color: '#1d2327' }}>
                           {affiliateDetails.subscription?.amount_paid !== null &&
                           affiliateDetails.subscription?.amount_paid !== undefined
                             ? formatCurrency(affiliateDetails.subscription.amount_paid)
                             : '-'}
-                        </p>
+                        </div>
                       </div>
 
-                      <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
-                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
-                          Start Date
-                        </p>
-                        <p className="mt-2 text-sm font-bold text-slate-900">
+                      <div style={{ ...cardStyle({ padding: 14, background: '#f6f7f7' }) }}>
+                        <div style={{ fontSize: 12, color: '#646970', marginBottom: 8 }}>Start Date</div>
+                        <div style={{ fontWeight: 600, color: '#1d2327' }}>
                           {formatDateTime(affiliateDetails.subscription?.start_date)}
-                        </p>
+                        </div>
                       </div>
 
-                      <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
-                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
-                          End Date
-                        </p>
-                        <p className="mt-2 text-sm font-bold text-slate-900">
+                      <div style={{ ...cardStyle({ padding: 14, background: '#f6f7f7' }) }}>
+                        <div style={{ fontSize: 12, color: '#646970', marginBottom: 8 }}>End Date</div>
+                        <div style={{ fontWeight: 600, color: '#1d2327' }}>
                           {formatDateTime(affiliateDetails.subscription?.end_date)}
-                        </p>
+                        </div>
                       </div>
                     </div>
                   </div>
 
-                  <div className="rounded-[28px] border border-slate-200 bg-white shadow-sm">
-                    <div className="border-b border-slate-200 px-6 py-5">
-                      <h3 className="text-lg font-bold text-slate-900">Danger Zone</h3>
-                      <p className="mt-1 text-sm text-slate-500">
+                  <div style={cardStyle()}>
+                    <div style={{ padding: '16px 18px', borderBottom: '1px solid #dcdcde' }}>
+                      <div style={{ fontSize: 16, fontWeight: 600, color: '#1d2327', marginBottom: 6 }}>
+                        Danger Zone
+                      </div>
+                      <div style={{ fontSize: 13, color: '#646970' }}>
                         Permanently remove this affiliate account.
-                      </p>
+                      </div>
                     </div>
 
-                    <div className="px-6 py-6">
+                    <div style={{ padding: 18 }}>
                       <button
                         type="button"
                         onClick={handleDeleteAffiliate}
                         disabled={deleting}
-                        className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-60"
+                        style={{
+                          width: '100%',
+                          border: '1px solid #d63638',
+                          background: '#ffffff',
+                          color: '#d63638',
+                          padding: '12px 14px',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: 8,
+                        }}
                       >
                         <Trash2 size={16} />
                         {deleting ? 'Deleting...' : 'Delete Affiliate'}
@@ -809,23 +1060,34 @@ export default function AdminAffiliatesPage() {
                 </div>
               </div>
 
-              <div className="rounded-[28px] border border-slate-200 bg-white shadow-sm">
-                <div className="border-b border-slate-200 px-6 py-5">
-                  <h3 className="text-lg font-bold text-slate-900">Assign Subscription</h3>
-                  <p className="mt-1 text-sm text-slate-500">
+              <div style={cardStyle()}>
+                <div style={{ padding: '16px 18px', borderBottom: '1px solid #dcdcde' }}>
+                  <div style={{ fontSize: 16, fontWeight: 600, color: '#1d2327', marginBottom: 6 }}>
+                    Assign Subscription
+                  </div>
+                  <div style={{ fontSize: 13, color: '#646970' }}>
                     Attach a plan and control trial, amount paid and validity period.
-                  </p>
+                  </div>
                 </div>
 
-                <form onSubmit={handleAssignSubscription} className="space-y-6 px-6 py-6">
-                  <div className="grid gap-4 lg:grid-cols-3">
+                <form onSubmit={handleAssignSubscription} style={{ padding: 18 }}>
+                  <div className="admin-aff-three-grid" style={{ marginBottom: 16 }}>
                     <div>
-                      <label className="mb-2 block text-sm font-semibold text-slate-700">Plan</label>
+                      <label style={{ display: 'block', marginBottom: 8, fontSize: 13, fontWeight: 600, color: '#1d2327' }}>
+                        Plan
+                      </label>
                       <select
-                        className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-slate-400"
                         name="plan_id"
                         value={subscriptionForm.plan_id}
                         onChange={handleSubscriptionChange}
+                        style={{
+                          width: '100%',
+                          padding: '12px 14px',
+                          border: '1px solid #8c8f94',
+                          background: '#fff',
+                          color: '#1d2327',
+                          outline: 'none',
+                        }}
                       >
                         <option value="">Select plan</option>
                         {plans.map((plan) => (
@@ -837,14 +1099,21 @@ export default function AdminAffiliatesPage() {
                     </div>
 
                     <div>
-                      <label className="mb-2 block text-sm font-semibold text-slate-700">
+                      <label style={{ display: 'block', marginBottom: 8, fontSize: 13, fontWeight: 600, color: '#1d2327' }}>
                         Subscription Status
                       </label>
                       <select
-                        className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-slate-400"
                         name="status"
                         value={subscriptionForm.status}
                         onChange={handleSubscriptionChange}
+                        style={{
+                          width: '100%',
+                          padding: '12px 14px',
+                          border: '1px solid #8c8f94',
+                          background: '#fff',
+                          color: '#1d2327',
+                          outline: 'none',
+                        }}
                       >
                         <option value="trial">Trial</option>
                         <option value="active">Active</option>
@@ -854,98 +1123,163 @@ export default function AdminAffiliatesPage() {
                     </div>
 
                     <div>
-                      <label className="mb-2 block text-sm font-semibold text-slate-700">
+                      <label style={{ display: 'block', marginBottom: 8, fontSize: 13, fontWeight: 600, color: '#1d2327' }}>
                         Amount Paid
                       </label>
-                      <div className="relative">
+                      <div style={{ position: 'relative' }}>
                         <Wallet
                           size={16}
-                          className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
+                          style={{
+                            position: 'absolute',
+                            left: 14,
+                            top: '50%',
+                            transform: 'translateY(-50%)',
+                            color: '#646970',
+                          }}
                         />
                         <input
-                          className="w-full rounded-2xl border border-slate-200 bg-white py-3 pl-11 pr-4 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-400"
                           name="amount_paid"
                           type="number"
                           placeholder="Amount paid"
                           value={subscriptionForm.amount_paid}
                           onChange={handleSubscriptionChange}
+                          style={{
+                            width: '100%',
+                            padding: '12px 14px 12px 40px',
+                            border: '1px solid #8c8f94',
+                            background: '#fff',
+                            color: '#1d2327',
+                            outline: 'none',
+                          }}
                         />
                       </div>
                     </div>
                   </div>
 
-                  <div className="grid gap-4 lg:grid-cols-2">
+                  <div className="admin-aff-two-grid" style={{ marginBottom: 16 }}>
                     <div>
-                      <label className="mb-2 block text-sm font-semibold text-slate-700">
+                      <label style={{ display: 'block', marginBottom: 8, fontSize: 13, fontWeight: 600, color: '#1d2327' }}>
                         Trial Start
                       </label>
                       <input
-                        className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-slate-400"
                         name="trial_start"
                         type="datetime-local"
                         value={subscriptionForm.trial_start}
                         onChange={handleSubscriptionChange}
+                        style={{
+                          width: '100%',
+                          padding: '12px 14px',
+                          border: '1px solid #8c8f94',
+                          background: '#fff',
+                          color: '#1d2327',
+                          outline: 'none',
+                        }}
                       />
                     </div>
 
                     <div>
-                      <label className="mb-2 block text-sm font-semibold text-slate-700">
+                      <label style={{ display: 'block', marginBottom: 8, fontSize: 13, fontWeight: 600, color: '#1d2327' }}>
                         Trial End
                       </label>
                       <input
-                        className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-slate-400"
                         name="trial_end"
                         type="datetime-local"
                         value={subscriptionForm.trial_end}
                         onChange={handleSubscriptionChange}
+                        style={{
+                          width: '100%',
+                          padding: '12px 14px',
+                          border: '1px solid #8c8f94',
+                          background: '#fff',
+                          color: '#1d2327',
+                          outline: 'none',
+                        }}
                       />
                     </div>
                   </div>
 
-                  <div className="grid gap-4 lg:grid-cols-2">
+                  <div className="admin-aff-two-grid" style={{ marginBottom: 16 }}>
                     <div>
-                      <label className="mb-2 block text-sm font-semibold text-slate-700">
+                      <label style={{ display: 'block', marginBottom: 8, fontSize: 13, fontWeight: 600, color: '#1d2327' }}>
                         Start Date
                       </label>
                       <input
-                        className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-slate-400"
                         name="start_date"
                         type="datetime-local"
                         value={subscriptionForm.start_date}
                         onChange={handleSubscriptionChange}
+                        style={{
+                          width: '100%',
+                          padding: '12px 14px',
+                          border: '1px solid #8c8f94',
+                          background: '#fff',
+                          color: '#1d2327',
+                          outline: 'none',
+                        }}
                       />
                     </div>
 
                     <div>
-                      <label className="mb-2 block text-sm font-semibold text-slate-700">
+                      <label style={{ display: 'block', marginBottom: 8, fontSize: 13, fontWeight: 600, color: '#1d2327' }}>
                         End Date
                       </label>
                       <input
-                        className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-slate-400"
                         name="end_date"
                         type="datetime-local"
                         value={subscriptionForm.end_date}
                         onChange={handleSubscriptionChange}
+                        style={{
+                          width: '100%',
+                          padding: '12px 14px',
+                          border: '1px solid #8c8f94',
+                          background: '#fff',
+                          color: '#1d2327',
+                          outline: 'none',
+                        }}
                       />
                     </div>
                   </div>
 
-                  <div className="flex flex-wrap items-center justify-between gap-3 rounded-3xl border border-slate-200 bg-slate-50 px-4 py-4">
+                  <div
+                    style={{
+                      ...cardStyle({
+                        padding: 14,
+                        background: '#f6f7f7',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: 12,
+                        flexWrap: 'wrap',
+                      }),
+                    }}
+                  >
                     <div>
-                      <p className="text-sm font-semibold text-slate-900">Save subscription changes</p>
-                      <p className="mt-1 text-xs text-slate-500">
-                        This keeps the current API flow and only upgrades the admin UI.
-                      </p>
+                      <div style={{ fontSize: 14, fontWeight: 600, color: '#1d2327', marginBottom: 4 }}>
+                        Save subscription changes
+                      </div>
+                      <div style={{ fontSize: 13, color: '#646970' }}>
+                        This keeps the current API flow and only updates the admin UI.
+                      </div>
                     </div>
 
                     <button
-                      className="inline-flex items-center gap-2 rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
                       type="submit"
                       disabled={subscriptionSaving}
+                      style={{
+                        border: '1px solid #2271b1',
+                        background: '#2271b1',
+                        color: '#fff',
+                        padding: '10px 16px',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 8,
+                      }}
                     >
                       {subscriptionSaving ? (
                         <>
-                          <Loader2 size={16} className="animate-spin" />
+                          <Loader2 size={16} className="spin-soft" />
                           Saving...
                         </>
                       ) : (
@@ -960,14 +1294,8 @@ export default function AdminAffiliatesPage() {
               </div>
             </>
           ) : (
-            <div className="rounded-[28px] border border-dashed border-slate-300 bg-white px-6 py-16 text-center shadow-sm">
-              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-slate-100 text-slate-500">
-                <Users size={24} />
-              </div>
-              <h3 className="mt-5 text-lg font-bold text-slate-900">No affiliate selected</h3>
-              <p className="mt-2 text-sm text-slate-500">
-                Choose an affiliate from the left panel to view details and manage the account.
-              </p>
+            <div style={cardStyle({ padding: 40, textAlign: 'center', color: '#646970' })}>
+              Select an affiliate from the left panel to view details and manage the account.
             </div>
           )}
         </section>

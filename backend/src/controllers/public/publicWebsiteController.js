@@ -43,6 +43,11 @@ function sanitizeProduct(row) {
     storefront_cta_label: row.storefront_cta_label,
     short_description: row.short_description,
     status: row.status,
+    website_slug: row.website_slug,
+    website_url: `/${row.website_slug}`,
+    affiliate_buy_url: row.affiliate_buy_url || null,
+    review_url: row.post_slug ? `/${row.website_slug}/post/${row.post_slug}` : null,
+    badge: null,
     category: row.category_id
       ? {
           id: row.category_id,
@@ -50,7 +55,12 @@ function sanitizeProduct(row) {
           slug: row.category_slug,
         }
       : null,
-    read_more_url: `/${row.website_slug}/product/${row.slug}`,
+    affiliate: {
+      website_name: row.website_name || null,
+      website_slug: row.website_slug || null,
+      name: row.owner_name || null,
+    },
+    read_more_url: row.post_slug ? `/${row.website_slug}/post/${row.post_slug}` : '#',
   };
 }
 
@@ -79,13 +89,15 @@ function sanitizeSlider(row) {
           id: row.linked_product_id,
           title: row.product_title,
           slug: row.product_slug,
-          url: `/${row.website_slug}/product/${row.product_slug}`,
+          url: row.product_post_slug
+            ? `/${row.website_slug}/post/${row.product_post_slug}`
+            : null,
         }
       : null,
   };
 }
 
-function sanitizeCategory(row) {
+function sanitizeCategory(row, websiteSlug) {
   if (!row) return null;
 
   return {
@@ -93,6 +105,7 @@ function sanitizeCategory(row) {
     name: row.category_name,
     slug: row.category_slug,
     total_products: Number(row.total_products || 0),
+    url: `/${websiteSlug}/category/${row.category_slug}`,
   };
 }
 
@@ -110,11 +123,11 @@ function sanitizeMenu(row) {
 function sanitizeMenuItem(row, websiteSlug) {
   let resolvedUrl = null;
 
-  if (row.type === 'home') {
+  if (row.item_type === 'home') {
     resolvedUrl = `/${websiteSlug}`;
-  } else if (row.type === 'category' && row.category_slug) {
+  } else if (row.item_type === 'category' && row.category_slug) {
     resolvedUrl = `/${websiteSlug}/category/${row.category_slug}`;
-  } else if (row.type === 'custom') {
+  } else if (row.item_type === 'custom') {
     resolvedUrl = row.custom_url;
   }
 
@@ -134,6 +147,17 @@ function sanitizeMenuItem(row, websiteSlug) {
         }
       : null,
   };
+}
+
+function parseJsonSafe(value, fallback = {}) {
+  if (!value) return fallback;
+
+  try {
+    const parsed = typeof value === 'string' ? JSON.parse(value) : value;
+    return parsed && typeof parsed === 'object' ? parsed : fallback;
+  } catch (error) {
+    return fallback;
+  }
 }
 
 async function getWebsiteBySlug(websiteSlug) {
@@ -189,11 +213,27 @@ async function getWebsiteProducts(websiteId, websiteSlug, limit = 24) {
       p.storefront_cta_label,
       p.short_description,
       p.status,
+      p.affiliate_buy_url,
       c.id AS category_id,
       c.name AS category_name,
       c.slug AS category_slug,
-      ? AS website_slug
+      ? AS website_slug,
+      aw.website_name,
+      u.name AS owner_name,
+      (
+        SELECT pp.slug
+        FROM product_posts pp
+        WHERE pp.website_id = p.website_id
+          AND pp.product_id = p.id
+          AND pp.status = 'published'
+        ORDER BY pp.published_at DESC, pp.id DESC
+        LIMIT 1
+      ) AS post_slug
     FROM products p
+    INNER JOIN affiliate_websites aw
+      ON aw.id = p.website_id
+    INNER JOIN users u
+      ON u.id = aw.user_id
     LEFT JOIN categories c
       ON c.id = p.category_id
      AND c.status = 'active'
@@ -226,6 +266,15 @@ async function getWebsiteSliders(websiteId, websiteSlug) {
       pp.slug AS post_slug,
       p.title AS product_title,
       p.slug AS product_slug,
+      (
+        SELECT ppx.slug
+        FROM product_posts ppx
+        WHERE ppx.website_id = ws.website_id
+          AND ppx.product_id = ws.linked_product_id
+          AND ppx.status = 'published'
+        ORDER BY ppx.published_at DESC, ppx.id DESC
+        LIMIT 1
+      ) AS product_post_slug,
       ? AS website_slug
     FROM website_sliders ws
     LEFT JOIN product_posts pp
@@ -244,7 +293,7 @@ async function getWebsiteSliders(websiteId, websiteSlug) {
   return rows.map(sanitizeSlider);
 }
 
-async function getWebsiteUsedCategories(websiteId) {
+async function getWebsiteUsedCategories(websiteId, websiteSlug) {
   const [rows] = await pool.query(
     `
     SELECT
@@ -264,7 +313,7 @@ async function getWebsiteUsedCategories(websiteId) {
     [websiteId]
   );
 
-  return rows.map(sanitizeCategory);
+  return rows.map((row) => sanitizeCategory(row, websiteSlug));
 }
 
 async function getWebsiteMenus(websiteId, websiteSlug) {
@@ -329,9 +378,13 @@ async function getWebsiteDesignSettings(websiteId) {
       wds.show_categories_menu,
       wds.show_featured_slider,
       wds.custom_css,
+      wds.template_settings_json,
       wt.name AS template_name,
       wt.slug AS template_slug,
-      wt.template_code_key
+      wt.template_code_key,
+      wt.preview_image,
+      wt.is_premium,
+      wt.status AS template_status
     FROM website_design_settings wds
     LEFT JOIN website_templates wt
       ON wt.id = wds.website_template_id
@@ -362,14 +415,51 @@ async function getWebsiteDesignSettings(websiteId) {
     show_categories_menu: !!row.show_categories_menu,
     show_featured_slider: !!row.show_featured_slider,
     custom_css: row.custom_css,
+    template_settings_json: parseJsonSafe(row.template_settings_json, {}),
     template: row.website_template_id
       ? {
           id: row.website_template_id,
           name: row.template_name,
           slug: row.template_slug,
           template_code_key: row.template_code_key,
+          preview_image: row.preview_image || null,
+          is_premium: !!row.is_premium,
+          status: row.template_status || null,
         }
       : null,
+  };
+}
+
+function buildTemplateSettings(designSettings) {
+  const cardStyle = String(designSettings?.card_style || '').toLowerCase();
+  const showCategoriesMenu = !!designSettings?.show_categories_menu;
+  const showFeaturedSlider = !!designSettings?.show_featured_slider;
+
+  return {
+    allow_product_quick_view: cardStyle !== 'basic_no_popup',
+    offers_per_row: cardStyle === 'compact' ? 5 : 4,
+    offers_limit: cardStyle === 'compact' ? 10 : 8,
+    categories_per_row: showCategoriesMenu ? 4 : 6,
+    categories_limit: showCategoriesMenu ? 8 : 6,
+    articles_per_row: 4,
+    articles_limit: 4,
+    product_image_fit: 'cover',
+    product_image_ratio: '4 / 4',
+    show_search: !!designSettings?.show_search,
+    show_categories_menu: showCategoriesMenu,
+    show_featured_slider: showFeaturedSlider,
+    header_layout: designSettings?.header_layout || null,
+    footer_layout: designSettings?.footer_layout || null,
+    color_scheme: designSettings?.color_scheme || null,
+    primary_color: designSettings?.primary_color || null,
+    secondary_color: designSettings?.secondary_color || null,
+    accent_color: designSettings?.accent_color || null,
+    font_family: designSettings?.font_family || null,
+    button_style: designSettings?.button_style || null,
+    card_style: designSettings?.card_style || null,
+    mobile_menu_style: designSettings?.mobile_menu_style || null,
+    custom_css: designSettings?.custom_css || null,
+    template_settings_json: parseJsonSafe(designSettings?.template_settings_json, {}),
   };
 }
 
@@ -396,15 +486,35 @@ async function getPublicWebsite(req, res) {
     const [products, sliders, categories, menus, design_settings] = await Promise.all([
       getWebsiteProducts(website.id, website.slug),
       getWebsiteSliders(website.id, website.slug),
-      getWebsiteUsedCategories(website.id),
+      getWebsiteUsedCategories(website.id, website.slug),
       getWebsiteMenus(website.id, website.slug),
       getWebsiteDesignSettings(website.id),
     ]);
 
+    const sanitizedWebsite = sanitizeWebsite(website);
+    const template = design_settings?.template || null;
+    const template_settings = buildTemplateSettings(design_settings);
+
     return res.status(200).json({
       ok: true,
-      website: sanitizeWebsite(website),
+      website: {
+        ...sanitizedWebsite,
+        template_code_key:
+          template?.template_code_key ||
+          sanitizedWebsite.homepage_template ||
+          'free_simple',
+        selected_template_code_key:
+          template?.template_code_key ||
+          sanitizedWebsite.homepage_template ||
+          'free_simple',
+        template,
+        template_settings,
+        template_settings_json: design_settings?.template_settings_json || {},
+      },
       design_settings,
+      template,
+      template_settings,
+      template_settings_json: design_settings?.template_settings_json || {},
       sliders,
       menus,
       categories,
@@ -434,7 +544,7 @@ async function getPublicWebsiteCategories(req, res) {
       });
     }
 
-    const categories = await getWebsiteUsedCategories(website.id);
+    const categories = await getWebsiteUsedCategories(website.id, website.slug);
 
     return res.status(200).json({
       ok: true,
