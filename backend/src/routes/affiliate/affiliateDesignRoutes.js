@@ -4,7 +4,7 @@ const {
   saveMyDesignSettings,
   getAvailableWebsiteTemplates,
 } = require('../../controllers/affiliate/affiliateDesignController');
-const { protect, affiliateOnly } = require('../../middleware/authMiddleware');
+const { protect, authorize } = require('../../middleware/authMiddleware');
 
 const router = express.Router();
 
@@ -15,10 +15,17 @@ router.get('/health', (req, res) => {
   });
 });
 
-router.get('/', protect, affiliateOnly, getMyDesignSettings);
-router.get('/templates', protect, affiliateOnly, getAvailableWebsiteTemplates);
+router.get('/debug-user', protect, (req, res) => {
+  return res.status(200).json({
+    ok: true,
+    user: req.user,
+  });
+});
 
-router.post('/', protect, affiliateOnly, saveMyDesignSettings);
-router.put('/', protect, affiliateOnly, saveMyDesignSettings);
+router.get('/', protect, authorize('affiliate', 'admin'), getMyDesignSettings);
+router.get('/templates', protect, authorize('affiliate', 'admin'), getAvailableWebsiteTemplates);
+
+router.post('/', protect, authorize('affiliate', 'admin'), saveMyDesignSettings);
+router.put('/', protect, authorize('affiliate', 'admin'), saveMyDesignSettings);
 
 module.exports = router;

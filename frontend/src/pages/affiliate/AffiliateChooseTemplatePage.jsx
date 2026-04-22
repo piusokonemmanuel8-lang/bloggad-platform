@@ -21,6 +21,11 @@ function getStatusClass(status = '') {
   return 'affiliate-choose-template-status neutral';
 }
 
+async function fetchAffiliateBlogTemplates() {
+  const { data } = await api.get('/api/affiliate/templates/blog');
+  return data?.templates || [];
+}
+
 export default function AffiliateChooseTemplatePage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -42,15 +47,21 @@ export default function AffiliateChooseTemplatePage() {
         setLoading(true);
       }
 
-      const { data } = await api.get('/api/admin/templates/blog');
-      const rows = data?.templates || [];
-      setTemplates(rows);
+      const rows = await fetchAffiliateBlogTemplates();
+      const activeRows = rows.filter(
+        (item) => String(item?.status || '').toLowerCase() === 'active'
+      );
 
-      if (!selectedTemplateId && rows.length) {
-        setSelectedTemplateId(String(rows[0].id));
+      setTemplates(activeRows);
+
+      if (!selectedTemplateId && activeRows.length) {
+        setSelectedTemplateId(String(activeRows[0].id));
       }
     } catch (err) {
-      setError(err?.response?.data?.message || 'Failed to load templates');
+      setError(
+        err?.response?.data?.message ||
+          'Failed to load affiliate blog templates'
+      );
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -125,6 +136,7 @@ export default function AffiliateChooseTemplatePage() {
             className="affiliate-choose-template-btn primary"
             type="button"
             onClick={handleContinue}
+            disabled={!selectedTemplateId}
           >
             Continue
             <ArrowRight size={16} />
@@ -210,7 +222,7 @@ export default function AffiliateChooseTemplatePage() {
             <div className="affiliate-choose-template-empty">
               <LayoutTemplate size={32} />
               <h3>No templates found</h3>
-              <p>There are no blog templates available right now.</p>
+              <p>There are no active blog templates available for your current plan right now.</p>
             </div>
           )}
         </div>

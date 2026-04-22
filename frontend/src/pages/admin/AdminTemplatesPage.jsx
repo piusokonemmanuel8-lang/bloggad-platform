@@ -47,6 +47,19 @@ const BUILT_IN_WEBSITE_TEMPLATES = [
   },
 ];
 
+const BUILT_IN_BLOG_TEMPLATES = [
+  {
+    name: 'Neutral Review Template',
+    slug: 'neutral-review-template-v1',
+    preview_image: '',
+    template_code_key: 'neutral_review_template_v1',
+    description:
+      'Locked blog review template with compulsory Lepresium content slots, strict word rules, fixed sections, fixed CTA slots, and fixed image slots.',
+    is_premium: false,
+    status: 'active',
+  },
+];
+
 function emptyWebsiteTemplateForm() {
   return {
     type: 'website',
@@ -236,22 +249,37 @@ export default function AdminTemplatesPage() {
       return { created: 0 };
     }
 
-    setSeeding(true);
+    await Promise.all(
+      missingTemplates.map((template) => api.post('/api/admin/templates/website', template))
+    );
 
-    try {
-      await Promise.all(
-        missingTemplates.map((template) =>
-          api.post('/api/admin/templates/website', template)
-        )
-      );
-
-      return { created: missingTemplates.length };
-    } finally {
-      setSeeding(false);
-    }
+    return { created: missingTemplates.length };
   };
 
-  const applyFetchedTemplates = (websiteList, blogList, preferredType = activeTab, preferredId = null) => {
+  const ensureBuiltInBlogTemplates = async (blogList) => {
+    const existingKeys = new Set(blogList.map((item) => normalizeCodeKey(item?.template_code_key)));
+
+    const missingTemplates = BUILT_IN_BLOG_TEMPLATES.filter(
+      (item) => !existingKeys.has(normalizeCodeKey(item.template_code_key))
+    );
+
+    if (!missingTemplates.length) {
+      return { created: 0 };
+    }
+
+    await Promise.all(
+      missingTemplates.map((template) => api.post('/api/admin/templates/blog', template))
+    );
+
+    return { created: missingTemplates.length };
+  };
+
+  const applyFetchedTemplates = (
+    websiteList,
+    blogList,
+    preferredType = activeTab,
+    preferredId = null
+  ) => {
     setWebsiteTemplates(websiteList);
     setBlogTemplates(blogList);
 
@@ -295,9 +323,15 @@ export default function AdminTemplatesPage() {
         setError('');
 
         const firstFetch = await fetchTemplatesFromApi();
-        const seedResult = await ensureBuiltInWebsiteTemplates(firstFetch.websiteList);
 
-        if (seedResult.created > 0) {
+        setSeeding(true);
+        const [websiteSeedResult, blogSeedResult] = await Promise.all([
+          ensureBuiltInWebsiteTemplates(firstFetch.websiteList),
+          ensureBuiltInBlogTemplates(firstFetch.blogList),
+        ]);
+        setSeeding(false);
+
+        if (websiteSeedResult.created > 0 || blogSeedResult.created > 0) {
           const secondFetch = await fetchTemplatesFromApi();
           applyFetchedTemplates(secondFetch.websiteList, secondFetch.blogList, 'website');
         } else {
@@ -307,6 +341,7 @@ export default function AdminTemplatesPage() {
         setError(err?.response?.data?.message || 'Failed to load templates');
       } finally {
         setLoading(false);
+        setSeeding(false);
       }
     };
 
@@ -372,11 +407,19 @@ export default function AdminTemplatesPage() {
       setSuccess('');
 
       const fetched = await fetchTemplatesFromApi();
-      const seedResult = await ensureBuiltInWebsiteTemplates(fetched.websiteList);
 
-      if (seedResult.created > 0) {
+      setSeeding(true);
+      const [websiteSeedResult, blogSeedResult] = await Promise.all([
+        ensureBuiltInWebsiteTemplates(fetched.websiteList),
+        ensureBuiltInBlogTemplates(fetched.blogList),
+      ]);
+      setSeeding(false);
+
+      if (websiteSeedResult.created > 0 || blogSeedResult.created > 0) {
         await refreshTemplates(activeTab);
-        setSuccess(`Templates refreshed. Added ${seedResult.created} built-in template(s).`);
+        setSuccess(
+          `Templates refreshed. Added ${websiteSeedResult.created + blogSeedResult.created} built-in template(s).`
+        );
       } else {
         applyFetchedTemplates(fetched.websiteList, fetched.blogList, activeTab);
         setSuccess('Templates refreshed successfully');
@@ -385,12 +428,17 @@ export default function AdminTemplatesPage() {
       setError(err?.response?.data?.message || 'Failed to refresh templates');
     } finally {
       setRefreshing(false);
+      setSeeding(false);
     }
   };
 
   const validateForm = () => {
     if (!form.name.trim()) {
       throw new Error('Template name is required');
+    }
+
+    if (!form.slug.trim()) {
+      throw new Error('Template slug is required');
     }
 
     if (!form.template_code_key.trim()) {

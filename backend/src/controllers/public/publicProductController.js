@@ -71,6 +71,37 @@ function sanitizePost(row) {
   };
 }
 
+function normalizeClickType(value = '') {
+  const clickType = String(value || '').trim().toLowerCase();
+
+  const allowedTypes = new Set([
+    'buy_now',
+    'read_more',
+    'learn_more',
+    'quick_view',
+    'save',
+    'share',
+    'visit_website',
+    'impression',
+  ]);
+
+  return allowedTypes.has(clickType) ? clickType : '';
+}
+
+function getRedirectUrlForClick(product, clickType) {
+  if (!product) return '#';
+
+  if (clickType === 'buy_now') {
+    return product.affiliate_buy_url || `/${product.website_slug}/product/${product.slug}`;
+  }
+
+  if (clickType === 'visit_website') {
+    return product.website_slug ? `/${product.website_slug}` : '#';
+  }
+
+  return `/${product.website_slug}/product/${product.slug}`;
+}
+
 async function trackProductView(productId, websiteId, req) {
   try {
     await pool.query(
@@ -351,7 +382,7 @@ async function trackPublicProductClick(req, res) {
   try {
     const websiteSlug = String(req.params.websiteSlug || '').trim().toLowerCase();
     const productSlug = String(req.params.slug || '').trim().toLowerCase();
-    const { click_type } = req.body;
+    const clickType = normalizeClickType(req.body?.click_type);
 
     if (!websiteSlug || !productSlug) {
       return res.status(400).json({
@@ -360,7 +391,7 @@ async function trackPublicProductClick(req, res) {
       });
     }
 
-    if (!['buy_now', 'read_more', 'learn_more'].includes(click_type)) {
+    if (!clickType) {
       return res.status(400).json({
         ok: false,
         message: 'Invalid click type',
@@ -393,7 +424,7 @@ async function trackPublicProductClick(req, res) {
       [
         product.id,
         product.website_id,
-        click_type,
+        clickType,
         req.get('referer') || null,
         req.ip || null,
         req.get('user-agent') || null,
@@ -403,10 +434,7 @@ async function trackPublicProductClick(req, res) {
     return res.status(200).json({
       ok: true,
       message: 'Product click tracked successfully',
-      redirect_url:
-        click_type === 'buy_now'
-          ? product.affiliate_buy_url
-          : `/${product.website_slug}/product/${product.slug}`,
+      redirect_url: getRedirectUrlForClick(product, clickType),
     });
   } catch (error) {
     console.error('trackPublicProductClick error:', error);

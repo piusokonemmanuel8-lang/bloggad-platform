@@ -310,6 +310,104 @@ function HeaderIcon({ children, count }) {
   );
 }
 
+function AuthLinksPills() {
+  return (
+    <div
+      className="homepage-auth-pills"
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 10,
+        flexWrap: 'wrap',
+      }}
+    >
+      <Link
+        to="/register"
+        style={{
+          height: 46,
+          padding: '0 18px',
+          borderRadius: 999,
+          border: '1px solid #d7cfff',
+          background: '#f5f1ff',
+          color: '#5b34ff',
+          textDecoration: 'none',
+          fontSize: 14,
+          fontWeight: 800,
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          whiteSpace: 'nowrap',
+        }}
+      >
+        Register as Affiliate
+      </Link>
+
+      <Link
+        to="/login"
+        style={{
+          height: 46,
+          padding: '0 18px',
+          borderRadius: 999,
+          border: '1px solid #e5dfd9',
+          background: '#fff',
+          color: '#232323',
+          textDecoration: 'none',
+          fontSize: 14,
+          fontWeight: 800,
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          whiteSpace: 'nowrap',
+        }}
+      >
+        Login as Affiliate
+      </Link>
+
+      <Link
+        to="/customer/register"
+        style={{
+          height: 46,
+          padding: '0 18px',
+          borderRadius: 999,
+          border: '1px solid #dbe7ff',
+          background: '#eef4ff',
+          color: '#2563eb',
+          textDecoration: 'none',
+          fontSize: 14,
+          fontWeight: 800,
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          whiteSpace: 'nowrap',
+        }}
+      >
+        Register as Customer
+      </Link>
+
+      <Link
+        to="/customer/login"
+        style={{
+          height: 46,
+          padding: '0 18px',
+          borderRadius: 999,
+          border: '1px solid #e5dfd9',
+          background: '#fff',
+          color: '#232323',
+          textDecoration: 'none',
+          fontSize: 14,
+          fontWeight: 800,
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          whiteSpace: 'nowrap',
+        }}
+      >
+        Login as Customer
+      </Link>
+    </div>
+  );
+}
+
 function MobileCategoryPanel({ open, onClose, categoryTree }) {
   if (!open) return null;
 
@@ -732,7 +830,7 @@ function MainSlider() {
       title: 'Unwrap mixed reality with Meta Quest 3',
       subtitle: '',
       image:
-        'https://images.unsplash.com/photo-1606220588913-b3aacb4d2f46?auto=format&fit=crop&w=1800&q=80',
+        'https://images.unsplash.com/photo-1606220945770-b5b6c2c55bf1?auto=format&fit=crop&w=1800&q=80',
       button: 'Buy Now',
       tabs: 'Meta Quest 3',
     },
@@ -2321,6 +2419,10 @@ export default function HomePage() {
           .homepage-shell {
             padding: 0 14px 40px;
           }
+
+          .homepage-auth-pills {
+            justify-content: flex-start !important;
+          }
         }
 
         @media (max-width: 767px) {
@@ -2439,6 +2541,25 @@ export default function HomePage() {
             gap: 14px !important;
             padding-top: 14px !important;
             padding-bottom: 14px !important;
+          }
+
+          .mobile-home-auth-wrap {
+            display: grid !important;
+            gap: 12px !important;
+            background: #fff !important;
+            border-radius: 22px !important;
+            padding: 16px !important;
+          }
+
+          .mobile-home-auth-wrap .homepage-auth-pills {
+            display: grid !important;
+            grid-template-columns: 1fr !important;
+            gap: 10px !important;
+          }
+
+          .mobile-home-auth-wrap .homepage-auth-pills a {
+            width: 100% !important;
+            justify-content: center !important;
           }
 
           .homepage-shell {
@@ -2641,10 +2762,25 @@ export default function HomePage() {
               </HeaderIcon>
             </div>
           </div>
+
+          <AuthLinksPills />
         </header>
 
         <div className="mobile-only-top-area" style={{ display: 'none' }}>
           <CategoriesButton categoryTree={categoryTree} />
+
+          <div className="mobile-home-auth-wrap" style={{ display: 'none' }}>
+            <div
+              style={{
+                fontSize: 15,
+                fontWeight: 800,
+                color: '#232323',
+              }}
+            >
+              Join or sign in
+            </div>
+            <AuthLinksPills />
+          </div>
         </div>
 
         <section className="homepage-top-grid">

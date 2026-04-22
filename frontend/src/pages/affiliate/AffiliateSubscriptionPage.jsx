@@ -10,6 +10,9 @@ import {
   Rocket,
   ShieldCheck,
   History,
+  Sparkles,
+  Check,
+  Globe,
 } from 'lucide-react';
 import api from '../../api/axios';
 import formatCurrency from '../../utils/formatCurrency';
@@ -23,6 +26,11 @@ function getStatusClass(status = '') {
   if (value === 'cancelled' || value === 'suspended') return 'affiliate-subscription-status danger';
 
   return 'affiliate-subscription-status neutral';
+}
+
+function formatLimitValue(value) {
+  if (value === null || value === undefined || value === '') return '-';
+  return value;
 }
 
 export default function AffiliateSubscriptionPage() {
@@ -340,8 +348,17 @@ export default function AffiliateSubscriptionPage() {
                   key={plan.id}
                   className={`affiliate-subscription-plan-card${isCurrent ? ' current' : ''}`}
                 >
+                  <div className="affiliate-subscription-plan-card-glow" />
+
+                  {isCurrent ? (
+                    <div className="affiliate-subscription-plan-ribbon">
+                      <Sparkles size={14} />
+                      <span>Current Plan</span>
+                    </div>
+                  ) : null}
+
                   <div className="affiliate-subscription-plan-top">
-                    <div>
+                    <div className="affiliate-subscription-plan-top-copy">
                       <h3 className="affiliate-subscription-plan-name">{plan.name}</h3>
                       <p className="affiliate-subscription-plan-billing">
                         {plan.billing_cycle || '-'}
@@ -357,26 +374,71 @@ export default function AffiliateSubscriptionPage() {
                     </div>
                   </div>
 
-                  <div className="affiliate-subscription-plan-price">
-                    {plan.price !== null && plan.price !== undefined
-                      ? formatCurrency(plan.price)
-                      : '-'}
+                  <div className="affiliate-subscription-plan-price-block">
+                    <div className="affiliate-subscription-plan-price">
+                      {plan.price !== null && plan.price !== undefined
+                        ? formatCurrency(plan.price)
+                        : '-'}
+                    </div>
+                    <div className="affiliate-subscription-plan-price-note">
+                      Per {String(plan.billing_cycle || 'yearly').toLowerCase()}
+                    </div>
                   </div>
 
-                  <div className="affiliate-subscription-plan-features">
-                    <div><span>Products</span><strong>{plan.product_limit ?? '-'}</strong></div>
-                    <div><span>Posts</span><strong>{plan.post_limit ?? '-'}</strong></div>
-                    <div><span>Website</span><strong>{plan.website_limit ?? '-'}</strong></div>
-                    <div><span>Sliders</span><strong>{plan.slider_limit ?? '-'}</strong></div>
-                    <div><span>Menus</span><strong>{plan.menu_limit ?? '-'}</strong></div>
-                    <div>
+                  <div className="affiliate-subscription-plan-feature-grid">
+                    <div className="affiliate-subscription-plan-feature-item">
+                      <span>Products</span>
+                      <strong>{formatLimitValue(plan.product_limit)}</strong>
+                    </div>
+
+                    <div className="affiliate-subscription-plan-feature-item">
+                      <span>Posts</span>
+                      <strong>{formatLimitValue(plan.post_limit)}</strong>
+                    </div>
+
+                    <div className="affiliate-subscription-plan-feature-item">
+                      <span>Website</span>
+                      <strong>{formatLimitValue(plan.website_limit)}</strong>
+                    </div>
+
+                    <div className="affiliate-subscription-plan-feature-item">
+                      <span>Sliders</span>
+                      <strong>{formatLimitValue(plan.slider_limit)}</strong>
+                    </div>
+
+                    <div className="affiliate-subscription-plan-feature-item">
+                      <span>Menus</span>
+                      <strong>{formatLimitValue(plan.menu_limit)}</strong>
+                    </div>
+
+                    <div className="affiliate-subscription-plan-feature-item">
                       <span>Premium Templates</span>
                       <strong>{plan.premium_templates_only ? 'Yes' : 'No'}</strong>
                     </div>
                   </div>
 
+                  <div className="affiliate-subscription-plan-perks">
+                    <div className="affiliate-subscription-plan-perk">
+                      <div className="affiliate-subscription-plan-perk-icon">
+                        <Check size={14} />
+                      </div>
+                      <div className="affiliate-subscription-plan-perk-text">
+                        Premium Templates: {plan.premium_templates_only ? 'Enabled' : 'Not Included'}
+                      </div>
+                    </div>
+
+                    <div className="affiliate-subscription-plan-perk">
+                      <div className="affiliate-subscription-plan-perk-icon">
+                        <Globe size={14} />
+                      </div>
+                      <div className="affiliate-subscription-plan-perk-text">
+                        External Links: {plan.allow_external_links ? 'Allowed' : 'Supgad Only'}
+                      </div>
+                    </div>
+                  </div>
+
                   <button
-                    className={`affiliate-subscription-btn ${isCurrent ? 'secondary' : 'primary'} full`}
+                    className={`affiliate-subscription-btn ${isCurrent ? 'secondary' : 'primary'} full affiliate-subscription-plan-btn`}
                     type="button"
                     onClick={() => handleChangePlan(plan.id)}
                     disabled={actionLoading || isCurrent}
@@ -556,6 +618,12 @@ const styles = `
     border-color: #111827;
   }
 
+  .affiliate-subscription-btn.secondary {
+    background: #ffffff;
+    color: #111827;
+    border-color: #dbe2ea;
+  }
+
   .affiliate-subscription-btn.full {
     width: 100%;
   }
@@ -726,7 +794,6 @@ const styles = `
 
   .affiliate-subscription-info-box span,
   .affiliate-subscription-limit-row span,
-  .affiliate-subscription-plan-features span,
   .affiliate-subscription-history-grid span {
     font-size: 12px;
     color: #6b7280;
@@ -737,7 +804,6 @@ const styles = `
 
   .affiliate-subscription-info-box strong,
   .affiliate-subscription-limit-row strong,
-  .affiliate-subscription-plan-features strong,
   .affiliate-subscription-history-grid strong {
     font-size: 15px;
     color: #111827;
@@ -769,16 +835,60 @@ const styles = `
   }
 
   .affiliate-subscription-plan-card {
-    background: #f8fafc;
-    border: 1px solid #e5e7eb;
-    border-radius: 22px;
+    position: relative;
+    overflow: hidden;
+    background:
+      radial-gradient(circle at top right, rgba(15, 23, 42, 0.06), transparent 35%),
+      linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+    border: 1px solid #dbe2ea;
+    border-radius: 30px;
     padding: 18px;
+    box-shadow: 0 16px 35px rgba(15, 23, 42, 0.04);
+    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  }
+
+  .affiliate-subscription-plan-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 22px 40px rgba(15, 23, 42, 0.08);
   }
 
   .affiliate-subscription-plan-card.current {
     border-color: #111827;
-    background: #ffffff;
-    box-shadow: inset 0 0 0 1px #111827;
+    background:
+      radial-gradient(circle at top right, rgba(15, 23, 42, 0.08), transparent 35%),
+      linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+    box-shadow:
+      inset 0 0 0 1px #111827,
+      0 20px 40px rgba(15, 23, 42, 0.08);
+  }
+
+  .affiliate-subscription-plan-card-glow {
+    position: absolute;
+    top: -60px;
+    right: -60px;
+    width: 150px;
+    height: 150px;
+    border-radius: 999px;
+    background: radial-gradient(circle, rgba(17, 24, 39, 0.08) 0%, rgba(17, 24, 39, 0) 70%);
+    pointer-events: none;
+  }
+
+  .affiliate-subscription-plan-ribbon {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 32px;
+    padding: 0 12px;
+    border-radius: 999px;
+    background: #111827;
+    color: #ffffff;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    margin-bottom: 14px;
+    position: relative;
+    z-index: 1;
   }
 
   .affiliate-subscription-plan-top {
@@ -786,7 +896,13 @@ const styles = `
     justify-content: space-between;
     align-items: flex-start;
     gap: 14px;
-    margin-bottom: 12px;
+    margin-bottom: 14px;
+    position: relative;
+    z-index: 1;
+  }
+
+  .affiliate-subscription-plan-top-copy {
+    min-width: 0;
   }
 
   .affiliate-subscription-plan-name {
@@ -800,45 +916,130 @@ const styles = `
     margin: 0;
     font-size: 13px;
     color: #6b7280;
+    text-transform: lowercase;
   }
 
   .affiliate-subscription-plan-icon {
-    width: 44px;
-    height: 44px;
-    border-radius: 14px;
-    background: #ffffff;
+    width: 48px;
+    height: 48px;
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.92);
     border: 1px solid #e5e7eb;
     display: grid;
     place-items: center;
     color: #111827;
     flex-shrink: 0;
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.05);
+  }
+
+  .affiliate-subscription-plan-price-block {
+    margin-bottom: 16px;
+    position: relative;
+    z-index: 1;
   }
 
   .affiliate-subscription-plan-price {
-    font-size: 28px;
+    font-size: 40px;
     font-weight: 900;
-    color: #111827;
-    line-height: 1.1;
-    margin-bottom: 14px;
+    color: #0f172a;
+    line-height: 1;
+    letter-spacing: -0.03em;
+    margin-bottom: 6px;
   }
 
-  .affiliate-subscription-plan-features {
+  .affiliate-subscription-plan-price-note {
+    font-size: 12px;
+    color: #6b7280;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .affiliate-subscription-plan-feature-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    margin-bottom: 14px;
+    position: relative;
+    z-index: 1;
+  }
+
+  .affiliate-subscription-plan-feature-item {
+    min-height: 74px;
+    padding: 14px;
+    background: rgba(255, 255, 255, 0.88);
+    border: 1px solid #e8edf3;
+    border-radius: 18px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 10px;
+    backdrop-filter: blur(8px);
+  }
+
+  .affiliate-subscription-plan-feature-item span {
+    font-size: 11px;
+    color: #64748b;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    line-height: 1.2;
+  }
+
+  .affiliate-subscription-plan-feature-item strong {
+    font-size: 21px;
+    color: #0f172a;
+    font-weight: 900;
+    line-height: 1;
+    letter-spacing: -0.02em;
+    word-break: break-word;
+  }
+
+  .affiliate-subscription-plan-perks {
     display: flex;
     flex-direction: column;
     gap: 10px;
     margin-bottom: 16px;
+    position: relative;
+    z-index: 1;
   }
 
-  .affiliate-subscription-plan-features div,
-  .affiliate-subscription-history-grid div {
+  .affiliate-subscription-plan-perk {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    gap: 12px;
+    gap: 10px;
+    min-height: 46px;
     padding: 12px 14px;
-    background: #ffffff;
-    border: 1px solid #edf2f7;
-    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.88);
+    border: 1px solid #e8edf3;
+    border-radius: 16px;
+  }
+
+  .affiliate-subscription-plan-perk-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 999px;
+    background: #111827;
+    color: #ffffff;
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+  }
+
+  .affiliate-subscription-plan-perk-text {
+    font-size: 13px;
+    color: #0f172a;
+    font-weight: 700;
+    line-height: 1.4;
+  }
+
+  .affiliate-subscription-plan-btn {
+    position: relative;
+    z-index: 1;
+    min-height: 48px;
+    border-radius: 16px;
+    font-size: 14px;
+    font-weight: 900;
   }
 
   .affiliate-subscription-history-card {
@@ -884,6 +1085,17 @@ const styles = `
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 12px;
+  }
+
+  .affiliate-subscription-history-grid div {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 14px;
+    background: #ffffff;
+    border: 1px solid #edf2f7;
+    border-radius: 14px;
   }
 
   .affiliate-subscription-empty,
@@ -958,7 +1170,8 @@ const styles = `
     .affiliate-subscription-hero-actions,
     .affiliate-subscription-info-grid,
     .affiliate-subscription-plans-grid,
-    .affiliate-subscription-history-grid {
+    .affiliate-subscription-history-grid,
+    .affiliate-subscription-plan-feature-grid {
       grid-template-columns: 1fr;
     }
 
@@ -977,11 +1190,14 @@ const styles = `
     }
 
     .affiliate-subscription-limit-row,
-    .affiliate-subscription-plan-features div,
     .affiliate-subscription-history-grid div,
     .affiliate-subscription-current-top {
       flex-direction: column;
       align-items: flex-start;
+    }
+
+    .affiliate-subscription-plan-price {
+      font-size: 34px;
     }
   }
 `;

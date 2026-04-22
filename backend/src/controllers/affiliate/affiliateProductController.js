@@ -65,12 +65,12 @@ function validatePricingType(pricingType, price, minPrice, maxPrice) {
     return null;
   }
 
-  if (minPrice === null || maxPrice === null) {
-    return 'Minimum and maximum price are required for variable products';
+  if (minPrice === null) {
+    return 'Minimum price is required for variable products';
   }
 
-  if (maxPrice < minPrice) {
-    return 'Maximum price must be greater than or equal to minimum price';
+  if (maxPrice !== null && maxPrice < minPrice) {
+    return 'Suggested maximum price must be greater than or equal to minimum price';
   }
 
   return null;
@@ -365,7 +365,11 @@ async function createProduct(req, res) {
     }
 
     let validatedBuyUrl = null;
-    if (affiliate_buy_url !== undefined && affiliate_buy_url !== null && String(affiliate_buy_url).trim()) {
+    if (
+      affiliate_buy_url !== undefined &&
+      affiliate_buy_url !== null &&
+      String(affiliate_buy_url).trim()
+    ) {
       const result = await assertAndLogSupgadUrl({
         value: affiliate_buy_url,
         fieldName: 'Affiliate Buy URL',
@@ -377,7 +381,7 @@ async function createProduct(req, res) {
         sourceId: null,
       });
 
-      validatedBuyUrl = result.submitted_link;
+      validatedBuyUrl = result.normalized_url || result.submitted_link;
     }
 
     const cleanStatus = ['draft', 'published', 'inactive'].includes(status)
@@ -597,7 +601,7 @@ async function updateProduct(req, res) {
           sourceId: existingProduct.id,
         });
 
-        validatedBuyUrl = result.submitted_link;
+        validatedBuyUrl = result.normalized_url || result.submitted_link;
       }
     }
 

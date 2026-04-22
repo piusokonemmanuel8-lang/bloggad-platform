@@ -13,6 +13,8 @@ import {
   CheckCircle2,
   ShoppingBag,
   ArrowRight,
+  Upload,
+  X,
 } from 'lucide-react';
 import api from '../../api/axios';
 import validateSupgadUrl from '../../utils/validateSupgadUrl';
@@ -40,6 +42,8 @@ export default function AffiliateEditProductPage() {
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [selectedImageName, setSelectedImageName] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
@@ -93,6 +97,50 @@ export default function AffiliateEditProductPage() {
       ...prev,
       [name]: value,
     }));
+  };
+
+  const handleImageFileChange = (event) => {
+    const file = event.target.files?.[0];
+
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      setError('Please choose a valid image file.');
+      event.target.value = '';
+      return;
+    }
+
+    setUploadingImage(true);
+    setError('');
+    setSelectedImageName(file.name);
+
+    const reader = new FileReader();
+
+    reader.onload = () => {
+      setForm((prev) => ({
+        ...prev,
+        product_image: String(reader.result || ''),
+      }));
+      setUploadingImage(false);
+    };
+
+    reader.onerror = () => {
+      setUploadingImage(false);
+      setSelectedImageName('');
+      setError('Failed to read the selected image file.');
+      event.target.value = '';
+    };
+
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemoveImage = () => {
+    setForm((prev) => ({
+      ...prev,
+      product_image: '',
+    }));
+    setSelectedImageName('');
+    setError('');
   };
 
   const selectedCategoryName = useMemo(() => {
@@ -277,19 +325,56 @@ export default function AffiliateEditProductPage() {
                 />
               </label>
 
-              <label className="affiliate-edit-product-field">
+              <div className="affiliate-edit-product-field affiliate-edit-product-field-full">
                 <span className="affiliate-edit-product-label">
                   <ImageIcon size={16} />
-                  Product image URL
+                  Product image
                 </span>
-                <input
-                  className="affiliate-edit-product-input"
-                  name="product_image"
-                  placeholder="Product image URL"
-                  value={form.product_image}
-                  onChange={handleChange}
-                />
-              </label>
+
+                <label className="affiliate-edit-product-upload-box">
+                  <input
+                    className="affiliate-edit-product-file-input"
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageFileChange}
+                  />
+                  <span className="affiliate-edit-product-upload-inner">
+                    <span className="affiliate-edit-product-upload-icon">
+                      <Upload size={18} />
+                    </span>
+                    <span className="affiliate-edit-product-upload-text">
+                      {uploadingImage ? 'Uploading image...' : 'Upload image from device'}
+                    </span>
+                    <span className="affiliate-edit-product-upload-subtext">
+                      JPG, PNG, WEBP and other image files supported
+                    </span>
+                  </span>
+                </label>
+
+                {selectedImageName ? (
+                  <div className="affiliate-edit-product-file-row">
+                    <span className="affiliate-edit-product-file-name">{selectedImageName}</span>
+                    <button
+                      type="button"
+                      className="affiliate-edit-product-file-remove"
+                      onClick={handleRemoveImage}
+                    >
+                      <X size={14} />
+                      Remove
+                    </button>
+                  </div>
+                ) : null}
+
+                {form.product_image ? (
+                  <div className="affiliate-edit-product-image-preview-wrap">
+                    <img
+                      src={form.product_image}
+                      alt="Product preview"
+                      className="affiliate-edit-product-image-preview"
+                    />
+                  </div>
+                ) : null}
+              </div>
 
               <label className="affiliate-edit-product-field">
                 <span className="affiliate-edit-product-label">
@@ -452,7 +537,7 @@ export default function AffiliateEditProductPage() {
               <button
                 className="affiliate-edit-product-btn primary"
                 type="submit"
-                disabled={saving}
+                disabled={saving || uploadingImage}
               >
                 <Save size={16} />
                 {saving ? 'Saving...' : 'Update Product'}
@@ -742,6 +827,111 @@ const styles = `
     resize: vertical;
   }
 
+  .affiliate-edit-product-upload-box {
+    position: relative;
+    display: block;
+    width: 100%;
+    border: 1px dashed #cbd5e1;
+    border-radius: 18px;
+    background: #f8fafc;
+    cursor: pointer;
+    transition: 0.2s ease;
+    overflow: hidden;
+  }
+
+  .affiliate-edit-product-upload-box:hover {
+    border-color: #111827;
+    background: #f3f4f6;
+  }
+
+  .affiliate-edit-product-file-input {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+  }
+
+  .affiliate-edit-product-upload-inner {
+    min-height: 120px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    text-align: center;
+  }
+
+  .affiliate-edit-product-upload-icon {
+    width: 42px;
+    height: 42px;
+    border-radius: 999px;
+    background: #111827;
+    color: #ffffff;
+    display: grid;
+    place-items: center;
+  }
+
+  .affiliate-edit-product-upload-text {
+    font-size: 14px;
+    font-weight: 800;
+    color: #111827;
+  }
+
+  .affiliate-edit-product-upload-subtext {
+    font-size: 12px;
+    color: #6b7280;
+    line-height: 1.5;
+  }
+
+  .affiliate-edit-product-file-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 14px;
+    border-radius: 14px;
+    border: 1px solid #e5e7eb;
+    background: #ffffff;
+  }
+
+  .affiliate-edit-product-file-name {
+    font-size: 13px;
+    font-weight: 700;
+    color: #111827;
+    word-break: break-word;
+  }
+
+  .affiliate-edit-product-file-remove {
+    height: 34px;
+    padding: 0 12px;
+    border-radius: 12px;
+    border: 1px solid #e5e7eb;
+    background: #ffffff;
+    color: #111827;
+    font-size: 12px;
+    font-weight: 800;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+
+  .affiliate-edit-product-image-preview-wrap {
+    border-radius: 18px;
+    overflow: hidden;
+    border: 1px solid #e5e7eb;
+    background: #ffffff;
+  }
+
+  .affiliate-edit-product-image-preview {
+    width: 100%;
+    max-height: 320px;
+    object-fit: cover;
+    display: block;
+  }
+
   .affiliate-edit-product-help {
     color: #6b7280;
     font-size: 12px;
@@ -912,6 +1102,16 @@ const styles = `
 
     .affiliate-edit-product-btn {
       width: 100%;
+    }
+
+    .affiliate-edit-product-file-row {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+
+    .affiliate-edit-product-file-remove {
+      width: 100%;
+      justify-content: center;
     }
   }
 `;

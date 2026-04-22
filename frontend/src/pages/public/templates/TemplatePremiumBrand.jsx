@@ -14,7 +14,6 @@ import {
   Image as ImageIcon,
   Search,
   Share2,
-  ShoppingCart,
   Star,
   User,
   Scale,
@@ -162,10 +161,11 @@ function getCategoryIcon(name = '') {
   return categoryIconMap[key] || Smartphone;
 }
 
-function HeaderIcon({ children, count, dark = false }) {
+function HeaderIcon({ children, count, dark = false, onClick }) {
   return (
     <button
       type="button"
+      onClick={onClick}
       style={{
         position: 'relative',
         width: 46,
@@ -205,6 +205,186 @@ function HeaderIcon({ children, count, dark = false }) {
       ) : null}
       {children}
     </button>
+  );
+}
+
+function CustomerAuthPopup({
+  open,
+  onClose,
+  websiteSlug = '',
+  websiteId = '',
+  affiliateId = '',
+}) {
+  const queryString = useMemo(() => {
+    const params = new URLSearchParams();
+
+    if (websiteId) params.set('website_id', String(websiteId));
+    if (websiteSlug) params.set('website_slug', String(websiteSlug));
+    if (affiliateId) params.set('affiliate_id', String(affiliateId));
+
+    const built = params.toString();
+    return built ? `?${built}` : '';
+  }, [websiteId, websiteSlug, affiliateId]);
+
+  if (!open) return null;
+
+  return (
+    <>
+      <div
+        onClick={onClose}
+        style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(15, 23, 42, 0.55)',
+          backdropFilter: 'blur(6px)',
+          zIndex: 500,
+        }}
+      />
+
+      <div
+        style={{
+          position: 'fixed',
+          inset: '50% auto auto 50%',
+          transform: 'translate(-50%, -50%)',
+          width: 'min(520px, calc(100% - 24px))',
+          background: '#ffffff',
+          borderRadius: 28,
+          border: '1px solid #e5e7eb',
+          boxShadow: '0 28px 90px rgba(15, 23, 42, 0.22)',
+          zIndex: 501,
+          overflow: 'hidden',
+        }}
+      >
+        <div
+          style={{
+            padding: '18px 20px',
+            borderBottom: '1px solid #eef2f7',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 12,
+          }}
+        >
+          <div>
+            <div
+              style={{
+                fontSize: 12,
+                fontWeight: 800,
+                color: '#64748b',
+                letterSpacing: '0.08em',
+                textTransform: 'uppercase',
+                marginBottom: 4,
+              }}
+            >
+              Customer Access
+            </div>
+            <div
+              style={{
+                fontSize: 22,
+                fontWeight: 900,
+                color: '#111827',
+                letterSpacing: '-0.03em',
+              }}
+            >
+              Sign in or create account
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={onClose}
+            style={{
+              width: 42,
+              height: 42,
+              borderRadius: 14,
+              border: '1px solid #e5e7eb',
+              background: '#ffffff',
+              color: '#111827',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+            }}
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        <div
+          style={{
+            padding: 20,
+            display: 'grid',
+            gap: 14,
+          }}
+        >
+          <div
+            style={{
+              borderRadius: 22,
+              background: '#f8fafc',
+              border: '1px solid #e5e7eb',
+              padding: 16,
+            }}
+          >
+            <div
+              style={{
+                fontSize: 15,
+                lineHeight: 1.7,
+                color: '#475569',
+              }}
+            >
+              Continue as a customer for this storefront. Your store context will be carried automatically.
+            </div>
+          </div>
+
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: '1fr 1fr',
+              gap: 12,
+            }}
+          >
+            <Link
+              to={`/customer/register${queryString}`}
+              onClick={onClose}
+              style={{
+                minHeight: 54,
+                borderRadius: 18,
+                background: '#2563eb',
+                color: '#ffffff',
+                textDecoration: 'none',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: 15,
+                fontWeight: 800,
+              }}
+            >
+              Register
+            </Link>
+
+            <Link
+              to={`/customer/login${queryString}`}
+              onClick={onClose}
+              style={{
+                minHeight: 54,
+                borderRadius: 18,
+                border: '1px solid #d1d5db',
+                background: '#ffffff',
+                color: '#111827',
+                textDecoration: 'none',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: 15,
+                fontWeight: 800,
+              }}
+            >
+              Login
+            </Link>
+          </div>
+        </div>
+      </div>
+    </>
   );
 }
 
@@ -387,7 +567,14 @@ function CategoriesButton({ categoryTree }) {
   );
 }
 
-function MainHeader({ website, headerMenu, categoryTree, templateConfig }) {
+function MainHeader({
+  website,
+  headerMenu,
+  categoryTree,
+  templateConfig,
+  websiteSlug,
+  onOpenCustomerAuth,
+}) {
   return (
     <>
       <div
@@ -408,7 +595,7 @@ function MainHeader({ website, headerMenu, categoryTree, templateConfig }) {
           }}
         >
           <Link
-            to="#"
+            to={`/${websiteSlug || ''}`}
             style={{
               display: 'inline-flex',
               alignItems: 'center',
@@ -584,7 +771,7 @@ function MainHeader({ website, headerMenu, categoryTree, templateConfig }) {
             {(headerMenu?.items || []).map((item) => (
               <Link
                 key={item.id}
-                to={resolveMenuUrl(item)}
+                to={resolveMenuUrl(item, websiteSlug)}
                 style={{
                   textDecoration: 'none',
                   color: '#202124',
@@ -618,7 +805,7 @@ function MainHeader({ website, headerMenu, categoryTree, templateConfig }) {
               <span>{templateConfig.top_header.currency_label}</span>
             </div>
 
-            <HeaderIcon>
+            <HeaderIcon onClick={onOpenCustomerAuth}>
               <User size={20} />
             </HeaderIcon>
             <HeaderIcon count={0}>
@@ -627,13 +814,6 @@ function MainHeader({ website, headerMenu, categoryTree, templateConfig }) {
             <HeaderIcon count={0}>
               <Heart size={20} />
             </HeaderIcon>
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <HeaderIcon count={0} dark>
-                <ShoppingCart size={20} />
-              </HeaderIcon>
-              <span style={{ fontWeight: 700, color: '#202124', fontSize: 16 }}>$0.00</span>
-            </div>
           </div>
         </div>
       </div>
@@ -2318,6 +2498,21 @@ export default function TemplatePremiumBrand({
     [settings, templateCodeKey]
   );
 
+  const [customerAuthOpen, setCustomerAuthOpen] = useState(false);
+
+  const popupWebsiteId =
+    website?.id ||
+    settings?.website_id ||
+    settings?.website?.id ||
+    '';
+
+  const popupAffiliateId =
+    website?.user_id ||
+    website?.affiliate_id ||
+    settings?.affiliate_id ||
+    settings?.user_id ||
+    '';
+
   return (
     <div
       style={{
@@ -2398,6 +2593,8 @@ export default function TemplatePremiumBrand({
         headerMenu={headerMenu}
         categoryTree={categoryTree}
         templateConfig={templateConfig}
+        websiteSlug={websiteSlug}
+        onOpenCustomerAuth={() => setCustomerAuthOpen(true)}
       />
 
       <div className="store-container store-page-wrap" style={{ paddingTop: 22, paddingBottom: 64 }}>
@@ -2430,6 +2627,14 @@ export default function TemplatePremiumBrand({
           <ArticleSection articles={articles} settings={settings} />
         ) : null}
       </div>
+
+      <CustomerAuthPopup
+        open={customerAuthOpen}
+        onClose={() => setCustomerAuthOpen(false)}
+        websiteSlug={websiteSlug}
+        websiteId={popupWebsiteId}
+        affiliateId={popupAffiliateId}
+      />
 
       {settings.allowProductQuickView ? (
         <ProductQuickViewModal

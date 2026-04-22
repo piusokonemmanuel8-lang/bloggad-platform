@@ -1,6 +1,9 @@
 const slugify = require('slugify');
 const pool = require('../../config/db');
-const { assertAndLogSupgadUrl } = require('../../services/linkValidationService');
+const {
+  assertAndLogSupgadUrl,
+  getLatestUserPlanLinkPermission,
+} = require('../../services/linkValidationService');
 
 function sanitizePost(row) {
   if (!row) return null;
@@ -52,6 +55,19 @@ function normalizeFieldValue(value) {
   if (value === undefined || value === null) return null;
   if (typeof value === 'string') return value.trim();
   return JSON.stringify(value);
+}
+
+function isLikelyLinkField(field = {}) {
+  const fieldType = String(field.field_type || field.type || '').trim().toLowerCase();
+  const fieldKey = normalizeNullable(field.field_key || field.key) || 'field';
+
+  return (
+    fieldType.includes('url') ||
+    fieldType.includes('link') ||
+    fieldKey.toLowerCase().includes('url') ||
+    fieldKey.toLowerCase().includes('link') ||
+    fieldKey.toLowerCase().includes('cta')
+  );
 }
 
 async function getAffiliateWebsite(userId) {
@@ -109,7 +125,7 @@ async function getCategoryById(categoryId) {
 async function getBlogTemplateById(templateId) {
   const [rows] = await pool.query(
     `
-    SELECT id, name, slug, status
+    SELECT id, name, slug, status, is_premium
     FROM blog_templates
     WHERE id = ?
     LIMIT 1
@@ -118,6 +134,101 @@ async function getBlogTemplateById(templateId) {
   );
 
   return rows[0] || null;
+}
+
+async function getLatestSubscriptionPlanByUserId(userId) {
+  const [rows] = await pool.query(
+    `
+    SELECT
+      s.id AS subscription_id,
+      s.user_id,
+      s.plan_id,
+      s.status AS subscription_status,
+      p.name AS plan_name,
+      p.premium_templates_only,
+      p.blog_templates_mode,
+      p.allow_external_links
+    FROM affiliate_subscriptions s
+    INNER JOIN subscription_plans p
+      ON p.id = s.plan_id
+    WHERE s.user_id = ?
+    ORDER BY s.id DESC
+    LIMIT 1
+    `,
+    [userId]
+  );
+
+  return rows[0] || null;
+}
+
+async function getAllowedBlogTemplateIdsByPlanId(planId) {
+  if (!planId) return [];
+
+  const [rows] = await pool.query(
+    `
+    SELECT blog_template_id
+    FROM plan_allowed_blog_templates
+    WHERE plan_id = ?
+    ORDER BY id ASC
+    `,
+    [planId]
+  );
+
+  return rows
+    .map((row) => Number(row.blog_template_id))
+    .filter((value) => Number.isInteger(value) && value > 0);
+}
+
+async function canUserUseBlogTemplate({ userId, templateId }) {
+  const template = await getBlogTemplateById(templateId);
+
+  if (!template || template.status !== 'active') {
+    return {
+      ok: false,
+      message: 'Selected template is invalid or inactive',
+    };
+  }
+
+  const latestPlan = await getLatestSubscriptionPlanByUserId(userId);
+
+  if (!latestPlan) {
+    if (template.is_premium) {
+      return {
+        ok: false,
+        message: 'Start a subscription plan before using this premium blog template',
+      };
+    }
+
+    return {
+      ok: true,
+      template,
+      plan: null,
+    };
+  }
+
+  if (!latestPlan.premium_templates_only && template.is_premium) {
+    return {
+      ok: false,
+      message: 'Your current plan does not allow premium blog templates',
+    };
+  }
+
+  if (String(latestPlan.blog_templates_mode || 'unlimited').toLowerCase() === 'specific') {
+    const allowedTemplateIds = await getAllowedBlogTemplateIdsByPlanId(latestPlan.plan_id);
+
+    if (!allowedTemplateIds.includes(Number(templateId))) {
+      return {
+        ok: false,
+        message: 'This blog template is not included in your current plan',
+      };
+    }
+  }
+
+  return {
+    ok: true,
+    template,
+    plan: latestPlan,
+  };
 }
 
 async function ensureUniquePostSlug(baseSlug, websiteId, currentPostId = null) {
@@ -242,6 +353,50 @@ async function getPostCtaButtons(postId) {
   }));
 }
 
+async function normalizeTemplateFieldsWithValidatedLinks({
+  fields = [],
+  userId,
+  websiteId,
+  postId = null,
+  allowExternalLinks = false,
+}) {
+  const normalizedFields = [];
+
+  for (let index = 0; index < fields.length; index += 1) {
+    const field = fields[index] || {};
+    const nextField = { ...field };
+
+    if (isLikelyLinkField(field)) {
+      const fieldKey = normalizeNullable(field.field_key || field.key) || 'field';
+      const rawValue = normalizeNullable(field.field_value ?? field.value);
+
+      if (rawValue) {
+        const result = await assertAndLogSupgadUrl({
+          value: rawValue,
+          fieldName: `Template field (${fieldKey})`,
+          required: true,
+          allowEmpty: false,
+          userId,
+          websiteId,
+          sourceType: 'template_field',
+          sourceId: postId,
+          allowExternalLinks,
+        });
+
+        if (field.field_value !== undefined) {
+          nextField.field_value = result.normalized_url || result.submitted_link;
+        } else {
+          nextField.value = result.normalized_url || result.submitted_link;
+        }
+      }
+    }
+
+    normalizedFields.push(nextField);
+  }
+
+  return normalizedFields;
+}
+
 async function replaceTemplateFields(postId, fields = []) {
   await pool.query(`DELETE FROM post_template_fields WHERE post_id = ?`, [postId]);
 
@@ -266,7 +421,13 @@ async function replaceTemplateFields(postId, fields = []) {
   }
 }
 
-async function replacePostCtaButtons({ postId, buttons = [], userId, websiteId }) {
+async function replacePostCtaButtons({
+  postId,
+  buttons = [],
+  userId,
+  websiteId,
+  allowExternalLinks = false,
+}) {
   await pool.query(`DELETE FROM post_cta_buttons WHERE post_id = ?`, [postId]);
 
   for (let index = 0; index < buttons.length; index += 1) {
@@ -293,9 +454,10 @@ async function replacePostCtaButtons({ postId, buttons = [], userId, websiteId }
         websiteId,
         sourceType: 'cta_button',
         sourceId: postId,
+        allowExternalLinks,
       });
 
-      validatedUrl = result.submitted_link;
+      validatedUrl = result.normalized_url || result.submitted_link;
     }
 
     await pool.query(
@@ -316,39 +478,6 @@ async function replacePostCtaButtons({ postId, buttons = [], userId, websiteId }
       `,
       [postId, buttonKey, buttonLabel, validatedUrl, buttonStyle, openInNewTab, sortOrder]
     );
-  }
-}
-
-async function validateTemplateLinkFields({
-  fields = [],
-  userId,
-  websiteId,
-  postId = null,
-}) {
-  for (const field of fields) {
-    const fieldType = String(field.field_type || field.type || '').trim().toLowerCase();
-    const fieldKey = normalizeNullable(field.field_key || field.key) || 'field';
-    const fieldValue = normalizeNullable(field.field_value ?? field.value);
-
-    const looksLikeLinkField =
-      fieldType.includes('url') ||
-      fieldType.includes('link') ||
-      fieldKey.toLowerCase().includes('url') ||
-      fieldKey.toLowerCase().includes('link') ||
-      fieldKey.toLowerCase().includes('cta');
-
-    if (!looksLikeLinkField || !fieldValue) continue;
-
-    await assertAndLogSupgadUrl({
-      value: fieldValue,
-      fieldName: `Template field (${fieldKey})`,
-      required: true,
-      allowEmpty: false,
-      userId,
-      websiteId,
-      sourceType: 'template_field',
-      sourceId: postId,
-    });
   }
 }
 
@@ -603,14 +732,19 @@ async function createPost(req, res) {
       });
     }
 
-    const template = await getBlogTemplateById(templateId);
+    const templateAccess = await canUserUseBlogTemplate({
+      userId,
+      templateId,
+    });
 
-    if (!template || template.status !== 'active') {
+    if (!templateAccess.ok) {
       return res.status(400).json({
         ok: false,
-        message: 'Selected template is invalid or inactive',
+        message: templateAccess.message,
       });
     }
+
+    const linkPermission = await getLatestUserPlanLinkPermission(userId);
 
     let cleanCategoryId = product.category_id || null;
     if (category_id !== undefined && category_id !== null && category_id !== '') {
@@ -650,11 +784,12 @@ async function createPost(req, res) {
       ? status
       : 'draft';
 
-    await validateTemplateLinkFields({
+    const normalizedTemplateFields = await normalizeTemplateFieldsWithValidatedLinks({
       fields: Array.isArray(template_fields) ? template_fields : [],
       userId,
       websiteId: website.id,
       postId: null,
+      allowExternalLinks: !!linkPermission.allow_external_links,
     });
 
     const [result] = await pool.query(
@@ -700,12 +835,13 @@ async function createPost(req, res) {
 
     const postId = result.insertId;
 
-    await replaceTemplateFields(postId, Array.isArray(template_fields) ? template_fields : []);
+    await replaceTemplateFields(postId, normalizedTemplateFields);
     await replacePostCtaButtons({
       postId,
       buttons: Array.isArray(cta_buttons) ? cta_buttons : [],
       userId,
       websiteId: website.id,
+      allowExternalLinks: !!linkPermission.allow_external_links,
     });
 
     const fullPost = await buildFullPostResponse(postId, userId);
@@ -714,6 +850,9 @@ async function createPost(req, res) {
       ok: true,
       message: 'Post created successfully',
       post: fullPost,
+      link_permissions: {
+        allow_external_links: !!linkPermission.allow_external_links,
+      },
     });
   } catch (error) {
     console.error('createPost error:', error);
@@ -795,15 +934,20 @@ async function updatePost(req, res) {
         });
       }
 
-      const template = await getBlogTemplateById(templateId);
+      const templateAccess = await canUserUseBlogTemplate({
+        userId,
+        templateId,
+      });
 
-      if (!template || template.status !== 'active') {
+      if (!templateAccess.ok) {
         return res.status(400).json({
           ok: false,
-          message: 'Selected template is invalid or inactive',
+          message: templateAccess.message,
         });
       }
     }
+
+    const linkPermission = await getLatestUserPlanLinkPermission(userId);
 
     let cleanCategoryId = existingPost.category_id;
     if (category_id !== undefined) {
@@ -860,15 +1004,6 @@ async function updatePost(req, res) {
         ? existingPost.published_at || new Date()
         : null;
 
-    if (Array.isArray(template_fields)) {
-      await validateTemplateLinkFields({
-        fields: template_fields,
-        userId,
-        websiteId: existingPost.website_id,
-        postId: existingPost.id,
-      });
-    }
-
     await pool.query(
       `
       UPDATE product_posts
@@ -908,7 +1043,15 @@ async function updatePost(req, res) {
     );
 
     if (Array.isArray(template_fields)) {
-      await replaceTemplateFields(existingPost.id, template_fields);
+      const normalizedTemplateFields = await normalizeTemplateFieldsWithValidatedLinks({
+        fields: template_fields,
+        userId,
+        websiteId: existingPost.website_id,
+        postId: existingPost.id,
+        allowExternalLinks: !!linkPermission.allow_external_links,
+      });
+
+      await replaceTemplateFields(existingPost.id, normalizedTemplateFields);
     }
 
     if (Array.isArray(cta_buttons)) {
@@ -917,6 +1060,7 @@ async function updatePost(req, res) {
         buttons: cta_buttons,
         userId,
         websiteId: existingPost.website_id,
+        allowExternalLinks: !!linkPermission.allow_external_links,
       });
     }
 
@@ -926,6 +1070,9 @@ async function updatePost(req, res) {
       ok: true,
       message: 'Post updated successfully',
       post: fullPost,
+      link_permissions: {
+        allow_external_links: !!linkPermission.allow_external_links,
+      },
     });
   } catch (error) {
     console.error('updatePost error:', error);

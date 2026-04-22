@@ -12,13 +12,92 @@ function parseFeaturesJson(value) {
   }
 }
 
-function sanitizePlan(row) {
+async function getPlanAllowedWebsiteTemplates(planId) {
+  const [rows] = await pool.query(
+    `
+    SELECT
+      pat.website_template_id AS id,
+      wt.name,
+      wt.slug,
+      wt.preview_image,
+      wt.template_code_key,
+      wt.description,
+      wt.is_premium,
+      wt.status,
+      wt.created_at,
+      wt.updated_at
+    FROM plan_allowed_website_templates pat
+    INNER JOIN website_templates wt
+      ON wt.id = pat.website_template_id
+    WHERE pat.plan_id = ?
+    ORDER BY pat.id ASC
+    `,
+    [planId]
+  );
+
+  return rows.map((row) => ({
+    id: row.id,
+    type: 'website',
+    name: row.name,
+    slug: row.slug,
+    preview_image: row.preview_image,
+    template_code_key: row.template_code_key,
+    description: row.description,
+    is_premium: !!row.is_premium,
+    status: row.status,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+  }));
+}
+
+async function getPlanAllowedBlogTemplates(planId) {
+  const [rows] = await pool.query(
+    `
+    SELECT
+      pat.blog_template_id AS id,
+      bt.name,
+      bt.slug,
+      bt.preview_image,
+      bt.template_code_key,
+      bt.description,
+      bt.is_premium,
+      bt.status,
+      bt.created_at,
+      bt.updated_at
+    FROM plan_allowed_blog_templates pat
+    INNER JOIN blog_templates bt
+      ON bt.id = pat.blog_template_id
+    WHERE pat.plan_id = ?
+    ORDER BY pat.id ASC
+    `,
+    [planId]
+  );
+
+  return rows.map((row) => ({
+    id: row.id,
+    type: 'blog',
+    name: row.name,
+    slug: row.slug,
+    preview_image: row.preview_image,
+    template_code_key: row.template_code_key,
+    description: row.description,
+    is_premium: !!row.is_premium,
+    status: row.status,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+  }));
+}
+
+async function sanitizePlan(row) {
   if (!row) return null;
 
+  const allowedWebsiteTemplates = await getPlanAllowedWebsiteTemplates(row.plan_id || row.id);
+  const allowedBlogTemplates = await getPlanAllowedBlogTemplates(row.plan_id || row.id);
+
   return {
-    id: row.plan_id,
-    name: row.plan_name,
-    price: row.plan_price !== null ? Number(row.plan_price) : null,
+    id: row.plan_id || row.id,
+    name: row.plan_name || row.name,
+    price: (row.plan_price ?? row.price) !== null ? Number(row.plan_price ?? row.price) : null,
     billing_cycle: row.billing_cycle,
     product_limit: row.product_limit,
     post_limit: row.post_limit,
@@ -26,12 +105,19 @@ function sanitizePlan(row) {
     slider_limit: row.slider_limit,
     menu_limit: row.menu_limit,
     premium_templates_only: !!row.premium_templates_only,
+    allow_external_links: !!row.allow_external_links,
+    website_templates_mode: row.website_templates_mode || 'unlimited',
+    blog_templates_mode: row.blog_templates_mode || 'unlimited',
+    allowed_website_templates: allowedWebsiteTemplates,
+    allowed_blog_templates: allowedBlogTemplates,
+    allowed_website_template_ids: allowedWebsiteTemplates.map((item) => item.id),
+    allowed_blog_template_ids: allowedBlogTemplates.map((item) => item.id),
     features_json: parseFeaturesJson(row.features_json),
-    status: row.plan_status,
+    status: row.plan_status || row.status,
   };
 }
 
-function sanitizeSubscription(row) {
+async function sanitizeSubscription(row) {
   if (!row) return null;
 
   return {
@@ -46,7 +132,7 @@ function sanitizeSubscription(row) {
     amount_paid: row.amount_paid !== null ? Number(row.amount_paid) : null,
     created_at: row.subscription_created_at,
     updated_at: row.subscription_updated_at,
-    plan: sanitizePlan(row),
+    plan: await sanitizePlan(row),
   };
 }
 
@@ -75,6 +161,9 @@ async function getLatestSubscriptionByUserId(userId) {
       p.slider_limit,
       p.menu_limit,
       p.premium_templates_only,
+      p.allow_external_links,
+      p.website_templates_mode,
+      p.blog_templates_mode,
       p.features_json,
       p.status AS plan_status
 
@@ -105,6 +194,9 @@ async function getAllActivePlans() {
       slider_limit,
       menu_limit,
       premium_templates_only,
+      allow_external_links,
+      website_templates_mode,
+      blog_templates_mode,
       features_json,
       status
     FROM subscription_plans
@@ -113,20 +205,7 @@ async function getAllActivePlans() {
     `
   );
 
-  return rows.map((row) => ({
-    id: row.id,
-    name: row.name,
-    price: row.price !== null ? Number(row.price) : null,
-    billing_cycle: row.billing_cycle,
-    product_limit: row.product_limit,
-    post_limit: row.post_limit,
-    website_limit: row.website_limit,
-    slider_limit: row.slider_limit,
-    menu_limit: row.menu_limit,
-    premium_templates_only: !!row.premium_templates_only,
-    features_json: parseFeaturesJson(row.features_json),
-    status: row.status,
-  }));
+  return Promise.all(rows.map((row) => sanitizePlan(row)));
 }
 
 async function getSubscriptionHistoryByUserId(userId) {
@@ -154,6 +233,9 @@ async function getSubscriptionHistoryByUserId(userId) {
       p.slider_limit,
       p.menu_limit,
       p.premium_templates_only,
+      p.allow_external_links,
+      p.website_templates_mode,
+      p.blog_templates_mode,
       p.features_json,
       p.status AS plan_status
 
@@ -166,19 +248,19 @@ async function getSubscriptionHistoryByUserId(userId) {
     [userId]
   );
 
-  return rows.map(sanitizeSubscription);
+  return Promise.all(rows.map((row) => sanitizeSubscription(row)));
 }
 
 async function getMySubscriptionOverview(req, res) {
   try {
     const userId = req.user.id;
-    const currentSubscription = await getLatestSubscriptionByUserId(userId);
+    const currentSubscriptionRow = await getLatestSubscriptionByUserId(userId);
     const availablePlans = await getAllActivePlans();
 
     return res.status(200).json({
       ok: true,
-      current_subscription: currentSubscription
-        ? sanitizeSubscription(currentSubscription)
+      current_subscription: currentSubscriptionRow
+        ? await sanitizeSubscription(currentSubscriptionRow)
         : null,
       available_plans: availablePlans,
     });
@@ -307,7 +389,7 @@ async function startFreeTrial(req, res) {
     return res.status(201).json({
       ok: true,
       message: 'Free trial started successfully',
-      subscription: sanitizeSubscription(createdSubscription),
+      subscription: await sanitizeSubscription(createdSubscription),
     });
   } catch (error) {
     console.error('startFreeTrial error:', error);
@@ -402,7 +484,7 @@ async function requestPlanChange(req, res) {
     return res.status(201).json({
       ok: true,
       message: 'Plan changed successfully',
-      subscription: sanitizeSubscription(updatedSubscription),
+      subscription: await sanitizeSubscription(updatedSubscription),
     });
   } catch (error) {
     console.error('requestPlanChange error:', error);

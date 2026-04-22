@@ -9,6 +9,8 @@ import {
   ShieldCheck,
   Box,
   FileText,
+  MessageSquare,
+  Mail,
   Menu,
   X,
   LogOut,
@@ -18,11 +20,14 @@ import { useAuth } from '../hooks/useAuth';
 const adminMenu = [
   { label: 'Dashboard', to: '/admin/dashboard', icon: LayoutDashboard },
   { label: 'Affiliates', to: '/admin/affiliates', icon: Users },
+  { label: 'Users', to: '/admin/users', icon: Users },
+  { label: 'Email Lists', to: '/admin/email-lists', icon: Mail },
   { label: 'Categories', to: '/admin/categories', icon: FolderTree },
   { label: 'Templates', to: '/admin/templates', icon: LayoutTemplate },
   { label: 'Plans', to: '/admin/plans', icon: CreditCard },
   { label: 'Products', to: '/admin/products', icon: Box },
   { label: 'Posts', to: '/admin/posts', icon: FileText },
+  { label: 'Chats', to: '/admin/chats', icon: MessageSquare },
   { label: 'Link Validation', to: '/admin/link-validation', icon: ShieldCheck },
 ];
 

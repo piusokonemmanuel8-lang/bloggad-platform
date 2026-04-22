@@ -1,8 +1,8 @@
-function normalizeInputUrl(value) {
+export function normalizeUrlInput(value) {
   return String(value || '').trim();
 }
 
-function tryCreateUrl(rawValue) {
+export function tryCreateUrl(rawValue) {
   try {
     return new URL(rawValue);
   } catch (error) {
@@ -14,18 +14,20 @@ function tryCreateUrl(rawValue) {
   }
 }
 
-function isSupgadHost(hostname) {
+export function isSupgadHost(hostname) {
   return String(hostname || '').toLowerCase() === 'supgad.com';
 }
 
-function validateSupgadUrl(value, options = {}) {
+export function validateSupgadUrl(value, options = {}) {
   const {
     required = false,
     allowEmpty = true,
     fieldName = 'URL',
+    allowExternalLinks = false,
+    allowedDomains = ['supgad.com'],
   } = options;
 
-  const rawValue = normalizeInputUrl(value);
+  const rawValue = normalizeUrlInput(value);
 
   if (!rawValue) {
     if (required && !allowEmpty) {
@@ -34,6 +36,7 @@ function validateSupgadUrl(value, options = {}) {
         message: `${fieldName} is required`,
         submitted_link: rawValue,
         detected_host: null,
+        normalized_url: null,
       };
     }
 
@@ -42,6 +45,7 @@ function validateSupgadUrl(value, options = {}) {
       message: `${fieldName} is empty`,
       submitted_link: rawValue,
       detected_host: null,
+      normalized_url: null,
     };
   }
 
@@ -53,17 +57,46 @@ function validateSupgadUrl(value, options = {}) {
       message: `${fieldName} is not a valid URL`,
       submitted_link: rawValue,
       detected_host: null,
+      normalized_url: null,
     };
   }
 
+  const protocol = String(parsedUrl.protocol || '').toLowerCase();
   const hostname = String(parsedUrl.hostname || '').toLowerCase();
+  const normalizedAllowedDomains = Array.isArray(allowedDomains)
+    ? allowedDomains.map((item) => String(item || '').toLowerCase()).filter(Boolean)
+    : ['supgad.com'];
 
-  if (!isSupgadHost(hostname)) {
+  if (!['http:', 'https:'].includes(protocol)) {
     return {
       ok: false,
-      message: `${fieldName} must belong to supgad.com`,
+      message: `${fieldName} must use http or https`,
       submitted_link: rawValue,
       detected_host: hostname || null,
+      normalized_url: parsedUrl.toString(),
+    };
+  }
+
+  if (allowExternalLinks) {
+    return {
+      ok: true,
+      message: `${fieldName} is valid`,
+      submitted_link: rawValue,
+      detected_host: hostname,
+      normalized_url: parsedUrl.toString(),
+      is_external_link: !normalizedAllowedDomains.includes(hostname),
+      allow_external_links: true,
+    };
+  }
+
+  if (!normalizedAllowedDomains.includes(hostname)) {
+    return {
+      ok: false,
+      message: `${fieldName} must belong to ${normalizedAllowedDomains.join(', ')}`,
+      submitted_link: rawValue,
+      detected_host: hostname || null,
+      normalized_url: parsedUrl.toString(),
+      allow_external_links: false,
     };
   }
 
@@ -73,24 +106,9 @@ function validateSupgadUrl(value, options = {}) {
     submitted_link: rawValue,
     detected_host: hostname,
     normalized_url: parsedUrl.toString(),
+    is_external_link: false,
+    allow_external_links: false,
   };
 }
 
-function assertSupgadUrl(value, options = {}) {
-  const result = validateSupgadUrl(value, options);
-
-  if (!result.ok) {
-    const error = new Error(result.message);
-    error.status = 400;
-    error.validation = result;
-    throw error;
-  }
-
-  return result;
-}
-
-module.exports = {
-  validateSupgadUrl,
-  assertSupgadUrl,
-  isSupgadHost,
-};
+export default validateSupgadUrl;

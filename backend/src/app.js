@@ -4,47 +4,50 @@ const helmet = require('helmet');
 const morgan = require('morgan');
 const cookieParser = require('cookie-parser');
 const rateLimit = require('express-rate-limit');
+const fs = require('fs');
 const path = require('path');
 
 const { notFound } = require('./middleware/notFoundMiddleware');
 const { errorHandler } = require('./middleware/errorMiddleware');
 
-const authRoutes = require('./routes/authRoutes');
-const uploadRoutes = require('./routes/uploadRoutes');
+function resolveModule(candidates) {
+  for (const rel of candidates) {
+    const abs = path.join(__dirname, rel);
+    const absJs = abs.endsWith('.js') ? abs : `${abs}.js`;
 
-const affiliateDashboardRoutes = require('./routes/affiliate/affiliateDashboardRoutes');
-const affiliateWebsiteRoutes = require('./routes/affiliate/affiliateWebsiteRoutes');
-const affiliateProductRoutes = require('./routes/affiliate/affiliateProductRoutes');
-const affiliatePostRoutes = require('./routes/affiliate/affiliatePostRoutes');
-const affiliateSubscriptionRoutes = require('./routes/affiliate/affiliateSubscriptionRoutes');
-const affiliateMenuRoutes = require('./routes/affiliate/affiliateMenuRoutes');
-const affiliateSliderRoutes = require('./routes/affiliate/affiliateSliderRoutes');
-const affiliateDesignRoutes = require('./routes/affiliate/affiliateDesignRoutes');
-const affiliateAnalyticsRoutes = require('./routes/affiliate/affiliateAnalyticsRoutes');
-const affiliateMediaRoutes = require('./routes/affiliate/affiliateMediaRoutes');
+    if (fs.existsSync(abs)) return abs;
+    if (fs.existsSync(absJs)) return absJs;
+  }
 
-const adminDashboardRoutes = require('./routes/admin/adminDashboardRoutes');
-const adminCategoryRoutes = require('./routes/admin/adminCategoryRoutes');
-const adminTemplateRoutes = require('./routes/admin/adminTemplateRoutes');
-const adminPlanRoutes = require('./routes/admin/adminPlanRoutes');
-const adminAffiliateRoutes = require('./routes/admin/adminAffiliateRoutes');
-const adminProductRoutes = require('./routes/admin/adminProductRoutes');
-const adminPostRoutes = require('./routes/admin/adminPostRoutes');
-const adminLinkValidationRoutes = require('./routes/admin/adminLinkValidationRoutes');
+  return null;
+}
 
-const publicHomeRoutes = require('./routes/public/publicHomeRoutes');
-const publicWebsiteRoutes = require('./routes/public/publicWebsiteRoutes');
-const publicCategoryRoutes = require('./routes/public/publicCategoryRoutes');
-const publicProductRoutes = require('./routes/public/publicProductRoutes');
-const publicPostRoutes = require('./routes/public/publicPostRoutes');
+function loadRouter(label, candidates) {
+  try {
+    const resolved = resolveModule(candidates);
+
+    if (!resolved) {
+      console.warn(`[app] Missing route for ${label}: ${candidates.join(' | ')}`);
+      return null;
+    }
+
+    const mod = require(resolved);
+    return typeof mod === 'function' ? mod : null;
+  } catch (error) {
+    console.error(`[app] Failed loading ${label}:`, error.message);
+    return null;
+  }
+}
+
+function mount(app, basePath, label, candidates) {
+  const router = loadRouter(label, candidates);
+  if (!router) return;
+  app.use(basePath, router);
+  console.log(`[app] Mounted ${label} -> ${basePath}`);
+}
 
 function createApp() {
   const app = express();
-
-  const NODE_ENV = process.env.NODE_ENV || 'development';
-  const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5175';
-
-  app.disable('x-powered-by');
 
   app.use(
     helmet({
@@ -54,66 +57,198 @@ function createApp() {
 
   app.use(
     cors({
-      origin: [FRONTEND_URL],
+      origin: true,
       credentials: true,
     })
   );
 
-  app.use(
-    rateLimit({
-      windowMs: 15 * 60 * 1000,
-      max: 300,
-      standardHeaders: true,
-      legacyHeaders: false,
-      message: {
-        ok: false,
-        message: 'Too many requests. Please try again later.',
-      },
-    })
-  );
-
-  app.use(morgan(NODE_ENV === 'production' ? 'combined' : 'dev'));
   app.use(express.json({ limit: '10mb' }));
   app.use(express.urlencoded({ extended: true }));
   app.use(cookieParser());
+  app.use(morgan('dev'));
 
   app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 
-  app.get('/', (req, res) => {
-    res.status(200).json({
+  const apiLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 1000,
+    standardHeaders: true,
+    legacyHeaders: false,
+  });
+
+  app.use('/api', apiLimiter);
+
+  app.get('/api/health', (req, res) => {
+    return res.status(200).json({
       ok: true,
-      message: 'Bloggad backend is running',
+      message: 'Bloggad backend is running.',
     });
   });
 
-  app.use('/api/auth', authRoutes);
-  app.use('/api/uploads', uploadRoutes);
+  // auth + uploads
+  mount(app, '/api/auth', 'authRoutes', [
+    './routes/authRoutes',
+  ]);
 
-  app.use('/api/affiliate/dashboard', affiliateDashboardRoutes);
-  app.use('/api/affiliate/website', affiliateWebsiteRoutes);
-  app.use('/api/affiliate/products', affiliateProductRoutes);
-  app.use('/api/affiliate/posts', affiliatePostRoutes);
-  app.use('/api/affiliate/subscription', affiliateSubscriptionRoutes);
-  app.use('/api/affiliate/menus', affiliateMenuRoutes);
-  app.use('/api/affiliate/sliders', affiliateSliderRoutes);
-  app.use('/api/affiliate/design', affiliateDesignRoutes);
-  app.use('/api/affiliate/analytics', affiliateAnalyticsRoutes);
-  app.use('/api/affiliate/media', affiliateMediaRoutes);
+  mount(app, '/api/uploads', 'uploadRoutes', [
+    './routes/uploadRoutes',
+  ]);
 
-  app.use('/api/admin/dashboard', adminDashboardRoutes);
-  app.use('/api/admin/categories', adminCategoryRoutes);
-  app.use('/api/admin/templates', adminTemplateRoutes);
-  app.use('/api/admin/plans', adminPlanRoutes);
-  app.use('/api/admin/affiliates', adminAffiliateRoutes);
-  app.use('/api/admin/products', adminProductRoutes);
-  app.use('/api/admin/posts', adminPostRoutes);
-  app.use('/api/admin/link-validation', adminLinkValidationRoutes);
+  // affiliate core
+  mount(app, '/api/affiliate/dashboard', 'affiliateDashboardRoutes', [
+    './routes/affiliate/affiliateDashboardRoutes',
+  ]);
 
-  app.use('/api/public/home', publicHomeRoutes);
-  app.use('/api/public/websites', publicWebsiteRoutes);
-  app.use('/api/public/categories', publicCategoryRoutes);
-  app.use('/api/public/products', publicProductRoutes);
-  app.use('/api/public/posts', publicPostRoutes);
+  mount(app, '/api/affiliate/website', 'affiliateWebsiteRoutes', [
+    './routes/affiliate/affiliateWebsiteRoutes',
+    './routes/affiliate/affiliateWebsitesRoutes',
+  ]);
+
+  mount(app, '/api/affiliate/products', 'affiliateProductRoutes', [
+    './routes/affiliate/affiliateProductRoutes',
+    './routes/affiliate/affiliateProductsRoutes',
+  ]);
+
+  mount(app, '/api/affiliate/posts', 'affiliatePostRoutes', [
+    './routes/affiliate/affiliatePostRoutes',
+    './routes/affiliate/affiliatePostsRoutes',
+  ]);
+
+  mount(app, '/api/affiliate/subscription', 'affiliateSubscriptionRoutes', [
+    './routes/affiliate/affiliateSubscriptionRoutes',
+    './routes/affiliate/affiliateSubscriptionsRoutes',
+  ]);
+
+  mount(app, '/api/affiliate/menus', 'affiliateMenusRoutes', [
+    './routes/affiliate/affiliateMenusRoutes',
+    './routes/affiliate/affiliateMenuRoutes',
+  ]);
+
+  mount(app, '/api/affiliate/sliders', 'affiliateSlidersRoutes', [
+    './routes/affiliate/affiliateSlidersRoutes',
+    './routes/affiliate/affiliateSliderRoutes',
+  ]);
+
+  mount(app, '/api/affiliate/design', 'affiliateDesignRoutes', [
+    './routes/affiliate/affiliateDesignRoutes',
+  ]);
+
+  mount(app, '/api/affiliate/analytics', 'affiliateAnalyticsRoutes', [
+    './routes/affiliate/affiliateAnalyticsRoutes',
+  ]);
+
+  mount(app, '/api/affiliate/media', 'affiliateMediaRoutes', [
+    './routes/affiliate/affiliateMediaRoutes',
+    './routes/affiliate/affiliateMediaLibraryRoutes',
+  ]);
+
+  mount(app, '/api/affiliate/templates', 'affiliateTemplatesRoutes', [
+    './routes/affiliate/affiliateTemplatesRoutes',
+    './routes/affiliate/affiliateTemplateRoutes',
+  ]);
+
+  // admin core
+  mount(app, '/api/admin/dashboard', 'adminDashboardRoutes', [
+    './routes/admin/adminDashboardRoutes',
+  ]);
+
+  mount(app, '/api/admin/categories', 'adminCategoriesRoutes', [
+    './routes/admin/adminCategoriesRoutes',
+    './routes/admin/adminCategoryRoutes',
+  ]);
+
+  mount(app, '/api/admin/templates', 'adminTemplatesRoutes', [
+    './routes/admin/adminTemplatesRoutes',
+    './routes/admin/adminTemplateRoutes',
+  ]);
+
+  mount(app, '/api/admin/plans', 'adminPlansRoutes', [
+    './routes/admin/adminPlansRoutes',
+    './routes/admin/adminPlanRoutes',
+  ]);
+
+  mount(app, '/api/admin/affiliates', 'adminAffiliatesRoutes', [
+    './routes/admin/adminAffiliatesRoutes',
+    './routes/admin/adminAffiliateRoutes',
+  ]);
+
+  mount(app, '/api/admin/products', 'adminProductsRoutes', [
+    './routes/admin/adminProductsRoutes',
+    './routes/admin/adminProductRoutes',
+  ]);
+
+  mount(app, '/api/admin/posts', 'adminPostsRoutes', [
+    './routes/admin/adminPostsRoutes',
+    './routes/admin/adminPostRoutes',
+  ]);
+
+  mount(app, '/api/admin/link-validation', 'adminLinkValidationRoutes', [
+    './routes/admin/adminLinkValidationRoutes',
+  ]);
+
+  // public
+  mount(app, '/api/public/home', 'publicHomeRoutes', [
+    './routes/public/publicHomeRoutes',
+  ]);
+
+  mount(app, '/api/public/websites', 'publicWebsiteRoutes', [
+    './routes/public/publicWebsiteRoutes',
+    './routes/public/publicWebsitesRoutes',
+  ]);
+
+  mount(app, '/api/public/categories', 'publicCategoryRoutes', [
+    './routes/public/publicCategoryRoutes',
+    './routes/public/publicCategoriesRoutes',
+  ]);
+
+  mount(app, '/api/public/products', 'publicProductRoutes', [
+    './routes/public/publicProductRoutes',
+    './routes/public/publicProductsRoutes',
+  ]);
+
+  mount(app, '/api/public/posts', 'publicPostRoutes', [
+    './routes/public/publicPostRoutes',
+    './routes/public/publicPostsRoutes',
+  ]);
+
+  mount(app, '/api/public', 'publicTemplateRoutes', [
+    './routes/public/publicTemplateRoutes',
+  ]);
+
+  // customer
+  mount(app, '/api/customer-auth', 'customerAuthRoutes', [
+    './routes/customerAuthRoutes',
+  ]);
+
+  mount(app, '/api/customer', 'customerRoutes', [
+    './routes/customerRoutes',
+  ]);
+
+  mount(app, '/api/customer/saved', 'customerSavedRoutes', [
+    './routes/customerSavedRoutes',
+  ]);
+
+  mount(app, '/api/customer-management', 'customerManagementRoutes', [
+    './routes/customerManagementRoutes',
+  ]);
+
+  // email list
+  mount(app, '/api/email-list', 'emailLeadRoutes', [
+    './routes/emailLeadRoutes',
+  ]);
+
+  // chats
+  mount(app, '/api/customer-affiliate-chats', 'customerAffiliateChatRoutes', [
+    './routes/customerAffiliateChatRoutes',
+  ]);
+
+  mount(app, '/api/customer-admin-chats', 'customerAdminChatRoutes', [
+    './routes/customerAdminChatRoutes',
+  ]);
+
+  mount(app, '/api/affiliate-admin-chats', 'affiliateAdminChatRoutes', [
+    './routes/affiliateAdminChatRoutes',
+  ]);
 
   app.use(notFound);
   app.use(errorHandler);

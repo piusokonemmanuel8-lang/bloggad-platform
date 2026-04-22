@@ -18,12 +18,15 @@ const storage = multer.diskStorage({
   filename: (req, file, cb) => {
     const ext = path.extname(file.originalname || '').toLowerCase();
     const safeExt = ['.jpg', '.jpeg', '.png', '.webp', '.gif'].includes(ext) ? ext : '.png';
+
     const base = path
       .basename(file.originalname || 'template-image', ext)
       .replace(/[^a-zA-Z0-9-_]/g, '-')
-      .toLowerCase();
+      .replace(/-+/g, '-')
+      .replace(/^-|-$/g, '')
+      .toLowerCase() || 'template-image';
 
-    cb(cb && null, `${Date.now()}-${base}${safeExt}`);
+    cb(null, `${Date.now()}-${base}${safeExt}`);
   },
 });
 

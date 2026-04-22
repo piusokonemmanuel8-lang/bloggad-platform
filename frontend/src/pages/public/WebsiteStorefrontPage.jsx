@@ -9,6 +9,8 @@ import TemplateSupplementTheme from './templates/TemplateSupplementTheme';
 import TemplateFurnitureTheme from './templates/TemplateFurnitureTheme';
 import TemplateGroceryTheme from './templates/TemplateGroceryTheme';
 import TemplateMultiProduct from './templates/TemplateMultiProduct';
+import TemplateMextro from './templates/TemplateMextro';
+import TemplateXxam from './templates/TemplateXxam';
 
 function resolveWebsiteSlug(product, fallbackWebsiteSlug = '') {
   return (
@@ -124,14 +126,14 @@ function makeDummyMenus(websiteSlug) {
 
 function makeDummyCategories(websiteSlug) {
   return [
-    { id: 'c1', name: 'Grocery', slug: 'grocery', total_products: 8 },
-    { id: 'c2', name: 'Foods & Drinks', slug: 'foods-and-drinks', total_products: 7 },
-    { id: 'c3', name: 'Fruits', slug: 'fruits', total_products: 8 },
-    { id: 'c4', name: 'Vegetables', slug: 'vegetables', total_products: 8 },
-    { id: 'c5', name: 'Home Appliance', slug: 'home-appliance', total_products: 8 },
-    { id: 'c6', name: 'Beauty Products', slug: 'beauty-products', total_products: 8 },
-    { id: 'c7', name: 'Snacks', slug: 'snacks', total_products: 8 },
-    { id: 'c8', name: 'Organic', slug: 'organic', total_products: 8 },
+    { id: 'c1', name: 'Electronics', slug: 'electronics', total_products: 8 },
+    { id: 'c2', name: 'Audio', slug: 'audio', total_products: 7 },
+    { id: 'c3', name: 'Phones', slug: 'phones', total_products: 8 },
+    { id: 'c4', name: 'Laptops', slug: 'laptops', total_products: 8 },
+    { id: 'c5', name: 'Accessories', slug: 'accessories', total_products: 8 },
+    { id: 'c6', name: 'Wearables', slug: 'wearables', total_products: 8 },
+    { id: 'c7', name: 'Gaming', slug: 'gaming', total_products: 8 },
+    { id: 'c8', name: 'Tablets', slug: 'tablets', total_products: 8 },
   ].map((item) => ({
     ...item,
     children: [
@@ -148,69 +150,69 @@ function makeDummySliders() {
     {
       id: 's1',
       image:
-        'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=1800&q=80',
-      title: 'Your daily needs',
-      subtitle: 'Fresh grocery delivered to your doorstep.',
-      accent: '#f4fff2',
+        'https://images.unsplash.com/photo-1517336714739-489689fd1ca8?auto=format&fit=crop&w=1800&q=80',
+      title: 'Minimal electronics',
+      subtitle: 'Modern devices with premium clean design.',
+      accent: '#f4f5f7',
     },
     {
       id: 's2',
       image:
-        'https://images.unsplash.com/photo-1610348725531-843dff563e2c?auto=format&fit=crop&w=1800&q=80',
-      title: 'Healthy food market',
-      subtitle: 'Shop fresh produce, snacks and drinks.',
-      accent: '#fff9ef',
+        'https://images.unsplash.com/photo-1517059224940-d4af9eec41b7?auto=format&fit=crop&w=1800&q=80',
+      title: 'Smart audio picks',
+      subtitle: 'Wireless gear and minimal accessories.',
+      accent: '#f7f7fa',
     },
     {
       id: 's3',
       image:
-        'https://images.unsplash.com/photo-1608686207856-001b95cf60ca?auto=format&fit=crop&w=1800&q=80',
-      title: 'Delivered fresh daily',
-      subtitle: 'Everything you need in one grocery store.',
-      accent: '#eef8ff',
+        'https://images.unsplash.com/photo-1498049794561-7780e7231661?auto=format&fit=crop&w=1800&q=80',
+      title: 'Daily tech upgrades',
+      subtitle: 'Premium design for modern users.',
+      accent: '#f2f4f8',
     },
   ];
 }
 
 function makeDummyProducts(websiteSlug) {
   const imagePool = [
-    'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=1400&q=80',
-    'https://images.unsplash.com/photo-1610348725531-843dff563e2c?auto=format&fit=crop&w=1400&q=80',
-    'https://images.unsplash.com/photo-1608686207856-001b95cf60ca?auto=format&fit=crop&w=1400&q=80',
-    'https://images.unsplash.com/photo-1540420773420-3366772f4999?auto=format&fit=crop&w=1400&q=80',
-    'https://images.unsplash.com/photo-1571680322279-a226e6a4cc2a?auto=format&fit=crop&w=1400&q=80',
-    'https://images.unsplash.com/photo-1518843875459-f738682238a6?auto=format&fit=crop&w=1400&q=80',
-    'https://images.unsplash.com/photo-1498837167922-ddd27525d352?auto=format&fit=crop&w=1400&q=80',
-    'https://images.unsplash.com/photo-1573246123716-6b1782bfc499?auto=format&fit=crop&w=1400&q=80',
-    'https://images.unsplash.com/photo-1502741338009-cac2772e18bc?auto=format&fit=crop&w=1400&q=80',
-    'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=1400&q=80',
-    'https://images.unsplash.com/photo-1580910051074-3eb694886505?auto=format&fit=crop&w=1400&q=80',
-    'https://images.unsplash.com/photo-1547592180-85f173990554?auto=format&fit=crop&w=1400&q=80',
+    'https://images.unsplash.com/photo-1517336714739-489689fd1ca8?auto=format&fit=crop&w=1400&q=80',
+    'https://images.unsplash.com/photo-1517059224940-d4af9eec41b7?auto=format&fit=crop&w=1400&q=80',
+    'https://images.unsplash.com/photo-1498049794561-7780e7231661?auto=format&fit=crop&w=1400&q=80',
+    'https://images.unsplash.com/photo-1541807084-5c52b6b3adef?auto=format&fit=crop&w=1400&q=80',
+    'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=1400&q=80',
+    'https://images.unsplash.com/photo-1512496015851-a90fb38ba796?auto=format&fit=crop&w=1400&q=80',
+    'https://images.unsplash.com/photo-1583394838336-acd977736f90?auto=format&fit=crop&w=1400&q=80',
+    'https://images.unsplash.com/photo-1527443154391-507e9dc6c5cc?auto=format&fit=crop&w=1400&q=80',
+    'https://images.unsplash.com/photo-1484704849700-f032a568e944?auto=format&fit=crop&w=1400&q=80',
+    'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=1400&q=80',
+    'https://images.unsplash.com/photo-1580894908361-967195033215?auto=format&fit=crop&w=1400&q=80',
+    'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=1400&q=80',
   ];
 
   const categories = [
-    'Grocery',
-    'Foods & Drinks',
-    'Fruits',
-    'Vegetables',
-    'Home Appliance',
-    'Beauty Products',
-    'Snacks',
-    'Organic',
+    'Electronics',
+    'Audio',
+    'Phones',
+    'Laptops',
+    'Accessories',
+    'Wearables',
+    'Gaming',
+    'Tablets',
   ];
 
   return Array.from({ length: 20 }, (_, index) => ({
     id: `dummy-product-${index + 1}`,
     slug: `dummy-product-${index + 1}`,
-    title: categories[index % categories.length],
+    title: `Minimal ${categories[index % categories.length]}`,
     product_image: imagePool[index % imagePool.length],
     pricing_type: index % 4 === 0 ? 'variable' : 'simple',
-    price: 20 + index * 3,
-    min_price: 20 + index * 3,
-    max_price: 35 + index * 5,
+    price: 120 + index * 15,
+    min_price: 120 + index * 15,
+    max_price: 180 + index * 20,
     homepage_cta_label: 'Buy Now',
     storefront_cta_label: 'Read More',
-    short_description: 'Fresh grocery product card ready for your real storefront products.',
+    short_description: 'Clean minimal electronics product card ready for your real storefront items.',
     category: {
       id: `cat-${index + 1}`,
       name: categories[index % categories.length],
@@ -234,34 +236,28 @@ function makeDummyProducts(websiteSlug) {
 
 function makeDummyArticles(websiteSlug) {
   const images = [
-    'https://images.unsplash.com/photo-1488459716781-31db52582fe9?auto=format&fit=crop&w=1400&q=80',
-    'https://images.unsplash.com/photo-1498837167922-ddd27525d352?auto=format&fit=crop&w=1400&q=80',
-    'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=1400&q=80',
-    'https://images.unsplash.com/photo-1502741338009-cac2772e18bc?auto=format&fit=crop&w=1400&q=80',
+    'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=1400&q=80',
+    'https://images.unsplash.com/photo-1498049794561-7780e7231661?auto=format&fit=crop&w=1400&q=80',
+    'https://images.unsplash.com/photo-1517336714739-489689fd1ca8?auto=format&fit=crop&w=1400&q=80',
+    'https://images.unsplash.com/photo-1517059224940-d4af9eec41b7?auto=format&fit=crop&w=1400&q=80',
   ];
 
   return Array.from({ length: 4 }, (_, i) => ({
     id: `article-${i + 1}`,
     title:
       i === 0
-        ? 'How to choose fresh vegetables'
+        ? 'How to choose modern tech for your desk'
         : i === 1
-        ? 'Healthy grocery shopping tips'
+        ? 'Minimal electronics that still feel premium'
         : i === 2
-        ? 'Why organic foods matter'
-        : 'Best fruits for everyday nutrition',
+        ? 'Best clean setup ideas for home tech'
+        : 'Smart accessories that improve daily use',
     excerpt:
-      'Fresh grocery ideas, healthy food guides, and everyday home shopping inspiration.',
+      'Minimal electronics ideas, clean setup inspiration, and premium design guides.',
     featured_image: images[i],
     category: {
       name:
-        i === 0
-          ? 'Vegetables'
-          : i === 1
-          ? 'Grocery'
-          : i === 2
-          ? 'Organic'
-          : 'Fruits',
+        i === 0 ? 'Workspace' : i === 1 ? 'Electronics' : i === 2 ? 'Setup' : 'Accessories',
     },
     slug: `article-${i + 1}`,
     url: `/${websiteSlug}/post/article-${i + 1}`,
@@ -587,6 +583,18 @@ export default function WebsiteStorefrontPage() {
       case 'multi_product_store':
       case 'multi_product_template':
         return <TemplateMultiProduct {...sharedTemplateProps} />;
+
+      case 'mextro':
+      case 'mextro_theme':
+      case 'mextro_store':
+      case 'mextro_template':
+        return <TemplateMextro {...sharedTemplateProps} />;
+
+      case 'xxam':
+      case 'xxam_theme':
+      case 'xxam_store':
+      case 'xxam_template':
+        return <TemplateXxam {...sharedTemplateProps} />;
 
       case 'free_simple':
       case 'free_basic':

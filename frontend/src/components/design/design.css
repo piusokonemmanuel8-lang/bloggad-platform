@@ -710,3 +710,138 @@
     height: 240px;
   }
 }
+/* admin/affiliate design visibility fixes */
+.affiliate-design-badge,
+.affiliate-design-tab,
+.affiliate-design-btn,
+.affiliate-design-stat-card,
+.affiliate-design-alert,
+.affiliate-design-empty-builder,
+.affiliate-design-body,
+.affiliate-design-builder-wrap,
+.affiliate-design-hero,
+.affiliate-design-tabs {
+  color: #0f172a;
+}
+
+.affiliate-design-badge {
+  color: #ffffff !important;
+}
+
+.affiliate-design-tab {
+  color: #0f172a !important;
+}
+
+.affiliate-design-tab svg {
+  color: inherit !important;
+}
+
+.affiliate-design-tab.active {
+  background: #0f172a !important;
+  color: #ffffff !important;
+  border-color: #0f172a !important;
+}
+
+.affiliate-design-tab.active svg {
+  color: #ffffff !important;
+}
+
+.affiliate-design-btn.primary {
+  background: #0f172a !important;
+  color: #ffffff !important;
+}
+
+.affiliate-design-btn.primary svg {
+  color: #ffffff !important;
+}
+
+.affiliate-design-btn.secondary {
+  color: #0f172a !important;
+}
+
+.affiliate-design-btn.secondary svg {
+  color: #0f172a !important;
+}
+
+.affiliate-design-stat-value,
+.affiliate-design-stat-label,
+.affiliate-design-title,
+.affiliate-design-subtitle,
+.affiliate-design-empty-builder h3,
+.affiliate-design-empty-builder p {
+  color: #0f172a !important;
+}
+
+.affiliate-design-alert.success {
+  color: #166534 !important;
+}
+
+.affiliate-design-alert.error {
+  color: #991b1b !important;
+}
+
+.affiliate-design-body label,
+.affiliate-design-body h1,
+.affiliate-design-body h2,
+.affiliate-design-body h3,
+.affiliate-design-body h4,
+.affiliate-design-body h5,
+.affiliate-design-body h6,
+.affiliate-design-body p,
+.affiliate-design-body span,
+.affiliate-design-body strong,
+.affiliate-design-body small {
+  color: #0f172a;
+}
+
+.affiliate-design-body input,
+.affiliate-design-body textarea,
+.affiliate-design-body select {
+  color: #0f172a !important;
+  background: #ffffff !important;
+}
+
+.affiliate-design-body input::placeholder,
+.affiliate-design-body textarea::placeholder {
+  color: #64748b !important;
+}
+
+.affiliate-design-body input[type='file'] {
+  color: #0f172a !important;
+  background: #ffffff !important;
+}
+
+.affiliate-design-body button,
+.affiliate-design-body .btn,
+.affiliate-design-body .button,
+.affiliate-design-builder-wrap button,
+.affiliate-design-builder-wrap .btn,
+.affiliate-design-builder-wrap .button {
+  color: #0f172a;
+}
+
+.affiliate-design-body button.primary,
+.affiliate-design-builder-wrap button.primary,
+.affiliate-design-body .primary,
+.affiliate-design-builder-wrap .primary {
+  color: #ffffff !important;
+}
+
+.affiliate-design-body button.dark,
+.affiliate-design-builder-wrap button.dark,
+.affiliate-design-body .dark,
+.affiliate-design-builder-wrap .dark {
+  color: #ffffff !important;
+}
+
+.affiliate-design-body [class*='upload'],
+.affiliate-design-builder-wrap [class*='upload'] {
+  color: #0f172a !important;
+}
+
+.affiliate-design-body [class*='upload'] button,
+.affiliate-design-builder-wrap [class*='upload'] button,
+.affiliate-design-body [class*='upload'] label,
+.affiliate-design-builder-wrap [class*='upload'] label {
+  color: #ffffff !important;
+}

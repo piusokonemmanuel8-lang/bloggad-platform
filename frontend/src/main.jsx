@@ -13,6 +13,8 @@ import PublicLayout from './layouts/PublicLayout';
 
 import LoginPage from './pages/auth/LoginPage';
 import RegisterPage from './pages/auth/RegisterPage';
+import CustomerLoginPage from './pages/auth/CustomerLoginPage';
+import CustomerRegisterPage from './pages/auth/CustomerRegisterPage';
 
 import AffiliateDashboardPage from './pages/affiliate/AffiliateDashboardPage';
 import AffiliateWebsitePage from './pages/affiliate/AffiliateWebsitePage';
@@ -20,6 +22,7 @@ import AffiliateProductsPage from './pages/affiliate/AffiliateProductsPage';
 import AffiliateCreateProductPage from './pages/affiliate/AffiliateCreateProductPage';
 import AffiliateEditProductPage from './pages/affiliate/AffiliateEditProductPage';
 import AffiliateProductPostsPage from './pages/affiliate/AffiliateProductPostsPage';
+import AffiliatePostsPage from './pages/affiliate/AffiliatePostsPage';
 import AffiliateCreatePostPage from './pages/affiliate/AffiliateCreatePostPage';
 import AffiliateEditPostPage from './pages/affiliate/AffiliateEditPostPage';
 import AffiliateChooseTemplatePage from './pages/affiliate/AffiliateChooseTemplatePage';
@@ -30,6 +33,9 @@ import AffiliateAnalyticsPage from './pages/affiliate/AffiliateAnalyticsPage';
 import AffiliateMediaLibraryPage from './pages/affiliate/AffiliateMediaLibraryPage';
 import AffiliateSubscriptionPage from './pages/affiliate/AffiliateSubscriptionPage';
 import AffiliateSettingsPage from './pages/affiliate/AffiliateSettingsPage';
+import AffiliateChatsPage from './pages/affiliate/AffiliateChatsPage';
+import AffiliateCustomersPage from './pages/affiliate/AffiliateCustomersPage';
+import AffiliateEmailListsPage from './pages/affiliate/AffiliateEmailListsPage';
 
 import AdminDashboardPage from './pages/admin/AdminDashboardPage';
 import AdminCategoriesPage from './pages/admin/AdminCategoriesPage';
@@ -39,6 +45,9 @@ import AdminAffiliatesPage from './pages/admin/AdminAffiliatesPage';
 import AdminProductsPage from './pages/admin/AdminProductsPage';
 import AdminPostsPage from './pages/admin/AdminPostsPage';
 import AdminLinkValidationPage from './pages/admin/AdminLinkValidationPage';
+import AdminChatsPage from './pages/admin/AdminChatsPage';
+import AdminUsersPage from './pages/admin/AdminUsersPage';
+import AdminEmailListsPage from './pages/admin/AdminEmailListsPage';
 
 import HomePage from './pages/public/HomePage';
 import WebsiteStorefrontPage from './pages/public/WebsiteStorefrontPage';
@@ -47,6 +56,41 @@ import ProductPage from './pages/public/ProductPage';
 import PostPage from './pages/public/PostPage';
 import WebsitePostsPage from './pages/public/WebsitePostsPage';
 import WebsiteCategoryPage from './pages/public/WebsiteCategoryPage';
+
+import CustomerDashboardPage from './pages/customer/CustomerDashboardPage';
+import CustomerSavedPostsPage from './pages/customer/CustomerSavedPostsPage';
+import CustomerSavedProductsPage from './pages/customer/CustomerSavedProductsPage';
+import CustomerMessagesPage from './pages/customer/CustomerMessagesPage';
+import CustomerSettingsPage from './pages/customer/CustomerSettingsPage';
+
+function CustomerProtectedRoute({ children }) {
+  const token =
+    localStorage.getItem('customerToken') ||
+    localStorage.getItem('authToken') ||
+    localStorage.getItem('token');
+
+  const rawUser =
+    localStorage.getItem('customerUser') ||
+    localStorage.getItem('user');
+
+  let user = null;
+
+  try {
+    user = rawUser ? JSON.parse(rawUser) : null;
+  } catch (error) {
+    user = null;
+  }
+
+  if (!token) {
+    return <Navigate to="/customer/login" replace />;
+  }
+
+  if (user?.role && user.role !== 'customer') {
+    return <Navigate to="/" replace />;
+  }
+
+  return children;
+}
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
@@ -68,6 +112,8 @@ ReactDOM.createRoot(document.getElementById('root')).render(
           <Route element={<AuthLayout />}>
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
+            <Route path="/customer/login" element={<CustomerLoginPage />} />
+            <Route path="/customer/register" element={<CustomerRegisterPage />} />
           </Route>
 
           <Route element={<AffiliateLayout />}>
@@ -77,6 +123,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
             <Route path="/affiliate/products/create" element={<AffiliateCreateProductPage />} />
             <Route path="/affiliate/products/:id/edit" element={<AffiliateEditProductPage />} />
             <Route path="/affiliate/products/:id/posts" element={<AffiliateProductPostsPage />} />
+            <Route path="/affiliate/posts" element={<AffiliatePostsPage />} />
             <Route path="/affiliate/posts/create" element={<AffiliateCreatePostPage />} />
             <Route path="/affiliate/posts/:id/edit" element={<AffiliateEditPostPage />} />
             <Route path="/affiliate/templates/choose" element={<AffiliateChooseTemplatePage />} />
@@ -85,6 +132,9 @@ ReactDOM.createRoot(document.getElementById('root')).render(
             <Route path="/affiliate/design" element={<AffiliateDesignPage />} />
             <Route path="/affiliate/analytics" element={<AffiliateAnalyticsPage />} />
             <Route path="/affiliate/media" element={<AffiliateMediaLibraryPage />} />
+            <Route path="/affiliate/customers" element={<AffiliateCustomersPage />} />
+            <Route path="/affiliate/email-lists" element={<AffiliateEmailListsPage />} />
+            <Route path="/affiliate/chats" element={<AffiliateChatsPage />} />
             <Route path="/affiliate/subscription" element={<AffiliateSubscriptionPage />} />
             <Route path="/affiliate/settings" element={<AffiliateSettingsPage />} />
           </Route>
@@ -95,10 +145,54 @@ ReactDOM.createRoot(document.getElementById('root')).render(
             <Route path="/admin/templates" element={<AdminTemplatesPage />} />
             <Route path="/admin/plans" element={<AdminPlansPage />} />
             <Route path="/admin/affiliates" element={<AdminAffiliatesPage />} />
+            <Route path="/admin/users" element={<AdminUsersPage />} />
+            <Route path="/admin/email-lists" element={<AdminEmailListsPage />} />
             <Route path="/admin/products" element={<AdminProductsPage />} />
             <Route path="/admin/posts" element={<AdminPostsPage />} />
+            <Route path="/admin/chats" element={<AdminChatsPage />} />
             <Route path="/admin/link-validation" element={<AdminLinkValidationPage />} />
           </Route>
+
+          <Route
+            path="/customer/dashboard"
+            element={
+              <CustomerProtectedRoute>
+                <CustomerDashboardPage />
+              </CustomerProtectedRoute>
+            }
+          />
+          <Route
+            path="/customer/saved-posts"
+            element={
+              <CustomerProtectedRoute>
+                <CustomerSavedPostsPage />
+              </CustomerProtectedRoute>
+            }
+          />
+          <Route
+            path="/customer/saved-products"
+            element={
+              <CustomerProtectedRoute>
+                <CustomerSavedProductsPage />
+              </CustomerProtectedRoute>
+            }
+          />
+          <Route
+            path="/customer/messages"
+            element={
+              <CustomerProtectedRoute>
+                <CustomerMessagesPage />
+              </CustomerProtectedRoute>
+            }
+          />
+          <Route
+            path="/customer/settings"
+            element={
+              <CustomerProtectedRoute>
+                <CustomerSettingsPage />
+              </CustomerProtectedRoute>
+            }
+          />
 
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

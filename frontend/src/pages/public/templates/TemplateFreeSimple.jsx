@@ -1,4 +1,6 @@
 import { Link } from 'react-router-dom';
+import { User, X } from 'lucide-react';
+import { useMemo, useState } from 'react';
 
 function renderPrice(product, formatCurrency) {
   if (!product) return '-';
@@ -39,6 +41,186 @@ function resolveBuyNowUrl(product) {
 
 function resolveCategoryUrl(category, websiteSlug) {
   return category?.url || `/${websiteSlug}/category/${category?.slug || ''}`;
+}
+
+function CustomerAuthPopup({
+  open,
+  onClose,
+  websiteSlug = '',
+  websiteId = '',
+  affiliateId = '',
+}) {
+  const queryString = useMemo(() => {
+    const params = new URLSearchParams();
+
+    if (websiteId) params.set('website_id', String(websiteId));
+    if (websiteSlug) params.set('website_slug', String(websiteSlug));
+    if (affiliateId) params.set('affiliate_id', String(affiliateId));
+
+    const built = params.toString();
+    return built ? `?${built}` : '';
+  }, [websiteId, websiteSlug, affiliateId]);
+
+  if (!open) return null;
+
+  return (
+    <>
+      <div
+        onClick={onClose}
+        style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(15, 23, 42, 0.55)',
+          backdropFilter: 'blur(6px)',
+          zIndex: 700,
+        }}
+      />
+
+      <div
+        style={{
+          position: 'fixed',
+          inset: '50% auto auto 50%',
+          transform: 'translate(-50%, -50%)',
+          width: 'min(520px, calc(100% - 24px))',
+          background: '#ffffff',
+          borderRadius: 28,
+          border: '1px solid #e5e7eb',
+          boxShadow: '0 28px 90px rgba(15, 23, 42, 0.22)',
+          zIndex: 701,
+          overflow: 'hidden',
+        }}
+      >
+        <div
+          style={{
+            padding: '18px 20px',
+            borderBottom: '1px solid #eef2f7',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 12,
+          }}
+        >
+          <div>
+            <div
+              style={{
+                fontSize: 12,
+                fontWeight: 800,
+                color: '#64748b',
+                letterSpacing: '0.08em',
+                textTransform: 'uppercase',
+                marginBottom: 4,
+              }}
+            >
+              Customer Access
+            </div>
+            <div
+              style={{
+                fontSize: 22,
+                fontWeight: 900,
+                color: '#111827',
+                letterSpacing: '-0.03em',
+              }}
+            >
+              Sign in or create account
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={onClose}
+            style={{
+              width: 42,
+              height: 42,
+              borderRadius: 14,
+              border: '1px solid #e5e7eb',
+              background: '#ffffff',
+              color: '#111827',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+            }}
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        <div
+          style={{
+            padding: 20,
+            display: 'grid',
+            gap: 14,
+          }}
+        >
+          <div
+            style={{
+              borderRadius: 22,
+              background: '#f8fafc',
+              border: '1px solid #e5e7eb',
+              padding: 16,
+            }}
+          >
+            <div
+              style={{
+                fontSize: 15,
+                lineHeight: 1.7,
+                color: '#475569',
+              }}
+            >
+              Continue as a customer for this storefront. Your store context will be carried automatically.
+            </div>
+          </div>
+
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: '1fr 1fr',
+              gap: 12,
+            }}
+          >
+            <Link
+              to={`/customer/register${queryString}`}
+              onClick={onClose}
+              style={{
+                minHeight: 54,
+                borderRadius: 18,
+                background: '#2563eb',
+                color: '#ffffff',
+                textDecoration: 'none',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: 15,
+                fontWeight: 800,
+              }}
+            >
+              Register
+            </Link>
+
+            <Link
+              to={`/customer/login${queryString}`}
+              onClick={onClose}
+              style={{
+                minHeight: 54,
+                borderRadius: 18,
+                border: '1px solid #d1d5db',
+                background: '#ffffff',
+                color: '#111827',
+                textDecoration: 'none',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: 15,
+                fontWeight: 800,
+              }}
+            >
+              Login
+            </Link>
+          </div>
+        </div>
+      </div>
+    </>
+  );
 }
 
 function SimpleProductCard({ product, websiteSlug, formatCurrency }) {
@@ -162,9 +344,24 @@ export default function TemplateFreeSimple({
   settings,
   formatCurrency,
 }) {
+  const [customerAuthOpen, setCustomerAuthOpen] = useState(false);
+
   const displayCategories = (categories || []).slice(0, settings.categoriesLimit || 4);
   const displayProducts = (products || []).slice(0, settings.offersLimit || 8);
   const displayArticles = (articles || []).slice(0, settings.articleLimit || 3);
+
+  const popupWebsiteId =
+    website?.id ||
+    settings?.website_id ||
+    settings?.website?.id ||
+    '';
+
+  const popupAffiliateId =
+    website?.user_id ||
+    website?.affiliate_id ||
+    settings?.affiliate_id ||
+    settings?.user_id ||
+    '';
 
   return (
     <div
@@ -224,23 +421,54 @@ export default function TemplateFreeSimple({
             </div>
           </div>
 
-          <Link
-            to={`/${websiteSlug}`}
+          <div
             style={{
-              height: 42,
-              padding: '0 18px',
-              borderRadius: 10,
-              background: '#2563eb',
-              color: '#ffffff',
-              textDecoration: 'none',
-              fontWeight: 700,
-              display: 'inline-flex',
+              display: 'flex',
               alignItems: 'center',
-              justifyContent: 'center',
+              gap: 10,
+              flexWrap: 'wrap',
             }}
           >
-            Visit Store
-          </Link>
+            <button
+              type="button"
+              onClick={() => setCustomerAuthOpen(true)}
+              style={{
+                height: 42,
+                padding: '0 18px',
+                borderRadius: 10,
+                border: '1px solid #dbe3f0',
+                background: '#ffffff',
+                color: '#111827',
+                fontWeight: 700,
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 8,
+                cursor: 'pointer',
+              }}
+            >
+              <User size={16} />
+              Sign In
+            </button>
+
+            <Link
+              to={`/${websiteSlug}`}
+              style={{
+                height: 42,
+                padding: '0 18px',
+                borderRadius: 10,
+                background: '#2563eb',
+                color: '#ffffff',
+                textDecoration: 'none',
+                fontWeight: 700,
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              Visit Store
+            </Link>
+          </div>
         </div>
       </header>
 
@@ -429,6 +657,14 @@ export default function TemplateFreeSimple({
           </div>
         </section>
       </main>
+
+      <CustomerAuthPopup
+        open={customerAuthOpen}
+        onClose={() => setCustomerAuthOpen(false)}
+        websiteSlug={websiteSlug}
+        websiteId={popupWebsiteId}
+        affiliateId={popupAffiliateId}
+      />
     </div>
   );
 }

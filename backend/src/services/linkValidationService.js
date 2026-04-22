@@ -44,6 +44,60 @@ async function logLinkValidation({
   }
 }
 
+async function getLatestUserPlanLinkPermission(userId) {
+  if (!userId) {
+    return {
+      allow_external_links: false,
+      plan_id: null,
+      subscription_id: null,
+    };
+  }
+
+  try {
+    const [rows] = await pool.query(
+      `
+      SELECT
+        s.id AS subscription_id,
+        s.plan_id,
+        s.status AS subscription_status,
+        p.allow_external_links
+      FROM affiliate_subscriptions s
+      INNER JOIN subscription_plans p
+        ON p.id = s.plan_id
+      WHERE s.user_id = ?
+      ORDER BY s.id DESC
+      LIMIT 1
+      `,
+      [userId]
+    );
+
+    const row = rows[0] || null;
+
+    if (!row) {
+      return {
+        allow_external_links: false,
+        plan_id: null,
+        subscription_id: null,
+      };
+    }
+
+    return {
+      allow_external_links: !!row.allow_external_links,
+      plan_id: row.plan_id || null,
+      subscription_id: row.subscription_id || null,
+      subscription_status: row.subscription_status || null,
+    };
+  } catch (error) {
+    console.error('getLatestUserPlanLinkPermission error:', error.message);
+
+    return {
+      allow_external_links: false,
+      plan_id: null,
+      subscription_id: null,
+    };
+  }
+}
+
 async function validateAndLogSupgadUrl({
   value,
   fieldName = 'URL',
@@ -53,11 +107,23 @@ async function validateAndLogSupgadUrl({
   websiteId = null,
   sourceType,
   sourceId = null,
+  allowExternalLinks,
 }) {
+  const permission =
+    allowExternalLinks === undefined
+      ? await getLatestUserPlanLinkPermission(userId)
+      : {
+          allow_external_links: !!allowExternalLinks,
+          plan_id: null,
+          subscription_id: null,
+        };
+
   const result = validateSupgadUrl(value, {
     required,
     allowEmpty,
     fieldName,
+    allowExternalLinks: !!permission.allow_external_links,
+    allowedDomains: ['supgad.com'],
   });
 
   await logLinkValidation({
@@ -71,7 +137,12 @@ async function validateAndLogSupgadUrl({
     failureReason: result.ok ? null : result.message,
   });
 
-  return result;
+  return {
+    ...result,
+    allow_external_links: !!permission.allow_external_links,
+    plan_id: permission.plan_id || null,
+    subscription_id: permission.subscription_id || null,
+  };
 }
 
 async function assertAndLogSupgadUrl(options) {
@@ -100,6 +171,7 @@ async function validateMultipleSupgadUrls(items = []) {
 
 module.exports = {
   logLinkValidation,
+  getLatestUserPlanLinkPermission,
   validateAndLogSupgadUrl,
   assertAndLogSupgadUrl,
   validateMultipleSupgadUrls,

@@ -1,24 +1,50 @@
 const express = require('express');
-const {
-  registerAffiliate,
-  loginUser,
-  getMe,
-  logoutUser,
-} = require('../controllers/authController');
 const { protect } = require('../middleware/authMiddleware');
+const authController = require('../controllers/authController');
 
 const router = express.Router();
 
-router.get('/health', (req, res) => {
-  res.status(200).json({
+function missingHandler(name) {
+  return (req, res) => {
+    return res.status(500).json({
+      ok: false,
+      message: `Auth controller handler "${name}" is missing or not exported as a function.`,
+    });
+  };
+}
+
+const registerHandler =
+  authController.register ||
+  authController.registerUser ||
+  authController.signup ||
+  missingHandler('register');
+
+const loginHandler =
+  authController.login ||
+  authController.loginUser ||
+  authController.signin ||
+  missingHandler('login');
+
+const getMeHandler =
+  authController.getMe ||
+  authController.me ||
+  authController.getProfile ||
+  missingHandler('getMe');
+
+router.get('/test', (req, res) => {
+  return res.status(200).json({
     ok: true,
-    message: 'Auth routes working',
+    message: 'auth routes working',
+    handlers: {
+      register: typeof registerHandler === 'function',
+      login: typeof loginHandler === 'function',
+      getMe: typeof getMeHandler === 'function',
+    },
   });
 });
 
-router.post('/register', registerAffiliate);
-router.post('/login', loginUser);
-router.post('/logout', logoutUser);
-router.get('/me', protect, getMe);
+router.post('/register', registerHandler);
+router.post('/login', loginHandler);
+router.get('/me', protect, getMeHandler);
 
 module.exports = router;

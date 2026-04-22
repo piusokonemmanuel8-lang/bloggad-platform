@@ -11,12 +11,20 @@ import {
   Link as LinkIcon,
   CheckCircle2,
   AlertCircle,
+  Mail,
+  Clock3,
+  PanelsTopLeft,
 } from 'lucide-react';
 import api from '../../api/axios';
 
 function buildPublicWebsiteUrl(slug) {
   if (!slug) return '';
   return `/${slug}`;
+}
+
+function getTemplateLabel(template) {
+  if (!template) return 'Select template';
+  return template.name || template.template_key || `Template #${template.id}`;
 }
 
 export default function AffiliateWebsitePage() {
@@ -31,32 +39,86 @@ export default function AffiliateWebsitePage() {
     footer_style: '',
     status: 'draft',
   });
+
+  const [emailSettings, setEmailSettings] = useState({
+    enabled: false,
+    selected_template_id: '',
+    show_mode: 'popup',
+    delay_seconds: 8,
+    show_once_per_session: true,
+    title: '',
+    subtitle: '',
+    placeholder_text: 'Enter your email',
+    button_text: 'Subscribe',
+    success_message: 'Saved successfully',
+  });
+
+  const [emailTemplates, setEmailTemplates] = useState([]);
   const [website, setWebsite] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [savingEmail, setSavingEmail] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [emailError, setEmailError] = useState('');
+  const [emailSuccess, setEmailSuccess] = useState('');
 
   useEffect(() => {
-    const fetchWebsite = async () => {
+    const fetchWebsiteAndEmail = async () => {
       try {
         setLoading(true);
         setError('');
-        const { data } = await api.get('/api/affiliate/website/me');
+        setEmailError('');
 
-        if (data?.ok && data?.website) {
-          setWebsite(data.website);
+        const websiteRes = await api.get('/api/affiliate/website/me');
+        const websiteData = websiteRes?.data || null;
+
+        let currentWebsite = null;
+
+        if (websiteData?.ok && websiteData?.website) {
+          currentWebsite = websiteData.website;
+          setWebsite(currentWebsite);
           setForm({
-            website_name: data.website.website_name || '',
-            slug: data.website.slug || '',
-            custom_domain: data.website.custom_domain || '',
-            meta_title: data.website.meta_title || '',
-            meta_description: data.website.meta_description || '',
-            homepage_template: data.website.homepage_template || '',
-            header_style: data.website.header_style || '',
-            footer_style: data.website.footer_style || '',
-            status: data.website.status || 'draft',
+            website_name: currentWebsite.website_name || '',
+            slug: currentWebsite.slug || '',
+            custom_domain: currentWebsite.custom_domain || '',
+            meta_title: currentWebsite.meta_title || '',
+            meta_description: currentWebsite.meta_description || '',
+            homepage_template: currentWebsite.homepage_template || '',
+            header_style: currentWebsite.header_style || '',
+            footer_style: currentWebsite.footer_style || '',
+            status: currentWebsite.status || 'draft',
           });
+        }
+
+        const templateRes = await api.get('/api/email-list/public/templates');
+        const templates = templateRes?.data?.templates || [];
+        setEmailTemplates(templates);
+
+        if (currentWebsite?.id) {
+          try {
+            const settingsRes = await api.get(`/api/email-list/settings/${currentWebsite.id}`);
+            const settings = settingsRes?.data?.settings || null;
+
+            if (settings) {
+              setEmailSettings({
+                enabled: !!settings.enabled,
+                selected_template_id: settings.selected_template_id || '',
+                show_mode: settings.show_mode || settings.display_mode || 'popup',
+                delay_seconds: settings.delay_seconds ?? settings.popup_delay_seconds ?? 8,
+                show_once_per_session: settings.show_once_per_session !== false,
+                title: settings.title || '',
+                subtitle: settings.subtitle || '',
+                placeholder_text: settings.placeholder_text || 'Enter your email',
+                button_text: settings.button_text || 'Subscribe',
+                success_message: settings.success_message || 'Saved successfully',
+              });
+            }
+          } catch (innerErr) {
+            setEmailError(
+              innerErr?.response?.data?.message || 'Failed to load email capture settings'
+            );
+          }
         }
       } catch (err) {
         if (err?.response?.status !== 404) {
@@ -67,7 +129,7 @@ export default function AffiliateWebsitePage() {
       }
     };
 
-    fetchWebsite();
+    fetchWebsiteAndEmail();
   }, []);
 
   const handleChange = (event) => {
@@ -76,6 +138,15 @@ export default function AffiliateWebsitePage() {
     setForm((prev) => ({
       ...prev,
       [name]: value,
+    }));
+  };
+
+  const handleEmailChange = (event) => {
+    const { name, value, type, checked } = event.target;
+
+    setEmailSettings((prev) => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value,
     }));
   };
 
@@ -112,6 +183,60 @@ export default function AffiliateWebsitePage() {
     }
   };
 
+  const handleSaveEmailSettings = async (event) => {
+    event.preventDefault();
+
+    if (!website?.id) {
+      setEmailError('Create or save your website first before saving email capture settings');
+      return;
+    }
+
+    setSavingEmail(true);
+    setEmailError('');
+    setEmailSuccess('');
+
+    try {
+      const payload = {
+        website_id: website.id,
+        enabled: emailSettings.enabled,
+        selected_template_id: emailSettings.selected_template_id || null,
+        show_mode: emailSettings.show_mode,
+        delay_seconds: Number(emailSettings.delay_seconds || 0),
+        show_once_per_session: emailSettings.show_once_per_session,
+        title: emailSettings.title,
+        subtitle: emailSettings.subtitle,
+        placeholder_text: emailSettings.placeholder_text,
+        button_text: emailSettings.button_text,
+        success_message: emailSettings.success_message,
+      };
+
+      const { data } = await api.post(`/api/email-list/settings/${website.id}`, payload);
+
+      const next = data?.settings || null;
+
+      if (next) {
+        setEmailSettings({
+          enabled: !!next.enabled,
+          selected_template_id: next.selected_template_id || '',
+          show_mode: next.show_mode || next.display_mode || 'popup',
+          delay_seconds: next.delay_seconds ?? next.popup_delay_seconds ?? 8,
+          show_once_per_session: next.show_once_per_session !== false,
+          title: next.title || '',
+          subtitle: next.subtitle || '',
+          placeholder_text: next.placeholder_text || 'Enter your email',
+          button_text: next.button_text || 'Subscribe',
+          success_message: next.success_message || 'Saved successfully',
+        });
+      }
+
+      setEmailSuccess(data?.message || 'Email capture settings saved successfully');
+    } catch (err) {
+      setEmailError(err?.response?.data?.message || 'Failed to save email capture settings');
+    } finally {
+      setSavingEmail(false);
+    }
+  };
+
   const publicUrl = useMemo(() => {
     return website?.public_url || buildPublicWebsiteUrl(form.slug);
   }, [website, form.slug]);
@@ -124,6 +249,12 @@ export default function AffiliateWebsitePage() {
     if (value === 'suspended') return 'affiliate-website-status suspended';
     return 'affiliate-website-status draft';
   }, [form.status]);
+
+  const selectedTemplate = useMemo(() => {
+    return emailTemplates.find(
+      (item) => String(item.id) === String(emailSettings.selected_template_id)
+    );
+  }, [emailTemplates, emailSettings.selected_template_id]);
 
   if (loading) {
     return (
@@ -172,182 +303,404 @@ export default function AffiliateWebsitePage() {
       </section>
 
       <section className="affiliate-website-grid">
-        <div className="affiliate-website-panel affiliate-website-panel-main">
-          <div className="affiliate-website-panel-head">
-            <div>
-              <p className="affiliate-website-panel-kicker">Storefront details</p>
-              <h2 className="affiliate-website-panel-title">
-                {website ? 'Update your website' : 'Create your website'}
-              </h2>
+        <div className="affiliate-website-main-stack">
+          <div className="affiliate-website-panel affiliate-website-panel-main">
+            <div className="affiliate-website-panel-head">
+              <div>
+                <p className="affiliate-website-panel-kicker">Storefront details</p>
+                <h2 className="affiliate-website-panel-title">
+                  {website ? 'Update your website' : 'Create your website'}
+                </h2>
+              </div>
             </div>
+
+            <form className="affiliate-website-form" onSubmit={handleSubmit}>
+              <div className="affiliate-website-form-grid">
+                <label className="affiliate-website-field">
+                  <span className="affiliate-website-label">
+                    <Globe size={16} />
+                    Website name
+                  </span>
+                  <input
+                    className="affiliate-website-input"
+                    name="website_name"
+                    placeholder="Enter website name"
+                    value={form.website_name}
+                    onChange={handleChange}
+                  />
+                </label>
+
+                <label className="affiliate-website-field">
+                  <span className="affiliate-website-label">
+                    <PencilLine size={16} />
+                    Website slug
+                  </span>
+                  <input
+                    className="affiliate-website-input"
+                    name="slug"
+                    placeholder="your-store-slug"
+                    value={form.slug}
+                    onChange={handleChange}
+                  />
+                </label>
+
+                <label className="affiliate-website-field affiliate-website-field-full">
+                  <span className="affiliate-website-label">
+                    <LinkIcon size={16} />
+                    Custom domain
+                  </span>
+                  <input
+                    className="affiliate-website-input"
+                    name="custom_domain"
+                    placeholder="supgad.com/your-store"
+                    value={form.custom_domain}
+                    onChange={handleChange}
+                  />
+                  <small className="affiliate-website-help">
+                    Only approved platform domain format should be used.
+                  </small>
+                </label>
+
+                <label className="affiliate-website-field">
+                  <span className="affiliate-website-label">
+                    <Type size={16} />
+                    Meta title
+                  </span>
+                  <input
+                    className="affiliate-website-input"
+                    name="meta_title"
+                    placeholder="Meta title for SEO"
+                    value={form.meta_title}
+                    onChange={handleChange}
+                  />
+                </label>
+
+                <label className="affiliate-website-field">
+                  <span className="affiliate-website-label">
+                    <LayoutTemplate size={16} />
+                    Homepage template
+                  </span>
+                  <input
+                    className="affiliate-website-input"
+                    name="homepage_template"
+                    placeholder="Homepage template"
+                    value={form.homepage_template}
+                    onChange={handleChange}
+                  />
+                </label>
+
+                <label className="affiliate-website-field">
+                  <span className="affiliate-website-label">
+                    <LayoutTemplate size={16} />
+                    Header style
+                  </span>
+                  <input
+                    className="affiliate-website-input"
+                    name="header_style"
+                    placeholder="Header style"
+                    value={form.header_style}
+                    onChange={handleChange}
+                  />
+                </label>
+
+                <label className="affiliate-website-field">
+                  <span className="affiliate-website-label">
+                    <LayoutTemplate size={16} />
+                    Footer style
+                  </span>
+                  <input
+                    className="affiliate-website-input"
+                    name="footer_style"
+                    placeholder="Footer style"
+                    value={form.footer_style}
+                    onChange={handleChange}
+                  />
+                </label>
+
+                <label className="affiliate-website-field">
+                  <span className="affiliate-website-label">
+                    <ShieldCheck size={16} />
+                    Status
+                  </span>
+                  <select
+                    className="affiliate-website-input"
+                    name="status"
+                    value={form.status}
+                    onChange={handleChange}
+                  >
+                    <option value="draft">Draft</option>
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                    <option value="suspended">Suspended</option>
+                  </select>
+                </label>
+
+                <label className="affiliate-website-field affiliate-website-field-full">
+                  <span className="affiliate-website-label">
+                    <FileText size={16} />
+                    Meta description
+                  </span>
+                  <textarea
+                    className="affiliate-website-input affiliate-website-textarea"
+                    name="meta_description"
+                    placeholder="Short website description"
+                    rows="5"
+                    value={form.meta_description}
+                    onChange={handleChange}
+                  />
+                </label>
+              </div>
+
+              {error ? (
+                <div className="affiliate-website-alert error">
+                  <AlertCircle size={18} />
+                  <span>{error}</span>
+                </div>
+              ) : null}
+
+              {success ? (
+                <div className="affiliate-website-alert success">
+                  <CheckCircle2 size={18} />
+                  <span>{success}</span>
+                </div>
+              ) : null}
+
+              <div className="affiliate-website-actions">
+                <button
+                  className="affiliate-website-save-btn"
+                  type="submit"
+                  disabled={saving}
+                >
+                  <Save size={16} />
+                  {saving
+                    ? 'Saving...'
+                    : website
+                    ? 'Update Website'
+                    : 'Create Website'}
+                </button>
+              </div>
+            </form>
           </div>
 
-          <form className="affiliate-website-form" onSubmit={handleSubmit}>
-            <div className="affiliate-website-form-grid">
-              <label className="affiliate-website-field">
-                <span className="affiliate-website-label">
-                  <Globe size={16} />
-                  Website name
-                </span>
-                <input
-                  className="affiliate-website-input"
-                  name="website_name"
-                  placeholder="Enter website name"
-                  value={form.website_name}
-                  onChange={handleChange}
-                />
-              </label>
+          <div className="affiliate-website-panel affiliate-email-panel">
+            <div className="affiliate-website-panel-head">
+              <div>
+                <p className="affiliate-website-panel-kicker">Email capture</p>
+                <h2 className="affiliate-website-panel-title">Post page email template</h2>
+                <p className="affiliate-email-panel-subtext">
+                  Choose whether email capture shows as popup, footer, or both on post pages only.
+                </p>
+              </div>
+            </div>
 
-              <label className="affiliate-website-field">
-                <span className="affiliate-website-label">
-                  <PencilLine size={16} />
-                  Website slug
-                </span>
-                <input
-                  className="affiliate-website-input"
-                  name="slug"
-                  placeholder="your-store-slug"
-                  value={form.slug}
-                  onChange={handleChange}
-                />
-              </label>
+            <form className="affiliate-website-form" onSubmit={handleSaveEmailSettings}>
+              <div className="affiliate-website-form-grid">
+                <label className="affiliate-website-checkbox-row affiliate-website-field-full">
+                  <input
+                    type="checkbox"
+                    name="enabled"
+                    checked={emailSettings.enabled}
+                    onChange={handleEmailChange}
+                  />
+                  <span>Enable email capture on post pages</span>
+                </label>
 
-              <label className="affiliate-website-field affiliate-website-field-full">
-                <span className="affiliate-website-label">
-                  <LinkIcon size={16} />
-                  Custom domain
-                </span>
-                <input
-                  className="affiliate-website-input"
-                  name="custom_domain"
-                  placeholder="supgad.com/your-store"
-                  value={form.custom_domain}
-                  onChange={handleChange}
-                />
-                <small className="affiliate-website-help">
-                  Only approved platform domain format should be used.
-                </small>
-              </label>
+                <label className="affiliate-website-field">
+                  <span className="affiliate-website-label">
+                    <LayoutTemplate size={16} />
+                    Email template
+                  </span>
+                  <select
+                    className="affiliate-website-input"
+                    name="selected_template_id"
+                    value={emailSettings.selected_template_id}
+                    onChange={handleEmailChange}
+                  >
+                    <option value="">Select template</option>
+                    {emailTemplates.map((template) => (
+                      <option key={template.id} value={template.id}>
+                        {getTemplateLabel(template)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
 
-              <label className="affiliate-website-field">
-                <span className="affiliate-website-label">
-                  <Type size={16} />
-                  Meta title
-                </span>
-                <input
-                  className="affiliate-website-input"
-                  name="meta_title"
-                  placeholder="Meta title for SEO"
-                  value={form.meta_title}
-                  onChange={handleChange}
-                />
-              </label>
+                <label className="affiliate-website-field">
+                  <span className="affiliate-website-label">
+                    <PanelsTopLeft size={16} />
+                    Display mode
+                  </span>
+                  <select
+                    className="affiliate-website-input"
+                    name="show_mode"
+                    value={emailSettings.show_mode}
+                    onChange={handleEmailChange}
+                  >
+                    <option value="popup">Popup only</option>
+                    <option value="footer">Footer only</option>
+                    <option value="both">Popup and footer</option>
+                  </select>
+                </label>
 
-              <label className="affiliate-website-field">
-                <span className="affiliate-website-label">
-                  <LayoutTemplate size={16} />
-                  Homepage template
-                </span>
-                <input
-                  className="affiliate-website-input"
-                  name="homepage_template"
-                  placeholder="Homepage template"
-                  value={form.homepage_template}
-                  onChange={handleChange}
-                />
-              </label>
+                <label className="affiliate-website-field">
+                  <span className="affiliate-website-label">
+                    <Clock3 size={16} />
+                    Popup delay seconds
+                  </span>
+                  <input
+                    className="affiliate-website-input"
+                    type="number"
+                    min="0"
+                    name="delay_seconds"
+                    value={emailSettings.delay_seconds}
+                    onChange={handleEmailChange}
+                  />
+                </label>
 
-              <label className="affiliate-website-field">
-                <span className="affiliate-website-label">
-                  <LayoutTemplate size={16} />
-                  Header style
-                </span>
-                <input
-                  className="affiliate-website-input"
-                  name="header_style"
-                  placeholder="Header style"
-                  value={form.header_style}
-                  onChange={handleChange}
-                />
-              </label>
+                <label className="affiliate-website-field">
+                  <span className="affiliate-website-label">
+                    <Mail size={16} />
+                    Cooldown
+                  </span>
+                  <input
+                    className="affiliate-website-input"
+                    value="10 minutes"
+                    readOnly
+                  />
+                  <small className="affiliate-website-help">
+                    Popup should reappear after 5 to 10 minutes. Current frontend target uses 10 minutes.
+                  </small>
+                </label>
 
-              <label className="affiliate-website-field">
-                <span className="affiliate-website-label">
-                  <LayoutTemplate size={16} />
-                  Footer style
-                </span>
-                <input
-                  className="affiliate-website-input"
-                  name="footer_style"
-                  placeholder="Footer style"
-                  value={form.footer_style}
-                  onChange={handleChange}
-                />
-              </label>
+                <label className="affiliate-website-checkbox-row affiliate-website-field-full">
+                  <input
+                    type="checkbox"
+                    name="show_once_per_session"
+                    checked={emailSettings.show_once_per_session}
+                    onChange={handleEmailChange}
+                  />
+                  <span>Show only once per session where possible</span>
+                </label>
 
-              <label className="affiliate-website-field">
-                <span className="affiliate-website-label">
-                  <ShieldCheck size={16} />
-                  Status
-                </span>
-                <select
-                  className="affiliate-website-input"
-                  name="status"
-                  value={form.status}
-                  onChange={handleChange}
+                <label className="affiliate-website-field">
+                  <span className="affiliate-website-label">
+                    <Type size={16} />
+                    Title
+                  </span>
+                  <input
+                    className="affiliate-website-input"
+                    name="title"
+                    placeholder="Join our email list"
+                    value={emailSettings.title}
+                    onChange={handleEmailChange}
+                  />
+                </label>
+
+                <label className="affiliate-website-field">
+                  <span className="affiliate-website-label">
+                    <Type size={16} />
+                    Button text
+                  </span>
+                  <input
+                    className="affiliate-website-input"
+                    name="button_text"
+                    placeholder="Subscribe"
+                    value={emailSettings.button_text}
+                    onChange={handleEmailChange}
+                  />
+                </label>
+
+                <label className="affiliate-website-field affiliate-website-field-full">
+                  <span className="affiliate-website-label">
+                    <FileText size={16} />
+                    Subtitle
+                  </span>
+                  <textarea
+                    className="affiliate-website-input affiliate-website-textarea affiliate-website-textarea-small"
+                    name="subtitle"
+                    placeholder="Get updates, deals, and new post alerts."
+                    rows="3"
+                    value={emailSettings.subtitle}
+                    onChange={handleEmailChange}
+                  />
+                </label>
+
+                <label className="affiliate-website-field">
+                  <span className="affiliate-website-label">
+                    <Mail size={16} />
+                    Placeholder text
+                  </span>
+                  <input
+                    className="affiliate-website-input"
+                    name="placeholder_text"
+                    placeholder="Enter your email"
+                    value={emailSettings.placeholder_text}
+                    onChange={handleEmailChange}
+                  />
+                </label>
+
+                <label className="affiliate-website-field">
+                  <span className="affiliate-website-label">
+                    <CheckCircle2 size={16} />
+                    Success message
+                  </span>
+                  <input
+                    className="affiliate-website-input"
+                    name="success_message"
+                    placeholder="Saved successfully"
+                    value={emailSettings.success_message}
+                    onChange={handleEmailChange}
+                  />
+                </label>
+              </div>
+
+              {selectedTemplate ? (
+                <div className="affiliate-email-template-preview">
+                  <div className="affiliate-email-template-preview-head">
+                    <strong>{selectedTemplate.name || 'Selected template'}</strong>
+                    <span>{selectedTemplate.template_key || '-'}</span>
+                  </div>
+
+                  {selectedTemplate.preview_image ? (
+                    <img
+                      src={selectedTemplate.preview_image}
+                      alt={selectedTemplate.name || 'Email template preview'}
+                      className="affiliate-email-template-image"
+                    />
+                  ) : null}
+
+                  <p className="affiliate-email-template-description">
+                    {selectedTemplate.description || 'No description'}
+                  </p>
+                </div>
+              ) : null}
+
+              {emailError ? (
+                <div className="affiliate-website-alert error">
+                  <AlertCircle size={18} />
+                  <span>{emailError}</span>
+                </div>
+              ) : null}
+
+              {emailSuccess ? (
+                <div className="affiliate-website-alert success">
+                  <CheckCircle2 size={18} />
+                  <span>{emailSuccess}</span>
+                </div>
+              ) : null}
+
+              <div className="affiliate-website-actions">
+                <button
+                  className="affiliate-website-save-btn"
+                  type="submit"
+                  disabled={savingEmail}
                 >
-                  <option value="draft">Draft</option>
-                  <option value="active">Active</option>
-                  <option value="inactive">Inactive</option>
-                  <option value="suspended">Suspended</option>
-                </select>
-              </label>
-
-              <label className="affiliate-website-field affiliate-website-field-full">
-                <span className="affiliate-website-label">
-                  <FileText size={16} />
-                  Meta description
-                </span>
-                <textarea
-                  className="affiliate-website-input affiliate-website-textarea"
-                  name="meta_description"
-                  placeholder="Short website description"
-                  rows="5"
-                  value={form.meta_description}
-                  onChange={handleChange}
-                />
-              </label>
-            </div>
-
-            {error ? (
-              <div className="affiliate-website-alert error">
-                <AlertCircle size={18} />
-                <span>{error}</span>
+                  <Save size={16} />
+                  {savingEmail ? 'Saving...' : 'Save Email Capture Settings'}
+                </button>
               </div>
-            ) : null}
-
-            {success ? (
-              <div className="affiliate-website-alert success">
-                <CheckCircle2 size={18} />
-                <span>{success}</span>
-              </div>
-            ) : null}
-
-            <div className="affiliate-website-actions">
-              <button
-                className="affiliate-website-save-btn"
-                type="submit"
-                disabled={saving}
-              >
-                <Save size={16} />
-                {saving
-                  ? 'Saving...'
-                  : website
-                  ? 'Update Website'
-                  : 'Create Website'}
-              </button>
-            </div>
-          </form>
+            </form>
+          </div>
         </div>
 
         <div className="affiliate-website-side-stack">
@@ -385,6 +738,42 @@ export default function AffiliateWebsitePage() {
           <div className="affiliate-website-panel">
             <div className="affiliate-website-panel-head">
               <div>
+                <p className="affiliate-website-panel-kicker">Email setup summary</p>
+                <h2 className="affiliate-website-panel-title">Current email capture</h2>
+              </div>
+            </div>
+
+            <div className="affiliate-website-summary">
+              <div className="affiliate-website-summary-row">
+                <span>Enabled</span>
+                <strong>{emailSettings.enabled ? 'Yes' : 'No'}</strong>
+              </div>
+
+              <div className="affiliate-website-summary-row">
+                <span>Display</span>
+                <strong>{emailSettings.show_mode || '-'}</strong>
+              </div>
+
+              <div className="affiliate-website-summary-row">
+                <span>Delay</span>
+                <strong>{emailSettings.delay_seconds || 0}s</strong>
+              </div>
+
+              <div className="affiliate-website-summary-row column">
+                <span>Template</span>
+                <strong className="wrap">{getTemplateLabel(selectedTemplate)}</strong>
+              </div>
+
+              <div className="affiliate-website-summary-row">
+                <span>Page target</span>
+                <strong>Post pages only</strong>
+              </div>
+            </div>
+          </div>
+
+          <div className="affiliate-website-panel">
+            <div className="affiliate-website-panel-head">
+              <div>
                 <p className="affiliate-website-panel-kicker">Guide</p>
                 <h2 className="affiliate-website-panel-title">Before you save</h2>
               </div>
@@ -405,7 +794,7 @@ export default function AffiliateWebsitePage() {
               </div>
               <div className="affiliate-website-tip">
                 <span className="dot" />
-                <p>Only approved platform links should be used for safety and consistency.</p>
+                <p>Email capture for this setup is meant for post pages, not homepage.</p>
               </div>
             </div>
           </div>
@@ -579,6 +968,7 @@ const styles = `
     gap: 20px;
   }
 
+  .affiliate-website-main-stack,
   .affiliate-website-side-stack {
     display: flex;
     flex-direction: column;
@@ -620,6 +1010,13 @@ const styles = `
     font-weight: 900;
     color: #111827;
     line-height: 1.2;
+  }
+
+  .affiliate-email-panel-subtext {
+    margin: 8px 0 0;
+    color: #6b7280;
+    font-size: 14px;
+    line-height: 1.6;
   }
 
   .affiliate-website-form {
@@ -675,6 +1072,10 @@ const styles = `
     min-height: 130px;
     padding: 14px;
     resize: vertical;
+  }
+
+  .affiliate-website-textarea-small {
+    min-height: 96px;
   }
 
   .affiliate-website-help {
@@ -777,6 +1178,70 @@ const styles = `
   }
 
   .affiliate-website-tip p {
+    margin: 0;
+    color: #6b7280;
+    font-size: 14px;
+    line-height: 1.6;
+  }
+
+  .affiliate-website-checkbox-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 50px;
+    border: 1px solid #dbe2ea;
+    border-radius: 16px;
+    background: #ffffff;
+    padding: 0 14px;
+    font-size: 14px;
+    font-weight: 700;
+    color: #111827;
+  }
+
+  .affiliate-website-checkbox-row input {
+    width: 16px;
+    height: 16px;
+  }
+
+  .affiliate-email-template-preview {
+    border: 1px solid #e5e7eb;
+    border-radius: 18px;
+    background: #f8fafc;
+    padding: 16px;
+  }
+
+  .affiliate-email-template-preview-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+  }
+
+  .affiliate-email-template-preview-head strong {
+    color: #111827;
+    font-size: 16px;
+    font-weight: 900;
+  }
+
+  .affiliate-email-template-preview-head span {
+    color: #6b7280;
+    font-size: 12px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  .affiliate-email-template-image {
+    width: 100%;
+    border-radius: 14px;
+    display: block;
+    border: 1px solid #e5e7eb;
+    margin-bottom: 12px;
+  }
+
+  .affiliate-email-template-description {
     margin: 0;
     color: #6b7280;
     font-size: 14px;

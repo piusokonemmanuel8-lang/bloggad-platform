@@ -612,6 +612,245 @@ function getDefaultTemplateSettings() {
         copyright: '© 2026 Blogguard. All rights reserved.',
       },
     },
+    mextro: {
+      top_strip: {
+        enabled: true,
+        message: 'FREE SHIPPING ON ORDERS $50+',
+      },
+      header: {
+        search_placeholder: 'Search for products',
+        categories_button_label: 'All Departments',
+        account_label: 'Account',
+        cart_label: 'Cart',
+        track_order_label: 'Track Order',
+        logo_text: 'Bloggad',
+        logo_image_url: '',
+        support_label: '+1 212-334-0212',
+      },
+      theme_mode: {
+        enabled: true,
+        default_mode: 'light',
+        light_label: 'Light',
+        dark_label: 'Dark',
+      },
+      hero_slider: {
+        enabled: true,
+        slides: [
+          {
+            id: 'mextro-slide-1',
+            eyebrow: 'Catch Big Deals',
+            title: 'Home Speakers',
+            subtitle: 'Enjoy room-filling sound with premium electronics and weekly offers.',
+            button_label: 'Shop Now',
+            image_url: '',
+            badge: 'Starting at $99',
+            accent: '#fed700',
+            text_color: '#111111',
+          },
+          {
+            id: 'mextro-slide-2',
+            eyebrow: 'Best Seller',
+            title: 'Smart Gadgets',
+            subtitle: 'Upgrade your home, office and lifestyle with sharper electronics.',
+            button_label: 'Shop Now',
+            image_url: '',
+            badge: 'Hot Offer',
+            accent: '#fed700',
+            text_color: '#111111',
+          },
+          {
+            id: 'mextro-slide-3',
+            eyebrow: 'New Arrival',
+            title: 'Laptops & Accessories',
+            subtitle: 'Discover practical devices and accessories with strong value.',
+            button_label: 'Shop Now',
+            image_url: '',
+            badge: 'Daily Deal',
+            accent: '#fed700',
+            text_color: '#111111',
+          },
+        ],
+      },
+      hero_side_banner: {
+        enabled: true,
+        eyebrow: 'Weekend Discount',
+        title: 'Gaming Accessories',
+        subtitle: 'Save more on selected products and add-ons this week.',
+        button_label: 'Shop Now',
+        image_url: '',
+        bg: '#f5f1e9',
+      },
+      category_icons: {
+        enabled: true,
+        title: 'Top Categories',
+        limit: 8,
+      },
+      promo_banners: {
+        enabled: true,
+        items: [
+          {
+            title: 'Catch Big Deals',
+            subtitle: 'On cameras and photography',
+            button_label: 'Shop Now',
+            image_url: '',
+            bg: '#f7f7f7',
+          },
+          {
+            title: 'Tablets & iPads',
+            subtitle: 'Latest performance picks',
+            button_label: 'Shop Now',
+            image_url: '',
+            bg: '#f5f5f5',
+          },
+          {
+            title: 'Smart Speakers',
+            subtitle: 'Premium audio offers',
+            button_label: 'Shop Now',
+            image_url: '',
+            bg: '#f8f8f8',
+          },
+        ],
+      },
+      featured_products: {
+        enabled: true,
+        title: 'Handpicked Items For You',
+        limit: 8,
+        products_per_row: 4,
+      },
+      dark_promos: {
+        enabled: true,
+        left_title: 'Cameras, Audio & Tech',
+        left_subtitle: 'Strong weekly savings on selected gadgets.',
+        left_button_label: 'Shop Now',
+        left_image_url: '',
+        right_title: 'Laptops & Accessories',
+        right_subtitle: 'Premium products with standout performance.',
+        right_button_label: 'Shop Now',
+        right_image_url: '',
+      },
+      brand_row: {
+        enabled: true,
+        titles: ['TECHCOM', 'GADIX', 'NEXSO', 'DIGIT', 'ELECTRA', 'MAXON'],
+      },
+      news: {
+        enabled: true,
+        title: 'Recent Posts',
+        limit: 3,
+      },
+      footer: {
+        enabled: true,
+        about_text:
+          'Mextro is the Electro-style storefront inside Bloggad with fixed structure and editable content only.',
+        phone: '+1 212-334-0212',
+        email: 'support@bloggad.com',
+        address: '27 Division St, New York, NY 10002, USA',
+        copyright: '© 2026 Bloggad. All rights reserved.',
+      },
+    },
+    xxam: {
+      announcement_bar: {
+        enabled: false,
+        message: '',
+      },
+      header: {
+        logo_text: 'Bloggad',
+        logo_image_url: '',
+        nav_links: ['Elements', 'Shop', 'Track Order', 'Blog', 'About us', 'Contacts'],
+        show_search_icon: true,
+        show_compare_icon: true,
+        show_wishlist_icon: true,
+        show_account_icon: true,
+        sign_in_label: 'Sign In',
+        cart_label: 'Cart',
+        cart_amount_label: '$0.00',
+      },
+      theme_mode: {
+        enabled: true,
+        default_mode: 'light',
+        light_label: 'Light',
+        dark_label: 'Dark',
+      },
+      hero: {
+        enabled: true,
+        eyebrow: 'THE NEXT GENERATION',
+        title: 'Innovation That Drives You',
+        subtitle:
+          'Discover modern electronics, premium accessories, and minimal design built to stand out.',
+        button_label: 'Buy Now - $320',
+        image_url: '',
+        background_color: '#f3f3f5',
+        floating_black_badge: '140+\nWebsites',
+        floating_green_badge: 'Buy Now',
+      },
+      category_cards: {
+        enabled: true,
+        title: 'Shop by Category',
+        limit: 4,
+      },
+      featured_products: {
+        enabled: true,
+        title: 'Featured Products',
+        limit: 8,
+        products_per_row: 4,
+        show_quick_view: true,
+      },
+      promo_banners: {
+        enabled: true,
+        items: [
+          {
+            title: 'Minimal Audio',
+            subtitle: 'Clean design with premium sound',
+            button_label: 'Shop Now',
+            image_url: '',
+            bg: '#f3f3f5',
+          },
+          {
+            title: 'Smart Accessories',
+            subtitle: 'Modern electronics for daily use',
+            button_label: 'Explore',
+            image_url: '',
+            bg: '#f5f6fb',
+          },
+        ],
+      },
+      testimonials: {
+        enabled: true,
+        title: 'What Customers Say',
+        item_one_name: 'Daniel M.',
+        item_one_quote:
+          'Clean, premium and exactly the kind of minimal electronics layout I wanted.',
+        item_two_name: 'Sarah K.',
+        item_two_quote: 'The product cards look modern and the shopping flow feels polished.',
+        item_three_name: 'James T.',
+        item_three_quote:
+          'Strong premium feel without clutter. Very sharp storefront presentation.',
+      },
+      news: {
+        enabled: true,
+        title: 'Latest Articles',
+        limit: 3,
+      },
+      services_strip: {
+        enabled: true,
+        item_one_title: 'Free Shipping',
+        item_one_subtitle: 'For all orders over $99',
+        item_two_title: '30 Days Return',
+        item_two_subtitle: 'Money back guarantee',
+        item_three_title: 'Secure Payment',
+        item_three_subtitle: '100% protected checkout',
+        item_four_title: '24/7 Support',
+        item_four_subtitle: 'Dedicated live support',
+      },
+      footer: {
+        enabled: true,
+        about_text:
+          'Xxam is the XStore-inspired minimal electronics storefront inside Bloggad with a fixed structure and editable content.',
+        phone: '+1 212-334-0212',
+        email: 'support@bloggad.com',
+        address: '27 Division St, New York, NY 10002, USA',
+        copyright: '© 2026 Bloggad. All rights reserved.',
+      },
+    },
   };
 }
 
@@ -1055,6 +1294,172 @@ function mergeTemplateSettings(raw) {
         ...((parsed.multi_product && parsed.multi_product.footer) || {}),
       },
     },
+    mextro: {
+      ...defaults.mextro,
+      ...(parsed.mextro || {}),
+      top_strip: {
+        ...defaults.mextro.top_strip,
+        ...((parsed.mextro && parsed.mextro.top_strip) || {}),
+      },
+      header: {
+        ...defaults.mextro.header,
+        ...((parsed.mextro && parsed.mextro.header) || {}),
+      },
+      theme_mode: {
+        ...defaults.mextro.theme_mode,
+        ...((parsed.mextro && parsed.mextro.theme_mode) || {}),
+      },
+      hero_slider: {
+        ...defaults.mextro.hero_slider,
+        ...((parsed.mextro && parsed.mextro.hero_slider) || {}),
+        slides:
+          Array.isArray(parsed?.mextro?.hero_slider?.slides) &&
+          parsed.mextro.hero_slider.slides.length
+            ? parsed.mextro.hero_slider.slides.slice(0, 5).map((slide, index) => ({
+                id: slide?.id || `mextro-slide-${index + 1}`,
+                eyebrow:
+                  slide?.eyebrow ||
+                  defaults.mextro.hero_slider.slides[index]?.eyebrow ||
+                  '',
+                title: slide?.title || defaults.mextro.hero_slider.slides[index]?.title || '',
+                subtitle:
+                  slide?.subtitle ||
+                  defaults.mextro.hero_slider.slides[index]?.subtitle ||
+                  '',
+                button_label:
+                  slide?.button_label ||
+                  defaults.mextro.hero_slider.slides[index]?.button_label ||
+                  'Shop Now',
+                image_url: slide?.image_url || '',
+                badge:
+                  slide?.badge || defaults.mextro.hero_slider.slides[index]?.badge || '',
+                accent:
+                  slide?.accent ||
+                  defaults.mextro.hero_slider.slides[index]?.accent ||
+                  '#fed700',
+                text_color:
+                  slide?.text_color ||
+                  defaults.mextro.hero_slider.slides[index]?.text_color ||
+                  '#111111',
+              }))
+            : defaults.mextro.hero_slider.slides,
+      },
+      hero_side_banner: {
+        ...defaults.mextro.hero_side_banner,
+        ...((parsed.mextro && parsed.mextro.hero_side_banner) || {}),
+      },
+      category_icons: {
+        ...defaults.mextro.category_icons,
+        ...((parsed.mextro && parsed.mextro.category_icons) || {}),
+      },
+      promo_banners: {
+        ...defaults.mextro.promo_banners,
+        ...((parsed.mextro && parsed.mextro.promo_banners) || {}),
+        items:
+          Array.isArray(parsed?.mextro?.promo_banners?.items) &&
+          parsed.mextro.promo_banners.items.length
+            ? parsed.mextro.promo_banners.items.slice(0, 3).map((item, index) => ({
+                title: item?.title || defaults.mextro.promo_banners.items[index]?.title || '',
+                subtitle:
+                  item?.subtitle || defaults.mextro.promo_banners.items[index]?.subtitle || '',
+                button_label:
+                  item?.button_label ||
+                  defaults.mextro.promo_banners.items[index]?.button_label ||
+                  'Shop Now',
+                image_url: item?.image_url || '',
+                bg: item?.bg || defaults.mextro.promo_banners.items[index]?.bg || '#f7f7f7',
+              }))
+            : defaults.mextro.promo_banners.items,
+      },
+      featured_products: {
+        ...defaults.mextro.featured_products,
+        ...((parsed.mextro && parsed.mextro.featured_products) || {}),
+      },
+      dark_promos: {
+        ...defaults.mextro.dark_promos,
+        ...((parsed.mextro && parsed.mextro.dark_promos) || {}),
+      },
+      brand_row: {
+        ...defaults.mextro.brand_row,
+        ...((parsed.mextro && parsed.mextro.brand_row) || {}),
+      },
+      news: {
+        ...defaults.mextro.news,
+        ...((parsed.mextro && parsed.mextro.news) || {}),
+      },
+      footer: {
+        ...defaults.mextro.footer,
+        ...((parsed.mextro && parsed.mextro.footer) || {}),
+      },
+    },
+    xxam: {
+      ...defaults.xxam,
+      ...(parsed.xxam || {}),
+      announcement_bar: {
+        ...defaults.xxam.announcement_bar,
+        ...((parsed.xxam && parsed.xxam.announcement_bar) || {}),
+      },
+      header: {
+        ...defaults.xxam.header,
+        ...((parsed.xxam && parsed.xxam.header) || {}),
+        nav_links:
+          Array.isArray(parsed?.xxam?.header?.nav_links) &&
+          parsed.xxam.header.nav_links.length
+            ? parsed.xxam.header.nav_links.slice(0, 8)
+            : defaults.xxam.header.nav_links,
+      },
+      theme_mode: {
+        ...defaults.xxam.theme_mode,
+        ...((parsed.xxam && parsed.xxam.theme_mode) || {}),
+      },
+      hero: {
+        ...defaults.xxam.hero,
+        ...((parsed.xxam && parsed.xxam.hero) || {}),
+      },
+      category_cards: {
+        ...defaults.xxam.category_cards,
+        ...((parsed.xxam && parsed.xxam.category_cards) || {}),
+      },
+      featured_products: {
+        ...defaults.xxam.featured_products,
+        ...((parsed.xxam && parsed.xxam.featured_products) || {}),
+      },
+      promo_banners: {
+        ...defaults.xxam.promo_banners,
+        ...((parsed.xxam && parsed.xxam.promo_banners) || {}),
+        items:
+          Array.isArray(parsed?.xxam?.promo_banners?.items) &&
+          parsed.xxam.promo_banners.items.length
+            ? parsed.xxam.promo_banners.items.slice(0, 2).map((item, index) => ({
+                title: item?.title || defaults.xxam.promo_banners.items[index]?.title || '',
+                subtitle:
+                  item?.subtitle || defaults.xxam.promo_banners.items[index]?.subtitle || '',
+                button_label:
+                  item?.button_label ||
+                  defaults.xxam.promo_banners.items[index]?.button_label ||
+                  'Shop Now',
+                image_url: item?.image_url || '',
+                bg: item?.bg || defaults.xxam.promo_banners.items[index]?.bg || '#f3f3f5',
+              }))
+            : defaults.xxam.promo_banners.items,
+      },
+      testimonials: {
+        ...defaults.xxam.testimonials,
+        ...((parsed.xxam && parsed.xxam.testimonials) || {}),
+      },
+      news: {
+        ...defaults.xxam.news,
+        ...((parsed.xxam && parsed.xxam.news) || {}),
+      },
+      services_strip: {
+        ...defaults.xxam.services_strip,
+        ...((parsed.xxam && parsed.xxam.services_strip) || {}),
+      },
+      footer: {
+        ...defaults.xxam.footer,
+        ...((parsed.xxam && parsed.xxam.footer) || {}),
+      },
+    },
   };
 }
 
@@ -1087,6 +1492,14 @@ function isTemplateWithBuilder(codeKey = '') {
     'furniture_theme',
     'grocery_theme',
     'multi_product',
+    'mextro',
+    'mextro_theme',
+    'mextro_store',
+    'mextro_template',
+    'xxam',
+    'xxam_theme',
+    'xxam_store',
+    'xxam_template',
   ].includes(String(codeKey || '').trim().toLowerCase());
 }
 
@@ -1161,6 +1574,22 @@ export default function AffiliateDesignPage() {
     multi_promo_tile_2: false,
     multi_promo_tile_3: false,
     multi_deal_banner: false,
+    mextro_logo: false,
+    mextro_slide_1: false,
+    mextro_slide_2: false,
+    mextro_slide_3: false,
+    mextro_slide_4: false,
+    mextro_slide_5: false,
+    mextro_hero_side_banner: false,
+    mextro_promo_banner_1: false,
+    mextro_promo_banner_2: false,
+    mextro_promo_banner_3: false,
+    mextro_dark_promo_left: false,
+    mextro_dark_promo_right: false,
+    xxam_logo: false,
+    xxam_hero_image: false,
+    xxam_promo_banner_1: false,
+    xxam_promo_banner_2: false,
   });
 
   const fetchData = async (isRefresh = false) => {
@@ -1369,6 +1798,7 @@ export default function AffiliateDesignPage() {
       ...prev,
       website_template_id: String(template.id),
     }));
+    setSelectedBuilderTemplateId(String(template.id));
     setSuccess(`Selected ${template.name}. Save design settings to apply it.`);
   };
 
@@ -1502,7 +1932,8 @@ export default function AffiliateDesignPage() {
         {activeTab === 'library' ? (
           <TemplateLibraryPanel
             templates={templates}
-            selectedTemplateId={form.website_template_id}
+            currentTemplateId={form.website_template_id}
+            selectedBuilderId={selectedBuilderTemplateId}
             onSelectTemplate={handleSelectTemplate}
             onOpenBuilder={handleOpenBuilder}
           />

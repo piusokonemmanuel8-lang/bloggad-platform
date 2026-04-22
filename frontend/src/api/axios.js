@@ -1,5 +1,15 @@
 import axios from 'axios';
 
+function getStoredToken() {
+  return (
+    localStorage.getItem('bloggad_token') ||
+    localStorage.getItem('token') ||
+    localStorage.getItem('authToken') ||
+    localStorage.getItem('customerToken') ||
+    ''
+  );
+}
+
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000',
   withCredentials: true,
@@ -10,7 +20,7 @@ const api = axios.create({
 
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('bloggad_token');
+    const token = getStoredToken();
 
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
