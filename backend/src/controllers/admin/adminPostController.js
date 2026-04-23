@@ -18,15 +18,30 @@ function sanitizePost(row) {
     featured_image: row.featured_image,
     media_id: row.media_id,
     status: row.status,
+
+    review_status: row.review_status || 'not_checked',
+    quality_score: Number(row.quality_score || 0),
+    risk_score: Number(row.risk_score || 0),
+    similarity_score: Number(row.similarity_score || 0),
+    similarity_source_post_id: row.similarity_source_post_id || null,
+    total_words: Number(row.total_words || 0),
+    quality_checks_started: !!row.quality_checks_started,
+    last_quality_checked_at: row.last_quality_checked_at,
+    quality_blocked_reason: row.quality_blocked_reason || null,
+    admin_review_notes: row.admin_review_notes || null,
+    writer_revision_required: !!row.writer_revision_required,
+
     published_at: row.published_at,
     created_at: row.created_at,
     updated_at: row.updated_at,
+
     affiliate: {
       id: row.affiliate_id,
       name: row.affiliate_name,
       email: row.affiliate_email,
       status: row.affiliate_status,
     },
+
     website: row.website_id
       ? {
           id: row.website_id,
@@ -35,6 +50,7 @@ function sanitizePost(row) {
           status: row.website_status,
         }
       : null,
+
     product: row.product_id
       ? {
           id: row.product_id,
@@ -43,6 +59,7 @@ function sanitizePost(row) {
           status: row.product_status,
         }
       : null,
+
     category: row.category_id
       ? {
           id: row.category_id,
@@ -51,6 +68,7 @@ function sanitizePost(row) {
           status: row.category_status,
         }
       : null,
+
     template: row.template_id
       ? {
           id: row.template_id,
@@ -59,6 +77,7 @@ function sanitizePost(row) {
           status: row.template_status,
         }
       : null,
+
     stats: {
       total_template_fields: Number(row.total_template_fields || 0),
       total_cta_buttons: Number(row.total_cta_buttons || 0),
@@ -84,6 +103,19 @@ async function getAdminPostById(postId) {
       pp.featured_image,
       pp.media_id,
       pp.status,
+
+      pp.review_status,
+      pp.quality_score,
+      pp.risk_score,
+      pp.similarity_score,
+      pp.similarity_source_post_id,
+      pp.total_words,
+      pp.quality_checks_started,
+      pp.last_quality_checked_at,
+      pp.quality_blocked_reason,
+      pp.admin_review_notes,
+      pp.writer_revision_required,
+
       pp.published_at,
       pp.created_at,
       pp.updated_at,
@@ -141,6 +173,90 @@ async function getAdminPostById(postId) {
   return rows[0] || null;
 }
 
+async function getQualityFieldScores(postId) {
+  try {
+    const [rows] = await pool.query(
+      `
+      SELECT
+        id,
+        post_id,
+        post_template_field_id,
+        field_key,
+        field_label,
+        section_name,
+        field_type,
+        word_count,
+        quality_score,
+        risk_score,
+        similarity_score,
+        passed,
+        checks_started,
+        warning_code,
+        warning_message,
+        repetition_hits,
+        generic_phrase_hits,
+        specificity_hits,
+        compared_post_id,
+        compared_field_key,
+        created_at,
+        updated_at
+      FROM post_quality_field_scores
+      WHERE post_id = ?
+      ORDER BY id ASC
+      `,
+      [postId]
+    );
+
+    return rows.map((row) => ({
+      ...row,
+      passed: !!row.passed,
+      checks_started: !!row.checks_started,
+      quality_score: Number(row.quality_score || 0),
+      risk_score: Number(row.risk_score || 0),
+      similarity_score: Number(row.similarity_score || 0),
+    }));
+  } catch (error) {
+    return [];
+  }
+}
+
+async function getQualityWarnings(postId) {
+  try {
+    const [rows] = await pool.query(
+      `
+      SELECT
+        id,
+        post_id,
+        post_template_field_id,
+        field_key,
+        warning_type,
+        severity,
+        message,
+        suggestion,
+        compared_post_id,
+        compared_field_key,
+        similarity_score,
+        is_active,
+        created_at,
+        updated_at
+      FROM post_quality_warnings
+      WHERE post_id = ?
+        AND is_active = 1
+      ORDER BY id ASC
+      `,
+      [postId]
+    );
+
+    return rows.map((row) => ({
+      ...row,
+      is_active: !!row.is_active,
+      similarity_score: Number(row.similarity_score || 0),
+    }));
+  } catch (error) {
+    return [];
+  }
+}
+
 async function getAllPosts(req, res) {
   try {
     const [rows] = await pool.query(
@@ -160,6 +276,19 @@ async function getAllPosts(req, res) {
         pp.featured_image,
         pp.media_id,
         pp.status,
+
+        pp.review_status,
+        pp.quality_score,
+        pp.risk_score,
+        pp.similarity_score,
+        pp.similarity_source_post_id,
+        pp.total_words,
+        pp.quality_checks_started,
+        pp.last_quality_checked_at,
+        pp.quality_blocked_reason,
+        pp.admin_review_notes,
+        pp.writer_revision_required,
+
         pp.published_at,
         pp.created_at,
         pp.updated_at,
@@ -283,6 +412,9 @@ async function getSinglePost(req, res) {
       [postId]
     );
 
+    const fieldScores = await getQualityFieldScores(postId);
+    const warnings = await getQualityWarnings(postId);
+
     return res.status(200).json({
       ok: true,
       post: {
@@ -292,6 +424,18 @@ async function getSinglePost(req, res) {
           ...row,
           open_in_new_tab: !!row.open_in_new_tab,
         })),
+        quality_review: {
+          review_status: post.review_status || 'not_checked',
+          quality_score: Number(post.quality_score || 0),
+          risk_score: Number(post.risk_score || 0),
+          similarity_score: Number(post.similarity_score || 0),
+          similarity_source_post_id: post.similarity_source_post_id || null,
+          total_words: Number(post.total_words || 0),
+          checks_started: !!post.quality_checks_started,
+          blocked_reason: post.quality_blocked_reason || null,
+          field_scores: fieldScores,
+          warnings,
+        },
       },
     });
   } catch (error) {

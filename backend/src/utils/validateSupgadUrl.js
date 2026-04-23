@@ -1,8 +1,8 @@
-export function normalizeUrlInput(value) {
+function normalizeUrlInput(value) {
   return String(value || '').trim();
 }
 
-export function tryCreateUrl(rawValue) {
+function tryCreateUrl(rawValue) {
   try {
     return new URL(rawValue);
   } catch (error) {
@@ -14,11 +14,11 @@ export function tryCreateUrl(rawValue) {
   }
 }
 
-export function isSupgadHost(hostname) {
+function isSupgadHost(hostname) {
   return String(hostname || '').toLowerCase() === 'supgad.com';
 }
 
-export function validateSupgadUrl(value, options = {}) {
+function validateSupgadUrl(value, options = {}) {
   const {
     required = false,
     allowEmpty = true,
@@ -111,4 +111,9 @@ export function validateSupgadUrl(value, options = {}) {
   };
 }
 
-export default validateSupgadUrl;
+module.exports = {
+  normalizeUrlInput,
+  tryCreateUrl,
+  isSupgadHost,
+  validateSupgadUrl,
+};

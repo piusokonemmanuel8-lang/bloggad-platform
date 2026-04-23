@@ -3,6 +3,7 @@ require('dotenv').config();
 const http = require('http');
 const pool = require('./config/db');
 const createApp = require('./app');
+const { syncBuiltInBlogTemplates } = require('./utils/syncBuiltInBlogTemplates');
 
 const app = createApp();
 
@@ -15,6 +16,7 @@ let server;
 async function startServer() {
   try {
     await pool.query('SELECT 1');
+    await syncBuiltInBlogTemplates();
 
     server = http.createServer(app);
 

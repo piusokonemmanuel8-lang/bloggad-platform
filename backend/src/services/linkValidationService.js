@@ -118,12 +118,14 @@ async function validateAndLogSupgadUrl({
           subscription_id: null,
         };
 
+  const externalAllowed = !!permission.allow_external_links;
+
   const result = validateSupgadUrl(value, {
     required,
     allowEmpty,
     fieldName,
-    allowExternalLinks: !!permission.allow_external_links,
-    allowedDomains: ['supgad.com'],
+    allowExternalLinks: externalAllowed,
+    allowedDomains: externalAllowed ? [] : ['supgad.com'],
   });
 
   await logLinkValidation({
@@ -139,7 +141,7 @@ async function validateAndLogSupgadUrl({
 
   return {
     ...result,
-    allow_external_links: !!permission.allow_external_links,
+    allow_external_links: externalAllowed,
     plan_id: permission.plan_id || null,
     subscription_id: permission.subscription_id || null,
   };

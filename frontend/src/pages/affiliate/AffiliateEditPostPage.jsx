@@ -18,7 +18,7 @@ import {
   Loader2,
 } from 'lucide-react';
 import api from '../../api/axios';
-import validateSupgadUrl from '../../utils/validateSupgadUrl';
+import { resolveBlogTemplatePreset } from './template-presets';
 
 function getStatusClass(status = '') {
   const value = String(status).toLowerCase();
@@ -40,19 +40,6 @@ function countWords(value) {
   const text = normalizeText(value);
   if (!text) return 0;
   return text.split(' ').filter(Boolean).length;
-}
-
-function makeLepresiumWords(count) {
-  return Array.from({ length: count }, () => 'Lepresium').join(' ');
-}
-
-function makeLepresiumSentence(minWords, maxWords) {
-  const target = minWords === maxWords ? minWords : maxWords;
-  return makeLepresiumWords(target);
-}
-
-function makeLepresiumUrl() {
-  return 'https://supgad.com/lepresium';
 }
 
 function getFieldWordRuleLabel(rule) {
@@ -99,1116 +86,6 @@ function validateWordRule(value, rule) {
         ? `${rule.label} is above suggested max ${maxWords} words`
         : '',
   };
-}
-
-function buildField({
-  field_key,
-  field_type = 'text',
-  label,
-  section,
-  helper_text = '',
-  required = true,
-  word_rule = null,
-  default_value = '',
-  placeholder = '',
-  sort_order,
-}) {
-  return {
-    field_key,
-    field_type,
-    field_value: default_value,
-    sort_order,
-    meta: {
-      label,
-      section,
-      helper_text,
-      required,
-      word_rule,
-      placeholder,
-      locked: true,
-    },
-  };
-}
-
-function buildButton({
-  button_key,
-  button_label,
-  button_style = 'primary',
-  label,
-  helper_text = '',
-  required = true,
-  sort_order,
-}) {
-  return {
-    button_key,
-    button_label,
-    button_url: makeLepresiumUrl(),
-    button_style,
-    open_in_new_tab: true,
-    sort_order,
-    meta: {
-      label,
-      helper_text,
-      required,
-      locked: true,
-    },
-  };
-}
-
-function createNeutralReviewTemplatePreset() {
-  const fields = [
-    buildField({
-      field_key: 'top_bar_title',
-      field_type: 'text',
-      label: 'Top bar title',
-      section: 'Top bar',
-      helper_text: 'Full-width announcement text.',
-      word_rule: { mode: 'exact', exact_words: 11, label: 'Top bar title' },
-      default_value: makeLepresiumSentence(11, 11),
-      placeholder: 'Enter exactly 11 words',
-      sort_order: 1,
-    }),
-    buildField({
-      field_key: 'hero_product_image',
-      field_type: 'image',
-      label: 'Hero product image',
-      section: 'Hero left column',
-      helper_text: 'Required main image. Keep same visual proportion.',
-      default_value: '',
-      placeholder: 'Upload image or paste image URL',
-      sort_order: 2,
-    }),
-    buildField({
-      field_key: 'hero_review_text',
-      field_type: 'text',
-      label: 'Hero review text',
-      section: 'Hero left column',
-      helper_text: 'Review count text beside stars.',
-      word_rule: { mode: 'range', min_words: 2, max_words: 4, label: 'Hero review text' },
-      default_value: makeLepresiumSentence(4, 4),
-      placeholder: 'Enter at least 2 words',
-      sort_order: 3,
-    }),
-    buildField({
-      field_key: 'hero_certification_image',
-      field_type: 'image',
-      label: 'Hero certification strip image',
-      section: 'Hero left column',
-      helper_text: 'Required certification/badge image.',
-      default_value: '',
-      placeholder: 'Upload image or paste image URL',
-      sort_order: 4,
-    }),
-    buildField({
-      field_key: 'hero_title',
-      field_type: 'text',
-      label: 'Hero title',
-      section: 'Hero right column',
-      helper_text: 'Main headline.',
-      word_rule: { mode: 'range', min_words: 10, max_words: 12, label: 'Hero title' },
-      default_value: makeLepresiumSentence(12, 12),
-      placeholder: 'Enter at least 10 words',
-      sort_order: 5,
-    }),
-    buildField({
-      field_key: 'hero_intro_paragraph_1',
-      field_type: 'textarea',
-      label: 'Hero intro paragraph 1',
-      section: 'Hero right column',
-      helper_text: 'First intro paragraph.',
-      word_rule: { mode: 'range', min_words: 30, max_words: 38, label: 'Hero intro paragraph 1' },
-      default_value: makeLepresiumSentence(38, 38),
-      placeholder: 'Enter at least 30 words',
-      sort_order: 6,
-    }),
-    buildField({
-      field_key: 'hero_intro_paragraph_2',
-      field_type: 'textarea',
-      label: 'Hero intro paragraph 2',
-      section: 'Hero right column',
-      helper_text: 'Second intro paragraph.',
-      word_rule: { mode: 'range', min_words: 34, max_words: 42, label: 'Hero intro paragraph 2' },
-      default_value: makeLepresiumSentence(42, 42),
-      placeholder: 'Enter at least 34 words',
-      sort_order: 7,
-    }),
-    buildField({
-      field_key: 'hero_small_cta_line',
-      field_type: 'text',
-      label: 'Hero small CTA line',
-      section: 'Hero right column',
-      helper_text: 'Short underlined line above buttons.',
-      word_rule: { mode: 'exact', exact_words: 7, label: 'Hero small CTA line' },
-      default_value: makeLepresiumSentence(7, 7),
-      placeholder: 'Enter exactly 7 words',
-      sort_order: 8,
-    }),
-    buildField({
-      field_key: 'hero_trust_item_1',
-      field_type: 'text',
-      label: 'Hero trust item 1',
-      section: 'Hero right column',
-      helper_text: 'First trust item under hero buttons.',
-      word_rule: { mode: 'exact', exact_words: 2, label: 'Hero trust item 1' },
-      default_value: makeLepresiumSentence(2, 2),
-      placeholder: 'Enter exactly 2 words',
-      sort_order: 9,
-    }),
-    buildField({
-      field_key: 'hero_trust_item_2',
-      field_type: 'text',
-      label: 'Hero trust item 2',
-      section: 'Hero right column',
-      helper_text: 'Second trust item under hero buttons.',
-      word_rule: { mode: 'exact', exact_words: 2, label: 'Hero trust item 2' },
-      default_value: makeLepresiumSentence(2, 2),
-      placeholder: 'Enter exactly 2 words',
-      sort_order: 10,
-    }),
-    buildField({
-      field_key: 'hero_trust_item_3',
-      field_type: 'text',
-      label: 'Hero trust item 3',
-      section: 'Hero right column',
-      helper_text: 'Third trust item under hero buttons.',
-      word_rule: { mode: 'exact', exact_words: 2, label: 'Hero trust item 3' },
-      default_value: makeLepresiumSentence(2, 2),
-      placeholder: 'Enter exactly 2 words',
-      sort_order: 11,
-    }),
-    buildField({
-      field_key: 'how_this_product_works_title',
-      field_type: 'text',
-      label: 'How This Product Works title',
-      section: 'How this product works',
-      helper_text: 'Neutral section title.',
-      word_rule: { mode: 'exact', exact_words: 4, label: 'How This Product Works title' },
-      default_value: 'How This Product Works',
-      placeholder: 'Enter exactly 4 words',
-      sort_order: 12,
-    }),
-    buildField({
-      field_key: 'how_this_product_works_paragraph_1',
-      field_type: 'textarea',
-      label: 'How this product works paragraph 1',
-      section: 'How this product works',
-      helper_text: 'Required paragraph.',
-      word_rule: {
-        mode: 'range',
-        min_words: 18,
-        max_words: 24,
-        label: 'How this product works paragraph 1',
-      },
-      default_value: makeLepresiumSentence(24, 24),
-      placeholder: 'Enter at least 18 words',
-      sort_order: 13,
-    }),
-    buildField({
-      field_key: 'how_this_product_works_paragraph_2',
-      field_type: 'textarea',
-      label: 'How this product works paragraph 2',
-      section: 'How this product works',
-      helper_text: 'Required paragraph.',
-      word_rule: {
-        mode: 'range',
-        min_words: 22,
-        max_words: 30,
-        label: 'How this product works paragraph 2',
-      },
-      default_value: makeLepresiumSentence(30, 30),
-      placeholder: 'Enter at least 22 words',
-      sort_order: 14,
-    }),
-    buildField({
-      field_key: 'how_this_product_works_paragraph_3',
-      field_type: 'textarea',
-      label: 'How this product works paragraph 3',
-      section: 'How this product works',
-      helper_text: 'Required paragraph.',
-      word_rule: {
-        mode: 'range',
-        min_words: 24,
-        max_words: 34,
-        label: 'How this product works paragraph 3',
-      },
-      default_value: makeLepresiumSentence(34, 34),
-      placeholder: 'Enter at least 24 words',
-      sort_order: 15,
-    }),
-    buildField({
-      field_key: 'how_this_product_works_image',
-      field_type: 'image',
-      label: 'How this product works image',
-      section: 'How this product works',
-      helper_text: 'Required right-side image.',
-      default_value: '',
-      placeholder: 'Upload image or paste image URL',
-      sort_order: 16,
-    }),
-    buildField({
-      field_key: 'ingredients_section_title',
-      field_type: 'text',
-      label: 'Ingredients section title',
-      section: 'Ingredients / blend',
-      helper_text: 'Neutral section heading.',
-      word_rule: { mode: 'range', min_words: 6, max_words: 10, label: 'Ingredients section title' },
-      default_value: makeLepresiumSentence(8, 8),
-      placeholder: 'Enter at least 6 words',
-      sort_order: 17,
-    }),
-    buildField({
-      field_key: 'ingredients_intro',
-      field_type: 'textarea',
-      label: 'Ingredients intro',
-      section: 'Ingredients / blend',
-      helper_text: 'Short intro paragraph.',
-      word_rule: { mode: 'range', min_words: 14, max_words: 18, label: 'Ingredients intro' },
-      default_value: makeLepresiumSentence(18, 18),
-      placeholder: 'Enter at least 14 words',
-      sort_order: 18,
-    }),
-    ...Array.from({ length: 5 }, (_, index) => {
-      const i = index + 1;
-      return [
-        buildField({
-          field_key: `ingredient_${i}_title`,
-          field_type: 'text',
-          label: `Ingredient ${i} title`,
-          section: 'Ingredients / blend',
-          helper_text: 'Ingredient item title.',
-          word_rule: { mode: 'range', min_words: 1, max_words: 4, label: `Ingredient ${i} title` },
-          default_value: makeLepresiumSentence(3, 3),
-          placeholder: 'Enter at least 1 word',
-          sort_order: 18 + i * 2 - 1,
-        }),
-        buildField({
-          field_key: `ingredient_${i}_text`,
-          field_type: 'text',
-          label: `Ingredient ${i} text`,
-          section: 'Ingredients / blend',
-          helper_text: 'Ingredient support text.',
-          word_rule: { mode: 'range', min_words: 5, max_words: 9, label: `Ingredient ${i} text` },
-          default_value: makeLepresiumSentence(9, 9),
-          placeholder: 'Enter at least 5 words',
-          sort_order: 18 + i * 2,
-        }),
-      ];
-    }).flat(),
-    buildField({
-      field_key: 'ingredients_closing_line',
-      field_type: 'textarea',
-      label: 'Ingredients closing line',
-      section: 'Ingredients / blend',
-      helper_text: 'Closing support line.',
-      word_rule: { mode: 'range', min_words: 14, max_words: 18, label: 'Ingredients closing line' },
-      default_value: makeLepresiumSentence(18, 18),
-      placeholder: 'Enter at least 14 words',
-      sort_order: 29,
-    }),
-    buildField({
-      field_key: 'ingredients_image',
-      field_type: 'image',
-      label: 'Ingredients image',
-      section: 'Ingredients / blend',
-      helper_text: 'Required image.',
-      default_value: '',
-      placeholder: 'Upload image or paste image URL',
-      sort_order: 30,
-    }),
-    buildField({
-      field_key: 'what_makes_this_product_different_title',
-      field_type: 'text',
-      label: 'What makes this product different title',
-      section: 'What makes this product different',
-      helper_text: 'Neutral section title.',
-      word_rule: {
-        mode: 'range',
-        min_words: 5,
-        max_words: 7,
-        label: 'What makes this product different title',
-      },
-      default_value: 'What Makes This Product Different',
-      placeholder: 'Enter at least 5 words',
-      sort_order: 31,
-    }),
-    buildField({
-      field_key: 'difference_intro',
-      field_type: 'textarea',
-      label: 'Difference intro',
-      section: 'What makes this product different',
-      helper_text: 'Intro paragraph.',
-      word_rule: { mode: 'range', min_words: 26, max_words: 34, label: 'Difference intro' },
-      default_value: makeLepresiumSentence(34, 34),
-      placeholder: 'Enter at least 26 words',
-      sort_order: 32,
-    }),
-    ...Array.from({ length: 4 }, (_, index) => {
-      const i = index + 1;
-      return [
-        buildField({
-          field_key: `difference_item_${i}_title`,
-          field_type: 'text',
-          label: `Difference item ${i} title`,
-          section: 'What makes this product different',
-          helper_text: 'Feature mini heading.',
-          word_rule: {
-            mode: 'range',
-            min_words: 4,
-            max_words: 6,
-            label: `Difference item ${i} title`,
-          },
-          default_value: makeLepresiumSentence(6, 6),
-          placeholder: 'Enter at least 4 words',
-          sort_order: 32 + i * 2 - 1,
-        }),
-        buildField({
-          field_key: `difference_item_${i}_text`,
-          field_type: 'textarea',
-          label: `Difference item ${i} text`,
-          section: 'What makes this product different',
-          helper_text: 'Feature paragraph.',
-          word_rule: {
-            mode: 'range',
-            min_words: 20,
-            max_words: 36,
-            label: `Difference item ${i} text`,
-          },
-          default_value: makeLepresiumSentence(36, 36),
-          placeholder: 'Enter at least 20 words',
-          sort_order: 32 + i * 2,
-        }),
-      ];
-    }).flat(),
-    buildField({
-      field_key: 'benefits_title',
-      field_type: 'text',
-      label: 'Benefits title',
-      section: 'Benefits',
-      helper_text: 'Section title.',
-      word_rule: { mode: 'range', min_words: 3, max_words: 5, label: 'Benefits title' },
-      default_value: 'Benefits Of This Product',
-      placeholder: 'Enter at least 3 words',
-      sort_order: 41,
-    }),
-    buildField({
-      field_key: 'benefits_intro',
-      field_type: 'textarea',
-      label: 'Benefits intro',
-      section: 'Benefits',
-      helper_text: 'Intro paragraph.',
-      word_rule: { mode: 'range', min_words: 24, max_words: 30, label: 'Benefits intro' },
-      default_value: makeLepresiumSentence(30, 30),
-      placeholder: 'Enter at least 24 words',
-      sort_order: 42,
-    }),
-    ...Array.from({ length: 7 }, (_, index) => {
-      const i = index + 1;
-      return [
-        buildField({
-          field_key: `benefit_${i}_title`,
-          field_type: 'text',
-          label: `Benefit ${i} title`,
-          section: 'Benefits',
-          helper_text: 'Benefit title.',
-          word_rule: { mode: 'range', min_words: 3, max_words: 5, label: `Benefit ${i} title` },
-          default_value: makeLepresiumSentence(4, 4),
-          placeholder: 'Enter at least 3 words',
-          sort_order: 42 + i * 2 - 1,
-        }),
-        buildField({
-          field_key: `benefit_${i}_text`,
-          field_type: 'text',
-          label: `Benefit ${i} text`,
-          section: 'Benefits',
-          helper_text: 'Benefit short support line.',
-          word_rule: { mode: 'range', min_words: 10, max_words: 16, label: `Benefit ${i} text` },
-          default_value: makeLepresiumSentence(16, 16),
-          placeholder: 'Enter at least 10 words',
-          sort_order: 42 + i * 2,
-        }),
-      ];
-    }).flat(),
-    buildField({
-      field_key: 'benefits_closing_line',
-      field_type: 'textarea',
-      label: 'Benefits closing line',
-      section: 'Benefits',
-      helper_text: 'Closing line under benefits.',
-      word_rule: { mode: 'range', min_words: 18, max_words: 22, label: 'Benefits closing line' },
-      default_value: makeLepresiumSentence(22, 22),
-      placeholder: 'Enter at least 18 words',
-      sort_order: 57,
-    }),
-    buildField({
-      field_key: 'testimonials_title',
-      field_type: 'text',
-      label: 'Testimonials title',
-      section: 'Testimonials',
-      helper_text: 'Section title.',
-      word_rule: { mode: 'range', min_words: 4, max_words: 6, label: 'Testimonials title' },
-      default_value: makeLepresiumSentence(5, 5),
-      placeholder: 'Enter at least 4 words',
-      sort_order: 58,
-    }),
-    ...Array.from({ length: 3 }, (_, index) => {
-      const i = index + 1;
-      return [
-        buildField({
-          field_key: `testimonial_${i}_image`,
-          field_type: 'image',
-          label: `Testimonial ${i} image`,
-          section: 'Testimonials',
-          helper_text: 'Required reviewer image.',
-          default_value: '',
-          placeholder: 'Upload image or paste image URL',
-          sort_order: 58 + i * 3 - 2,
-        }),
-        buildField({
-          field_key: `testimonial_${i}_name_line`,
-          field_type: 'text',
-          label: `Testimonial ${i} name line`,
-          section: 'Testimonials',
-          helper_text: 'Name/location line.',
-          word_rule: {
-            mode: 'range',
-            min_words: 3,
-            max_words: 5,
-            label: `Testimonial ${i} name line`,
-          },
-          default_value: makeLepresiumSentence(5, 5),
-          placeholder: 'Enter at least 3 words',
-          sort_order: 58 + i * 3 - 1,
-        }),
-        buildField({
-          field_key: `testimonial_${i}_text`,
-          field_type: 'textarea',
-          label: `Testimonial ${i} text`,
-          section: 'Testimonials',
-          helper_text: 'Required testimonial content.',
-          word_rule: {
-            mode: 'range',
-            min_words: 24,
-            max_words: 40,
-            label: `Testimonial ${i} text`,
-          },
-          default_value: makeLepresiumSentence(40, 40),
-          placeholder: 'Enter at least 24 words',
-          sort_order: 58 + i * 3,
-        }),
-      ];
-    }).flat(),
-    buildField({
-      field_key: 'pricing_title',
-      field_type: 'text',
-      label: 'Pricing section title',
-      section: 'Pricing',
-      helper_text: 'Section title.',
-      word_rule: { mode: 'range', min_words: 6, max_words: 10, label: 'Pricing section title' },
-      default_value: makeLepresiumSentence(8, 8),
-      placeholder: 'Enter at least 6 words',
-      sort_order: 68,
-    }),
-    ...Array.from({ length: 3 }, (_, index) => {
-      const i = index + 1;
-      return [
-        buildField({
-          field_key: `pricing_card_${i}_package_title`,
-          field_type: 'text',
-          label: `Pricing card ${i} package title`,
-          section: 'Pricing',
-          helper_text: 'Package title.',
-          word_rule: {
-            mode: 'exact',
-            exact_words: 3,
-            label: `Pricing card ${i} package title`,
-          },
-          default_value: makeLepresiumSentence(3, 3),
-          placeholder: 'Enter exactly 3 words',
-          sort_order: 68 + i * 6 - 5,
-        }),
-        buildField({
-          field_key: `pricing_card_${i}_supply_label`,
-          field_type: 'text',
-          label: `Pricing card ${i} supply label`,
-          section: 'Pricing',
-          helper_text: 'Supply label.',
-          word_rule: {
-            mode: 'exact',
-            exact_words: 3,
-            label: `Pricing card ${i} supply label`,
-          },
-          default_value: makeLepresiumSentence(3, 3),
-          placeholder: 'Enter exactly 3 words',
-          sort_order: 68 + i * 6 - 4,
-        }),
-        buildField({
-          field_key: `pricing_card_${i}_image`,
-          field_type: 'image',
-          label: `Pricing card ${i} image`,
-          section: 'Pricing',
-          helper_text: 'Required pack image.',
-          default_value: '',
-          placeholder: 'Upload image or paste image URL',
-          sort_order: 68 + i * 6 - 3,
-        }),
-        buildField({
-          field_key: `pricing_card_${i}_price_text`,
-          field_type: 'text',
-          label: `Pricing card ${i} price text`,
-          section: 'Pricing',
-          helper_text: 'Price display text.',
-          word_rule: {
-            mode: 'range',
-            min_words: 1,
-            max_words: 3,
-            label: `Pricing card ${i} price text`,
-          },
-          default_value: makeLepresiumSentence(2, 2),
-          placeholder: 'Enter at least 1 word',
-          sort_order: 68 + i * 6 - 2,
-        }),
-        buildField({
-          field_key: `pricing_card_${i}_total_text`,
-          field_type: 'text',
-          label: `Pricing card ${i} total text`,
-          section: 'Pricing',
-          helper_text: 'Total line text.',
-          word_rule: {
-            mode: 'range',
-            min_words: 2,
-            max_words: 5,
-            label: `Pricing card ${i} total text`,
-          },
-          default_value: makeLepresiumSentence(4, 4),
-          placeholder: 'Enter at least 2 words',
-          sort_order: 68 + i * 6 - 1,
-        }),
-        buildField({
-          field_key: `pricing_card_${i}_payments_image`,
-          field_type: 'image',
-          label: `Pricing card ${i} payments image`,
-          section: 'Pricing',
-          helper_text: 'Required payment methods strip.',
-          default_value: '',
-          placeholder: 'Upload image or paste image URL',
-          sort_order: 68 + i * 6,
-        }),
-      ];
-    }).flat(),
-    buildField({
-      field_key: 'bonus_section_title',
-      field_type: 'text',
-      label: 'Bonus section title',
-      section: 'Bonuses',
-      helper_text: 'Bonus section heading.',
-      word_rule: { mode: 'range', min_words: 6, max_words: 10, label: 'Bonus section title' },
-      default_value: makeLepresiumSentence(8, 8),
-      placeholder: 'Enter at least 6 words',
-      sort_order: 87,
-    }),
-    ...Array.from({ length: 3 }, (_, index) => {
-      const i = index + 1;
-      return [
-        buildField({
-          field_key: `bonus_${i}_image`,
-          field_type: 'image',
-          label: `Bonus ${i} image`,
-          section: 'Bonuses',
-          helper_text: 'Required bonus image.',
-          default_value: '',
-          placeholder: 'Upload image or paste image URL',
-          sort_order: 87 + i * 4 - 3,
-        }),
-        buildField({
-          field_key: `bonus_${i}_title`,
-          field_type: 'text',
-          label: `Bonus ${i} title`,
-          section: 'Bonuses',
-          helper_text: 'Bonus title.',
-          word_rule: { mode: 'range', min_words: 4, max_words: 8, label: `Bonus ${i} title` },
-          default_value: makeLepresiumSentence(8, 8),
-          placeholder: 'Enter at least 4 words',
-          sort_order: 87 + i * 4 - 2,
-        }),
-        buildField({
-          field_key: `bonus_${i}_price_line`,
-          field_type: 'text',
-          label: `Bonus ${i} price line`,
-          section: 'Bonuses',
-          helper_text: 'Price/free line.',
-          word_rule: { mode: 'range', min_words: 2, max_words: 6, label: `Bonus ${i} price line` },
-          default_value: makeLepresiumSentence(4, 4),
-          placeholder: 'Enter at least 2 words',
-          sort_order: 87 + i * 4 - 1,
-        }),
-        buildField({
-          field_key: `bonus_${i}_text`,
-          field_type: 'textarea',
-          label: `Bonus ${i} text`,
-          section: 'Bonuses',
-          helper_text: 'Bonus description.',
-          word_rule: { mode: 'range', min_words: 18, max_words: 28, label: `Bonus ${i} text` },
-          default_value: makeLepresiumSentence(28, 28),
-          placeholder: 'Enter at least 18 words',
-          sort_order: 87 + i * 4,
-        }),
-      ];
-    }).flat(),
-    buildField({
-      field_key: 'faq_section_title',
-      field_type: 'text',
-      label: 'FAQ section title',
-      section: 'FAQ',
-      helper_text: 'FAQ section heading.',
-      word_rule: { mode: 'range', min_words: 2, max_words: 5, label: 'FAQ section title' },
-      default_value: 'This Product FAQ',
-      placeholder: 'Enter at least 2 words',
-      sort_order: 100,
-    }),
-    ...Array.from({ length: 10 }, (_, index) => {
-      const i = index + 1;
-      return [
-        buildField({
-          field_key: `faq_${i}_question`,
-          field_type: 'text',
-          label: `FAQ ${i} question`,
-          section: 'FAQ',
-          helper_text: 'Required question.',
-          word_rule: { mode: 'range', min_words: 4, max_words: 9, label: `FAQ ${i} question` },
-          default_value: makeLepresiumSentence(7, 7),
-          placeholder: 'Enter at least 4 words',
-          sort_order: 100 + i * 2 - 1,
-        }),
-        buildField({
-          field_key: `faq_${i}_answer`,
-          field_type: 'textarea',
-          label: `FAQ ${i} answer`,
-          section: 'FAQ',
-          helper_text: 'Required answer.',
-          word_rule: { mode: 'range', min_words: 12, max_words: 24, label: `FAQ ${i} answer` },
-          default_value: makeLepresiumSentence(24, 24),
-          placeholder: 'Enter at least 12 words',
-          sort_order: 100 + i * 2,
-        }),
-      ];
-    }).flat(),
-    buildField({
-      field_key: 'guarantee_badge_image',
-      field_type: 'image',
-      label: 'Guarantee badge image',
-      section: 'Guarantee',
-      helper_text: 'Required guarantee badge.',
-      default_value: '',
-      placeholder: 'Upload image or paste image URL',
-      sort_order: 121,
-    }),
-    buildField({
-      field_key: 'guarantee_title',
-      field_type: 'text',
-      label: 'Guarantee title',
-      section: 'Guarantee',
-      helper_text: 'Guarantee heading.',
-      word_rule: { mode: 'range', min_words: 6, max_words: 8, label: 'Guarantee title' },
-      default_value: makeLepresiumSentence(8, 8),
-      placeholder: 'Enter at least 6 words',
-      sort_order: 122,
-    }),
-    buildField({
-      field_key: 'guarantee_paragraph_1',
-      field_type: 'textarea',
-      label: 'Guarantee paragraph 1',
-      section: 'Guarantee',
-      helper_text: 'Required paragraph.',
-      word_rule: { mode: 'range', min_words: 28, max_words: 38, label: 'Guarantee paragraph 1' },
-      default_value: makeLepresiumSentence(38, 38),
-      placeholder: 'Enter at least 28 words',
-      sort_order: 123,
-    }),
-    buildField({
-      field_key: 'guarantee_paragraph_2',
-      field_type: 'textarea',
-      label: 'Guarantee paragraph 2',
-      section: 'Guarantee',
-      helper_text: 'Required paragraph.',
-      word_rule: { mode: 'range', min_words: 22, max_words: 30, label: 'Guarantee paragraph 2' },
-      default_value: makeLepresiumSentence(30, 30),
-      placeholder: 'Enter at least 22 words',
-      sort_order: 124,
-    }),
-    buildField({
-      field_key: 'guarantee_paragraph_3',
-      field_type: 'text',
-      label: 'Guarantee paragraph 3',
-      section: 'Guarantee',
-      helper_text: 'Short closing line.',
-      word_rule: { mode: 'range', min_words: 4, max_words: 8, label: 'Guarantee paragraph 3' },
-      default_value: makeLepresiumSentence(6, 6),
-      placeholder: 'Enter at least 4 words',
-      sort_order: 125,
-    }),
-    buildField({
-      field_key: 'special_offer_title',
-      field_type: 'text',
-      label: 'Special offer title',
-      section: 'Special offer',
-      helper_text: 'Section title.',
-      word_rule: { mode: 'range', min_words: 8, max_words: 14, label: 'Special offer title' },
-      default_value: makeLepresiumSentence(12, 12),
-      placeholder: 'Enter at least 8 words',
-      sort_order: 126,
-    }),
-    buildField({
-      field_key: 'special_offer_image',
-      field_type: 'image',
-      label: 'Special offer image',
-      section: 'Special offer',
-      helper_text: 'Required offer image.',
-      default_value: '',
-      placeholder: 'Upload image or paste image URL',
-      sort_order: 127,
-    }),
-    buildField({
-      field_key: 'special_offer_price_text',
-      field_type: 'text',
-      label: 'Special offer price text',
-      section: 'Special offer',
-      helper_text: 'Price text.',
-      word_rule: { mode: 'range', min_words: 2, max_words: 6, label: 'Special offer price text' },
-      default_value: makeLepresiumSentence(4, 4),
-      placeholder: 'Enter at least 2 words',
-      sort_order: 128,
-    }),
-    buildField({
-      field_key: 'learn_more_title',
-      field_type: 'text',
-      label: 'Learn more title',
-      section: 'Learn more',
-      helper_text: 'Section title.',
-      word_rule: { mode: 'exact', exact_words: 5, label: 'Learn more title' },
-      default_value: 'Learn More About This Product',
-      placeholder: 'Enter exactly 5 words',
-      sort_order: 129,
-    }),
-    ...Array.from({ length: 8 }, (_, index) =>
-      buildField({
-        field_key: `learn_more_paragraph_${index + 1}`,
-        field_type: 'textarea',
-        label: `Learn more paragraph ${index + 1}`,
-        section: 'Learn more',
-        helper_text: 'Long-form paragraph.',
-        word_rule: {
-          mode: 'range',
-          min_words: 45,
-          max_words: 75,
-          label: `Learn more paragraph ${index + 1}`,
-        },
-        default_value: makeLepresiumSentence(75, 75),
-        placeholder: 'Enter at least 45 words',
-        sort_order: 130 + index,
-      })
-    ),
-    buildField({
-      field_key: 'scientific_references_title',
-      field_type: 'text',
-      label: 'Scientific references title',
-      section: 'Scientific references',
-      helper_text: 'Section title.',
-      word_rule: { mode: 'range', min_words: 2, max_words: 5, label: 'Scientific references title' },
-      default_value: makeLepresiumSentence(3, 3),
-      placeholder: 'Enter at least 2 words',
-      sort_order: 138,
-    }),
-    buildField({
-      field_key: 'scientific_references_logo_strip',
-      field_type: 'image',
-      label: 'Scientific references logo strip',
-      section: 'Scientific references',
-      helper_text: 'Required image.',
-      default_value: '',
-      placeholder: 'Upload image or paste image URL',
-      sort_order: 139,
-    }),
-    buildField({
-      field_key: 'advertorial_notice',
-      field_type: 'textarea',
-      label: 'Advertorial notice',
-      section: 'Legal',
-      helper_text: 'Required legal notice.',
-      word_rule: { mode: 'range', min_words: 18, max_words: 30, label: 'Advertorial notice' },
-      default_value: makeLepresiumSentence(28, 28),
-      placeholder: 'Enter at least 18 words',
-      sort_order: 140,
-    }),
-    buildField({
-      field_key: 'platform_notice',
-      field_type: 'textarea',
-      label: 'Platform notice',
-      section: 'Legal',
-      helper_text: 'Required platform notice.',
-      word_rule: { mode: 'range', min_words: 14, max_words: 24, label: 'Platform notice' },
-      default_value: makeLepresiumSentence(22, 22),
-      placeholder: 'Enter at least 14 words',
-      sort_order: 141,
-    }),
-    buildField({
-      field_key: 'legal_disclaimer_title',
-      field_type: 'text',
-      label: 'Disclaimer title',
-      section: 'Legal',
-      helper_text: 'Legal section title.',
-      word_rule: { mode: 'exact', exact_words: 1, label: 'Disclaimer title' },
-      default_value: 'Disclaimer',
-      placeholder: 'Enter exactly 1 word',
-      sort_order: 142,
-    }),
-    buildField({
-      field_key: 'legal_disclaimer_paragraph_1',
-      field_type: 'textarea',
-      label: 'Disclaimer paragraph 1',
-      section: 'Legal',
-      helper_text: 'Required legal paragraph.',
-      word_rule: { mode: 'range', min_words: 28, max_words: 42, label: 'Disclaimer paragraph 1' },
-      default_value: makeLepresiumSentence(42, 42),
-      placeholder: 'Enter at least 28 words',
-      sort_order: 143,
-    }),
-    buildField({
-      field_key: 'legal_disclaimer_paragraph_2',
-      field_type: 'textarea',
-      label: 'Disclaimer paragraph 2',
-      section: 'Legal',
-      helper_text: 'Required legal paragraph.',
-      word_rule: { mode: 'range', min_words: 20, max_words: 32, label: 'Disclaimer paragraph 2' },
-      default_value: makeLepresiumSentence(32, 32),
-      placeholder: 'Enter at least 20 words',
-      sort_order: 144,
-    }),
-    buildField({
-      field_key: 'affiliate_editorial_disclosure_title',
-      field_type: 'text',
-      label: 'Affiliate & editorial disclosure title',
-      section: 'Legal',
-      helper_text: 'Required legal title.',
-      word_rule: {
-        mode: 'range',
-        min_words: 3,
-        max_words: 5,
-        label: 'Affiliate & editorial disclosure title',
-      },
-      default_value: makeLepresiumSentence(4, 4),
-      placeholder: 'Enter at least 3 words',
-      sort_order: 145,
-    }),
-    buildField({
-      field_key: 'affiliate_editorial_disclosure_paragraph_1',
-      field_type: 'textarea',
-      label: 'Affiliate & editorial disclosure paragraph 1',
-      section: 'Legal',
-      helper_text: 'Required legal paragraph.',
-      word_rule: {
-        mode: 'range',
-        min_words: 26,
-        max_words: 40,
-        label: 'Affiliate & editorial disclosure paragraph 1',
-      },
-      default_value: makeLepresiumSentence(40, 40),
-      placeholder: 'Enter at least 26 words',
-      sort_order: 146,
-    }),
-    buildField({
-      field_key: 'affiliate_editorial_disclosure_paragraph_2',
-      field_type: 'textarea',
-      label: 'Affiliate & editorial disclosure paragraph 2',
-      section: 'Legal',
-      helper_text: 'Required legal paragraph.',
-      word_rule: {
-        mode: 'range',
-        min_words: 18,
-        max_words: 30,
-        label: 'Affiliate & editorial disclosure paragraph 2',
-      },
-      default_value: makeLepresiumSentence(30, 30),
-      placeholder: 'Enter at least 18 words',
-      sort_order: 147,
-    }),
-    buildField({
-      field_key: 'trademark_disclaimer_title',
-      field_type: 'text',
-      label: 'Trademark disclaimer title',
-      section: 'Legal',
-      helper_text: 'Required legal title.',
-      word_rule: {
-        mode: 'range',
-        min_words: 2,
-        max_words: 4,
-        label: 'Trademark disclaimer title',
-      },
-      default_value: makeLepresiumSentence(3, 3),
-      placeholder: 'Enter at least 2 words',
-      sort_order: 148,
-    }),
-    buildField({
-      field_key: 'trademark_disclaimer_paragraph',
-      field_type: 'textarea',
-      label: 'Trademark disclaimer paragraph',
-      section: 'Legal',
-      helper_text: 'Required legal paragraph.',
-      word_rule: {
-        mode: 'range',
-        min_words: 20,
-        max_words: 30,
-        label: 'Trademark disclaimer paragraph',
-      },
-      default_value: makeLepresiumSentence(30, 30),
-      placeholder: 'Enter at least 20 words',
-      sort_order: 149,
-    }),
-    buildField({
-      field_key: 'fda_compliance_statement_title',
-      field_type: 'text',
-      label: 'FDA compliance statement title',
-      section: 'Legal',
-      helper_text: 'Required legal title.',
-      word_rule: {
-        mode: 'range',
-        min_words: 3,
-        max_words: 5,
-        label: 'FDA compliance statement title',
-      },
-      default_value: makeLepresiumSentence(4, 4),
-      placeholder: 'Enter at least 3 words',
-      sort_order: 150,
-    }),
-    buildField({
-      field_key: 'fda_compliance_statement_paragraph_1',
-      field_type: 'textarea',
-      label: 'FDA compliance statement paragraph 1',
-      section: 'Legal',
-      helper_text: 'Required legal paragraph.',
-      word_rule: {
-        mode: 'range',
-        min_words: 24,
-        max_words: 36,
-        label: 'FDA compliance statement paragraph 1',
-      },
-      default_value: makeLepresiumSentence(36, 36),
-      placeholder: 'Enter at least 24 words',
-      sort_order: 151,
-    }),
-    buildField({
-      field_key: 'fda_compliance_statement_paragraph_2',
-      field_type: 'textarea',
-      label: 'FDA compliance statement paragraph 2',
-      section: 'Legal',
-      helper_text: 'Required legal paragraph.',
-      word_rule: {
-        mode: 'range',
-        min_words: 14,
-        max_words: 24,
-        label: 'FDA compliance statement paragraph 2',
-      },
-      default_value: makeLepresiumSentence(24, 24),
-      placeholder: 'Enter at least 14 words',
-      sort_order: 152,
-    }),
-  ];
-
-  const ctaButtons = [
-    buildButton({
-      button_key: 'hero_primary_cta',
-      button_label: makeLepresiumSentence(4, 4),
-      button_style: 'primary',
-      label: 'Hero primary CTA',
-      helper_text: 'Main hero CTA. Exactly 4 words.',
-      sort_order: 1,
-    }),
-    buildButton({
-      button_key: 'hero_secondary_cta',
-      button_label: makeLepresiumSentence(2, 2),
-      button_style: 'secondary',
-      label: 'Hero secondary CTA',
-      helper_text: 'Secondary hero CTA. Exactly 2 words.',
-      sort_order: 2,
-    }),
-    buildButton({
-      button_key: 'how_it_works_cta',
-      button_label: makeLepresiumSentence(2, 2),
-      button_style: 'secondary',
-      label: 'How this product works CTA',
-      helper_text: 'CTA under how this product works. Exactly 2 words.',
-      sort_order: 3,
-    }),
-    buildButton({
-      button_key: 'ingredients_cta',
-      button_label: makeLepresiumSentence(3, 3),
-      button_style: 'primary',
-      label: 'Ingredients CTA',
-      helper_text: 'CTA in ingredients section. Exactly 3 words.',
-      sort_order: 4,
-    }),
-    buildButton({
-      button_key: 'pricing_card_1_cta',
-      button_label: makeLepresiumSentence(2, 2),
-      button_style: 'primary',
-      label: 'Pricing card 1 CTA',
-      helper_text: 'Pricing card 1 CTA. Exactly 2 words.',
-      sort_order: 5,
-    }),
-    buildButton({
-      button_key: 'pricing_card_2_cta',
-      button_label: makeLepresiumSentence(2, 2),
-      button_style: 'primary',
-      label: 'Pricing card 2 CTA',
-      helper_text: 'Pricing card 2 CTA. Exactly 2 words.',
-      sort_order: 6,
-    }),
-    buildButton({
-      button_key: 'pricing_card_3_cta',
-      button_label: makeLepresiumSentence(2, 2),
-      button_style: 'primary',
-      label: 'Pricing card 3 CTA',
-      helper_text: 'Pricing card 3 CTA. Exactly 2 words.',
-      sort_order: 7,
-    }),
-    buildButton({
-      button_key: 'special_offer_cta',
-      button_label: makeLepresiumSentence(5, 5),
-      button_style: 'primary',
-      label: 'Special offer CTA',
-      helper_text: 'Special offer CTA. Exactly 5 words.',
-      sort_order: 8,
-    }),
-  ];
-
-  return {
-    codeKeys: ['neutral_review_template_v1', 'blog_review_locked_v1', 'dummy_review_template_v1'],
-    slugAliases: ['neutral-review-template-v1', 'dummy-review-template-v1'],
-    nameAliases: ['neutral review template', 'dummy review template', 'blog review template'],
-    description:
-      'Locked review-style blog template with compulsory Lepresium dummy content and strict field validation.',
-    fields,
-    ctaButtons,
-  };
-}
-
-const BLOG_TEMPLATE_PRESETS = [createNeutralReviewTemplatePreset()];
-
-function resolveTemplatePreset(template) {
-  if (!template) return null;
-
-  const codeKey = String(template.template_code_key || '').trim().toLowerCase();
-  const slug = String(template.slug || '').trim().toLowerCase();
-  const name = String(template.name || '').trim().toLowerCase();
-
-  return (
-    BLOG_TEMPLATE_PRESETS.find((preset) => {
-      return (
-        preset.codeKeys.includes(codeKey) ||
-        preset.slugAliases.includes(slug) ||
-        preset.nameAliases.includes(name)
-      );
-    }) || null
-  );
 }
 
 function buildGenericDefaultFields() {
@@ -1410,6 +287,220 @@ function UploadField({
   );
 }
 
+function isLikelyUrlValue(value) {
+  const text = String(value || '').trim();
+  if (!text) return false;
+
+  try {
+    const normalized = /^https?:\/\//i.test(text) ? text : `https://${text}`;
+    const parsed = new URL(normalized);
+    return !!parsed.hostname;
+  } catch (error) {
+    return false;
+  }
+}
+
+function countRepeatedWords(value) {
+  const words = normalizeText(value)
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .split(/\s+/)
+    .filter(Boolean);
+
+  if (!words.length) return 0;
+
+  const counts = new Map();
+  words.forEach((word) => counts.set(word, (counts.get(word) || 0) + 1));
+
+  let repeated = 0;
+  counts.forEach((count) => {
+    if (count > 2) repeated += count - 2;
+  });
+
+  return repeated;
+}
+
+function countGenericHits(value) {
+  const text = normalizeText(value).toLowerCase();
+
+  const genericPhrases = [
+    "in today's world",
+    'when it comes to',
+    'one of the best',
+    'game changer',
+    'unlock the power',
+    'this product is designed to',
+    'take your journey to the next level',
+    'whether you are',
+    'it is important to note',
+    'helps support your overall wellness',
+  ];
+
+  return genericPhrases.reduce((total, phrase) => {
+    return total + (text.includes(phrase) ? 1 : 0);
+  }, 0);
+}
+
+function getSpecificitySignals(value, productTitle = '') {
+  const text = normalizeText(value);
+  let score = 0;
+
+  if (!text) return 0;
+
+  if (/\d/.test(text)) score += 1;
+  if (/%|\$|₦|£|€/.test(text)) score += 1;
+  if (/\bfor example\b|\bfor instance\b|\bsuch as\b|\bespecially\b/i.test(text)) score += 1;
+  if (text.includes(':')) score += 1;
+
+  const productWords = normalizeText(productTitle)
+    .toLowerCase()
+    .split(/\s+/)
+    .filter((word) => word.length > 2);
+
+  productWords.forEach((word) => {
+    if (text.toLowerCase().includes(word)) score += 1;
+  });
+
+  return score;
+}
+
+function getFieldScoreTone(score) {
+  if (score >= 75) return 'good';
+  if (score >= 60) return 'warn';
+  return 'bad';
+}
+
+function buildServerFieldMap(qualityReview) {
+  const map = {};
+  if (!qualityReview) return map;
+
+  const scores = Array.isArray(qualityReview.field_scores) ? qualityReview.field_scores : [];
+  const warnings = Array.isArray(qualityReview.warnings) ? qualityReview.warnings : [];
+
+  scores.forEach((item) => {
+    map[item.field_key] = {
+      ...(map[item.field_key] || {}),
+      quality_score: Number(item.quality_score || 0),
+      risk_score: Number(item.risk_score || 0),
+      similarity_score: Number(item.similarity_score || 0),
+      passed: !!item.passed,
+      warning_code: item.warning_code || null,
+      warning_message: item.warning_message || '',
+    };
+  });
+
+  warnings.forEach((item) => {
+    map[item.field_key] = {
+      ...(map[item.field_key] || {}),
+      warning_type: item.warning_type || null,
+      warning_message: item.message || map[item.field_key]?.warning_message || '',
+      warning_suggestion: item.suggestion || '',
+      similarity_score: Number(item.similarity_score || map[item.field_key]?.similarity_score || 0),
+    };
+  });
+
+  return map;
+}
+
+function getLocalFieldReview({ field, totalTextWords, productTitle }) {
+  const fieldMeta = field.meta || {};
+  const type = String(field.field_type || '').toLowerCase();
+  const value = String(field.field_value || '');
+  const trimmed = normalizeText(value);
+  const wordCount = type === 'text' || type === 'textarea' ? countWords(value) : 0;
+  const wordRule = fieldMeta.word_rule || null;
+  const minCheck = validateWordRule(value, wordRule);
+  const genericHits = type === 'text' || type === 'textarea' ? countGenericHits(value) : 0;
+  const repeatedHits = type === 'text' || type === 'textarea' ? countRepeatedWords(value) : 0;
+  const specificitySignals =
+    type === 'text' || type === 'textarea' ? getSpecificitySignals(value, productTitle) : 0;
+
+  if (type === 'image') {
+    const hasImage = !!trimmed;
+    return {
+      score: hasImage ? 100 : 0,
+      tone: hasImage ? 'good' : 'bad',
+      message: hasImage ? 'Image slot filled.' : 'This image slot is required.',
+      suggestion: hasImage ? '' : 'Upload an image or paste an image URL.',
+      wordCount: 0,
+      started: totalTextWords >= 100,
+      passed: hasImage,
+    };
+  }
+
+  if (!trimmed) {
+    return {
+      score: 0,
+      tone: 'bad',
+      message: `${fieldMeta.label || field.field_key} is empty.`,
+      suggestion: 'Add content to continue.',
+      wordCount,
+      started: totalTextWords >= 100,
+      passed: false,
+    };
+  }
+
+  let score = 100;
+  let message = 'Strong section.';
+  let suggestion = '';
+  let passed = true;
+
+  if (wordRule && !minCheck.ok) {
+    score -= 45;
+    message = minCheck.message;
+    suggestion = 'Add more words before saving.';
+    passed = false;
+  }
+
+  if (genericHits > 0) {
+    score -= genericHits * 10;
+    if (passed) {
+      message = 'This section sounds too generic.';
+      suggestion = 'Add a real example or a clearer product-specific point.';
+    }
+  }
+
+  if (repeatedHits > 0) {
+    score -= Math.min(18, repeatedHits * 4);
+    if (passed && !genericHits) {
+      message = 'This section repeats wording too much.';
+      suggestion = 'Vary sentence pattern and remove repeated phrases.';
+    }
+  }
+
+  if (specificitySignals < 1 && wordCount >= 20) {
+    score -= 12;
+    if (passed && !genericHits && !repeatedHits) {
+      message = 'This section needs more original detail.';
+      suggestion = 'Add a concrete detail, number, example, or product reference.';
+    }
+  }
+
+  if (wordRule?.mode === 'range' && wordRule.max_words && wordCount > Number(wordRule.max_words)) {
+    if (passed && !genericHits && !repeatedHits) {
+      message = `${fieldMeta.label || field.field_key} is above suggested max ${wordRule.max_words} words.`;
+      suggestion = 'You can keep it, but shorter text may fit the template better.';
+    }
+  }
+
+  if (totalTextWords < 100 && passed) {
+    message = 'Live quality preview is warming up.';
+    suggestion = 'Similarity review starts properly after the post reaches 100 total words.';
+  }
+
+  score = Math.max(0, Math.min(100, score));
+
+  return {
+    score,
+    tone: getFieldScoreTone(score),
+    message,
+    suggestion,
+    wordCount,
+    started: totalTextWords >= 100,
+    passed,
+  };
+}
+
 export default function AffiliateEditPostPage() {
   const navigate = useNavigate();
   const { id } = useParams();
@@ -1439,6 +530,11 @@ export default function AffiliateEditPostPage() {
   const [success, setSuccess] = useState('');
   const [featuredUploading, setFeaturedUploading] = useState(false);
   const [fieldUploadingKey, setFieldUploadingKey] = useState('');
+  const [qualityReview, setQualityReview] = useState(null);
+  const [linkPermission, setLinkPermission] = useState({
+    loaded: false,
+    allow_external_links: false,
+  });
 
   const featuredInputRef = useRef(null);
   const fieldUploadRefs = useRef({});
@@ -1458,7 +554,7 @@ export default function AffiliateEditPostPage() {
     [categories, form.category_id]
   );
 
-  const activePreset = useMemo(() => resolveTemplatePreset(selectedTemplate), [selectedTemplate]);
+  const activePreset = useMemo(() => resolveBlogTemplatePreset(selectedTemplate), [selectedTemplate]);
 
   const groupedTemplateFields = useMemo(() => {
     return form.template_fields.reduce((acc, field, index) => {
@@ -1468,6 +564,53 @@ export default function AffiliateEditPostPage() {
       return acc;
     }, {});
   }, [form.template_fields]);
+
+  const totalTextWords = useMemo(() => {
+    return form.template_fields.reduce((total, field) => {
+      const type = String(field.field_type || '').toLowerCase();
+      if (type !== 'text' && type !== 'textarea') return total;
+      return total + countWords(field.field_value);
+    }, 0);
+  }, [form.template_fields]);
+
+  const localFieldReviews = useMemo(() => {
+    const map = {};
+    form.template_fields.forEach((field) => {
+      map[field.field_key] = getLocalFieldReview({
+        field,
+        totalTextWords,
+        productTitle: selectedProduct?.title || form.title,
+      });
+    });
+    return map;
+  }, [form.template_fields, totalTextWords, selectedProduct, form.title]);
+
+  const serverFieldMap = useMemo(() => buildServerFieldMap(qualityReview), [qualityReview]);
+
+  const overallLocalScore = useMemo(() => {
+    const scoreRows = Object.values(localFieldReviews);
+    if (!scoreRows.length) return 0;
+    return Math.round(
+      scoreRows.reduce((sum, row) => sum + Number(row.score || 0), 0) / scoreRows.length
+    );
+  }, [localFieldReviews]);
+
+  const passedLocalFields = useMemo(() => {
+    return Object.values(localFieldReviews).filter((row) => row.passed).length;
+  }, [localFieldReviews]);
+
+  const applyServerResponseMeta = (data) => {
+    if (data?.quality_review) {
+      setQualityReview(data.quality_review);
+    }
+
+    if (data?.link_permissions) {
+      setLinkPermission({
+        loaded: true,
+        allow_external_links: !!data.link_permissions.allow_external_links,
+      });
+    }
+  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -1490,11 +633,13 @@ export default function AffiliateEditPostPage() {
         setTemplates(templateList);
         setCategories(categoryList);
 
+        applyServerResponseMeta(postRes?.data);
+
         if (post) {
           const matchedTemplate =
             templateList.find((item) => String(item.id) === String(post.template_id)) || null;
 
-          const preset = resolveTemplatePreset(matchedTemplate);
+          const preset = resolveBlogTemplatePreset(matchedTemplate);
 
           const genericFields =
             (post.template_fields || []).map((field, idx) => ({
@@ -1547,6 +692,10 @@ export default function AffiliateEditPostPage() {
               ? mergePresetButtons(preset.ctaButtons, post.cta_buttons || [])
               : genericButtons,
           });
+
+          if (post.quality_review) {
+            setQualityReview(post.quality_review);
+          }
         }
       } catch (err) {
         setError(err?.response?.data?.message || 'Failed to load post');
@@ -1561,7 +710,7 @@ export default function AffiliateEditPostPage() {
   useEffect(() => {
     if (!selectedTemplate) return;
 
-    const preset = resolveTemplatePreset(selectedTemplate);
+    const preset = resolveBlogTemplatePreset(selectedTemplate);
 
     setForm((prev) => {
       if (!preset) {
@@ -1592,6 +741,7 @@ export default function AffiliateEditPostPage() {
 
   const handleChange = (event) => {
     const { name, value } = event.target;
+    setQualityReview(null);
 
     setForm((prev) => ({
       ...prev,
@@ -1600,6 +750,8 @@ export default function AffiliateEditPostPage() {
   };
 
   const handleTemplateFieldChange = (index, key, value) => {
+    setQualityReview(null);
+
     setForm((prev) => {
       const nextFields = [...prev.template_fields];
       nextFields[index] = {
@@ -1615,6 +767,8 @@ export default function AffiliateEditPostPage() {
   };
 
   const handleCtaChange = (index, key, value) => {
+    setQualityReview(null);
+
     setForm((prev) => {
       const nextButtons = [...prev.cta_buttons];
       nextButtons[index] = {
@@ -1737,16 +891,8 @@ export default function AffiliateEditPostPage() {
         String(field.field_key || '').toLowerCase().includes('link') ||
         String(field.field_key || '').toLowerCase().includes('cta');
 
-      if (looksLikeLinkField && String(field.field_value || '').trim()) {
-        const result = validateSupgadUrl(field.field_value, {
-          required: true,
-          allowEmpty: false,
-          fieldName: `Template field (${field.field_key})`,
-        });
-
-        if (!result.ok) {
-          throw new Error(result.message);
-        }
+      if (looksLikeLinkField && String(field.field_value || '').trim() && !isLikelyUrlValue(field.field_value)) {
+        throw new Error(`${fieldLabel} must be a valid URL`);
       }
     }
 
@@ -1762,14 +908,8 @@ export default function AffiliateEditPostPage() {
         throw new Error(`${buttonLabelMeta} URL is required`);
       }
 
-      const result = validateSupgadUrl(button.button_url, {
-        required: true,
-        allowEmpty: false,
-        fieldName: `CTA Button URL (${button.button_label || buttonLabelMeta})`,
-      });
-
-      if (!result.ok) {
-        throw new Error(result.message);
+      if (!isLikelyUrlValue(button.button_url)) {
+        throw new Error(`${buttonLabelMeta} URL must be a valid URL`);
       }
 
       if (activePreset) {
@@ -1832,12 +972,15 @@ export default function AffiliateEditPostPage() {
       };
 
       const { data } = await api.put(`/api/affiliate/posts/${id}`, payload);
+      applyServerResponseMeta(data);
 
       if (data?.ok) {
         setSuccess(data.message || 'Post updated successfully');
       }
     } catch (err) {
-      setError(err?.response?.data?.message || err.message || 'Failed to update post');
+      const responseData = err?.response?.data;
+      applyServerResponseMeta(responseData);
+      setError(responseData?.message || err.message || 'Failed to update post');
     } finally {
       setSaving(false);
     }
@@ -1972,8 +1115,7 @@ export default function AffiliateEditPostPage() {
 
               <label className="affiliate-edit-post-field">
                 <span className="affiliate-edit-post-label">
-                  <LinkIcon size={16} />
-                  Slug
+                  <Link as LinkIcon size={16} />
                 </span>
                 <input
                   className="affiliate-edit-post-input"
@@ -2100,11 +1242,18 @@ export default function AffiliateEditPostPage() {
                           fieldUploadRefs.current[field.field_key] = { current: null };
                         }
 
+                        const localReview = localFieldReviews[field.field_key];
+                        const serverReview = serverFieldMap[field.field_key];
+
                         return (
                           <div key={field.field_key} className="affiliate-edit-post-card">
                             <div className="affiliate-edit-post-card-top">
                               <div className="affiliate-edit-post-chip">
                                 {fieldMeta.label || field.field_key}
+                              </div>
+
+                              <div className={`affiliate-edit-post-score-pill ${getFieldScoreTone(serverReview?.quality_score ?? localReview?.score ?? 0)}`}>
+                                Score {Math.round(serverReview?.quality_score ?? localReview?.score ?? 0)}
                               </div>
 
                               {fieldMeta.locked ? (
@@ -2253,7 +1402,7 @@ export default function AffiliateEditPostPage() {
                         <span className="affiliate-edit-post-label">Button URL</span>
                         <input
                           className="affiliate-edit-post-input"
-                          placeholder="Button URL (must be supgad.com)"
+                          placeholder="Button URL"
                           value={button.button_url}
                           onChange={(e) => handleCtaChange(index, 'button_url', e.target.value)}
                         />
@@ -2272,7 +1421,13 @@ export default function AffiliateEditPostPage() {
                     </div>
 
                     <div className="affiliate-edit-post-field-meta">
-                      <div>{button?.meta?.helper_text || 'Required CTA button'}</div>
+                      <div>
+                        {linkPermission.loaded
+                          ? linkPermission.allow_external_links
+                            ? 'Your current premium permission allows external links.'
+                            : 'Your current plan uses Supgad-only link protection.'
+                          : button?.meta?.helper_text || 'Required CTA button'}
+                      </div>
                       <div className="affiliate-edit-post-required-tag">Required</div>
                     </div>
                   </div>
@@ -2369,6 +1524,91 @@ export default function AffiliateEditPostPage() {
               </div>
             </div>
           </div>
+
+          <div className="affiliate-edit-post-panel">
+            <div className="affiliate-edit-post-panel-head">
+              <div>
+                <p className="affiliate-edit-post-panel-kicker">Live quality</p>
+                <h2 className="affiliate-edit-post-panel-title">Score snapshot</h2>
+              </div>
+            </div>
+
+            <div className="affiliate-edit-post-summary-card">
+              <div className="affiliate-edit-post-summary-score">{overallLocalScore}</div>
+              <div className="affiliate-edit-post-summary-line">
+                {passedLocalFields}/{form.template_fields.length} fields currently passing
+              </div>
+            </div>
+
+            <div className="affiliate-edit-post-summary">
+              <div className="affiliate-edit-post-summary-row">
+                <span>Total text words</span>
+                <strong>{totalTextWords}</strong>
+              </div>
+              <div className="affiliate-edit-post-summary-row">
+                <span>Similarity review</span>
+                <strong>{totalTextWords >= 100 ? 'Ready on save' : 'Starts at 100 words'}</strong>
+              </div>
+              <div className="affiliate-edit-post-summary-row">
+                <span>Minimum words</span>
+                <strong>Enforced</strong>
+              </div>
+              <div className="affiliate-edit-post-summary-row">
+                <span>Maximum words</span>
+                <strong>Suggested only</strong>
+              </div>
+            </div>
+          </div>
+
+          <div className="affiliate-edit-post-panel">
+            <div className="affiliate-edit-post-panel-head">
+              <div>
+                <p className="affiliate-edit-post-panel-kicker">Link policy</p>
+                <h2 className="affiliate-edit-post-panel-title">Permission</h2>
+              </div>
+            </div>
+
+            <div className="affiliate-edit-post-plan-note">
+              {linkPermission.loaded
+                ? linkPermission.allow_external_links
+                  ? 'Premium external-link permission is active on your account.'
+                  : 'Default Supgad-only link protection is active on your account.'
+                : 'Your final link permission is checked by the backend when you save or publish.'}
+            </div>
+          </div>
+
+          {qualityReview ? (
+            <div className="affiliate-edit-post-panel">
+              <div className="affiliate-edit-post-panel-head">
+                <div>
+                  <p className="affiliate-edit-post-panel-kicker">Latest server review</p>
+                  <h2 className="affiliate-edit-post-panel-title">Review result</h2>
+                </div>
+              </div>
+
+              <div className="affiliate-edit-post-summary">
+                <div className="affiliate-edit-post-summary-row">
+                  <span>Review status</span>
+                  <strong>{qualityReview.review_status || '-'}</strong>
+                </div>
+                <div className="affiliate-edit-post-summary-row">
+                  <span>Quality score</span>
+                  <strong>{Math.round(qualityReview.quality_score || 0)}</strong>
+                </div>
+                <div className="affiliate-edit-post-summary-row">
+                  <span>Risk score</span>
+                  <strong>{Math.round(qualityReview.risk_score || 0)}</strong>
+                </div>
+                <div className="affiliate-edit-post-summary-row">
+                  <span>Similarity score</span>
+                  <strong>{Math.round(qualityReview.similarity_score || 0)}%</strong>
+                </div>
+                {qualityReview.blocked_reason ? (
+                  <div className="affiliate-edit-post-server-warning">{qualityReview.blocked_reason}</div>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
 
           <div className="affiliate-edit-post-panel">
             <div className="affiliate-edit-post-panel-head">
@@ -2789,6 +2029,137 @@ const styles = `
     word-break: break-word;
   }
 
+  .affiliate-edit-post-summary-card {
+    border-radius: 20px;
+    padding: 18px;
+    background: linear-gradient(135deg, #111827 0%, #1d4ed8 100%);
+    color: #ffffff;
+    margin-bottom: 16px;
+  }
+
+  .affiliate-edit-post-summary-score {
+    font-size: 44px;
+    font-weight: 900;
+    line-height: 1;
+    margin-bottom: 8px;
+  }
+
+  .affiliate-edit-post-summary-line {
+    font-size: 13px;
+    color: rgba(255,255,255,0.85);
+  }
+
+  .affiliate-edit-post-score-pill {
+    margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    min-height: 30px;
+    padding: 0 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 800;
+    border: 1px solid transparent;
+  }
+
+  .affiliate-edit-post-score-pill.good,
+  .affiliate-edit-post-review-state.good {
+    background: #ecfdf3;
+    color: #027a48;
+    border-color: #abefc6;
+  }
+
+  .affiliate-edit-post-score-pill.warn,
+  .affiliate-edit-post-review-state.warn {
+    background: #fff7ed;
+    color: #b54708;
+    border-color: #fed7aa;
+  }
+
+  .affiliate-edit-post-score-pill.bad,
+  .affiliate-edit-post-review-state.bad {
+    background: #fef2f2;
+    color: #b42318;
+    border-color: #fecaca;
+  }
+
+  .affiliate-edit-post-review-box {
+    margin-top: 14px;
+    border: 1px solid #e5e7eb;
+    background: #ffffff;
+    border-radius: 16px;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .affiliate-edit-post-review-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .affiliate-edit-post-review-state {
+    display: inline-flex;
+    align-items: center;
+    min-height: 30px;
+    padding: 0 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 800;
+    border: 1px solid transparent;
+  }
+
+  .affiliate-edit-post-review-meta {
+    font-size: 12px;
+    color: #6b7280;
+    font-weight: 700;
+  }
+
+  .affiliate-edit-post-review-message {
+    font-size: 14px;
+    color: #111827;
+    font-weight: 800;
+    line-height: 1.5;
+  }
+
+  .affiliate-edit-post-review-suggestion {
+    font-size: 13px;
+    color: #6b7280;
+    line-height: 1.6;
+  }
+
+  .affiliate-edit-post-review-tag {
+    display: inline-flex;
+    width: fit-content;
+    min-height: 30px;
+    padding: 0 10px;
+    border-radius: 999px;
+    background: #eef2ff;
+    color: #4338ca;
+    font-size: 12px;
+    font-weight: 800;
+    align-items: center;
+  }
+
+  .affiliate-edit-post-plan-note,
+  .affiliate-edit-post-server-warning {
+    font-size: 13px;
+    line-height: 1.7;
+  }
+
+  .affiliate-edit-post-plan-note {
+    color: #6b7280;
+  }
+
+  .affiliate-edit-post-server-warning {
+    color: #b42318;
+    font-weight: 800;
+    margin-top: 10px;
+  }
+
   .affiliate-edit-post-status {
     display: inline-flex;
     width: fit-content;
@@ -2984,9 +2355,14 @@ const styles = `
 
     .affiliate-edit-post-summary-row,
     .affiliate-edit-post-card-top,
-    .affiliate-edit-post-field-meta {
+    .affiliate-edit-post-field-meta,
+    .affiliate-edit-post-review-top {
       flex-direction: column;
       align-items: flex-start;
+    }
+
+    .affiliate-edit-post-score-pill {
+      margin-left: 0;
     }
   }
 `;

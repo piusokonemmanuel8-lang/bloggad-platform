@@ -68,6 +68,75 @@ function badgeStyle(status) {
   };
 }
 
+function reviewBadgeStyle(status) {
+  const clean = String(status || '').toLowerCase();
+
+  if (clean === 'approved') {
+    return {
+      border: '1px solid #b7e4c7',
+      background: '#ecfdf3',
+      color: '#166534',
+    };
+  }
+
+  if (clean === 'needs_revision') {
+    return {
+      border: '1px solid #f3d28b',
+      background: '#fff7e6',
+      color: '#9a6700',
+    };
+  }
+
+  if (clean === 'rejected') {
+    return {
+      border: '1px solid #f1b5b8',
+      background: '#fff1f2',
+      color: '#b42318',
+    };
+  }
+
+  if (clean === 'pending_review') {
+    return {
+      border: '1px solid #b6d7ff',
+      background: '#eef6ff',
+      color: '#0b57d0',
+    };
+  }
+
+  return {
+    border: '1px solid #dcdcde',
+    background: '#f6f7f7',
+    color: '#50575e',
+  };
+}
+
+function scoreBadgeStyle(score, reversed = false) {
+  const value = Number(score || 0);
+  const effective = reversed ? 100 - value : value;
+
+  if (effective >= 75) {
+    return {
+      border: '1px solid #b7e4c7',
+      background: '#ecfdf3',
+      color: '#166534',
+    };
+  }
+
+  if (effective >= 60) {
+    return {
+      border: '1px solid #f3d28b',
+      background: '#fff7e6',
+      color: '#9a6700',
+    };
+  }
+
+  return {
+    border: '1px solid #f1b5b8',
+    background: '#fff1f2',
+    color: '#b42318',
+  };
+}
+
 function StatCard({ label, value, icon: Icon, tone = 'default' }) {
   const iconTone =
     tone === 'primary'
@@ -108,6 +177,15 @@ function StatCard({ label, value, icon: Icon, tone = 'default' }) {
           <Icon size={18} />
         </div>
       </div>
+    </div>
+  );
+}
+
+function MetricCard({ label, value, toneStyle }) {
+  return (
+    <div style={{ ...cardStyle({ padding: 14, background: '#f6f7f7' }), ...toneStyle }}>
+      <div style={{ fontSize: 12, marginBottom: 8 }}>{label}</div>
+      <div style={{ fontWeight: 700, fontSize: 24, lineHeight: 1, color: 'inherit' }}>{value}</div>
     </div>
   );
 }
@@ -242,12 +320,16 @@ export default function AdminPostsPage() {
       const affiliate = String(post?.affiliate?.name || '').toLowerCase();
       const product = String(post?.product?.title || '').toLowerCase();
       const status = String(post?.status || '').toLowerCase();
+      const reviewStatus = String(post?.review_status || post?.quality_review?.review_status || '').toLowerCase();
+      const blockedReason = String(post?.quality_blocked_reason || '').toLowerCase();
 
       return (
         title.includes(keyword) ||
         affiliate.includes(keyword) ||
         product.includes(keyword) ||
-        status.includes(keyword)
+        status.includes(keyword) ||
+        reviewStatus.includes(keyword) ||
+        blockedReason.includes(keyword)
       );
     });
   }, [posts, search]);
@@ -266,6 +348,15 @@ export default function AdminPostsPage() {
 
     return { total, published, draft, inactive };
   }, [posts]);
+
+  const qualityReview = postDetails?.quality_review || null;
+  const reviewStatus = qualityReview?.review_status || postDetails?.review_status || '-';
+  const qualityScore = Number(qualityReview?.quality_score ?? postDetails?.quality_score ?? 0);
+  const riskScore = Number(qualityReview?.risk_score ?? postDetails?.risk_score ?? 0);
+  const similarityScore = Number(qualityReview?.similarity_score ?? postDetails?.similarity_score ?? 0);
+  const blockedReason = qualityReview?.blocked_reason || postDetails?.quality_blocked_reason || '';
+  const fieldScores = Array.isArray(qualityReview?.field_scores) ? qualityReview.field_scores : [];
+  const warnings = Array.isArray(qualityReview?.warnings) ? qualityReview.warnings : [];
 
   if (loading) {
     return (
@@ -301,6 +392,11 @@ export default function AdminPostsPage() {
           grid-template-columns: repeat(2, minmax(0, 1fr));
           gap: 16px;
         }
+        .admin-post-three-grid {
+          display: grid;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          gap: 16px;
+        }
         .spin-soft {
           animation: spinSoft 0.9s linear infinite;
         }
@@ -312,7 +408,8 @@ export default function AdminPostsPage() {
           .admin-post-grid-4,
           .admin-post-main-grid,
           .admin-post-split-grid,
-          .admin-post-two-grid {
+          .admin-post-two-grid,
+          .admin-post-three-grid {
             grid-template-columns: 1fr;
           }
         }
@@ -399,7 +496,7 @@ export default function AdminPostsPage() {
       ) : null}
 
       <div style={{ ...cardStyle({ padding: 16, marginBottom: 20, borderLeft: '4px solid #72aee6' }) }}>
-        Post records control article content, SEO fields, template fields, and CTA button setup.
+        Post records control article content, SEO fields, template fields, CTA button setup, and quality review data.
       </div>
 
       <div className="admin-post-grid-4" style={{ marginBottom: 20 }}>
@@ -476,6 +573,10 @@ export default function AdminPostsPage() {
             {filteredPosts.length ? (
               filteredPosts.map((post) => {
                 const selected = String(selectedPostId) === String(post.id);
+                const listReviewStatus = post?.review_status || post?.quality_review?.review_status || 'not_checked';
+                const listQualityScore = Number(post?.quality_score || 0);
+                const listRiskScore = Number(post?.risk_score || 0);
+                const listSimilarityScore = Number(post?.similarity_score || 0);
 
                 return (
                   <button
@@ -562,6 +663,56 @@ export default function AdminPostsPage() {
                         <strong style={{ color: '#1d2327' }}>
                           {post.product?.title || '-'}
                         </strong>
+                      </div>
+
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 4 }}>
+                        <span
+                          style={{
+                            display: 'inline-flex',
+                            padding: '5px 10px',
+                            fontSize: 12,
+                            fontWeight: 600,
+                            ...reviewBadgeStyle(listReviewStatus),
+                          }}
+                        >
+                          Review: {listReviewStatus}
+                        </span>
+
+                        <span
+                          style={{
+                            display: 'inline-flex',
+                            padding: '5px 10px',
+                            fontSize: 12,
+                            fontWeight: 600,
+                            ...scoreBadgeStyle(listQualityScore),
+                          }}
+                        >
+                          Quality {Math.round(listQualityScore)}
+                        </span>
+
+                        <span
+                          style={{
+                            display: 'inline-flex',
+                            padding: '5px 10px',
+                            fontSize: 12,
+                            fontWeight: 600,
+                            ...scoreBadgeStyle(listRiskScore, true),
+                          }}
+                        >
+                          Risk {Math.round(listRiskScore)}
+                        </span>
+
+                        <span
+                          style={{
+                            display: 'inline-flex',
+                            padding: '5px 10px',
+                            fontSize: 12,
+                            fontWeight: 600,
+                            ...scoreBadgeStyle(listSimilarityScore, true),
+                          }}
+                        >
+                          Similarity {Math.round(listSimilarityScore)}%
+                        </span>
                       </div>
                     </div>
                   </button>
@@ -696,6 +847,155 @@ export default function AdminPostsPage() {
 
               <div className="admin-post-split-grid">
                 <div>
+                  <div style={{ ...cardStyle(), marginBottom: 20 }}>
+                    <div style={{ padding: '16px 18px', borderBottom: '1px solid #dcdcde' }}>
+                      <div style={{ fontSize: 16, fontWeight: 600, color: '#1d2327' }}>
+                        Quality Review
+                      </div>
+                    </div>
+
+                    <div style={{ padding: 18 }}>
+                      <div className="admin-post-three-grid" style={{ marginBottom: 16 }}>
+                        <MetricCard
+                          label="Quality Score"
+                          value={Math.round(qualityScore)}
+                          toneStyle={scoreBadgeStyle(qualityScore)}
+                        />
+                        <MetricCard
+                          label="Risk Score"
+                          value={Math.round(riskScore)}
+                          toneStyle={scoreBadgeStyle(riskScore, true)}
+                        />
+                        <MetricCard
+                          label="Similarity"
+                          value={`${Math.round(similarityScore)}%`}
+                          toneStyle={scoreBadgeStyle(similarityScore, true)}
+                        />
+                      </div>
+
+                      <div className="admin-post-two-grid" style={{ marginBottom: 16 }}>
+                        <div style={{ ...cardStyle({ padding: 14, background: '#f6f7f7' }) }}>
+                          <div style={{ fontSize: 12, color: '#646970', marginBottom: 8 }}>Review Status</div>
+                          <div
+                            style={{
+                              display: 'inline-flex',
+                              padding: '5px 10px',
+                              fontSize: 12,
+                              fontWeight: 600,
+                              ...reviewBadgeStyle(reviewStatus),
+                            }}
+                          >
+                            {reviewStatus}
+                          </div>
+                        </div>
+
+                        <div style={{ ...cardStyle({ padding: 14, background: '#f6f7f7' }) }}>
+                          <div style={{ fontSize: 12, color: '#646970', marginBottom: 8 }}>Blocked Reason</div>
+                          <div style={{ fontWeight: 600, color: '#1d2327', wordBreak: 'break-word' }}>
+                            {blockedReason || '-'}
+                          </div>
+                        </div>
+                      </div>
+
+                      {warnings.length ? (
+                        <div style={{ marginBottom: 16 }}>
+                          <div style={{ fontSize: 13, fontWeight: 700, color: '#1d2327', marginBottom: 10 }}>
+                            Warnings
+                          </div>
+
+                          {warnings.map((warning, index) => (
+                            <div
+                              key={warning.id || `${warning.field_key}-${index}`}
+                              style={{
+                                border: '1px solid #dcdcde',
+                                background: '#fff7e6',
+                                padding: 14,
+                                marginBottom: 10,
+                              }}
+                            >
+                              <div style={{ fontSize: 12, color: '#646970', marginBottom: 8 }}>
+                                {warning.field_key || warning.warning_type || 'Warning'}
+                              </div>
+                              <div style={{ fontWeight: 600, color: '#1d2327', marginBottom: 8 }}>
+                                {warning.message || '-'}
+                              </div>
+                              {warning.suggestion ? (
+                                <div style={{ fontSize: 13, color: '#646970' }}>{warning.suggestion}</div>
+                              ) : null}
+                            </div>
+                          ))}
+                        </div>
+                      ) : null}
+
+                      {fieldScores.length ? (
+                        <div>
+                          <div style={{ fontSize: 13, fontWeight: 700, color: '#1d2327', marginBottom: 10 }}>
+                            Field Scores
+                          </div>
+
+                          {fieldScores.map((field) => (
+                            <div
+                              key={field.id || field.field_key}
+                              style={{
+                                border: '1px solid #dcdcde',
+                                background: '#ffffff',
+                                padding: 14,
+                                marginBottom: 12,
+                              }}
+                            >
+                              <div className="admin-post-three-grid">
+                                <div>
+                                  <div style={{ fontSize: 12, color: '#646970', marginBottom: 8 }}>Field</div>
+                                  <div style={{ fontWeight: 600, color: '#1d2327' }}>
+                                    {field.field_label || field.field_key || '-'}
+                                  </div>
+                                </div>
+
+                                <div>
+                                  <div style={{ fontSize: 12, color: '#646970', marginBottom: 8 }}>Quality</div>
+                                  <div
+                                    style={{
+                                      display: 'inline-flex',
+                                      padding: '5px 10px',
+                                      fontSize: 12,
+                                      fontWeight: 600,
+                                      ...scoreBadgeStyle(field.quality_score),
+                                    }}
+                                  >
+                                    {Math.round(Number(field.quality_score || 0))}
+                                  </div>
+                                </div>
+
+                                <div>
+                                  <div style={{ fontSize: 12, color: '#646970', marginBottom: 8 }}>Similarity</div>
+                                  <div
+                                    style={{
+                                      display: 'inline-flex',
+                                      padding: '5px 10px',
+                                      fontSize: 12,
+                                      fontWeight: 600,
+                                      ...scoreBadgeStyle(field.similarity_score, true),
+                                    }}
+                                  >
+                                    {Math.round(Number(field.similarity_score || 0))}%
+                                  </div>
+                                </div>
+                              </div>
+
+                              {field.warning_message ? (
+                                <div style={{ marginTop: 12, fontSize: 13, color: '#646970' }}>
+                                  {field.warning_message}
+                                </div>
+                              ) : null}
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div style={{ color: '#646970' }}>No field score details returned yet.</div>
+                      )}
+                    </div>
+                  </div>
+
                   <div style={{ ...cardStyle(), marginBottom: 20 }}>
                     <div style={{ padding: '16px 18px', borderBottom: '1px solid #dcdcde' }}>
                       <div style={{ fontSize: 16, fontWeight: 600, color: '#1d2327' }}>Excerpt</div>
@@ -943,6 +1243,106 @@ export default function AdminPostsPage() {
                             <div style={{ fontSize: 12, color: '#646970', marginBottom: 4 }}>Category</div>
                             <div style={{ fontWeight: 600, color: '#1d2327' }}>
                               {postDetails.category?.name || '-'}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div style={{ ...cardStyle({ padding: 14, background: '#f6f7f7' }) }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                          <div
+                            style={{
+                              width: 36,
+                              height: 36,
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              background: '#ffffff',
+                              border: '1px solid #dcdcde',
+                              color: '#1d2327',
+                            }}
+                          >
+                            <FileText size={16} />
+                          </div>
+                          <div>
+                            <div style={{ fontSize: 12, color: '#646970', marginBottom: 4 }}>Quality</div>
+                            <div style={{ fontWeight: 600, color: '#1d2327' }}>
+                              {Math.round(qualityScore)}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div style={{ ...cardStyle({ padding: 14, background: '#f6f7f7' }) }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                          <div
+                            style={{
+                              width: 36,
+                              height: 36,
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              background: '#ffffff',
+                              border: '1px solid #dcdcde',
+                              color: '#1d2327',
+                            }}
+                          >
+                            <ShieldAlert size={16} />
+                          </div>
+                          <div>
+                            <div style={{ fontSize: 12, color: '#646970', marginBottom: 4 }}>Risk</div>
+                            <div style={{ fontWeight: 600, color: '#1d2327' }}>
+                              {Math.round(riskScore)}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div style={{ ...cardStyle({ padding: 14, background: '#f6f7f7' }) }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                          <div
+                            style={{
+                              width: 36,
+                              height: 36,
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              background: '#ffffff',
+                              border: '1px solid #dcdcde',
+                              color: '#1d2327',
+                            }}
+                          >
+                            <Search size={16} />
+                          </div>
+                          <div>
+                            <div style={{ fontSize: 12, color: '#646970', marginBottom: 4 }}>Similarity</div>
+                            <div style={{ fontWeight: 600, color: '#1d2327' }}>
+                              {Math.round(similarityScore)}%
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div style={{ ...cardStyle({ padding: 14, background: '#f6f7f7' }) }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                          <div
+                            style={{
+                              width: 36,
+                              height: 36,
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              background: '#ffffff',
+                              border: '1px solid #dcdcde',
+                              color: '#1d2327',
+                            }}
+                          >
+                            <BadgeCheck size={16} />
+                          </div>
+                          <div>
+                            <div style={{ fontSize: 12, color: '#646970', marginBottom: 4 }}>Review Status</div>
+                            <div style={{ fontWeight: 600, color: '#1d2327' }}>
+                              {reviewStatus}
                             </div>
                           </div>
                         </div>

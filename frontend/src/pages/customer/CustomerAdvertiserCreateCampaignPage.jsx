@@ -35,6 +35,20 @@ function formatMoney(value, currency = 'USD') {
   }
 }
 
+function toDatetimeLocalInput(value) {
+  if (!value) return '';
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return '';
+
+  const year = parsed.getFullYear();
+  const month = String(parsed.getMonth() + 1).padStart(2, '0');
+  const day = String(parsed.getDate()).padStart(2, '0');
+  const hours = String(parsed.getHours()).padStart(2, '0');
+  const minutes = String(parsed.getMinutes()).padStart(2, '0');
+
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+}
+
 const INITIAL_FORM = {
   campaign_name: '',
   campaign_type: 'banner',
@@ -63,29 +77,20 @@ const CTA_OPTIONS = [
   'Contact Us',
 ];
 
-function toDatetimeLocalInput(value) {
-  if (!value) return '';
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return '';
-  const year = parsed.getFullYear();
-  const month = String(parsed.getMonth() + 1).padStart(2, '0');
-  const day = String(parsed.getDate()).padStart(2, '0');
-  const hour = String(parsed.getHours()).padStart(2, '0');
-  const minute = String(parsed.getMinutes()).padStart(2, '0');
-  return `${year}-${month}-${day}T${hour}:${minute}`;
-}
-
 export default function CustomerAdvertiserCreateCampaignPage() {
   const navigate = useNavigate();
   const token = useMemo(() => getStoredToken(), []);
 
-  const [loading, setLoading] = useState(false);
+  const [loadingWallet, setLoadingWallet] = useState(false);
   const [submittingCampaign, setSubmittingCampaign] = useState(false);
   const [submittingCreative, setSubmittingCreative] = useState(false);
+
+  const [wallet, setWallet] = useState(null);
+  const [campaign, setCampaign] = useState(null);
+
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const [campaign, setCampaign] = useState(null);
-  const [wallet, setWallet] = useState(null);
+
   const [form, setForm] = useState(INITIAL_FORM);
 
   const [creativeFile, setCreativeFile] = useState(null);
@@ -111,7 +116,7 @@ export default function CustomerAdvertiserCreateCampaignPage() {
     async function loadWallet() {
       if (!token) return;
 
-      setLoading(true);
+      setLoadingWallet(true);
       setError('');
 
       try {
@@ -133,7 +138,7 @@ export default function CustomerAdvertiserCreateCampaignPage() {
       } catch (err) {
         setError(err.message || 'Failed to load advertiser wallet.');
       } finally {
-        setLoading(false);
+        setLoadingWallet(false);
       }
     }
 
@@ -157,14 +162,13 @@ export default function CustomerAdvertiserCreateCampaignPage() {
     setCreativeFile(file);
 
     if (file) {
-      const previewUrl = URL.createObjectURL(file);
-      setCreativePreview(previewUrl);
+      setCreativePreview(URL.createObjectURL(file));
     } else {
       setCreativePreview('');
     }
   }
 
-  function validateCampaignForm() {
+  function validateForm() {
     if (!form.campaign_name.trim()) {
       throw new Error('Campaign name is required.');
     }
@@ -193,8 +197,13 @@ export default function CustomerAdvertiserCreateCampaignPage() {
       throw new Error('Bid amount must be greater than zero.');
     }
 
-    if (form.start_at && form.end_at && new Date(form.end_at) <= new Date(form.start_at)) {
-      throw new Error('End date must be later than start date.');
+    if (form.start_at && form.end_at) {
+      const start = new Date(form.start_at);
+      const end = new Date(form.end_at);
+
+      if (!Number.isNaN(start.getTime()) && !Number.isNaN(end.getTime()) && end <= start) {
+        throw new Error('End date must be later than start date.');
+      }
     }
 
     if (!creativeFile) {
@@ -202,126 +211,116 @@ export default function CustomerAdvertiserCreateCampaignPage() {
     }
   }
 
-  async function handleCreateCampaign(event) {
+  async function createCampaign() {
+    const payload = {
+      campaign_name: form.campaign_name.trim(),
+      campaign_type: form.campaign_type,
+      buying_model: form.buying_model,
+      objective: form.objective,
+      destination_url: form.destination_url.trim(),
+      display_url: form.display_url.trim(),
+      headline: form.headline.trim(),
+      description_text: form.description_text.trim(),
+      call_to_action: form.call_to_action.trim(),
+      budget_total: Number(form.budget_total || 0),
+      budget_daily: Number(form.budget_daily || 0),
+      bid_amount: Number(form.bid_amount || 0),
+      start_at: form.start_at || null,
+      end_at: form.end_at || null,
+    };
+
+    const response = await fetch(getApiUrl('/api/customer/advertiser/campaigns'), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      credentials: 'include',
+      body: JSON.stringify(payload),
+    });
+
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok || !data?.ok) {
+      throw new Error(data?.message || 'Failed to create campaign.');
+    }
+
+    const createdCampaign =
+      data?.campaign ||
+      data?.data ||
+      null;
+
+    if (!createdCampaign?.id) {
+      throw new Error('Campaign was created but no campaign id was returned.');
+    }
+
+    return createdCampaign;
+  }
+
+  async function uploadCreative(campaignId) {
+    const body = new FormData();
+
+    body.append('creative_type', form.campaign_type === 'native' ? 'native' : 'image');
+    body.append('headline', form.headline.trim());
+    body.append('description_text', form.description_text.trim());
+    body.append('call_to_action', form.call_to_action.trim());
+    body.append('destination_url', form.destination_url.trim());
+    body.append('display_url', form.display_url.trim());
+    body.append('alt_text', creativeAltText.trim());
+    body.append('admin_note', creativeNote.trim());
+    body.append('asset', creativeFile);
+
+    const response = await fetch(
+      getApiUrl(`/api/customer/advertiser/campaigns/${campaignId}/creatives`),
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        credentials: 'include',
+        body,
+      }
+    );
+
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok || !data?.ok) {
+      throw new Error(data?.message || 'Failed to upload creative.');
+    }
+
+    return data;
+  }
+
+  async function handleSubmit(event) {
     event.preventDefault();
     setError('');
     setSuccess('');
 
     try {
-      validateCampaignForm();
+      validateForm();
+
       setSubmittingCampaign(true);
-
-      const payload = {
-        campaign_name: form.campaign_name.trim(),
-        campaign_type: form.campaign_type,
-        buying_model: form.buying_model,
-        objective: form.objective,
-        destination_url: form.destination_url.trim(),
-        display_url: form.display_url.trim(),
-        headline: form.headline.trim(),
-        description_text: form.description_text.trim(),
-        call_to_action: form.call_to_action.trim(),
-        budget_total: Number(form.budget_total || 0),
-        budget_daily: Number(form.budget_daily || 0),
-        bid_amount: Number(form.bid_amount || 0),
-        start_at: form.start_at || null,
-        end_at: form.end_at || null,
-      };
-
-      const response = await fetch(getApiUrl('/api/customer/advertiser/campaigns'), {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        credentials: 'include',
-        body: JSON.stringify(payload),
-      });
-
-      const data = await response.json().catch(() => ({}));
-
-      if (!response.ok || !data?.ok) {
-        throw new Error(data?.message || 'Failed to create campaign.');
-      }
-
-      const createdCampaign =
-        data?.campaign ||
-        data?.data ||
-        data ||
-        null;
-
-      if (!createdCampaign?.id) {
-        throw new Error('Campaign was created but no campaign id was returned.');
-      }
-
+      const createdCampaign = await createCampaign();
       setCampaign(createdCampaign);
-      setSuccess('Campaign created. Now uploading creative...');
-
-      await handleCreateCreative(createdCampaign.id);
-    } catch (err) {
-      setError(err.message || 'Failed to create campaign.');
-    } finally {
       setSubmittingCampaign(false);
-    }
-  }
 
-  async function handleCreateCreative(campaignIdParam) {
-    const workingCampaignId = campaignIdParam || campaign?.id;
+      setSubmittingCreative(true);
+      await uploadCreative(createdCampaign.id);
+      setSubmittingCreative(false);
 
-    if (!workingCampaignId) {
-      setError('Campaign id is missing for creative upload.');
-      return;
-    }
-
-    if (!creativeFile) {
-      setError('Creative image is required.');
-      return;
-    }
-
-    setSubmittingCreative(true);
-    setError('');
-
-    try {
-      const body = new FormData();
-      body.append('creative_type', form.campaign_type === 'native' ? 'native' : 'image');
-      body.append('headline', form.headline.trim());
-      body.append('description_text', form.description_text.trim());
-      body.append('call_to_action', form.call_to_action.trim());
-      body.append('destination_url', form.destination_url.trim());
-      body.append('display_url', form.display_url.trim());
-      body.append('alt_text', creativeAltText.trim());
-      body.append('admin_note', creativeNote.trim());
-      body.append('asset', creativeFile);
-
-      const response = await fetch(
-        getApiUrl(`/api/customer/advertiser/campaigns/${workingCampaignId}/creatives`),
-        {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-          credentials: 'include',
-          body,
-        }
-      );
-
-      const data = await response.json().catch(() => ({}));
-
-      if (!response.ok || !data?.ok) {
-        throw new Error(data?.message || 'Failed to upload creative.');
-      }
-
-      setSuccess('Campaign and creative submitted successfully. Waiting for admin approval.');
+      setSuccess('Campaign and creative submitted successfully.');
 
       setTimeout(() => {
-        navigate(`/customer/advertiser/campaigns/${workingCampaignId}`);
+        navigate(`/customer/advertiser/campaigns/${createdCampaign.id}`);
       }, 900);
     } catch (err) {
-      setError(err.message || 'Failed to upload creative.');
-    } finally {
+      setSubmittingCampaign(false);
       setSubmittingCreative(false);
+      setError(err.message || 'Failed to create campaign.');
     }
   }
+
+  const isSubmitting = submittingCampaign || submittingCreative;
 
   return (
     <div
@@ -425,7 +424,7 @@ export default function CustomerAdvertiserCreateCampaignPage() {
                   fontSize: 14,
                 }}
               >
-                Create the campaign first, upload the actual banner creative, preview it, then submit for moderation.
+                Create the campaign, upload the banner creative, preview it, and submit for admin approval.
               </p>
             </div>
 
@@ -462,7 +461,9 @@ export default function CustomerAdvertiserCreateCampaignPage() {
                   fontWeight: 800,
                 }}
               >
-                Wallet: {formatMoney(wallet?.available_balance || 0, wallet?.currency || 'USD')}
+                {loadingWallet
+                  ? 'Wallet: Loading...'
+                  : `Wallet: ${formatMoney(wallet?.available_balance || 0, wallet?.currency || 'USD')}`}
               </div>
             </div>
           </div>
@@ -500,7 +501,7 @@ export default function CustomerAdvertiserCreateCampaignPage() {
 
         <div className="customer-campaign-create-layout">
           <form
-            onSubmit={handleCreateCampaign}
+            onSubmit={handleSubmit}
             style={{
               borderRadius: 28,
               border: '1px solid #e5e7eb',
@@ -673,7 +674,7 @@ export default function CustomerAdvertiserCreateCampaignPage() {
                   <input
                     value={creativeAltText}
                     onChange={(e) => setCreativeAltText(e.target.value)}
-                    placeholder="Promotional banner for furniture sale"
+                    placeholder="Promotional banner alt text"
                     style={inputStyle}
                   />
                 </Field>
@@ -748,7 +749,7 @@ export default function CustomerAdvertiserCreateCampaignPage() {
                     color: '#64748b',
                   }}
                 >
-                  Upload the actual banner/image people should see. This is the missing creative part that was not on your old page. The creative is separate from the campaign fields above. The creative table supports image/native/text style records. :contentReference[oaicite:1]{index=1}
+                  Upload the actual banner/image people should see on the ad.
                 </div>
               </div>
             </div>
@@ -756,7 +757,7 @@ export default function CustomerAdvertiserCreateCampaignPage() {
             <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
               <button
                 type="submit"
-                disabled={submittingCampaign || submittingCreative}
+                disabled={isSubmitting}
                 style={{
                   minHeight: 54,
                   padding: '0 24px',
@@ -766,8 +767,8 @@ export default function CustomerAdvertiserCreateCampaignPage() {
                   color: '#ffffff',
                   fontWeight: 800,
                   fontSize: 15,
-                  cursor: submittingCampaign || submittingCreative ? 'not-allowed' : 'pointer',
-                  opacity: submittingCampaign || submittingCreative ? 0.7 : 1,
+                  cursor: isSubmitting ? 'not-allowed' : 'pointer',
+                  opacity: isSubmitting ? 0.7 : 1,
                 }}
               >
                 {submittingCampaign
@@ -943,16 +944,7 @@ export default function CustomerAdvertiserCreateCampaignPage() {
                 value={form.budget_daily ? formatMoney(form.budget_daily) : '-'}
               />
               <PreviewRow label="Bid" value={form.bid_amount || '-'} />
-            </div>
-
-            <div
-              style={{
-                fontSize: 13,
-                lineHeight: 1.7,
-                color: '#64748b',
-              }}
-            >
-              Admin moderation pages already read campaign info plus creatives, so once you start sending proper creative records, admin can review both campaign data and assets together. 
+              <PreviewRow label="Campaign ID" value={campaign?.id || '-'} />
             </div>
           </div>
         </div>

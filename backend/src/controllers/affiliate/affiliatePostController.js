@@ -459,6 +459,24 @@ async function getLatestSubscriptionPlanByUserId(userId) {
   return rows[0] || null;
 }
 
+async function resolveUserLinkPermission(userId) {
+  const latestPlan = await getLatestSubscriptionPlanByUserId(userId);
+
+  if (latestPlan) {
+    return {
+      allow_external_links: !!latestPlan.allow_external_links,
+      source: 'subscription_plan',
+    };
+  }
+
+  const fallback = await getLatestUserPlanLinkPermission(userId);
+
+  return {
+    allow_external_links: !!fallback?.allow_external_links,
+    source: 'link_validation_service',
+  };
+}
+
 async function getAllowedBlogTemplateIdsByPlanId(planId) {
   if (!planId) return [];
 
@@ -1567,9 +1585,14 @@ async function getMyPostById(req, res) {
       });
     }
 
+    const linkPermission = await resolveUserLinkPermission(userId);
+
     return res.status(200).json({
       ok: true,
       post,
+      link_permissions: {
+        allow_external_links: !!linkPermission.allow_external_links,
+      },
     });
   } catch (error) {
     console.error('getMyPostById error:', error);
@@ -1655,7 +1678,7 @@ async function createPost(req, res) {
       });
     }
 
-    const linkPermission = await getLatestUserPlanLinkPermission(userId);
+    const linkPermission = await resolveUserLinkPermission(userId);
 
     let cleanCategoryId = product.category_id || null;
     if (category_id !== undefined && category_id !== null && category_id !== '') {
@@ -1895,7 +1918,7 @@ async function updatePost(req, res) {
       }
     }
 
-    const linkPermission = await getLatestUserPlanLinkPermission(userId);
+    const linkPermission = await resolveUserLinkPermission(userId);
 
     let cleanCategoryId = existingPost.category_id;
     if (category_id !== undefined) {
