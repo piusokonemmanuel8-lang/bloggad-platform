@@ -19,6 +19,8 @@ import {
   Clock3,
   X,
 } from 'lucide-react';
+import MonetizationAdSlot from '../../../components/monetization/MonetizationAdSlot';
+import useAffiliateMonetizationSlots from '../../../hooks/useAffiliateMonetizationSlots';
 
 function renderPrice(product, formatCurrency) {
   if (!product) return '-';
@@ -69,6 +71,25 @@ function resolveReviewUrl(product, fallbackWebsiteSlug = '') {
 
 function getSafeImage(customUrl, fallbackUrl) {
   return customUrl || fallbackUrl || '';
+}
+
+function StorefrontAdBlock({
+  slotKey,
+  monetizationSettings,
+  websiteId,
+  affiliateUserId,
+}) {
+  return (
+    <MonetizationAdSlot
+      slotKey={slotKey}
+      monetizationSettings={monetizationSettings}
+      placementMode="storefront"
+      reviewRequired={true}
+      darkMode={false}
+      websiteId={websiteId}
+      affiliateUserId={affiliateUserId}
+    />
+  );
 }
 
 function fallbackFurnitureCategories(websiteSlug = '') {
@@ -451,7 +472,7 @@ function MobileCategoryDrawer({ open, onClose, categoryTree }) {
   );
 }
 
-function MainHeader({ headerMenu, categoryTree, config, onOpenCustomerAuth }) {
+function MainHeader({ headerMenu, categoryTree, config, websiteSlug, onOpenCustomerAuth }) {
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   return (
@@ -473,7 +494,7 @@ function MainHeader({ headerMenu, categoryTree, config, onOpenCustomerAuth }) {
             }}
           >
             <Link
-              to="#"
+              to={`/${websiteSlug || ''}`}
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
@@ -630,7 +651,7 @@ function MainHeader({ headerMenu, categoryTree, config, onOpenCustomerAuth }) {
               {(headerMenu?.items || []).slice(0, 8).map((item) => (
                 <Link
                   key={item?.id || item?.label}
-                  to={resolveMenuUrl(item)}
+                  to={resolveMenuUrl(item, websiteSlug)}
                   style={{
                     textDecoration: 'none',
                     color: '#221b16',
@@ -1899,6 +1920,9 @@ function ProductTabsSection({
   onQuickView,
   onImpression,
   formatCurrency,
+  monetizationSettings,
+  websiteId,
+  affiliateUserId,
 }) {
   const [activeTab, setActiveTab] = useState(tabs?.[0] || 'All');
   const displayProducts = useMemo(() => (products || []).slice(0, limit), [products, limit]);
@@ -1938,24 +1962,43 @@ function ProductTabsSection({
       </div>
 
       <div
-        className="furniture-products-grid"
+        className="furniture-products-wrap"
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
+          gridTemplateColumns: 'minmax(0, 1fr) 320px',
           gap: 20,
+          alignItems: 'start',
         }}
       >
-        {displayProducts.map((product, index) => (
-          <ProductCard
-            key={product?.id || `${activeTab}-${index}`}
-            product={product}
-            websiteSlug={websiteSlug}
-            settings={settings}
-            onQuickView={onQuickView}
-            onImpression={onImpression}
-            formatCurrency={formatCurrency}
+        <div
+          className="furniture-products-grid"
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
+            gap: 20,
+          }}
+        >
+          {displayProducts.map((product, index) => (
+            <ProductCard
+              key={product?.id || `${activeTab}-${index}`}
+              product={product}
+              websiteSlug={websiteSlug}
+              settings={settings}
+              onQuickView={onQuickView}
+              onImpression={onImpression}
+              formatCurrency={formatCurrency}
+            />
+          ))}
+        </div>
+
+        <div className="furniture-storefront-sidebar">
+          <StorefrontAdBlock
+            slotKey="storefront_sidebar"
+            monetizationSettings={monetizationSettings}
+            websiteId={websiteId}
+            affiliateUserId={affiliateUserId}
           />
-        ))}
+        </div>
       </div>
     </section>
   );
@@ -2427,7 +2470,7 @@ function NewsletterSection({ config }) {
   );
 }
 
-function FooterSection({ footerConfig, headerMenu }) {
+function FooterSection({ footerConfig, headerMenu, websiteSlug }) {
   return (
     <footer style={{ marginTop: 56, background: '#1d1713', color: '#f8efe6' }}>
       <div className="furniture-container" style={{ paddingTop: 46, paddingBottom: 24 }}>
@@ -2477,7 +2520,7 @@ function FooterSection({ footerConfig, headerMenu }) {
               {(headerMenu?.items || []).slice(0, 6).map((item) => (
                 <Link
                   key={item?.id || item?.label}
-                  to={resolveMenuUrl(item)}
+                  to={resolveMenuUrl(item, websiteSlug)}
                   style={{
                     color: 'rgba(248,239,230,0.76)',
                     textDecoration: 'none',
@@ -2542,6 +2585,7 @@ function FooterSection({ footerConfig, headerMenu }) {
 }
 
 export default function TemplateFurnitureTheme({
+  website,
   websiteSlug,
   sliders,
   menus,
@@ -2571,16 +2615,36 @@ export default function TemplateFurnitureTheme({
     [settings, products]
   );
   const [customerAuthOpen, setCustomerAuthOpen] = useState(false);
+  const { settings: monetizationSettings } = useAffiliateMonetizationSlots({ enabled: true });
 
   const popupWebsiteId =
+    website?.id ||
     settings?.website_id ||
     settings?.website?.id ||
-    "";
+    '';
 
   const popupAffiliateId =
+    website?.user_id ||
+    website?.affiliate_id ||
     settings?.affiliate_id ||
     settings?.user_id ||
-    "";
+    '';
+
+  const resolvedWebsiteId =
+    website?.id ||
+    settings?.website_id ||
+    settings?.website?.id ||
+    monetizationSettings?.website_id ||
+    '';
+
+  const resolvedAffiliateUserId =
+    website?.user_id ||
+    website?.affiliate_id ||
+    settings?.affiliate_id ||
+    settings?.user_id ||
+    monetizationSettings?.affiliate_user_id ||
+    monetizationSettings?.user_id ||
+    '';
 
   return (
     <div
@@ -2603,7 +2667,8 @@ export default function TemplateFurnitureTheme({
           .furniture-category-layout,
           .furniture-newsletter-grid,
           .furniture-footer-grid,
-          .furniture-hero-inner {
+          .furniture-hero-inner,
+          .furniture-products-wrap {
             grid-template-columns: 1fr !important;
           }
 
@@ -2618,6 +2683,10 @@ export default function TemplateFurnitureTheme({
           .furniture-recent-grid,
           .furniture-features-grid {
             grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+          }
+
+          .furniture-storefront-sidebar {
+            order: -1;
           }
         }
 
@@ -2677,10 +2746,20 @@ export default function TemplateFurnitureTheme({
         headerMenu={headerMenu}
         categoryTree={safeCategoryTree}
         config={templateConfig.header}
+        websiteSlug={websiteSlug}
         onOpenCustomerAuth={() => setCustomerAuthOpen(true)}
       />
 
       <main className="furniture-container" style={{ paddingTop: 22, paddingBottom: 20 }}>
+        <div style={{ marginBottom: 22 }}>
+          <StorefrontAdBlock
+            slotKey="storefront_top"
+            monetizationSettings={monetizationSettings}
+            websiteId={resolvedWebsiteId}
+            affiliateUserId={resolvedAffiliateUserId}
+          />
+        </div>
+
         <section
           className="furniture-category-layout"
           style={{
@@ -2704,6 +2783,9 @@ export default function TemplateFurnitureTheme({
             onQuickView={setQuickViewProduct}
             onImpression={handleImpression}
             formatCurrency={formatCurrency}
+            monetizationSettings={monetizationSettings}
+            websiteId={resolvedWebsiteId}
+            affiliateUserId={resolvedAffiliateUserId}
           />
         ) : null}
 
@@ -2744,6 +2826,9 @@ export default function TemplateFurnitureTheme({
             onQuickView={setQuickViewProduct}
             onImpression={handleImpression}
             formatCurrency={formatCurrency}
+            monetizationSettings={monetizationSettings}
+            websiteId={resolvedWebsiteId}
+            affiliateUserId={resolvedAffiliateUserId}
           />
         ) : null}
 
@@ -2762,10 +2847,23 @@ export default function TemplateFurnitureTheme({
         {templateConfig.newsletter.enabled ? (
           <NewsletterSection config={templateConfig.newsletter} />
         ) : null}
+
+        <div style={{ marginTop: 36 }}>
+          <StorefrontAdBlock
+            slotKey="storefront_bottom"
+            monetizationSettings={monetizationSettings}
+            websiteId={resolvedWebsiteId}
+            affiliateUserId={resolvedAffiliateUserId}
+          />
+        </div>
       </main>
 
       {templateConfig.footer.enabled ? (
-        <FooterSection footerConfig={templateConfig.footer} headerMenu={headerMenu} />
+        <FooterSection
+          footerConfig={templateConfig.footer}
+          headerMenu={headerMenu}
+          websiteSlug={websiteSlug}
+        />
       ) : null}
 
       <CustomerAuthPopup

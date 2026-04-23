@@ -19,10 +19,11 @@ import {
   X,
   Plus,
   RefreshCcw,
-  BadgePercent,
   Mail,
   MapPin,
 } from 'lucide-react';
+import MonetizationAdSlot from '../../../components/monetization/MonetizationAdSlot';
+import useAffiliateMonetizationSlots from '../../../hooks/useAffiliateMonetizationSlots';
 
 function renderPrice(product, formatCurrency) {
   if (!product) return '-';
@@ -543,6 +544,25 @@ function getTemplateConfig(settings, website, products) {
         raw?.footer?.copyright || `© ${new Date().getFullYear()} Blogguard. All rights reserved.`,
     },
   };
+}
+
+function StorefrontAdBlock({
+  slotKey,
+  monetizationSettings,
+  websiteId,
+  affiliateUserId,
+}) {
+  return (
+    <MonetizationAdSlot
+      slotKey={slotKey}
+      monetizationSettings={monetizationSettings}
+      placementMode="storefront"
+      reviewRequired={true}
+      darkMode={false}
+      websiteId={websiteId}
+      affiliateUserId={affiliateUserId}
+    />
+  );
 }
 
 function CustomerAuthPopup({
@@ -2495,6 +2515,9 @@ function ProductTabsSection({
   onQuickView,
   onImpression,
   formatCurrency,
+  monetizationSettings,
+  websiteId,
+  affiliateUserId,
 }) {
   const [activeTab, setActiveTab] = useState(tabs?.[0] || 'Featured');
   const displayProducts = useMemo(() => (products || []).slice(0, limit), [products, limit]);
@@ -2534,24 +2557,43 @@ function ProductTabsSection({
       </div>
 
       <div
-        className="multi-product-products-grid"
+        className="multi-product-featured-wrap"
         style={{
           display: 'grid',
-          gridTemplateColumns: `repeat(${Math.max(1, productsPerRow)}, minmax(0, 1fr))`,
+          gridTemplateColumns: 'minmax(0, 1fr) 320px',
           gap: 20,
+          alignItems: 'start',
         }}
       >
-        {displayProducts.map((product, index) => (
-          <ProductCard
-            key={product?.id || `${activeTab}-${index}`}
-            product={product}
-            websiteSlug={websiteSlug}
-            settings={settings}
-            onQuickView={onQuickView}
-            onImpression={onImpression}
-            formatCurrency={formatCurrency}
+        <div
+          className="multi-product-products-grid"
+          style={{
+            display: 'grid',
+            gridTemplateColumns: `repeat(${Math.max(1, productsPerRow)}, minmax(0, 1fr))`,
+            gap: 20,
+          }}
+        >
+          {displayProducts.map((product, index) => (
+            <ProductCard
+              key={product?.id || `${activeTab}-${index}`}
+              product={product}
+              websiteSlug={websiteSlug}
+              settings={settings}
+              onQuickView={onQuickView}
+              onImpression={onImpression}
+              formatCurrency={formatCurrency}
+            />
+          ))}
+        </div>
+
+        <div className="multi-product-storefront-sidebar">
+          <StorefrontAdBlock
+            slotKey="storefront_sidebar"
+            monetizationSettings={monetizationSettings}
+            websiteId={websiteId}
+            affiliateUserId={affiliateUserId}
           />
-        ))}
+        </div>
       </div>
     </section>
   );
@@ -3160,6 +3202,8 @@ export default function TemplateMultiProduct({
 
   const [customerAuthOpen, setCustomerAuthOpen] = useState(false);
 
+  const { settings: monetizationSettings } = useAffiliateMonetizationSlots({ enabled: true });
+
   const popupWebsiteId =
     website?.id ||
     settings?.website_id ||
@@ -3171,6 +3215,22 @@ export default function TemplateMultiProduct({
     website?.affiliate_id ||
     settings?.affiliate_id ||
     settings?.user_id ||
+    '';
+
+  const resolvedWebsiteId =
+    website?.id ||
+    settings?.website_id ||
+    settings?.website?.id ||
+    monetizationSettings?.website_id ||
+    '';
+
+  const resolvedAffiliateUserId =
+    website?.user_id ||
+    website?.affiliate_id ||
+    settings?.affiliate_id ||
+    settings?.user_id ||
+    monetizationSettings?.affiliate_user_id ||
+    monetizationSettings?.user_id ||
     '';
 
   return (
@@ -3208,6 +3268,10 @@ export default function TemplateMultiProduct({
           .multi-product-support-box {
             display: none !important;
           }
+
+          .multi-product-storefront-sidebar {
+            order: -1;
+          }
         }
 
         @media (max-width: 900px) {
@@ -3229,7 +3293,12 @@ export default function TemplateMultiProduct({
             flex-wrap: wrap !important;
           }
 
-          .multi-product-hero-inner {
+          .multi-product-hero-inner,
+          .multi-product-newsletter-grid {
+            grid-template-columns: 1fr !important;
+          }
+
+          .multi-product-featured-wrap {
             grid-template-columns: 1fr !important;
           }
         }
@@ -3246,6 +3315,15 @@ export default function TemplateMultiProduct({
 
       <main>
         <div className="multi-product-container" style={{ paddingTop: 24, paddingBottom: 48 }}>
+          <div style={{ marginBottom: 24 }}>
+            <StorefrontAdBlock
+              slotKey="storefront_top"
+              monetizationSettings={monetizationSettings}
+              websiteId={resolvedWebsiteId}
+              affiliateUserId={resolvedAffiliateUserId}
+            />
+          </div>
+
           <section
             className="multi-product-hero-layout"
             style={{
@@ -3281,6 +3359,9 @@ export default function TemplateMultiProduct({
             onQuickView={setQuickViewProduct}
             onImpression={handleImpression}
             formatCurrency={formatCurrency}
+            monetizationSettings={monetizationSettings}
+            websiteId={resolvedWebsiteId}
+            affiliateUserId={resolvedAffiliateUserId}
           />
 
           <PromoTiles config={config.promo_tiles} />
@@ -3313,6 +3394,15 @@ export default function TemplateMultiProduct({
 
           <NewsSection title={config.news.title} articles={safeArticles} limit={config.news.limit} />
           <NewsletterSection config={config.newsletter} />
+
+          <div style={{ marginTop: 36 }}>
+            <StorefrontAdBlock
+              slotKey="storefront_bottom"
+              monetizationSettings={monetizationSettings}
+              websiteId={resolvedWebsiteId}
+              affiliateUserId={resolvedAffiliateUserId}
+            />
+          </div>
         </div>
       </main>
 

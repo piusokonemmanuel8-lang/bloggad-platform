@@ -20,6 +20,8 @@ import {
   ShieldCheck,
   CreditCard,
 } from 'lucide-react';
+import MonetizationAdSlot from '../../../components/monetization/MonetizationAdSlot';
+import useAffiliateMonetizationSlots from '../../../hooks/useAffiliateMonetizationSlots';
 
 function renderPrice(product, formatCurrency) {
   if (!product) return '-';
@@ -184,6 +186,28 @@ function getTemplateConfig(settings) {
 
 function getCategoryIcon(index) {
   return [Smartphone, Headphones, Monitor, Watch][index % 4];
+}
+
+function StorefrontAdBlock({
+  slotKey,
+  monetizationSettings,
+  darkMode,
+  websiteId,
+  affiliateUserId,
+}) {
+  return (
+    <div style={{ width: '100%' }}>
+      <MonetizationAdSlot
+        slotKey={slotKey}
+        monetizationSettings={monetizationSettings}
+        placementMode="storefront"
+        reviewRequired={true}
+        darkMode={darkMode}
+        websiteId={websiteId}
+        affiliateUserId={affiliateUserId}
+      />
+    </div>
+  );
 }
 
 function CustomerAuthPopup({
@@ -1103,6 +1127,10 @@ export default function TemplateXxam({
   const [darkMode, setDarkMode] = useState(config.theme_mode.default_mode === 'dark');
   const [customerAuthOpen, setCustomerAuthOpen] = useState(false);
 
+  const {
+    settings: monetizationSettings,
+  } = useAffiliateMonetizationSlots({ enabled: true });
+
   useEffect(() => {
     setDarkMode(config.theme_mode.default_mode === 'dark');
   }, [config.theme_mode.default_mode]);
@@ -1143,6 +1171,22 @@ export default function TemplateXxam({
     settings?.storefront?.affiliate_id ||
     '';
 
+  const resolvedWebsiteId =
+    settings?.website_id ||
+    settings?.website?.id ||
+    settings?.storefront?.website_id ||
+    monetizationSettings?.website_id ||
+    '';
+
+  const resolvedAffiliateUserId =
+    settings?.affiliate_id ||
+    settings?.user_id ||
+    settings?.website?.user_id ||
+    settings?.storefront?.affiliate_id ||
+    monetizationSettings?.affiliate_user_id ||
+    monetizationSettings?.user_id ||
+    '';
+
   return (
     <div style={{ minHeight: '100vh', background: colors.bg }}>
       <style>{`
@@ -1168,6 +1212,14 @@ export default function TemplateXxam({
             justify-content: flex-start !important;
             overflow-x: auto;
             white-space: nowrap;
+          }
+
+          .xxam-featured-wrap {
+            grid-template-columns: 1fr !important;
+          }
+
+          .xxam-storefront-sidebar {
+            order: -1;
           }
         }
 
@@ -1416,6 +1468,16 @@ export default function TemplateXxam({
       </header>
 
       <main className="xxam-shell" style={{ paddingTop: 30, paddingBottom: 70 }}>
+        <div style={{ marginBottom: 24 }}>
+          <StorefrontAdBlock
+            slotKey="storefront_top"
+            monetizationSettings={monetizationSettings}
+            darkMode={darkMode}
+            websiteId={resolvedWebsiteId}
+            affiliateUserId={resolvedAffiliateUserId}
+          />
+        </div>
+
         {config.hero.enabled ? (
           <section>
             <div
@@ -1690,24 +1752,44 @@ export default function TemplateXxam({
             </div>
 
             <div
-              className="xxam-product-grid"
+              className="xxam-featured-wrap"
               style={{
                 display: 'grid',
-                gridTemplateColumns: `repeat(${config.featured_products.products_per_row}, minmax(0,1fr))`,
+                gridTemplateColumns: 'minmax(0, 1fr) 320px',
                 gap: 22,
+                alignItems: 'start',
               }}
             >
-              {featuredProducts.map((product, index) => (
-                <ProductCard
-                  key={product?.id || index}
-                  product={product}
-                  websiteSlug={websiteSlug}
-                  formatCurrency={formatCurrency}
+              <div
+                className="xxam-product-grid"
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: `repeat(${config.featured_products.products_per_row}, minmax(0,1fr))`,
+                  gap: 22,
+                }}
+              >
+                {featuredProducts.map((product, index) => (
+                  <ProductCard
+                    key={product?.id || index}
+                    product={product}
+                    websiteSlug={websiteSlug}
+                    formatCurrency={formatCurrency}
+                    darkMode={darkMode}
+                    onQuickView={setQuickViewProduct}
+                    onImpression={handleImpression}
+                  />
+                ))}
+              </div>
+
+              <div className="xxam-storefront-sidebar" style={{ display: 'grid', gap: 18 }}>
+                <StorefrontAdBlock
+                  slotKey="storefront_sidebar"
+                  monetizationSettings={monetizationSettings}
                   darkMode={darkMode}
-                  onQuickView={setQuickViewProduct}
-                  onImpression={handleImpression}
+                  websiteId={resolvedWebsiteId}
+                  affiliateUserId={resolvedAffiliateUserId}
                 />
-              ))}
+              </div>
             </div>
           </section>
         ) : null}
@@ -1933,6 +2015,16 @@ export default function TemplateXxam({
             </div>
           </section>
         ) : null}
+
+        <div style={{ marginTop: 36 }}>
+          <StorefrontAdBlock
+            slotKey="storefront_bottom"
+            monetizationSettings={monetizationSettings}
+            darkMode={darkMode}
+            websiteId={resolvedWebsiteId}
+            affiliateUserId={resolvedAffiliateUserId}
+          />
+        </div>
 
         {config.services_strip.enabled ? (
           <section style={{ marginTop: 46 }}>

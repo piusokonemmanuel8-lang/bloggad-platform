@@ -27,6 +27,8 @@ import {
   CheckCircle2,
   X,
 } from 'lucide-react';
+import MonetizationAdSlot from '../../../components/monetization/MonetizationAdSlot';
+import useAffiliateMonetizationSlots from '../../../hooks/useAffiliateMonetizationSlots';
 
 function renderPrice(product, formatCurrency) {
   if (!product) return '-';
@@ -234,6 +236,25 @@ function getMextroConfig(settings) {
       copyright: raw?.footer?.copyright || '© 2026 Bloggad. All rights reserved.',
     },
   };
+}
+
+function StorefrontAdBlock({
+  slotKey,
+  monetizationSettings,
+  websiteId,
+  affiliateUserId,
+}) {
+  return (
+    <MonetizationAdSlot
+      slotKey={slotKey}
+      monetizationSettings={monetizationSettings}
+      placementMode="storefront"
+      reviewRequired={true}
+      darkMode={false}
+      websiteId={websiteId}
+      affiliateUserId={affiliateUserId}
+    />
+  );
 }
 
 function brandLogoStyle(isDark) {
@@ -1167,6 +1188,8 @@ export default function TemplateMextro({
   const [mobileCatsOpen, setMobileCatsOpen] = useState(false);
   const [customerAuthOpen, setCustomerAuthOpen] = useState(false);
 
+  const { settings: monetizationSettings } = useAffiliateMonetizationSlots({ enabled: true });
+
   useEffect(() => {
     setDarkMode(config.theme_mode.default_mode === 'dark');
   }, [config.theme_mode.default_mode]);
@@ -1198,6 +1221,22 @@ export default function TemplateMextro({
     website?.affiliate_id ||
     settings?.affiliate_id ||
     settings?.user_id ||
+    '';
+
+  const resolvedWebsiteId =
+    website?.id ||
+    settings?.website_id ||
+    settings?.website?.id ||
+    monetizationSettings?.website_id ||
+    '';
+
+  const resolvedAffiliateUserId =
+    website?.user_id ||
+    website?.affiliate_id ||
+    settings?.affiliate_id ||
+    settings?.user_id ||
+    monetizationSettings?.affiliate_user_id ||
+    monetizationSettings?.user_id ||
     '';
 
   useEffect(() => {
@@ -1620,6 +1659,15 @@ export default function TemplateMextro({
       ) : null}
 
       <main className="mextro-container" style={{ paddingTop: 30, paddingBottom: 70 }}>
+        <div style={{ marginBottom: 24 }}>
+          <StorefrontAdBlock
+            slotKey="storefront_top"
+            monetizationSettings={monetizationSettings}
+            websiteId={resolvedWebsiteId}
+            affiliateUserId={resolvedAffiliateUserId}
+          />
+        </div>
+
         <section
           className="mextro-hero-grid"
           style={{
@@ -2117,32 +2165,51 @@ export default function TemplateMextro({
             </div>
 
             <div
-              className="mextro-products-grid"
+              className="mextro-featured-wrap"
               style={{
                 display: 'grid',
-                gridTemplateColumns: `repeat(${config.featured_products.products_per_row}, minmax(0,1fr))`,
-                gap: 0,
-                borderLeft: `1px solid ${colors.border}`,
-                borderTop: `1px solid ${colors.border}`,
+                gridTemplateColumns: 'minmax(0, 1fr) 320px',
+                gap: 24,
+                alignItems: 'start',
               }}
             >
-              {featuredProducts.map((product, index) => (
-                <div
-                  key={product.id || index}
-                  style={{
-                    borderRight: `1px solid ${colors.border}`,
-                    borderBottom: `1px solid ${colors.border}`,
-                  }}
-                >
-                  <ProductCard
-                    product={product}
-                    websiteSlug={websiteSlug}
-                    formatCurrency={formatCurrency}
-                    darkMode={darkMode}
-                    onQuickView={setQuickViewProduct}
-                  />
-                </div>
-              ))}
+              <div
+                className="mextro-products-grid"
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: `repeat(${config.featured_products.products_per_row}, minmax(0,1fr))`,
+                  gap: 0,
+                  borderLeft: `1px solid ${colors.border}`,
+                  borderTop: `1px solid ${colors.border}`,
+                }}
+              >
+                {featuredProducts.map((product, index) => (
+                  <div
+                    key={product.id || index}
+                    style={{
+                      borderRight: `1px solid ${colors.border}`,
+                      borderBottom: `1px solid ${colors.border}`,
+                    }}
+                  >
+                    <ProductCard
+                      product={product}
+                      websiteSlug={websiteSlug}
+                      formatCurrency={formatCurrency}
+                      darkMode={darkMode}
+                      onQuickView={setQuickViewProduct}
+                    />
+                  </div>
+                ))}
+              </div>
+
+              <div className="mextro-storefront-sidebar">
+                <StorefrontAdBlock
+                  slotKey="storefront_sidebar"
+                  monetizationSettings={monetizationSettings}
+                  websiteId={resolvedWebsiteId}
+                  affiliateUserId={resolvedAffiliateUserId}
+                />
+              </div>
             </div>
           </section>
         ) : null}
@@ -2333,6 +2400,15 @@ export default function TemplateMextro({
             </div>
           </section>
         ) : null}
+
+        <div style={{ marginTop: 36 }}>
+          <StorefrontAdBlock
+            slotKey="storefront_bottom"
+            monetizationSettings={monetizationSettings}
+            websiteId={resolvedWebsiteId}
+            affiliateUserId={resolvedAffiliateUserId}
+          />
+        </div>
       </main>
 
       {config.footer.enabled ? (

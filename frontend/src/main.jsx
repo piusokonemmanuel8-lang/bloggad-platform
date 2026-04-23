@@ -36,6 +36,12 @@ import AffiliateSettingsPage from './pages/affiliate/AffiliateSettingsPage';
 import AffiliateChatsPage from './pages/affiliate/AffiliateChatsPage';
 import AffiliateCustomersPage from './pages/affiliate/AffiliateCustomersPage';
 import AffiliateEmailListsPage from './pages/affiliate/AffiliateEmailListsPage';
+import AffiliateMonetizationEligibilityPage from './pages/affiliate/AffiliateMonetizationEligibilityPage';
+import AffiliateMyAdsPage from './pages/affiliate/AffiliateMyAdsPage';
+import AffiliateBlogPulseAnalyticsPage from './pages/affiliate/AffiliateBlogPulseAnalyticsPage';
+import AffiliateBlogPulseWalletPage from './pages/affiliate/AffiliateBlogPulseWalletPage';
+import AffiliateAdPlacementPage from './pages/affiliate/AffiliateAdPlacementPage';
+import AffiliateMonetizationAnalyticsOverviewPage from './pages/affiliate/AffiliateMonetizationAnalyticsOverviewPage';
 
 import AdminDashboardPage from './pages/admin/AdminDashboardPage';
 import AdminCategoriesPage from './pages/admin/AdminCategoriesPage';
@@ -48,6 +54,11 @@ import AdminLinkValidationPage from './pages/admin/AdminLinkValidationPage';
 import AdminChatsPage from './pages/admin/AdminChatsPage';
 import AdminUsersPage from './pages/admin/AdminUsersPage';
 import AdminEmailListsPage from './pages/admin/AdminEmailListsPage';
+import AdminBlogPulsePage from './pages/admin/AdminBlogPulsePage';
+import AdminCampaignModerationPage from './pages/admin/AdminCampaignModerationPage';
+import AdminCampaignModerationDetailsPage from './pages/admin/AdminCampaignModerationDetailsPage';
+import AdminPaymentModerationPage from './pages/admin/AdminPaymentModerationPage';
+import AdminPaymentModerationDetailsPage from './pages/admin/AdminPaymentModerationDetailsPage';
 
 import HomePage from './pages/public/HomePage';
 import WebsiteStorefrontPage from './pages/public/WebsiteStorefrontPage';
@@ -58,6 +69,13 @@ import WebsitePostsPage from './pages/public/WebsitePostsPage';
 import WebsiteCategoryPage from './pages/public/WebsiteCategoryPage';
 
 import CustomerDashboardPage from './pages/customer/CustomerDashboardPage';
+import CustomerAdvertiserDashboardPage from './pages/customer/CustomerAdvertiserDashboardPage';
+import CustomerAdvertiserProfilePage from './pages/customer/CustomerAdvertiserProfilePage';
+import CustomerAdvertiserWalletPage from './pages/customer/CustomerAdvertiserWalletPage';
+import CustomerAdvertiserCampaignsPage from './pages/customer/CustomerAdvertiserCampaignsPage';
+import CustomerAdvertiserCreateCampaignPage from './pages/customer/CustomerAdvertiserCreateCampaignPage';
+import CustomerAdvertiserCampaignDetailsPage from './pages/customer/CustomerAdvertiserCampaignDetailsPage';
+import CustomerAdvertiserCreativesPage from './pages/customer/CustomerAdvertiserCreativesPage';
 import CustomerSavedPostsPage from './pages/customer/CustomerSavedPostsPage';
 import CustomerSavedProductsPage from './pages/customer/CustomerSavedProductsPage';
 import CustomerMessagesPage from './pages/customer/CustomerMessagesPage';
@@ -137,6 +155,31 @@ ReactDOM.createRoot(document.getElementById('root')).render(
             <Route path="/affiliate/chats" element={<AffiliateChatsPage />} />
             <Route path="/affiliate/subscription" element={<AffiliateSubscriptionPage />} />
             <Route path="/affiliate/settings" element={<AffiliateSettingsPage />} />
+
+            <Route
+              path="/affiliate/monetization/eligibility"
+              element={<AffiliateMonetizationEligibilityPage />}
+            />
+            <Route
+              path="/affiliate/monetization/analytics"
+              element={<AffiliateMonetizationAnalyticsOverviewPage />}
+            />
+            <Route
+              path="/affiliate/monetization/blogpulse-analytics"
+              element={<AffiliateBlogPulseAnalyticsPage />}
+            />
+            <Route
+              path="/affiliate/monetization/wallet"
+              element={<AffiliateBlogPulseWalletPage />}
+            />
+            <Route
+              path="/affiliate/monetization/my-ads"
+              element={<AffiliateMyAdsPage />}
+            />
+            <Route
+              path="/affiliate/monetization/ad-placement"
+              element={<AffiliateAdPlacementPage />}
+            />
           </Route>
 
           <Route element={<AdminLayout />}>
@@ -144,6 +187,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
             <Route path="/admin/categories" element={<AdminCategoriesPage />} />
             <Route path="/admin/templates" element={<AdminTemplatesPage />} />
             <Route path="/admin/plans" element={<AdminPlansPage />} />
+            <Route path="/admin/blogpulse" element={<AdminBlogPulsePage />} />
             <Route path="/admin/affiliates" element={<AdminAffiliatesPage />} />
             <Route path="/admin/users" element={<AdminUsersPage />} />
             <Route path="/admin/email-lists" element={<AdminEmailListsPage />} />
@@ -151,6 +195,16 @@ ReactDOM.createRoot(document.getElementById('root')).render(
             <Route path="/admin/posts" element={<AdminPostsPage />} />
             <Route path="/admin/chats" element={<AdminChatsPage />} />
             <Route path="/admin/link-validation" element={<AdminLinkValidationPage />} />
+            <Route path="/admin/campaign-moderation" element={<AdminCampaignModerationPage />} />
+            <Route
+              path="/admin/campaign-moderation/:campaignId"
+              element={<AdminCampaignModerationDetailsPage />}
+            />
+            <Route path="/admin/payment-moderation" element={<AdminPaymentModerationPage />} />
+            <Route
+              path="/admin/payment-moderation/:paymentId"
+              element={<AdminPaymentModerationDetailsPage />}
+            />
           </Route>
 
           <Route
@@ -158,6 +212,62 @@ ReactDOM.createRoot(document.getElementById('root')).render(
             element={
               <CustomerProtectedRoute>
                 <CustomerDashboardPage />
+              </CustomerProtectedRoute>
+            }
+          />
+          <Route
+            path="/customer/advertiser"
+            element={
+              <CustomerProtectedRoute>
+                <CustomerAdvertiserDashboardPage />
+              </CustomerProtectedRoute>
+            }
+          />
+          <Route
+            path="/customer/advertiser/profile"
+            element={
+              <CustomerProtectedRoute>
+                <CustomerAdvertiserProfilePage />
+              </CustomerProtectedRoute>
+            }
+          />
+          <Route
+            path="/customer/advertiser/wallet"
+            element={
+              <CustomerProtectedRoute>
+                <CustomerAdvertiserWalletPage />
+              </CustomerProtectedRoute>
+            }
+          />
+          <Route
+            path="/customer/advertiser/campaigns"
+            element={
+              <CustomerProtectedRoute>
+                <CustomerAdvertiserCampaignsPage />
+              </CustomerProtectedRoute>
+            }
+          />
+          <Route
+            path="/customer/advertiser/campaigns/create"
+            element={
+              <CustomerProtectedRoute>
+                <CustomerAdvertiserCreateCampaignPage />
+              </CustomerProtectedRoute>
+            }
+          />
+          <Route
+            path="/customer/advertiser/campaigns/:campaignId"
+            element={
+              <CustomerProtectedRoute>
+                <CustomerAdvertiserCampaignDetailsPage />
+              </CustomerProtectedRoute>
+            }
+          />
+          <Route
+            path="/customer/advertiser/campaigns/:campaignId/creatives"
+            element={
+              <CustomerProtectedRoute>
+                <CustomerAdvertiserCreativesPage />
               </CustomerProtectedRoute>
             }
           />

@@ -21,6 +21,8 @@ import {
   Headphones,
   X,
 } from 'lucide-react';
+import MonetizationAdSlot from '../../../components/monetization/MonetizationAdSlot';
+import useAffiliateMonetizationSlots from '../../../hooks/useAffiliateMonetizationSlots';
 
 function renderPrice(product, formatCurrency) {
   if (!product) return '-';
@@ -205,6 +207,25 @@ function HeaderIcon({ children, count, dark = false, onClick }) {
       ) : null}
       {children}
     </button>
+  );
+}
+
+function StorefrontAdBlock({
+  slotKey,
+  monetizationSettings,
+  websiteId,
+  affiliateUserId,
+}) {
+  return (
+    <MonetizationAdSlot
+      slotKey={slotKey}
+      monetizationSettings={monetizationSettings}
+      placementMode="storefront"
+      reviewRequired={true}
+      darkMode={false}
+      websiteId={websiteId}
+      affiliateUserId={affiliateUserId}
+    />
   );
 }
 
@@ -1909,6 +1930,9 @@ function OffersSection({
   onImpression,
   settings,
   formatCurrency,
+  monetizationSettings,
+  websiteId,
+  affiliateUserId,
 }) {
   const items = (products || []).slice(0, settings.offersLimit);
 
@@ -1954,24 +1978,43 @@ function OffersSection({
       </div>
 
       <div
-        className="store-offer-grid"
+        className="store-offers-wrap"
         style={{
           display: 'grid',
-          gridTemplateColumns: `repeat(${settings.offersPerRow}, minmax(0, 1fr))`,
+          gridTemplateColumns: 'minmax(0, 1fr) 320px',
           gap: 22,
+          alignItems: 'start',
         }}
       >
-        {items.map((product, index) => (
-          <OfferCard
-            key={product.id || index}
-            product={product}
-            websiteSlug={websiteSlug}
-            onQuickView={onQuickView}
-            onImpression={onImpression}
-            settings={settings}
-            formatCurrency={formatCurrency}
+        <div
+          className="store-offer-grid"
+          style={{
+            display: 'grid',
+            gridTemplateColumns: `repeat(${settings.offersPerRow}, minmax(0, 1fr))`,
+            gap: 22,
+          }}
+        >
+          {items.map((product, index) => (
+            <OfferCard
+              key={product.id || index}
+              product={product}
+              websiteSlug={websiteSlug}
+              onQuickView={onQuickView}
+              onImpression={onImpression}
+              settings={settings}
+              formatCurrency={formatCurrency}
+            />
+          ))}
+        </div>
+
+        <div className="storefront-sidebar-slot">
+          <StorefrontAdBlock
+            slotKey="storefront_sidebar"
+            monetizationSettings={monetizationSettings}
+            websiteId={websiteId}
+            affiliateUserId={affiliateUserId}
           />
-        ))}
+        </div>
       </div>
     </section>
   );
@@ -2500,6 +2543,8 @@ export default function TemplatePremiumBrand({
 
   const [customerAuthOpen, setCustomerAuthOpen] = useState(false);
 
+  const { settings: monetizationSettings } = useAffiliateMonetizationSlots({ enabled: true });
+
   const popupWebsiteId =
     website?.id ||
     settings?.website_id ||
@@ -2511,6 +2556,22 @@ export default function TemplatePremiumBrand({
     website?.affiliate_id ||
     settings?.affiliate_id ||
     settings?.user_id ||
+    '';
+
+  const resolvedWebsiteId =
+    website?.id ||
+    settings?.website_id ||
+    settings?.website?.id ||
+    monetizationSettings?.website_id ||
+    '';
+
+  const resolvedAffiliateUserId =
+    website?.user_id ||
+    website?.affiliate_id ||
+    settings?.affiliate_id ||
+    settings?.user_id ||
+    monetizationSettings?.affiliate_user_id ||
+    monetizationSettings?.user_id ||
     '';
 
   return (
@@ -2542,7 +2603,8 @@ export default function TemplatePremiumBrand({
 
         @media (max-width: 1100px) {
           .store-hero-grid,
-          .big-promo-grid {
+          .big-promo-grid,
+          .store-offers-wrap {
             grid-template-columns: minmax(0, 1fr) !important;
           }
 
@@ -2565,6 +2627,10 @@ export default function TemplatePremiumBrand({
 
           .store-desktop-all-categories {
             display: none !important;
+          }
+
+          .storefront-sidebar-slot {
+            order: -1;
           }
         }
 
@@ -2598,6 +2664,15 @@ export default function TemplatePremiumBrand({
       />
 
       <div className="store-container store-page-wrap" style={{ paddingTop: 22, paddingBottom: 64 }}>
+        <div style={{ marginBottom: 24 }}>
+          <StorefrontAdBlock
+            slotKey="storefront_top"
+            monetizationSettings={monetizationSettings}
+            websiteId={resolvedWebsiteId}
+            affiliateUserId={resolvedAffiliateUserId}
+          />
+        </div>
+
         <HeroSection sliders={sliders} products={products} templateConfig={templateConfig} />
 
         {templateConfig.sections.popular_categories ? (
@@ -2612,6 +2687,9 @@ export default function TemplatePremiumBrand({
             onImpression={handleImpression}
             settings={settings}
             formatCurrency={formatCurrency}
+            monetizationSettings={monetizationSettings}
+            websiteId={resolvedWebsiteId}
+            affiliateUserId={resolvedAffiliateUserId}
           />
         ) : null}
 
@@ -2626,6 +2704,15 @@ export default function TemplatePremiumBrand({
         {templateConfig.sections.articles ? (
           <ArticleSection articles={articles} settings={settings} />
         ) : null}
+
+        <div style={{ marginTop: 36 }}>
+          <StorefrontAdBlock
+            slotKey="storefront_bottom"
+            monetizationSettings={monetizationSettings}
+            websiteId={resolvedWebsiteId}
+            affiliateUserId={resolvedAffiliateUserId}
+          />
+        </div>
       </div>
 
       <CustomerAuthPopup

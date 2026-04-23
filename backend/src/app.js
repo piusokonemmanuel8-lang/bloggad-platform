@@ -137,6 +137,10 @@ function createApp() {
     './routes/affiliate/affiliateAnalyticsRoutes',
   ]);
 
+  mount(app, '/api/affiliate/blogpulse-earnings', 'affiliateBlogPulseEarningsRoutes', [
+    './routes/affiliate/affiliateBlogPulseEarningsRoutes',
+  ]);
+
   mount(app, '/api/affiliate/media', 'affiliateMediaRoutes', [
     './routes/affiliate/affiliateMediaRoutes',
     './routes/affiliate/affiliateMediaLibraryRoutes',
@@ -186,6 +190,18 @@ function createApp() {
     './routes/admin/adminLinkValidationRoutes',
   ]);
 
+  mount(app, '/api/admin/blogpulse', 'adminBlogPulseRoutes', [
+    './routes/admin/adminBlogPulseRoutes',
+  ]);
+
+  mount(app, '/api/admin/advertiser-campaigns', 'adminAdvertiserCampaignRoutes', [
+    './routes/admin/adminAdvertiserCampaignRoutes',
+  ]);
+
+  mount(app, '/api/admin/advertiser-payments', 'adminAdvertiserPaymentRoutes', [
+    './routes/admin/adminAdvertiserPaymentRoutes',
+  ]);
+
   // public
   mount(app, '/api/public/home', 'publicHomeRoutes', [
     './routes/public/publicHomeRoutes',
@@ -209,6 +225,10 @@ function createApp() {
   mount(app, '/api/public/posts', 'publicPostRoutes', [
     './routes/public/publicPostRoutes',
     './routes/public/publicPostsRoutes',
+  ]);
+
+  mount(app, '/api/public/ads', 'publicAdRoutes', [
+    './routes/public/publicAdRoutes',
   ]);
 
   mount(app, '/api/public', 'publicTemplateRoutes', [

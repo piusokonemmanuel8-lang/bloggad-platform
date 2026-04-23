@@ -19,6 +19,12 @@ import {
   Menu,
   X,
   ChevronRight,
+  BadgeDollarSign,
+  LineChart,
+  Wallet,
+  SquarePen,
+  PanelsTopLeft,
+  ChartNoAxesCombined,
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 
@@ -64,6 +70,14 @@ export default function AffiliateLayout() {
     { label: 'Sliders', to: '/affiliate/sliders', icon: SlidersHorizontal },
     { label: 'Media Library', to: '/affiliate/media', icon: ImageIcon },
     { label: 'Design', to: '/affiliate/design', icon: Palette },
+
+    { label: 'Monetization Eligibility', to: '/affiliate/monetization/eligibility', icon: BadgeDollarSign },
+    { label: 'Monetization Analytics', to: '/affiliate/monetization/analytics', icon: ChartNoAxesCombined },
+    { label: 'BlogPulse Earnings', to: '/affiliate/monetization/blogpulse-analytics', icon: LineChart },
+    { label: 'BlogPulse Wallet', to: '/affiliate/monetization/wallet', icon: Wallet },
+    { label: 'My Ads', to: '/affiliate/monetization/my-ads', icon: SquarePen },
+    { label: 'Ad Placement', to: '/affiliate/monetization/ad-placement', icon: PanelsTopLeft },
+
     { label: 'Analytics', to: '/affiliate/analytics', icon: BarChart3 },
     { label: 'My Customers', to: '/affiliate/customers', icon: Users },
     { label: 'Email Lists', to: '/affiliate/email-lists', icon: Mail },
@@ -160,7 +174,10 @@ export default function AffiliateLayout() {
 
             <div className="affiliate-layout-topbar-copy">
               <h1>{greeting}</h1>
-              <p>Manage your website, products, posts, design, analytics, customers, email lists, chats, and settings from one place.</p>
+              <p>
+                Manage your website, products, posts, design, monetization, analytics,
+                customers, email lists, chats, and settings from one place.
+              </p>
             </div>
           </div>
 

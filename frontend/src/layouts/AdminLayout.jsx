@@ -14,6 +14,9 @@ import {
   Menu,
   X,
   LogOut,
+  CircleDollarSign,
+  Megaphone,
+  Wallet,
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 
@@ -25,6 +28,9 @@ const adminMenu = [
   { label: 'Categories', to: '/admin/categories', icon: FolderTree },
   { label: 'Templates', to: '/admin/templates', icon: LayoutTemplate },
   { label: 'Plans', to: '/admin/plans', icon: CreditCard },
+  { label: 'BlogPulse', to: '/admin/blogpulse', icon: CircleDollarSign },
+  { label: 'Campaign Moderation', to: '/admin/campaign-moderation', icon: Megaphone },
+  { label: 'Payment Moderation', to: '/admin/payment-moderation', icon: Wallet },
   { label: 'Products', to: '/admin/products', icon: Box },
   { label: 'Posts', to: '/admin/posts', icon: FileText },
   { label: 'Chats', to: '/admin/chats', icon: MessageSquare },
@@ -208,6 +214,7 @@ export default function AdminLayout() {
                   borderLeft: active ? '3px solid #72aee6' : '3px solid transparent',
                   fontWeight: active ? 700 : 500,
                   fontSize: 16,
+                  textDecoration: 'none',
                 }}
               >
                 <Icon size={18} />

@@ -18,6 +18,8 @@ import {
   X,
 } from 'lucide-react';
 import formatCurrency from '../../../utils/formatCurrency';
+import MonetizationAdSlot from '../../../components/monetization/MonetizationAdSlot';
+import useAffiliateMonetizationSlots from '../../../hooks/useAffiliateMonetizationSlots';
 
 function safeArray(value) {
   return Array.isArray(value) ? value : [];
@@ -352,6 +354,25 @@ function getImage(bucket, sectionKey, field, fallback) {
 function getNumber(bucket, sectionKey, field, fallback) {
   const value = Number(bucket?.[sectionKey]?.[field]);
   return Number.isFinite(value) && value > 0 ? value : fallback;
+}
+
+function StorefrontAdBlock({
+  slotKey,
+  monetizationSettings,
+  websiteId,
+  affiliateUserId,
+}) {
+  return (
+    <MonetizationAdSlot
+      slotKey={slotKey}
+      monetizationSettings={monetizationSettings}
+      placementMode="storefront"
+      reviewRequired={true}
+      darkMode={false}
+      websiteId={websiteId}
+      affiliateUserId={affiliateUserId}
+    />
+  );
 }
 
 function StoreTopStrip({ bucket }) {
@@ -2012,6 +2033,9 @@ function FeaturedProductsSection({
   onQuickView,
   onImpression,
   allowProductQuickView,
+  monetizationSettings,
+  websiteId,
+  affiliateUserId,
 }) {
   const limit = getNumber(bucket, 'featured_products', 'limit', 8);
 
@@ -2024,26 +2048,45 @@ function FeaturedProductsSection({
       />
 
       <div
-        className="supp-products-grid"
+        className="supp-featured-wrap"
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
+          gridTemplateColumns: 'minmax(0, 1fr) 320px',
           gap: 20,
+          alignItems: 'start',
         }}
       >
-        {safeArray(products)
-          .slice(0, limit)
-          .map((product, index) => (
-            <ProductCard
-              key={product?.id || index}
-              product={product}
-              index={index}
-              websiteSlug={websiteSlug}
-              onQuickView={onQuickView}
-              onImpression={onImpression}
-              allowProductQuickView={allowProductQuickView}
-            />
-          ))}
+        <div
+          className="supp-products-grid"
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
+            gap: 20,
+          }}
+        >
+          {safeArray(products)
+            .slice(0, limit)
+            .map((product, index) => (
+              <ProductCard
+                key={product?.id || index}
+                product={product}
+                index={index}
+                websiteSlug={websiteSlug}
+                onQuickView={onQuickView}
+                onImpression={onImpression}
+                allowProductQuickView={allowProductQuickView}
+              />
+            ))}
+        </div>
+
+        <div className="supp-storefront-sidebar">
+          <StorefrontAdBlock
+            slotKey="storefront_sidebar"
+            monetizationSettings={monetizationSettings}
+            websiteId={websiteId}
+            affiliateUserId={affiliateUserId}
+          />
+        </div>
       </div>
     </section>
   );
@@ -2599,6 +2642,8 @@ export default function TemplateSupplementTheme({
   const bucket = useMemo(() => getTemplateBucket(settings), [settings]);
   const [customerAuthOpen, setCustomerAuthOpen] = useState(false);
 
+  const { settings: monetizationSettings } = useAffiliateMonetizationSlots({ enabled: true });
+
   const liveProducts =
     safeArray(products).length > 0 ? safeArray(products) : makeSupplementDummyProducts(websiteSlug);
   const liveArticles =
@@ -2619,6 +2664,22 @@ export default function TemplateSupplementTheme({
     website?.affiliate_id ||
     settings?.affiliate_id ||
     settings?.user_id ||
+    '';
+
+  const resolvedWebsiteId =
+    website?.id ||
+    settings?.website_id ||
+    settings?.website?.id ||
+    monetizationSettings?.website_id ||
+    '';
+
+  const resolvedAffiliateUserId =
+    website?.user_id ||
+    website?.affiliate_id ||
+    settings?.affiliate_id ||
+    settings?.user_id ||
+    monetizationSettings?.affiliate_user_id ||
+    monetizationSettings?.user_id ||
     '';
 
   const allowProductQuickView = settings?.allowProductQuickView !== false;
@@ -2652,6 +2713,15 @@ export default function TemplateSupplementTheme({
       />
 
       <div className="supp-container" style={{ padding: '0 0 20px' }}>
+        <div style={{ marginTop: 20 }}>
+          <StorefrontAdBlock
+            slotKey="storefront_top"
+            monetizationSettings={monetizationSettings}
+            websiteId={resolvedWebsiteId}
+            affiliateUserId={resolvedAffiliateUserId}
+          />
+        </div>
+
         {sectionEnabled(bucket, 'hero', true) ? (
           <HeroSection
             sliders={liveSliders}
@@ -2671,6 +2741,9 @@ export default function TemplateSupplementTheme({
             onQuickView={openQuickView}
             onImpression={onImpression}
             allowProductQuickView={allowProductQuickView}
+            monetizationSettings={monetizationSettings}
+            websiteId={resolvedWebsiteId}
+            affiliateUserId={resolvedAffiliateUserId}
           />
         ) : null}
 
@@ -2681,6 +2754,15 @@ export default function TemplateSupplementTheme({
         {sectionEnabled(bucket, 'articles', true) ? (
           <ArticlesSection articles={liveArticles} websiteSlug={websiteSlug} bucket={bucket} />
         ) : null}
+
+        <div style={{ marginTop: 36 }}>
+          <StorefrontAdBlock
+            slotKey="storefront_bottom"
+            monetizationSettings={monetizationSettings}
+            websiteId={resolvedWebsiteId}
+            affiliateUserId={resolvedAffiliateUserId}
+          />
+        </div>
 
         {sectionEnabled(bucket, 'newsletter', true) ? <NewsletterSection bucket={bucket} /> : null}
 
@@ -2728,8 +2810,13 @@ export default function TemplateSupplementTheme({
 
           .supp-large-promo,
           .supp-newsletter,
-          .supp-hero-grid {
+          .supp-hero-grid,
+          .supp-featured-wrap {
             grid-template-columns: 1fr !important;
+          }
+
+          .supp-storefront-sidebar {
+            order: -1;
           }
         }
 
@@ -2794,7 +2881,8 @@ export default function TemplateSupplementTheme({
           .supp-articles-grid,
           .supp-footer-grid,
           .supp-newsletter,
-          .supp-newsletter-form {
+          .supp-newsletter-form,
+          .supp-featured-wrap {
             grid-template-columns: 1fr !important;
           }
 

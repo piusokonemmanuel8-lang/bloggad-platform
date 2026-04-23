@@ -20,6 +20,8 @@ import {
   Clock3,
   X,
 } from 'lucide-react';
+import MonetizationAdSlot from '../../../components/monetization/MonetizationAdSlot';
+import useAffiliateMonetizationSlots from '../../../hooks/useAffiliateMonetizationSlots';
 
 function renderPrice(product, formatCurrency) {
   if (!product) return '-';
@@ -70,6 +72,25 @@ function resolveReviewUrl(product, fallbackWebsiteSlug = '') {
 
 function getSafeImage(customUrl, fallbackUrl) {
   return customUrl || fallbackUrl || '';
+}
+
+function StorefrontAdBlock({
+  slotKey,
+  monetizationSettings,
+  websiteId,
+  affiliateUserId,
+}) {
+  return (
+    <MonetizationAdSlot
+      slotKey={slotKey}
+      monetizationSettings={monetizationSettings}
+      placementMode="storefront"
+      reviewRequired={true}
+      darkMode={false}
+      websiteId={websiteId}
+      affiliateUserId={affiliateUserId}
+    />
+  );
 }
 
 function fallbackGroceryCategories(websiteSlug = '') {
@@ -659,7 +680,7 @@ function MainHeader({ headerMenu, categoryTree, config, websiteSlug, onOpenCusto
               {(headerMenu?.items || []).slice(0, 8).map((item) => (
                 <Link
                   key={item?.id || item?.label}
-                  to={resolveMenuUrl(item)}
+                  to={resolveMenuUrl(item, websiteSlug)}
                   style={{
                     textDecoration: 'none',
                     color: '#1f2c1c',
@@ -2057,6 +2078,9 @@ function ProductTabsSection({
   onQuickView,
   onImpression,
   formatCurrency,
+  monetizationSettings,
+  websiteId,
+  affiliateUserId,
 }) {
   const [activeTab, setActiveTab] = useState(tabs?.[0] || 'Featured');
   const displayProducts = useMemo(() => (products || []).slice(0, limit), [products, limit]);
@@ -2096,24 +2120,43 @@ function ProductTabsSection({
       </div>
 
       <div
-        className="grocery-products-grid"
+        className="grocery-products-wrap"
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
+          gridTemplateColumns: 'minmax(0, 1fr) 320px',
           gap: 20,
+          alignItems: 'start',
         }}
       >
-        {displayProducts.map((product, index) => (
-          <ProductCard
-            key={product?.id || `${activeTab}-${index}`}
-            product={product}
-            websiteSlug={websiteSlug}
-            settings={settings}
-            onQuickView={onQuickView}
-            onImpression={onImpression}
-            formatCurrency={formatCurrency}
+        <div
+          className="grocery-products-grid"
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
+            gap: 20,
+          }}
+        >
+          {displayProducts.map((product, index) => (
+            <ProductCard
+              key={product?.id || `${activeTab}-${index}`}
+              product={product}
+              websiteSlug={websiteSlug}
+              settings={settings}
+              onQuickView={onQuickView}
+              onImpression={onImpression}
+              formatCurrency={formatCurrency}
+            />
+          ))}
+        </div>
+
+        <div className="grocery-storefront-sidebar">
+          <StorefrontAdBlock
+            slotKey="storefront_sidebar"
+            monetizationSettings={monetizationSettings}
+            websiteId={websiteId}
+            affiliateUserId={affiliateUserId}
           />
-        ))}
+        </div>
       </div>
     </section>
   );
@@ -2508,7 +2551,7 @@ function NewsletterSection({ config }) {
   );
 }
 
-function FooterSection({ footerConfig, headerMenu }) {
+function FooterSection({ footerConfig, headerMenu, websiteSlug }) {
   return (
     <footer style={{ marginTop: 56, background: '#1f2c1c', color: '#f4fff2' }}>
       <div className="grocery-container" style={{ paddingTop: 46, paddingBottom: 24 }}>
@@ -2558,7 +2601,7 @@ function FooterSection({ footerConfig, headerMenu }) {
               {(headerMenu?.items || []).slice(0, 6).map((item) => (
                 <Link
                   key={item?.id || item?.label}
-                  to={resolveMenuUrl(item)}
+                  to={resolveMenuUrl(item, websiteSlug)}
                   style={{
                     color: 'rgba(244,255,242,0.78)',
                     textDecoration: 'none',
@@ -2623,6 +2666,7 @@ function FooterSection({ footerConfig, headerMenu }) {
 }
 
 export default function TemplateGroceryTheme({
+  website,
   websiteSlug,
   menus,
   categories,
@@ -2651,15 +2695,35 @@ export default function TemplateGroceryTheme({
     [settings, products]
   );
   const [customerAuthOpen, setCustomerAuthOpen] = useState(false);
+  const { settings: monetizationSettings } = useAffiliateMonetizationSlots({ enabled: true });
 
   const popupWebsiteId =
+    website?.id ||
     settings?.website_id ||
     settings?.website?.id ||
     '';
 
   const popupAffiliateId =
+    website?.user_id ||
+    website?.affiliate_id ||
     settings?.affiliate_id ||
     settings?.user_id ||
+    '';
+
+  const resolvedWebsiteId =
+    website?.id ||
+    settings?.website_id ||
+    settings?.website?.id ||
+    monetizationSettings?.website_id ||
+    '';
+
+  const resolvedAffiliateUserId =
+    website?.user_id ||
+    website?.affiliate_id ||
+    settings?.affiliate_id ||
+    settings?.user_id ||
+    monetizationSettings?.affiliate_user_id ||
+    monetizationSettings?.user_id ||
     '';
 
   return (
@@ -2680,7 +2744,8 @@ export default function TemplateGroceryTheme({
           .grocery-hero-layout,
           .grocery-newsletter-grid,
           .grocery-footer-grid,
-          .grocery-hero-inner {
+          .grocery-hero-inner,
+          .grocery-products-wrap {
             grid-template-columns: 1fr !important;
           }
 
@@ -2694,6 +2759,10 @@ export default function TemplateGroceryTheme({
           .grocery-latest-grid,
           .grocery-features-grid {
             grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+          }
+
+          .grocery-storefront-sidebar {
+            order: -1;
           }
         }
 
@@ -2757,6 +2826,15 @@ export default function TemplateGroceryTheme({
       />
 
       <main className="grocery-container" style={{ paddingTop: 22, paddingBottom: 20 }}>
+        <div style={{ marginBottom: 22 }}>
+          <StorefrontAdBlock
+            slotKey="storefront_top"
+            monetizationSettings={monetizationSettings}
+            websiteId={resolvedWebsiteId}
+            affiliateUserId={resolvedAffiliateUserId}
+          />
+        </div>
+
         <section
           className="grocery-hero-layout"
           style={{
@@ -2790,6 +2868,9 @@ export default function TemplateGroceryTheme({
             onQuickView={setQuickViewProduct}
             onImpression={handleImpression}
             formatCurrency={formatCurrency}
+            monetizationSettings={monetizationSettings}
+            websiteId={resolvedWebsiteId}
+            affiliateUserId={resolvedAffiliateUserId}
           />
         ) : null}
 
@@ -2830,10 +2911,23 @@ export default function TemplateGroceryTheme({
         {templateConfig.newsletter.enabled ? (
           <NewsletterSection config={templateConfig.newsletter} />
         ) : null}
+
+        <div style={{ marginTop: 36 }}>
+          <StorefrontAdBlock
+            slotKey="storefront_bottom"
+            monetizationSettings={monetizationSettings}
+            websiteId={resolvedWebsiteId}
+            affiliateUserId={resolvedAffiliateUserId}
+          />
+        </div>
       </main>
 
       {templateConfig.footer.enabled ? (
-        <FooterSection footerConfig={templateConfig.footer} headerMenu={headerMenu} />
+        <FooterSection
+          footerConfig={templateConfig.footer}
+          headerMenu={headerMenu}
+          websiteSlug={websiteSlug}
+        />
       ) : null}
 
       <CustomerAuthPopup
