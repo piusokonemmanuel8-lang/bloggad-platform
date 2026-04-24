@@ -1,19 +1,42 @@
 import { Link } from 'react-router-dom';
-import {
-  Check,
-  ChevronRight,
-  Star,
-} from 'lucide-react';
+import { Check, ChevronRight, ShoppingCart, Star } from 'lucide-react';
+import MonetizationAdSlot from '../../../../components/monetization/MonetizationAdSlot';
+import useAffiliateMonetizationSlots from '../../../../hooks/useAffiliateMonetizationSlots';
 
-function cardStyle(extra = {}) {
-  return {
-    background: '#ffffff',
-    border: '1px solid #d9e3dc',
-    borderRadius: 0,
-    boxShadow: 'none',
-    ...extra,
-  };
-}
+const PAYMENT_LOGO_STRIP = `data:image/svg+xml;utf8,${encodeURIComponent(`
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="100" viewBox="0 0 800 100">
+  <rect width="800" height="100" fill="transparent"/>
+
+  <g>
+    <rect x="12" y="10" rx="4" ry="4" width="124" height="80" fill="#ffffff" stroke="#e5e7eb"/>
+    <text x="74" y="57" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="25" font-weight="700" fill="#1a73e8">VISA</text>
+  </g>
+
+  <g>
+    <rect x="148" y="10" rx="4" ry="4" width="124" height="80" fill="#ffffff" stroke="#e5e7eb"/>
+    <text x="210" y="55" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="700" fill="#16386b">PayPal</text>
+  </g>
+
+  <g>
+    <rect x="284" y="10" rx="4" ry="4" width="124" height="80" fill="#ffffff" stroke="#e5e7eb"/>
+    <circle cx="340" cy="48" r="20" fill="#ea001b" opacity="0.92"/>
+    <circle cx="365" cy="48" r="20" fill="#f79e1b" opacity="0.92"/>
+    <text x="352" y="54" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="700" fill="#ffffff">MasterCard</text>
+  </g>
+
+  <g>
+    <rect x="420" y="10" rx="4" ry="4" width="124" height="80" fill="#ffffff" stroke="#e5e7eb"/>
+    <text x="482" y="48" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="700" fill="#111827">DISCOVER</text>
+    <path d="M438 68 Q482 44 526 68 L526 80 L438 80 Z" fill="#f7931e"/>
+  </g>
+
+  <g>
+    <rect x="556" y="10" rx="4" ry="4" width="232" height="80" fill="#ffffff" stroke="#e5e7eb"/>
+    <text x="672" y="42" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="700" fill="#199ad6">AMERICAN</text>
+    <text x="672" y="66" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="700" fill="#199ad6">EXPRESS</text>
+  </g>
+</svg>
+`)}`;
 
 function normalizeKey(value) {
   return String(value || '').trim().toLowerCase();
@@ -44,53 +67,94 @@ function getButtonProps(buttonMap, key, fallbackLabel = 'Order Now') {
   };
 }
 
-function CtaButton({ button, wide = false, className = '' }) {
+function cardStyle(extra = {}) {
+  return {
+    background: '#f3f3f3',
+    border: 'none',
+    borderRadius: 0,
+    boxShadow: 'none',
+    ...extra,
+  };
+}
+
+function FullWidthSection({ children, style = {} }) {
   return (
-    <a
-      href={button.url || '#'}
-      target={button.openInNewTab ? '_blank' : '_self'}
-      rel={button.openInNewTab ? 'noreferrer' : undefined}
-      className={`dxt-cta-button ${className}`.trim()}
+    <section
       style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        minHeight: 58,
-        padding: '0 24px',
-        borderRadius: 999,
-        border: '2px solid #facc15',
-        background: '#facc15',
-        color: '#111827',
-        fontWeight: 900,
-        fontSize: 15,
-        textDecoration: 'none',
-        width: wide ? '100%' : 'fit-content',
-        boxShadow: '0 8px 18px rgba(250, 204, 21, 0.25)',
-        textAlign: 'center',
-        lineHeight: 1.2,
+        width: '100%',
+        ...style,
       }}
     >
-      {button.label}
-    </a>
+      {children}
+    </section>
+  );
+}
+
+function PageContainer({ children, style = {} }) {
+  return (
+    <div
+      style={{
+        width: '100%',
+        maxWidth: '100%',
+        margin: '0',
+        padding: '0 14px',
+        ...style,
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
+function ProductImage({ src, alt, maxWidth = '100%', imgStyle = {} }) {
+  if (!src) {
+    return (
+      <div
+        style={{
+          width: '100%',
+          maxWidth,
+          minHeight: 320,
+          background: '#ececec',
+          margin: '0 auto',
+        }}
+      />
+    );
+  }
+
+  return (
+    <img
+      src={src}
+      alt={alt || 'Product'}
+      style={{
+        width: '100%',
+        maxWidth,
+        display: 'block',
+        margin: '0 auto',
+        objectFit: 'contain',
+        ...imgStyle,
+      }}
+    />
   );
 }
 
 function SectionHeader({ children }) {
   return (
-    <div
-      style={{
-        background: '#0b6b3a',
-        color: '#ffffff',
-        textAlign: 'center',
-        fontWeight: 900,
-        fontSize: 24,
-        lineHeight: 1.2,
-        padding: '12px 18px',
-        marginBottom: 18,
-      }}
-    >
-      {children}
-    </div>
+    <FullWidthSection style={{ background: '#0b7f4b', marginTop: 22 }}>
+      <PageContainer>
+        <div
+          style={{
+            color: '#ffffff',
+            textAlign: 'center',
+            fontWeight: 800,
+            fontSize: 24,
+            lineHeight: 1.25,
+            padding: '24px 10px',
+          }}
+        >
+          {children}
+        </div>
+      </PageContainer>
+    </FullWidthSection>
   );
 }
 
@@ -115,91 +179,138 @@ function TextBlock({ children, center = false, bold = false, className = '', sty
   );
 }
 
-function ProductImage({ src, alt, maxWidth = 360 }) {
-  if (!src) {
-    return (
-      <div
-        style={{
-          width: '100%',
-          maxWidth,
-          minHeight: 320,
-          background: '#f8fafc',
-          border: '1px solid #d9e3dc',
-          margin: '0 auto',
-        }}
-      />
-    );
-  }
-
+function CTAButton({ button, full = false, className = '' }) {
   return (
-    <img
-      src={src}
-      alt={alt || 'Product'}
+    <a
+      href={button.url || '#'}
+      target={button.openInNewTab ? '_blank' : '_self'}
+      rel={button.openInNewTab ? 'noreferrer' : undefined}
+      className={`dxt-btn ${className}`}
       style={{
-        width: '100%',
-        maxWidth,
-        display: 'block',
-        margin: '0 auto',
-        objectFit: 'contain',
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 8,
+        minHeight: 56,
+        padding: '0 26px',
+        width: full ? '100%' : 'auto',
+        maxWidth: '100%',
+        borderRadius: 9999,
+        background: '#facc15',
+        color: '#111827',
+        textDecoration: 'none',
+        fontWeight: 700,
+        fontSize: 15,
+        lineHeight: 1.2,
+        boxShadow: '0 3px 12px rgba(0,0,0,0.18)',
+        border: 'none',
+        whiteSpace: 'nowrap',
       }}
-    />
+    >
+      <span>{button.label}</span>
+      <ShoppingCart size={17} strokeWidth={2.4} />
+    </a>
   );
 }
 
-function HeroBadgeLogoRow({ logos = [] }) {
-  const filledLogos = logos.filter(Boolean);
-  if (!filledLogos.length) return null;
+function TrustLine({ items = [] }) {
+  const safeItems = items.filter(Boolean);
+  if (!safeItems.length) return null;
+
+  return (
+    <div className="dxt-hero-trust-line">
+      {safeItems.map((item, index) => (
+        <div key={`${item}-${index}`} className="dxt-hero-trust-item">
+          <Check size={18} strokeWidth={2.4} />
+          <span>{item}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ReviewRow({ text }) {
+  if (!text) return null;
+
+  return (
+    <div
+      className="dxt-review-row"
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 8,
+        flexWrap: 'wrap',
+        marginTop: 16,
+        marginBottom: 18,
+      }}
+    >
+      <div style={{ display: 'flex', gap: 2, flexShrink: 0 }}>
+        {Array.from({ length: 5 }).map((_, index) => (
+          <Star key={index} size={18} fill="#f59e0b" color="#f59e0b" />
+        ))}
+      </div>
+
+      <div
+        className="dxt-review-text"
+        style={{
+          color: '#6b7280',
+          fontSize: 15,
+          fontWeight: 700,
+          lineHeight: 1.2,
+        }}
+      >
+        {text}
+      </div>
+    </div>
+  );
+}
+
+function HeroCircleBadges({ images = [] }) {
+  const safeImages = images.filter(Boolean);
+  if (!safeImages.length) return null;
 
   return (
     <div
       style={{
         width: '100%',
-        marginTop: 16,
-        overflowX: 'auto',
-        overflowY: 'hidden',
-        WebkitOverflowScrolling: 'touch',
+        marginTop: 18,
       }}
     >
-      <div
-        style={{
-          minWidth: 'max-content',
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          gap: 18,
-          flexWrap: 'nowrap',
-          padding: '2px 2px 10px',
-        }}
-      >
-        {filledLogos.map((src, index) => (
-          <div
-            key={`${src}-${index}`}
-            style={{
-              width: 124,
-              height: 124,
-              borderRadius: '50%',
-              border: '2px solid #6b7280',
-              background: '#ffffff',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              overflow: 'hidden',
-              flex: '0 0 124px',
-            }}
-          >
-            <img
-              src={src}
-              alt={`Badge logo ${index + 1}`}
-              style={{
-                width: '78%',
-                height: '78%',
-                objectFit: 'contain',
-                display: 'block',
-              }}
-            />
-          </div>
-        ))}
+      <div className="dxt-circle-badges-wrap">
+        <div className="dxt-circle-badges-row">
+          {safeImages.map((src, index) => (
+            <div key={`${src}-${index}`} className="dxt-circle-badge">
+              <img
+                src={src}
+                alt={`Badge ${index + 1}`}
+                style={{
+                  width: '74%',
+                  height: '74%',
+                  objectFit: 'contain',
+                  display: 'block',
+                }}
+              />
+            </div>
+          ))}
+        </div>
       </div>
+    </div>
+  );
+}
+
+function FeatureBullets({ items = [] }) {
+  const safeItems = items.filter(Boolean);
+  if (!safeItems.length) return null;
+
+  return (
+    <div className="dxt-feature-bullets">
+      {safeItems.map((item, index) => (
+        <div key={`${item}-${index}`} className="dxt-feature-bullet">
+          <Check size={17} strokeWidth={2.4} />
+          <span>{item}</span>
+        </div>
+      ))}
     </div>
   );
 }
@@ -208,11 +319,10 @@ function TestimonialCard({ item }) {
   return (
     <div
       style={{
-        ...cardStyle({
-          padding: 16,
-          textAlign: 'center',
-          border: '1px solid #d9e3dc',
-        }),
+        background: '#ffffff',
+        padding: 16,
+        textAlign: 'center',
+        border: '1px solid #d9e3dc',
       }}
     >
       {item.image ? (
@@ -220,8 +330,8 @@ function TestimonialCard({ item }) {
           src={item.image}
           alt={item.name || 'Testimonial'}
           style={{
-            width: 92,
-            height: 92,
+            width: 86,
+            height: 86,
             borderRadius: '50%',
             objectFit: 'cover',
             display: 'block',
@@ -231,35 +341,28 @@ function TestimonialCard({ item }) {
       ) : (
         <div
           style={{
-            width: 92,
-            height: 92,
+            width: 86,
+            height: 86,
             borderRadius: '50%',
-            background: '#f5f5f5',
-            border: '1px solid #d9e3dc',
+            background: '#f1f5f9',
             margin: '0 auto 12px',
           }}
         />
       )}
 
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'center',
-          gap: 4,
-          marginBottom: 10,
-        }}
-      >
-        {Array.from({ length: 5 }, (_, index) => (
-          <Star key={index} size={16} fill="#facc15" color="#facc15" />
+      <div style={{ display: 'flex', justifyContent: 'center', gap: 3, marginBottom: 10 }}>
+        {Array.from({ length: 5 }).map((_, index) => (
+          <Star key={index} size={15} fill="#f59e0b" color="#f59e0b" />
         ))}
       </div>
 
       <div
         style={{
-          fontWeight: 900,
+          fontSize: 18,
+          fontWeight: 700,
           color: '#111827',
-          marginBottom: 10,
-          fontSize: 16,
+          marginBottom: 8,
+          lineHeight: 1.3,
         }}
       >
         {item.name || '-'}
@@ -268,8 +371,8 @@ function TestimonialCard({ item }) {
       <div
         style={{
           color: '#334155',
-          lineHeight: 1.75,
           fontSize: 14,
+          lineHeight: 1.75,
         }}
       >
         {item.text || '-'}
@@ -278,85 +381,69 @@ function TestimonialCard({ item }) {
   );
 }
 
-function PricingCard({ item }) {
+function PaymentMethodsRow() {
   return (
-    <div
-      style={{
-        ...cardStyle({
-          padding: 20,
-          textAlign: 'center',
-          border: '1px solid #d9e3dc',
-          background: item.highlight ? '#f7fff9' : '#ffffff',
-        }),
-      }}
-    >
-      <div
-        style={{
-          fontSize: 22,
-          fontWeight: 900,
-          color: '#0f172a',
-          marginBottom: 6,
-        }}
-      >
-        {item.title || '-'}
-      </div>
-
-      <div
-        style={{
-          fontSize: 14,
-          fontWeight: 800,
-          color: '#0b6b3a',
-          marginBottom: 14,
-        }}
-      >
-        {item.subtitle || '-'}
-      </div>
-
-      <ProductImage src={item.image} alt={item.title} maxWidth={220} />
-
-      <div
-        style={{
-          fontSize: 34,
-          fontWeight: 900,
-          color: '#111827',
-          margin: '12px 0 8px',
-        }}
-      >
-        {item.price || '-'}
-      </div>
-
-      <div
-        style={{
-          color: '#334155',
-          fontSize: 14,
-          fontWeight: 700,
-          marginBottom: 14,
-        }}
-      >
-        {item.totalText || '-'}
-      </div>
-
-      <CtaButton button={item.button} wide />
-
-      {item.paymentsImage ? (
+    <div className="dxt-payment-row">
+      <div className="dxt-payment-strip-card">
         <img
-          src={item.paymentsImage}
-          alt="Payments"
-          style={{
-            width: '100%',
-            maxWidth: 220,
-            display: 'block',
-            margin: '14px auto 0',
+          src={PAYMENT_LOGO_STRIP}
+          alt="Visa, PayPal, Mastercard, Discover and American Express"
+          className="dxt-payment-strip-image"
+        />
+      </div>
+    </div>
+  );
+}
+
+function PricingCard({ item, featured = false }) {
+  return (
+    <div className={`dxt-pricing-card ${featured ? 'is-featured' : ''}`}>
+      <div className="dxt-pricing-title">{item.title || '-'}</div>
+      <div className="dxt-pricing-subtitle">{item.subtitle || '-'}</div>
+
+      <div className="dxt-pricing-image-wrap">
+        <ProductImage
+          src={item.image}
+          alt={item.title}
+          maxWidth="100%"
+          imgStyle={{
+            maxHeight: 320,
           }}
         />
-      ) : null}
+        {featured && item.badgeText ? (
+          <div className="dxt-pricing-badge">{item.badgeText}</div>
+        ) : null}
+      </div>
+
+      <div className="dxt-pricing-price-line">
+        <span className="dxt-pricing-price-main">{item.price || '-'}</span>
+        <span className="dxt-pricing-price-suffix">{item.priceSuffix || ''}</span>
+      </div>
+
+      <div className="dxt-pricing-btn-wrap">
+        <CTAButton button={item.button} className="dxt-pricing-btn" />
+      </div>
+
+      <div className="dxt-pricing-total-line">
+        <span className="dxt-pricing-total-label">{item.totalLabel || 'TOTAL:'}</span>{' '}
+        <span className="dxt-pricing-total-old">{item.totalOldPrice || '-'}</span>{' '}
+        <span className="dxt-pricing-total-new">{item.totalNewPrice || '-'}</span>
+      </div>
+
+      <PaymentMethodsRow />
     </div>
   );
 }
 
 function RelatedCard({ item, websiteSlug }) {
   return (
-    <div style={cardStyle({ overflow: 'hidden', border: '1px solid #d9e3dc' })}>
+    <div
+      style={{
+        background: '#ffffff',
+        border: '1px solid #d9e3dc',
+        overflow: 'hidden',
+      }}
+    >
       {item?.featured_image ? (
         <img
           src={item.featured_image}
@@ -369,14 +456,7 @@ function RelatedCard({ item, websiteSlug }) {
           }}
         />
       ) : (
-        <div
-          style={{
-            width: '100%',
-            height: 200,
-            background: '#f8fafc',
-            borderBottom: '1px solid #d9e3dc',
-          }}
-        />
+        <div style={{ height: 200, background: '#e5e7eb' }} />
       )}
 
       <div style={{ padding: 16 }}>
@@ -384,7 +464,7 @@ function RelatedCard({ item, websiteSlug }) {
           style={{
             fontSize: 18,
             lineHeight: 1.35,
-            fontWeight: 900,
+            fontWeight: 700,
             color: '#111827',
             marginBottom: 10,
           }}
@@ -394,10 +474,10 @@ function RelatedCard({ item, websiteSlug }) {
 
         <div
           style={{
-            fontSize: 14,
-            lineHeight: 1.7,
             color: '#475569',
-            marginBottom: 14,
+            fontSize: 14,
+            lineHeight: 1.75,
+            marginBottom: 12,
           }}
         >
           {item?.excerpt || 'No excerpt'}
@@ -409,8 +489,8 @@ function RelatedCard({ item, websiteSlug }) {
             display: 'inline-flex',
             alignItems: 'center',
             gap: 6,
-            color: '#0b6b3a',
-            fontWeight: 900,
+            color: '#0b7f4b',
+            fontWeight: 700,
             textDecoration: 'none',
           }}
         >
@@ -422,25 +502,22 @@ function RelatedCard({ item, websiteSlug }) {
   );
 }
 
-function FullWidthSection({ children, innerStyle = {}, sectionStyle = {} }) {
+function StorefrontAdBlock({
+  slotKey,
+  monetizationSettings,
+  websiteId,
+  affiliateUserId,
+}) {
   return (
-    <section
-      style={{
-        width: '100%',
-        marginBottom: 22,
-        ...sectionStyle,
-      }}
-    >
-      <div
-        style={{
-          width: 'calc(100% - 24px)',
-          margin: '0 12px',
-          ...innerStyle,
-        }}
-      >
-        {children}
-      </div>
-    </section>
+    <MonetizationAdSlot
+      slotKey={slotKey}
+      monetizationSettings={monetizationSettings}
+      placementMode="storefront"
+      reviewRequired={true}
+      darkMode={false}
+      websiteId={websiteId}
+      affiliateUserId={affiliateUserId}
+    />
   );
 }
 
@@ -448,25 +525,64 @@ export default function DxtTemplate({
   post,
   templateFields,
   ctaButtons,
-  relatedPosts,
+  relatedPosts = [],
   websiteSlug,
   emailCaptureFooter,
+  website,
+  settings,
 }) {
   const { fieldMap, buttonMap } = useTemplateMap(templateFields, ctaButtons);
+  const { settings: monetizationSettings } = useAffiliateMonetizationSlots({ enabled: true });
 
-  const heroPrimaryButton = getButtonProps(buttonMap, 'hero_primary_cta', 'ORDER NOW');
-  const heroSecondaryButton = getButtonProps(buttonMap, 'hero_secondary_cta', 'GET DISCOUNT');
-  const worksButton = getButtonProps(buttonMap, 'how_it_works_cta', 'ORDER NOW');
-  const ingredientsButton = getButtonProps(buttonMap, 'ingredients_cta', 'CLAIM OFFER');
-  const specialOfferButton = getButtonProps(buttonMap, 'special_offer_cta', 'ORDER NOW');
+  const resolvedWebsiteId =
+    website?.id ||
+    settings?.website_id ||
+    settings?.website?.id ||
+    monetizationSettings?.website_id ||
+    '';
 
-  const heroBadgeLogos = [
+  const resolvedAffiliateUserId =
+    website?.user_id ||
+    website?.affiliate_id ||
+    settings?.affiliate_id ||
+    settings?.user_id ||
+    monetizationSettings?.affiliate_user_id ||
+    monetizationSettings?.user_id ||
+    '';
+
+  const heroPrimaryButton = getButtonProps(buttonMap, 'hero_primary_cta', 'Get Discount');
+  const heroSecondaryButton = getButtonProps(buttonMap, 'hero_secondary_cta', 'Official Website');
+  const worksButton = getButtonProps(buttonMap, 'how_it_works_cta', 'Official Website');
+  const ingredientsButton = getButtonProps(buttonMap, 'ingredients_cta', 'Get A Discount');
+  const specialOfferButton = getButtonProps(buttonMap, 'special_offer_cta', 'Claim Offer');
+  const pricingCard1Button = getButtonProps(buttonMap, 'pricing_card_1_cta', 'Buy Now');
+  const pricingCard2Button = getButtonProps(buttonMap, 'pricing_card_2_cta', 'Buy Now');
+  const pricingCard3Button = getButtonProps(buttonMap, 'pricing_card_3_cta', 'Buy Now');
+
+  const heroTrustItems = [
+    fieldMap.hero_trust_item_1,
+    fieldMap.hero_trust_item_2,
+    fieldMap.hero_trust_item_3,
+  ];
+
+  const heroCircleImages = [
     fieldMap.hero_badge_logo_1,
     fieldMap.hero_badge_logo_2,
     fieldMap.hero_badge_logo_3,
     fieldMap.hero_badge_logo_4,
     fieldMap.hero_badge_logo_5,
   ];
+
+  const featureBulletItems = [
+    fieldMap.feature_bullet_1,
+    fieldMap.feature_bullet_2,
+    fieldMap.feature_bullet_3,
+  ];
+
+  const ingredients = Array.from({ length: 5 }, (_, index) => ({
+    title: fieldMap[`ingredient_${index + 1}_title`],
+    text: fieldMap[`ingredient_${index + 1}_text`],
+  }));
 
   const benefits = Array.from({ length: 6 }, (_, index) => ({
     title: fieldMap[`benefit_${index + 1}_title`],
@@ -485,30 +601,34 @@ export default function DxtTemplate({
       subtitle: fieldMap.pricing_card_1_supply_label,
       image: fieldMap.pricing_card_1_image,
       price: fieldMap.pricing_card_1_price_text,
-      totalText: fieldMap.pricing_card_1_total_text,
-      paymentsImage: fieldMap.pricing_card_1_payments_image,
-      button: getButtonProps(buttonMap, 'pricing_card_1_cta', 'ORDER NOW'),
-      highlight: false,
+      priceSuffix: fieldMap.pricing_card_1_price_suffix || '',
+      totalLabel: fieldMap.pricing_card_1_total_label || 'TOTAL:',
+      totalOldPrice: fieldMap.pricing_card_1_total_old_price,
+      totalNewPrice: fieldMap.pricing_card_1_total_new_price,
+      button: pricingCard1Button,
     },
     {
       title: fieldMap.pricing_card_2_package_title,
       subtitle: fieldMap.pricing_card_2_supply_label,
       image: fieldMap.pricing_card_2_image,
       price: fieldMap.pricing_card_2_price_text,
-      totalText: fieldMap.pricing_card_2_total_text,
-      paymentsImage: fieldMap.pricing_card_2_payments_image,
-      button: getButtonProps(buttonMap, 'pricing_card_2_cta', 'ORDER NOW'),
-      highlight: true,
+      priceSuffix: fieldMap.pricing_card_2_price_suffix || '',
+      totalLabel: fieldMap.pricing_card_2_total_label || 'TOTAL:',
+      totalOldPrice: fieldMap.pricing_card_2_total_old_price,
+      totalNewPrice: fieldMap.pricing_card_2_total_new_price,
+      badgeText: fieldMap.pricing_card_2_badge_text || 'BEST VALUE',
+      button: pricingCard2Button,
     },
     {
       title: fieldMap.pricing_card_3_package_title,
       subtitle: fieldMap.pricing_card_3_supply_label,
       image: fieldMap.pricing_card_3_image,
       price: fieldMap.pricing_card_3_price_text,
-      totalText: fieldMap.pricing_card_3_total_text,
-      paymentsImage: fieldMap.pricing_card_3_payments_image,
-      button: getButtonProps(buttonMap, 'pricing_card_3_cta', 'ORDER NOW'),
-      highlight: false,
+      priceSuffix: fieldMap.pricing_card_3_price_suffix || '',
+      totalLabel: fieldMap.pricing_card_3_total_label || 'TOTAL:',
+      totalOldPrice: fieldMap.pricing_card_3_total_old_price,
+      totalNewPrice: fieldMap.pricing_card_3_total_new_price,
+      button: pricingCard3Button,
     },
   ];
 
@@ -517,585 +637,1116 @@ export default function DxtTemplate({
     answer: fieldMap[`faq_${index + 1}_answer`],
   }));
 
-  const learnMoreParagraphs = Array.from({ length: 8 }, (_, index) => fieldMap[`learn_more_paragraph_${index + 1}`]);
-
-  const ingredients = Array.from({ length: 5 }, (_, index) => ({
-    title: fieldMap[`ingredient_${index + 1}_title`],
-    text: fieldMap[`ingredient_${index + 1}_text`],
-  }));
+  const learnMoreParagraphs = Array.from({ length: 10 }, (_, index) => fieldMap[`learn_more_paragraph_${index + 1}`]).filter(Boolean);
 
   return (
     <div
       style={{
         width: '100%',
         minHeight: '100vh',
-        background: '#eef5ef',
+        background: '#f3f3f3',
+        overflowX: 'hidden',
       }}
     >
       <style>{`
-        .dxt-page {
+        * {
+          box-sizing: border-box;
+        }
+
+        html, body {
+          overflow-x: hidden;
+        }
+
+        .dxt-btn {
+          transition: transform .18s ease, box-shadow .18s ease, filter .18s ease;
+        }
+
+        .dxt-btn:hover {
+          transform: scale(1.04);
+          box-shadow: 0 6px 18px rgba(0,0,0,0.22);
+          filter: brightness(1.02);
+        }
+
+        .dxt-ad-top-wrap {
+          margin: 0 0 22px;
+        }
+
+        .dxt-ad-sidebar-wrap {
+          margin-top: 22px;
           width: 100%;
         }
 
-        .dxt-top-bar {
-          width: 100%;
-          background: #0b7f4b;
-          color: #ffffff;
-          padding: 14px 18px;
-          text-align: center;
-          font-weight: 900;
-          font-size: clamp(18px, 1.8vw, 28px);
-          line-height: 1.25;
+        .dxt-ad-bottom-wrap {
+          margin: 28px 0 18px;
         }
 
         .dxt-hero-grid {
           display: grid;
-          grid-template-columns: 40% 60%;
-          gap: 40px;
+          grid-template-columns: minmax(0, 44%) minmax(0, 56%);
+          gap: 28px;
           align-items: start;
+          width: 100%;
+        }
+
+        .dxt-hero-grid > div,
+        .dxt-two-col > div,
+        .dxt-works-grid > div,
+        .dxt-three-grid > div,
+        .dxt-pricing-grid > div {
+          min-width: 0;
+        }
+
+        .dxt-hero-title {
+          font-size: 30px;
+          line-height: 1.3;
+          font-weight: 600;
+          color: #0b7f4b;
+          margin: 0 0 24px;
+          overflow-wrap: anywhere;
+          word-break: break-word;
+          hyphens: auto;
+          max-width: 100%;
+        }
+
+        .dxt-hero-description {
+          font-size: 20px;
+          line-height: 1.6;
+          font-weight: 400;
+          color: #111827;
+          overflow-wrap: anywhere;
+          word-break: break-word;
+          hyphens: auto;
+          margin: 0;
+          min-width: 0;
+          max-width: 100%;
+        }
+
+        .dxt-hero-description p {
+          margin: 0 0 34px;
+          overflow-wrap: anywhere;
+          word-break: break-word;
+          hyphens: auto;
+          max-width: 100%;
+        }
+
+        .dxt-hero-cta-group {
+          width: 100%;
+          padding-left: 64px;
+          min-width: 0;
+          max-width: 100%;
+        }
+
+        .dxt-hero-cta-line {
+          margin: 0 0 22px;
+          color: #0b7f4b;
+          font-size: 18px;
+          line-height: 1.4;
+          font-weight: 700;
+          text-decoration: underline;
+          text-underline-offset: 3px;
+          overflow-wrap: anywhere;
+          word-break: break-word;
+          max-width: 100%;
+        }
+
+        .dxt-hero-cta-buttons {
+          display: flex;
+          align-items: center;
+          gap: 20px;
+          flex-wrap: wrap;
+          margin-bottom: 22px;
+          min-width: 0;
+          max-width: 100%;
+        }
+
+        .dxt-hero-trust-line {
+          display: flex;
+          align-items: center;
+          gap: 16px;
+          flex-wrap: wrap;
+          margin-bottom: 18px;
+          min-width: 0;
+          max-width: 100%;
+        }
+
+        .dxt-hero-trust-item {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          color: #111827;
+          font-size: 15px;
+          line-height: 1.4;
+          font-weight: 400;
+          min-width: 0;
+        }
+
+        .dxt-circle-badges-wrap {
+          width: 100%;
+          display: flex;
+          justify-content: center;
+          padding-left: 28px;
+          min-width: 0;
+          max-width: 100%;
+        }
+
+        .dxt-circle-badges-row {
+          display: flex;
+          align-items: center;
+          gap: 18px;
+          flex-wrap: nowrap;
+          justify-content: center;
+          overflow-x: auto;
+          overflow-y: hidden;
+          padding-bottom: 6px;
+          max-width: 100%;
+          min-width: 0;
+          scrollbar-width: thin;
+        }
+
+        .dxt-circle-badge {
+          width: 112px;
+          height: 112px;
+          min-width: 112px;
+          border-radius: 50%;
+          border: 4px solid #ef4444;
+          background: transparent;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          overflow: hidden;
+        }
+
+        .dxt-feature-bullets {
+          display: flex;
+          align-items: center;
+          gap: 26px;
+          flex-wrap: wrap;
+          margin-top: 18px;
+          min-width: 0;
+          max-width: 100%;
+        }
+
+        .dxt-feature-bullet {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          color: #111827;
+          font-size: 15px;
+          line-height: 1.45;
+          font-weight: 500;
+          min-width: 0;
         }
 
         .dxt-two-col {
           display: grid;
-          grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
-          gap: 34px;
-          align-items: start;
-        }
-
-        .dxt-hero-grid > *,
-        .dxt-two-col > * {
-          min-width: 0;
+          grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+          gap: 30px;
+          align-items: center;
         }
 
         .dxt-three-grid {
           display: grid;
           grid-template-columns: repeat(3, minmax(0, 1fr));
-          gap: 18px;
+          gap: 20px;
         }
 
-        .dxt-faq-grid {
-          display: grid;
-          gap: 14px;
+        .dxt-faq-item {
+          margin-bottom: 24px;
         }
 
-        .dxt-hero-copy {
-          width: 100%;
-          min-width: 0;
-          max-width: none;
-          padding-top: 8px;
-        }
-
-        .dxt-hero-copy-top {
-          display: block;
-        }
-
-        .dxt-hero-title {
-          display: block;
-          width: 100%;
-          min-width: 0;
-          max-width: none;
-          overflow-wrap: break-word;
+        .dxt-faq-item h3 {
+          margin: 0 0 8px;
+          font-size: 24px;
+          line-height: 1.3;
+          font-weight: 600;
+          color: #1e293b;
+          overflow-wrap: anywhere;
           word-break: break-word;
         }
 
-        .dxt-hero-text-wrap {
+        .dxt-faq-item p {
+          margin: 0;
+          font-size: 16px;
+          line-height: 1.75;
+          color: #334155;
+          overflow-wrap: anywhere;
+          word-break: break-word;
+        }
+
+        .dxt-works-grid {
+          display: grid;
+          grid-template-columns: minmax(0, 46%) minmax(0, 54%);
+          gap: 40px;
+          align-items: center;
+          width: 100%;
+        }
+
+        .dxt-works-text {
           width: 100%;
           min-width: 0;
-          max-width: none;
+          max-width: 100%;
         }
 
-        .dxt-hero-paragraph {
-          font-size: 20px;
-          line-height: 1.7;
+        .dxt-works-paragraph {
+          margin: 0 0 26px;
           color: #111827;
+          font-size: 20px;
+          line-height: 1.6;
+          font-weight: 400;
+          overflow-wrap: anywhere;
+          word-break: break-word;
+          max-width: 100%;
+        }
+
+        .dxt-ingredients-intro {
+          margin: 0 0 22px;
+          color: #111827;
+          font-size: 22px;
+          line-height: 1.65;
+          font-weight: 400;
+          overflow-wrap: anywhere;
+          word-break: break-word;
+          max-width: 100%;
+        }
+
+        .dxt-ingredient-item {
+          margin-bottom: 18px;
+        }
+
+        .dxt-ingredient-title {
+          font-size: 24px;
+          line-height: 1.35;
+          font-weight: 800;
+          color: #111827;
+          margin-bottom: 8px;
+          overflow-wrap: anywhere;
+          word-break: break-word;
+          max-width: 100%;
+        }
+
+        .dxt-ingredient-text {
+          color: #334155;
+          font-size: 19px;
+          line-height: 1.7;
+          font-weight: 400;
+          overflow-wrap: anywhere;
+          word-break: break-word;
+          max-width: 100%;
+        }
+
+        .dxt-ingredient-closing {
+          margin-top: 10px;
+          margin-bottom: 24px;
+          color: #111827;
+          font-size: 21px;
+          line-height: 1.65;
           font-weight: 500;
+          overflow-wrap: anywhere;
+          word-break: break-word;
+          max-width: 100%;
         }
 
-        .dxt-hero-cta-wrap {
-          width: 100%;
-          display: grid;
-          gap: 16px;
-          margin-top: 22px;
+        .dxt-benefits-intro {
+          margin: 0 0 24px;
+          color: #111827;
+          font-size: 22px;
+          line-height: 1.65;
+          font-weight: 400;
+          overflow-wrap: anywhere;
+          word-break: break-word;
+          max-width: 100%;
         }
 
-        .dxt-hero-cta-buttons {
-          width: 100%;
+        .dxt-benefit-item {
+          margin-bottom: 24px;
+        }
+
+        .dxt-benefit-title {
+          font-size: 24px;
+          line-height: 1.35;
+          font-weight: 800;
+          color: #111827;
+          margin-bottom: 8px;
+          overflow-wrap: anywhere;
+          word-break: break-word;
+          max-width: 100%;
+        }
+
+        .dxt-benefit-text {
+          color: #334155;
+          font-size: 19px;
+          line-height: 1.7;
+          font-weight: 400;
+          overflow-wrap: anywhere;
+          word-break: break-word;
+          max-width: 100%;
+        }
+
+        .dxt-benefit-closing {
+          margin-top: 14px;
+          color: #111827;
+          font-size: 21px;
+          line-height: 1.65;
+          font-weight: 500;
+          overflow-wrap: anywhere;
+          word-break: break-word;
+          max-width: 100%;
+        }
+
+        .dxt-pricing-grid {
           display: grid;
-          grid-template-columns: minmax(0, 1fr) minmax(240px, 0.58fr);
-          gap: 16px;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          gap: 22px;
           align-items: stretch;
         }
 
-        .dxt-hero-trust-row {
-          width: 100%;
-          display: grid;
-          grid-template-columns: repeat(3, minmax(0, 1fr));
-          gap: 14px;
-          align-items: start;
+        .dxt-pricing-card {
+          border: 3px solid #3b4b63;
+          background: #f3f3f3;
+          padding: 18px 18px 22px;
+          text-align: center;
+          position: relative;
+          min-height: 100%;
+          min-width: 0;
+          overflow: hidden;
         }
 
-        .dxt-hero-trust-item {
+        .dxt-pricing-title {
+          color: #0b7f4b;
+          font-size: 32px;
+          line-height: 1.15;
+          font-weight: 800;
+          margin-bottom: 22px;
+          text-transform: uppercase;
+          overflow-wrap: anywhere;
+          word-break: break-word;
+          max-width: 100%;
+        }
+
+        .dxt-pricing-subtitle {
+          color: #111827;
+          font-size: 26px;
+          line-height: 1.2;
+          font-weight: 800;
+          margin-bottom: 22px;
+          overflow-wrap: anywhere;
+          word-break: break-word;
+          max-width: 100%;
+        }
+
+        .dxt-pricing-image-wrap {
+          position: relative;
+          margin-bottom: 18px;
+          min-height: 330px;
+          display: flex;
+          align-items: flex-end;
+          justify-content: center;
+          min-width: 0;
+        }
+
+        .dxt-pricing-badge {
+          position: absolute;
+          right: 8%;
+          top: 8%;
+          width: 122px;
+          height: 122px;
+          border-radius: 50%;
+          background: #ff6a5e;
+          color: #ffffff;
           display: flex;
           align-items: center;
-          gap: 8px;
+          justify-content: center;
+          text-align: center;
+          font-size: 18px;
+          line-height: 1.05;
+          font-weight: 900;
+          padding: 10px;
+          box-shadow: 0 6px 16px rgba(0,0,0,0.18);
+          border: 4px solid #ffd6d2;
+        }
+
+        .dxt-pricing-price-line {
+          display: flex;
+          align-items: flex-end;
+          justify-content: center;
+          gap: 6px;
+          margin-bottom: 18px;
+          flex-wrap: wrap;
           min-width: 0;
+        }
+
+        .dxt-pricing-price-main {
+          color: #0b7f4b;
+          font-size: 58px;
+          line-height: 1;
+          font-weight: 900;
+          letter-spacing: -0.02em;
+        }
+
+        .dxt-pricing-price-suffix {
+          color: #0b7f4b;
+          font-size: 28px;
+          line-height: 1.15;
+          font-weight: 500;
+          padding-bottom: 7px;
+        }
+
+        .dxt-pricing-btn-wrap {
+          display: flex;
+          justify-content: center;
+          margin-bottom: 18px;
+          min-width: 0;
+        }
+
+        .dxt-pricing-btn {
+          min-width: 290px;
+          min-height: 64px;
+          font-size: 22px;
+          font-weight: 800;
+          box-shadow: 0 7px 18px rgba(0,0,0,0.2);
+          max-width: 100%;
+        }
+
+        .dxt-pricing-total-line {
           color: #111827;
-          font-weight: 700;
-          font-size: 15px;
-          line-height: 1.6;
-        }
-
-        .dxt-hero-trust-item span {
-          overflow-wrap: break-word;
+          font-size: 24px;
+          line-height: 1.3;
+          font-weight: 900;
+          margin-bottom: 18px;
+          overflow-wrap: anywhere;
           word-break: break-word;
+          max-width: 100%;
         }
 
-        .dxt-cta-button {
-          transition: transform 0.18s ease, box-shadow 0.18s ease, filter 0.18s ease;
-          will-change: transform;
+        .dxt-pricing-total-label {
+          text-transform: uppercase;
         }
 
-        .dxt-cta-button:hover {
-          transform: scale(1.04);
-          box-shadow: 0 14px 28px rgba(250, 204, 21, 0.35);
-          filter: brightness(1.02);
+        .dxt-pricing-total-old {
+          text-decoration: line-through;
         }
 
-        @media (max-width: 980px) {
+        .dxt-pricing-total-new {
+          color: #111827;
+        }
+
+        .dxt-payment-row {
+          width: 100%;
+          margin-top: 6px;
+          min-width: 0;
+        }
+
+        .dxt-payment-strip-card {
+          width: 100%;
+          background: transparent;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          min-width: 0;
+        }
+
+        .dxt-payment-strip-image {
+          width: 100%;
+          max-width: 540px;
+          height: auto;
+          display: block;
+          object-fit: contain;
+        }
+
+        .dxt-works-image-wrap {
+          width: 100%;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          padding: 10px 24px 10px 12px;
+          min-width: 0;
+        }
+
+        .dxt-works-image {
+          width: 100%;
+          max-width: 620px;
+          display: block;
+          margin: 0 auto;
+          object-fit: contain;
+        }
+
+        @media (max-width: 1100px) {
           .dxt-hero-grid,
           .dxt-two-col,
           .dxt-three-grid,
-          .dxt-hero-cta-buttons,
-          .dxt-hero-trust-row {
+          .dxt-works-grid,
+          .dxt-pricing-grid {
             grid-template-columns: 1fr;
           }
 
-          .dxt-top-bar {
-            font-size: 20px;
-            padding: 12px 14px;
+          .dxt-hero-title {
+            font-size: 28px;
           }
 
-          .dxt-hero-paragraph {
+          .dxt-hero-description {
             font-size: 18px;
-            line-height: 1.7;
-            font-weight: 500;
           }
 
-          .dxt-hero-copy {
-            padding-top: 0;
+          .dxt-works-paragraph,
+          .dxt-ingredients-intro,
+          .dxt-ingredient-text,
+          .dxt-ingredient-closing,
+          .dxt-benefits-intro,
+          .dxt-benefit-text,
+          .dxt-benefit-closing {
+            font-size: 18px;
+          }
+
+          .dxt-ingredient-title,
+          .dxt-benefit-title {
+            font-size: 22px;
+          }
+
+          .dxt-pricing-title {
+            font-size: 28px;
+          }
+
+          .dxt-pricing-subtitle {
+            font-size: 22px;
+          }
+
+          .dxt-pricing-price-main {
+            font-size: 52px;
+          }
+
+          .dxt-pricing-price-suffix {
+            font-size: 24px;
+          }
+
+          .dxt-pricing-btn {
+            min-width: 260px;
+            font-size: 20px;
+          }
+
+          .dxt-pricing-total-line {
+            font-size: 22px;
+          }
+
+          .dxt-hero-cta-group {
+            padding-left: 0;
+          }
+
+          .dxt-circle-badges-wrap {
+            justify-content: flex-start;
+            padding-left: 0;
+          }
+
+          .dxt-circle-badges-row {
+            justify-content: flex-start;
+          }
+
+          .dxt-works-image-wrap {
+            padding: 0;
+          }
+
+          .dxt-works-image {
+            max-width: 560px;
+          }
+
+          .dxt-ad-sidebar-wrap {
+            margin-top: 18px;
+          }
+        }
+
+        @media (max-width: 767px) {
+          .dxt-hero-grid,
+          .dxt-two-col,
+          .dxt-three-grid,
+          .dxt-works-grid,
+          .dxt-pricing-grid {
+            grid-template-columns: 1fr;
+            gap: 18px;
+          }
+
+          .dxt-hero-title {
+            font-size: 17px;
+            line-height: 1.5;
+            margin-bottom: 12px;
+            letter-spacing: 0;
+          }
+
+          .dxt-hero-description {
+            font-size: 14px;
+            line-height: 1.7;
+          }
+
+          .dxt-hero-description p {
+            margin: 0 0 14px;
+          }
+
+          .dxt-works-paragraph,
+          .dxt-ingredients-intro,
+          .dxt-ingredient-text,
+          .dxt-ingredient-closing,
+          .dxt-benefits-intro,
+          .dxt-benefit-text,
+          .dxt-benefit-closing {
+            font-size: 15px;
+            line-height: 1.7;
+          }
+
+          .dxt-ingredient-title,
+          .dxt-benefit-title {
+            font-size: 18px;
+          }
+
+          .dxt-pricing-title {
+            font-size: 22px;
+          }
+
+          .dxt-pricing-subtitle {
+            font-size: 18px;
+          }
+
+          .dxt-pricing-image-wrap {
+            min-height: 220px;
+          }
+
+          .dxt-pricing-price-main {
+            font-size: 38px;
+          }
+
+          .dxt-pricing-price-suffix {
+            font-size: 20px;
+            padding-bottom: 4px;
+          }
+
+          .dxt-pricing-btn {
+            min-width: 100%;
+            width: 100%;
+            font-size: 17px;
+            padding: 0 18px;
+          }
+
+          .dxt-pricing-total-line {
+            font-size: 18px;
+          }
+
+          .dxt-pricing-badge {
+            width: 82px;
+            height: 82px;
+            font-size: 13px;
+            top: 6px;
+            right: 6px;
+          }
+
+          .dxt-payment-strip-image {
+            max-width: 100%;
+          }
+
+          .dxt-hero-cta-buttons,
+          .dxt-hero-trust-line,
+          .dxt-feature-bullets {
+            gap: 10px;
+          }
+
+          .dxt-hero-cta-group {
+            padding-left: 0;
+          }
+
+          .dxt-hero-cta-line {
+            font-size: 15px;
+            line-height: 1.5;
+            margin-bottom: 14px;
+          }
+
+          .dxt-circle-badges-wrap {
+            justify-content: flex-start;
+            padding-left: 0;
+          }
+
+          .dxt-circle-badges-row {
+            justify-content: flex-start;
+            gap: 12px;
+          }
+
+          .dxt-circle-badge {
+            width: 78px;
+            height: 78px;
+            min-width: 78px;
+            border-width: 3px;
+          }
+
+          .dxt-works-image-wrap {
+            padding: 0;
+          }
+
+          .dxt-works-image {
+            max-width: 100%;
+          }
+
+          .dxt-review-row {
+            justify-content: flex-start !important;
+            gap: 6px !important;
+            margin-top: 10px !important;
+            margin-bottom: 14px !important;
+            flex-wrap: nowrap !important;
+            overflow: hidden;
+            min-width: 0;
+            max-width: 100%;
+          }
+
+          .dxt-review-text {
+            font-size: 12px !important;
+            line-height: 1.2 !important;
+            min-width: 0;
+            flex: 1 1 auto;
+            max-width: 100%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+          }
+
+          .dxt-feature-bullet,
+          .dxt-hero-trust-item {
+            font-size: 14px;
+          }
+
+          .dxt-pricing-card {
+            padding: 14px 12px 18px;
+          }
+
+          .dxt-faq-item h3 {
+            font-size: 20px;
+          }
+
+          .dxt-faq-item p {
+            font-size: 15px;
+            line-height: 1.7;
+          }
+
+          .dxt-ad-top-wrap {
+            margin-bottom: 16px;
+          }
+
+          .dxt-ad-sidebar-wrap {
+            margin-top: 16px;
+          }
+
+          .dxt-ad-bottom-wrap {
+            margin-top: 22px;
+            margin-bottom: 12px;
+          }
+
+          section,
+          div,
+          p,
+          h1,
+          h2,
+          h3,
+          a,
+          span {
+            max-width: 100%;
           }
         }
       `}</style>
 
-      <div className="dxt-page">
-        <div className="dxt-top-bar">
-          {fieldMap.top_bar_title || post?.title || 'Post'}
-        </div>
-
-        <FullWidthSection sectionStyle={{ marginBottom: 0 }}>
-          <div
+      <FullWidthSection style={{ background: '#0b7f4b', marginBottom: 30 }}>
+        <PageContainer>
+          <h1
             style={{
-              ...cardStyle({
-                padding: '26px 20px 22px',
-                borderTop: '0',
-                borderLeft: '0',
-                borderRight: '0',
-                background: '#f3f6f3',
-              }),
+              margin: 0,
+              padding: '18px 0',
+              textAlign: 'center',
+              color: '#ffffff',
+              fontWeight: 700,
+              fontSize: 36,
+              lineHeight: 1.25,
             }}
           >
-            <div className="dxt-hero-grid">
-              <div>
+            {fieldMap.top_bar_title || post?.title || '-'}
+          </h1>
+        </PageContainer>
+      </FullWidthSection>
+
+      <PageContainer>
+        <div className="dxt-ad-top-wrap">
+          <StorefrontAdBlock
+            slotKey="storefront_top"
+            monetizationSettings={monetizationSettings}
+            websiteId={resolvedWebsiteId}
+            affiliateUserId={resolvedAffiliateUserId}
+          />
+        </div>
+      </PageContainer>
+
+      <PageContainer style={{ marginBottom: 34 }}>
+        <div style={cardStyle()}>
+          <div className="dxt-hero-grid">
+            <div>
+              <a
+                href={heroPrimaryButton.url || '#'}
+                target={heroPrimaryButton.openInNewTab ? '_blank' : '_self'}
+                rel={heroPrimaryButton.openInNewTab ? 'noreferrer' : undefined}
+                style={{ display: 'block', textDecoration: 'none', minWidth: 0 }}
+              >
                 <ProductImage
                   src={fieldMap.hero_product_image || post?.featured_image}
                   alt={post?.title || 'Product'}
-                  maxWidth={680}
+                  maxWidth="100%"
                 />
+              </a>
 
-                {fieldMap.hero_review_text ? (
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: 8,
-                      flexWrap: 'wrap',
-                      marginTop: 18,
-                      marginBottom: 12,
-                    }}
-                  >
-                    <div
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 4,
-                      }}
-                    >
-                      {Array.from({ length: 5 }, (_, index) => (
-                        <Star key={index} size={18} fill="#f59e0b" color="#f59e0b" />
-                      ))}
-                    </div>
+              <ReviewRow text={fieldMap.hero_review_text} />
+            </div>
 
-                    <div
-                      style={{
-                        color: '#6b7280',
-                        fontWeight: 700,
-                        fontSize: 15,
-                      }}
-                    >
-                      {fieldMap.hero_review_text}
-                    </div>
-                  </div>
-                ) : null}
+            <div>
+              <h2 className="dxt-hero-title">
+                {fieldMap.hero_title || post?.title || '-'}
+              </h2>
 
-                <HeroBadgeLogoRow logos={heroBadgeLogos} />
+              <div className="dxt-hero-description">
+                <p>{fieldMap.hero_intro_paragraph_1 || '-'}</p>
+                <p>{fieldMap.hero_intro_paragraph_2 || '-'}</p>
               </div>
 
-              <div className="dxt-hero-copy">
-                <div className="dxt-hero-copy-top">
-                  <div
-                    className="dxt-hero-title"
-                    style={{
-                      fontSize: 'clamp(1.55rem, 2.2vw, 2.35rem)',
-                      lineHeight: 1.16,
-                      fontWeight: 900,
-                      color: '#0b7f4b',
-                      marginBottom: 18,
-                      letterSpacing: '-0.01em',
-                    }}
-                  >
-                    {fieldMap.hero_title || post?.title || 'Post'}
-                  </div>
-
-                  <div className="dxt-hero-text-wrap">
-                    <TextBlock className="dxt-hero-paragraph" style={{ marginBottom: 22 }}>
-                      {fieldMap.hero_intro_paragraph_1}
-                    </TextBlock>
-
-                    <TextBlock className="dxt-hero-paragraph" style={{ marginBottom: 0 }}>
-                      {fieldMap.hero_intro_paragraph_2}
-                    </TextBlock>
-                  </div>
+              <div className="dxt-hero-cta-group">
+                <div className="dxt-hero-cta-line">
+                  {fieldMap.hero_small_cta_line || '-'}
                 </div>
 
-                <div className="dxt-hero-cta-wrap">
-                  <div
-                    style={{
-                      color: '#0b7f4b',
-                      fontWeight: 900,
-                      fontSize: 18,
-                      lineHeight: 1.45,
-                      margin: '4px 0 0',
-                      textDecoration: 'underline',
-                      textUnderlineOffset: '4px',
-                    }}
-                  >
-                    {fieldMap.hero_small_cta_line || '-'}
-                  </div>
+                <div className="dxt-hero-cta-buttons">
+                  <CTAButton button={heroPrimaryButton} />
+                  <CTAButton button={heroSecondaryButton} />
+                </div>
 
-                  <div className="dxt-hero-cta-buttons">
-                    <CtaButton button={heroPrimaryButton} wide />
-                    <CtaButton button={heroSecondaryButton} wide />
-                  </div>
+                <TrustLine items={heroTrustItems} />
+                <HeroCircleBadges images={heroCircleImages} />
 
-                  <div className="dxt-hero-trust-row">
-                    {[fieldMap.hero_trust_item_1, fieldMap.hero_trust_item_2, fieldMap.hero_trust_item_3]
-                      .filter(Boolean)
-                      .map((item, index) => (
-                        <div key={index} className="dxt-hero-trust-item">
-                          <Check size={18} color="#0b6b3a" />
-                          <span>{item}</span>
-                        </div>
-                      ))}
-                  </div>
+                <div className="dxt-ad-sidebar-wrap">
+                  <StorefrontAdBlock
+                    slotKey="storefront_sidebar"
+                    monetizationSettings={monetizationSettings}
+                    websiteId={resolvedWebsiteId}
+                    affiliateUserId={resolvedAffiliateUserId}
+                  />
                 </div>
               </div>
             </div>
           </div>
-        </FullWidthSection>
+        </div>
+      </PageContainer>
 
-        <FullWidthSection>
-          <SectionHeader>{fieldMap.how_this_product_works_title || 'How This Product Works'}</SectionHeader>
-
-          <div style={cardStyle({ padding: 20 })}>
-            <div className="dxt-two-col">
-              <div>
-                <TextBlock>{fieldMap.how_this_product_works_paragraph_1}</TextBlock>
-                <TextBlock>{fieldMap.how_this_product_works_paragraph_2}</TextBlock>
-                <TextBlock>{fieldMap.how_this_product_works_paragraph_3}</TextBlock>
-                <CtaButton button={worksButton} />
-              </div>
-
-              <div>
-                <ProductImage
-                  src={fieldMap.how_this_product_works_image}
-                  alt="How this product works"
-                  maxWidth={420}
-                />
-              </div>
-            </div>
+      <SectionHeader>{fieldMap.how_this_product_works_title || 'How This Product Works'}</SectionHeader>
+      <PageContainer style={{ marginTop: 26, marginBottom: 30 }}>
+        <div className="dxt-works-grid">
+          <div className="dxt-works-text">
+            <p className="dxt-works-paragraph">{fieldMap.how_this_product_works_paragraph_1 || '-'}</p>
+            <p className="dxt-works-paragraph">{fieldMap.how_this_product_works_paragraph_2 || '-'}</p>
+            <p className="dxt-works-paragraph">{fieldMap.how_this_product_works_paragraph_3 || '-'}</p>
+            <CTAButton button={worksButton} />
           </div>
-        </FullWidthSection>
 
-        <FullWidthSection>
-          <SectionHeader>{fieldMap.ingredients_section_title || 'Ingredients'}</SectionHeader>
-
-          <div style={cardStyle({ padding: 20 })}>
-            <div className="dxt-two-col">
-              <div>
-                <TextBlock>{fieldMap.ingredients_intro}</TextBlock>
-
-                <div style={{ display: 'grid', gap: 12, marginBottom: 16 }}>
-                  {ingredients.map((item, index) => (
-                    <div key={index}>
-                      <div
-                        style={{
-                          fontSize: 18,
-                          fontWeight: 900,
-                          color: '#111827',
-                          marginBottom: 6,
-                        }}
-                      >
-                        {item.title || '-'}
-                      </div>
-                      <div
-                        style={{
-                          color: '#334155',
-                          fontSize: 15,
-                          lineHeight: 1.8,
-                        }}
-                      >
-                        {item.text || '-'}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                <TextBlock>{fieldMap.ingredients_closing_line}</TextBlock>
-                <CtaButton button={ingredientsButton} />
-              </div>
-
-              <div>
-                <ProductImage
-                  src={fieldMap.ingredients_image}
-                  alt="Ingredients"
-                  maxWidth={420}
-                />
-              </div>
-            </div>
-          </div>
-        </FullWidthSection>
-
-        <FullWidthSection>
-          <SectionHeader>{fieldMap.benefits_title || 'Benefits'}</SectionHeader>
-
-          <div style={cardStyle({ padding: 20 })}>
-            <TextBlock>{fieldMap.benefits_intro}</TextBlock>
-
-            <div style={{ display: 'grid', gap: 12 }}>
-              {benefits.map((item, index) => (
-                <div
-                  key={index}
-                  style={{
-                    borderBottom: '1px solid #e5efe6',
-                    paddingBottom: 12,
-                  }}
-                >
-                  <div
-                    style={{
-                      fontSize: 18,
-                      fontWeight: 900,
-                      color: '#111827',
-                      marginBottom: 6,
-                    }}
-                  >
-                    {item.title || '-'}
-                  </div>
-                  <div
-                    style={{
-                      color: '#334155',
-                      fontSize: 15,
-                      lineHeight: 1.8,
-                    }}
-                  >
-                    {item.text || '-'}
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <div
-              style={{
-                marginTop: 14,
-                color: '#334155',
-                fontSize: 15,
-                lineHeight: 1.8,
-                fontWeight: 700,
-              }}
-            >
-              {fieldMap.benefits_closing_line || '-'}
-            </div>
-          </div>
-        </FullWidthSection>
-
-        <FullWidthSection>
-          <SectionHeader>{fieldMap.testimonials_title || 'What Users Are Saying'}</SectionHeader>
-
-          <div className="dxt-three-grid">
-            {testimonials.map((item, index) => (
-              <TestimonialCard key={index} item={item} />
-            ))}
-          </div>
-        </FullWidthSection>
-
-        <FullWidthSection>
-          <SectionHeader>{fieldMap.pricing_title || 'How Much Does It Cost?'}</SectionHeader>
-
-          <div className="dxt-three-grid">
-            {pricingCards.map((item, index) => (
-              <PricingCard key={index} item={item} />
-            ))}
-          </div>
-        </FullWidthSection>
-
-        <FullWidthSection>
-          <SectionHeader>{fieldMap.faq_section_title || 'Frequently Asked Questions'}</SectionHeader>
-
-          <div style={cardStyle({ padding: 20 })}>
-            <div className="dxt-faq-grid">
-              {faqs.map((item, index) => (
-                <div
-                  key={index}
-                  style={{
-                    borderBottom: '1px solid #e5efe6',
-                    paddingBottom: 12,
-                  }}
-                >
-                  <div
-                    style={{
-                      fontSize: 18,
-                      fontWeight: 900,
-                      color: '#111827',
-                      marginBottom: 6,
-                    }}
-                  >
-                    {item.question || '-'}
-                  </div>
-                  <div
-                    style={{
-                      color: '#334155',
-                      fontSize: 15,
-                      lineHeight: 1.8,
-                    }}
-                  >
-                    {item.answer || '-'}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </FullWidthSection>
-
-        <FullWidthSection>
-          <div
-            style={{
-              ...cardStyle({
-                padding: 24,
-                background: '#8eb295',
-                border: '1px solid #7aa784',
-                textAlign: 'center',
-              }),
-            }}
-          >
-            <div
-              style={{
-                width: '100%',
-                maxWidth: 'none',
-                margin: '0 auto',
-              }}
-            >
-              <div
-                style={{
-                  color: '#ffffff',
-                  fontWeight: 900,
-                  fontSize: 28,
-                  lineHeight: 1.15,
-                  marginBottom: 14,
-                }}
-              >
-                {fieldMap.guarantee_title || 'Guarantee'}
-              </div>
-
-              <TextBlock center>{fieldMap.guarantee_paragraph_1}</TextBlock>
-              <TextBlock center>{fieldMap.guarantee_paragraph_2}</TextBlock>
-              <TextBlock center bold>{fieldMap.guarantee_paragraph_3}</TextBlock>
-            </div>
-          </div>
-        </FullWidthSection>
-
-        <FullWidthSection>
-          <div
-            style={{
-              ...cardStyle({
-                padding: 24,
-                textAlign: 'center',
-              }),
-            }}
-          >
-            <ProductImage
-              src={fieldMap.special_offer_image}
-              alt="Special offer"
-              maxWidth={280}
-            />
-
-            <div
-              style={{
-                color: '#111827',
-                fontWeight: 900,
-                fontSize: 40,
-                lineHeight: 1.05,
-                margin: '12px 0 16px',
-              }}
-            >
-              {fieldMap.special_offer_price_text || '-'}
-            </div>
-
-            <CtaButton button={specialOfferButton} />
-          </div>
-        </FullWidthSection>
-
-        <FullWidthSection>
-          <SectionHeader>{fieldMap.learn_more_title || 'Learn More'}</SectionHeader>
-
-          <div style={cardStyle({ padding: 20 })}>
-            {learnMoreParagraphs.map((item, index) => (
-              <TextBlock key={index}>{item}</TextBlock>
-            ))}
-          </div>
-        </FullWidthSection>
-
-        {emailCaptureFooter ? (
-          <FullWidthSection sectionStyle={{ marginBottom: 22 }}>
-            {emailCaptureFooter}
-          </FullWidthSection>
-        ) : null}
-
-        <FullWidthSection sectionStyle={{ marginBottom: 0 }}>
-          <SectionHeader>Related Posts</SectionHeader>
-
-          <div className="dxt-three-grid">
-            {relatedPosts.length ? (
-              relatedPosts.map((item) => (
-                <RelatedCard key={item.id} item={item} websiteSlug={websiteSlug} />
-              ))
+          <div className="dxt-works-image-wrap">
+            {fieldMap.how_this_product_works_image ? (
+              <img
+                src={fieldMap.how_this_product_works_image}
+                alt="How it works"
+                className="dxt-works-image"
+              />
             ) : (
-              <div style={cardStyle({ padding: 20, color: '#64748b' })}>
-                No related posts found.
-              </div>
+              <ProductImage
+                src=""
+                alt="How it works"
+                maxWidth="100%"
+                imgStyle={{ objectFit: 'contain' }}
+              />
             )}
           </div>
-        </FullWidthSection>
-      </div>
+        </div>
+      </PageContainer>
+
+      <SectionHeader>{fieldMap.ingredients_section_title || 'A Thoughtfully Selected Blend'}</SectionHeader>
+      <PageContainer style={{ marginTop: 26, marginBottom: 30 }}>
+        <div className="dxt-two-col">
+          <div>
+            <p className="dxt-ingredients-intro">{fieldMap.ingredients_intro || '-'}</p>
+
+            {ingredients.map((item, index) => (
+              <div key={index} className="dxt-ingredient-item">
+                <div className="dxt-ingredient-title">{item.title || '-'}</div>
+                <div className="dxt-ingredient-text">{item.text || '-'}</div>
+              </div>
+            ))}
+
+            <div className="dxt-ingredient-closing">{fieldMap.ingredients_closing_line || '-'}</div>
+            <CTAButton button={ingredientsButton} />
+          </div>
+
+          <div>
+            <ProductImage
+              src={fieldMap.ingredients_image}
+              alt="Ingredients"
+              maxWidth="100%"
+            />
+          </div>
+        </div>
+      </PageContainer>
+
+      <SectionHeader>{fieldMap.benefits_title || 'Benefits Of This Product'}</SectionHeader>
+      <PageContainer style={{ marginTop: 26, marginBottom: 30 }}>
+        <div style={{ background: '#f3f3f3' }}>
+          <p className="dxt-benefits-intro">{fieldMap.benefits_intro || '-'}</p>
+
+          {benefits.map((item, index) => (
+            <div key={index} className="dxt-benefit-item">
+              <div className="dxt-benefit-title">{item.title || '-'}</div>
+              <div className="dxt-benefit-text">{item.text || '-'}</div>
+            </div>
+          ))}
+
+          <div className="dxt-benefit-closing">{fieldMap.benefits_closing_line || '-'}</div>
+        </div>
+      </PageContainer>
+
+      <SectionHeader>{fieldMap.feature_row_title || 'See What Users Are Saying'}</SectionHeader>
+      <PageContainer style={{ marginTop: 26, marginBottom: 30 }}>
+        <div>
+          <div className="dxt-hero-cta-line" style={{ marginBottom: 18 }}>
+            {fieldMap.hero_small_cta_line || fieldMap.feature_row_cta_line || '-'}
+          </div>
+
+          <div className="dxt-hero-cta-buttons" style={{ marginBottom: 16 }}>
+            <CTAButton button={heroPrimaryButton} />
+            <CTAButton button={heroSecondaryButton} />
+          </div>
+
+          <FeatureBullets items={featureBulletItems} />
+        </div>
+      </PageContainer>
+
+      <SectionHeader>{fieldMap.testimonials_title || 'What Users Are Saying'}</SectionHeader>
+      <PageContainer style={{ marginTop: 26, marginBottom: 30 }}>
+        <div className="dxt-three-grid">
+          {testimonials.map((item, index) => (
+            <TestimonialCard key={index} item={item} />
+          ))}
+        </div>
+      </PageContainer>
+
+      <SectionHeader>{fieldMap.pricing_title || 'How Much Does It Cost?'}</SectionHeader>
+      <PageContainer style={{ marginTop: 26, marginBottom: 30 }}>
+        <div className="dxt-pricing-grid">
+          <PricingCard item={pricingCards[0]} />
+          <PricingCard item={pricingCards[1]} featured />
+          <PricingCard item={pricingCards[2]} />
+        </div>
+      </PageContainer>
+
+      <FullWidthSection style={{ background: '#8db08e', marginTop: 22, marginBottom: 26 }}>
+        <PageContainer style={{ paddingTop: 30, paddingBottom: 30 }}>
+          <div
+            style={{
+              color: '#ffffff',
+              textAlign: 'center',
+              fontSize: 28,
+              lineHeight: 1.25,
+              fontWeight: 700,
+              marginBottom: 16,
+            }}
+          >
+            {fieldMap.guarantee_title || 'Guarantee'}
+          </div>
+
+          <div
+            style={{
+              maxWidth: 980,
+              margin: '0 auto',
+              color: '#ffffff',
+              textAlign: 'center',
+            }}
+          >
+            <TextBlock center style={{ color: '#ffffff' }}>{fieldMap.guarantee_paragraph_1}</TextBlock>
+            <TextBlock center style={{ color: '#ffffff' }}>{fieldMap.guarantee_paragraph_2}</TextBlock>
+            <TextBlock center style={{ color: '#ffffff', fontWeight: 700 }}>{fieldMap.guarantee_paragraph_3}</TextBlock>
+          </div>
+        </PageContainer>
+      </FullWidthSection>
+
+      <PageContainer style={{ marginBottom: 34 }}>
+        <div style={{ textAlign: 'center' }}>
+          <ProductImage src={fieldMap.special_offer_image} alt="Special offer" maxWidth={280} />
+
+          <div
+            style={{
+              fontSize: 42,
+              lineHeight: 1.05,
+              fontWeight: 800,
+              color: '#111827',
+              margin: '12px 0 16px',
+            }}
+          >
+            {fieldMap.special_offer_price_text || '-'}
+          </div>
+
+          <CTAButton button={specialOfferButton} />
+        </div>
+      </PageContainer>
+
+      <SectionHeader>{fieldMap.learn_more_title || 'Learn More About This Product'}</SectionHeader>
+      <PageContainer style={{ marginTop: 26, marginBottom: 30 }}>
+        {learnMoreParagraphs.length ? (
+          learnMoreParagraphs.map((item, index) => (
+            <TextBlock key={index}>{item}</TextBlock>
+          ))
+        ) : (
+          <TextBlock>-</TextBlock>
+        )}
+      </PageContainer>
+
+      <SectionHeader>{fieldMap.faq_section_title || 'ProDentim FAQ'}</SectionHeader>
+      <PageContainer style={{ marginTop: 26, marginBottom: 30 }}>
+        {faqs.map((item, index) => (
+          <div key={index} className="dxt-faq-item">
+            <h3>{item.question || '-'}</h3>
+            <p>{item.answer || '-'}</p>
+          </div>
+        ))}
+      </PageContainer>
+
+      {emailCaptureFooter ? (
+        <PageContainer style={{ marginBottom: 30 }}>
+          {emailCaptureFooter}
+        </PageContainer>
+      ) : null}
+
+      <PageContainer>
+        <div className="dxt-ad-bottom-wrap">
+          <StorefrontAdBlock
+            slotKey="storefront_bottom"
+            monetizationSettings={monetizationSettings}
+            websiteId={resolvedWebsiteId}
+            affiliateUserId={resolvedAffiliateUserId}
+          />
+        </div>
+      </PageContainer>
+
+      <SectionHeader>Related Posts</SectionHeader>
+      <PageContainer style={{ marginTop: 26, paddingBottom: 40 }}>
+        <div className="dxt-three-grid">
+          {relatedPosts.length ? (
+            relatedPosts.map((item) => (
+              <RelatedCard key={item.id} item={item} websiteSlug={websiteSlug} />
+            ))
+          ) : (
+            <div
+              style={{
+                background: '#ffffff',
+                border: '1px solid #d9e3dc',
+                padding: 20,
+                color: '#64748b',
+              }}
+            >
+              No related posts found.
+            </div>
+          )}
+        </div>
+      </PageContainer>
     </div>
   );
 }
