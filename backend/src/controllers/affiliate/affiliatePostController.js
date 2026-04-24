@@ -96,11 +96,15 @@ function isLikelyLinkField(field = {}) {
   const fieldKey = normalizeNullable(field.field_key || field.key) || 'field';
   const normalizedKey = fieldKey.toLowerCase();
 
+  if (fieldType === 'url') return true;
+
   return (
-    fieldType.includes('url') ||
-    fieldType.includes('link') ||
-    normalizedKey.includes('url') ||
-    normalizedKey.includes('link')
+    normalizedKey === 'url' ||
+    normalizedKey === 'link_url' ||
+    normalizedKey === 'destination_url' ||
+    normalizedKey.endsWith('_url') ||
+    normalizedKey.endsWith('_link_url') ||
+    normalizedKey.endsWith('_destination_url')
   );
 }
 

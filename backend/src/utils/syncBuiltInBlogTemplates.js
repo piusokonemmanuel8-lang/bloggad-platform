@@ -19,6 +19,15 @@ const BUILT_IN_BLOG_TEMPLATES = [
     is_premium: 1,
     status: 'active',
   },
+  {
+    name: 'Simple Posts',
+    slug: 'simple-posts',
+    template_code_key: 'simple_posts_template_v1',
+    description:
+      'Clean long-form product blog post template with optional hidden ad placements, sidebar ad slots, sticky ad slot, quick summary, features, pros and cons, FAQ, final verdict, email capture, and related posts.',
+    is_premium: 1,
+    status: 'active',
+  },
 ];
 
 async function syncBuiltInBlogTemplates() {

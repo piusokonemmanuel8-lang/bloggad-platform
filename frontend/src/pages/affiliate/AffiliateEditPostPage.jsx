@@ -300,6 +300,21 @@ function isLikelyUrlValue(value) {
   }
 }
 
+function isTemplateFieldUrlField(field) {
+  const type = String(field?.field_type || '').trim().toLowerCase();
+  const key = String(field?.field_key || '').trim().toLowerCase();
+
+  if (type === 'url') return true;
+
+  return (
+    key.endsWith('_url') ||
+    key.endsWith('_link_url') ||
+    key === 'url' ||
+    key === 'link_url' ||
+    key === 'destination_url'
+  );
+}
+
 function countRepeatedWords(value) {
   const words = normalizeText(value)
     .toLowerCase()
@@ -884,14 +899,7 @@ export default function AffiliateEditPostPage() {
         }
       }
 
-      const looksLikeLinkField =
-        String(field.field_type || '').toLowerCase().includes('url') ||
-        String(field.field_type || '').toLowerCase().includes('link') ||
-        String(field.field_key || '').toLowerCase().includes('url') ||
-        String(field.field_key || '').toLowerCase().includes('link') ||
-        String(field.field_key || '').toLowerCase().includes('cta');
-
-      if (looksLikeLinkField && String(field.field_value || '').trim() && !isLikelyUrlValue(field.field_value)) {
+      if (isTemplateFieldUrlField(field) && fieldValue.trim() && !isLikelyUrlValue(fieldValue)) {
         throw new Error(`${fieldLabel} must be a valid URL`);
       }
     }
@@ -1011,7 +1019,7 @@ export default function AffiliateEditPostPage() {
           <h1 className="affiliate-edit-post-title">Edit Post</h1>
           <p className="affiliate-edit-post-subtitle">
             {activePreset
-              ? 'This template is locked. Replace every Lepresium field, image, and CTA before saving.'
+              ? 'This template is locked. Replace every template field, image, and CTA before saving.'
               : 'Update post content, template fields, SEO details, and CTA buttons.'}
           </p>
         </div>
@@ -1115,7 +1123,8 @@ export default function AffiliateEditPostPage() {
 
               <label className="affiliate-edit-post-field">
                 <span className="affiliate-edit-post-label">
-                  <Link as LinkIcon size={16} />
+                  <LinkIcon size={16} />
+                  Slug
                 </span>
                 <input
                   className="affiliate-edit-post-input"
@@ -1218,8 +1227,7 @@ export default function AffiliateEditPostPage() {
                 <div className="affiliate-edit-post-preset-note">
                   <ShieldCheck size={16} />
                   <span>
-                    All fields are compulsory. Replace every Lepresium value. Minimum words are enforced,
-                    suggested maximum is shown only.
+                    Template structure is locked. Fill the content, image, and CTA slots before saving.
                   </span>
                 </div>
               ) : null}

@@ -1,6 +1,7 @@
 import GenericPostTemplate from './GenericPostTemplate';
 import NeutralReviewTemplate from './NeutralReviewTemplate';
 import DxtTemplate from './DxtTemplate';
+import SimplePostsTemplate from './SimplePostsTemplate';
 
 function normalizeTemplateKey(value = '') {
   return String(value || '').trim().toLowerCase();
@@ -9,6 +10,8 @@ function normalizeTemplateKey(value = '') {
 export const POST_TEMPLATE_REGISTRY = {
   neutral_review_template_v1: NeutralReviewTemplate,
   dxt_template_v1: DxtTemplate,
+  simple_posts_template_v1: SimplePostsTemplate,
+  'simple-posts': SimplePostsTemplate,
 };
 
 export function resolvePostTemplateComponent(template) {
@@ -29,6 +32,14 @@ export function resolvePostTemplateComponent(template) {
 
   if (templateSlug === 'dxt' || templateName === 'dxt') {
     return DxtTemplate;
+  }
+
+  if (
+    templateSlug === 'simple-posts' ||
+    templateName === 'simple posts' ||
+    templateCodeKey === 'simple_posts_template_v1'
+  ) {
+    return SimplePostsTemplate;
   }
 
   return GenericPostTemplate;
