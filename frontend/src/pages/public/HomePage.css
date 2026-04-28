@@ -2941,3 +2941,66 @@
     max-height: 150px !important;
   }
 }
+
+
+
+
+
+
+
+
+
+/* MAKE WIDE PROMO MOBILE SMALLER */
+
+@media (max-width: 768px) {
+  .wide-promo-card,
+  .wide-promo-card:first-child,
+  .wide-promo-card:not(:first-child) {
+    min-height: 180px !important;
+    padding: 18px 16px !important;
+    grid-template-columns: 1fr 105px !important;
+    gap: 8px !important;
+  }
+
+  .wide-promo-kicker {
+    font-size: 9px !important;
+    margin-bottom: 7px !important;
+  }
+
+  .wide-promo-title,
+  .wide-promo-card:first-child .wide-promo-title,
+  .wide-promo-card:not(:first-child) .wide-promo-title {
+    font-size: 17px !important;
+    max-width: 145px !important;
+  }
+
+  .wide-promo-price,
+  .wide-promo-card:first-child .wide-promo-price {
+    font-size: 15px !important;
+    margin-top: 9px !important;
+  }
+
+  .wide-promo-img,
+  .wide-promo-card:first-child .wide-promo-img,
+  .wide-promo-card:not(:first-child) .wide-promo-img {
+    width: 95px !important;
+    max-width: 95px !important;
+    max-height: 105px !important;
+  }
+
+  .wide-promo-actions,
+  .wide-promo-card:first-child .wide-promo-actions,
+  .wide-promo-card:not(:first-child) .wide-promo-actions {
+    margin-top: 12px !important;
+    gap: 6px !important;
+  }
+
+  .wide-promo-actions a,
+  .wide-promo-card:first-child .wide-promo-actions a,
+  .wide-promo-card:not(:first-child) .wide-promo-actions a {
+    width: 94px !important;
+    min-width: 94px !important;
+    height: 32px !important;
+    font-size: 10px !important;
+  }
+}
