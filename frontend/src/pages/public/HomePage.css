@@ -3004,3 +3004,534 @@
     font-size: 10px !important;
   }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/* =========================
+   PREMIUM CURVY HERO SLIDER
+   ========================= */
+
+.luxury-hero-slider {
+  width: 100%;
+  background: #f3e4d4;
+  overflow: hidden;
+}
+
+.luxury-hero-bg {
+  position: relative;
+  min-height: 560px;
+  display: grid;
+  grid-template-columns: 40% 60%;
+  align-items: center;
+  overflow: hidden;
+  background: #e2b894;
+  isolation: isolate;
+}
+
+.luxury-hero-theme-sofa {
+  background: #e2b894;
+}
+
+.luxury-hero-theme-tech {
+  background: #d9d2cb;
+}
+
+.luxury-hero-theme-fashion {
+  background: #ead6cf;
+}
+
+.luxury-hero-theme-minimal {
+  background: #e9dfd4;
+}
+
+.luxury-hero-theme-lifestyle {
+  background: #dcc3aa;
+}
+
+.luxury-hero-theme-decor {
+  background: #dec2ae;
+}
+
+.luxury-hero-left {
+  position: relative;
+  z-index: 3;
+  padding: 42px 32px 58px 140px;
+}
+
+.luxury-hero-category-badge {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin-bottom: 52px;
+}
+
+.luxury-hero-icon {
+  width: 74px;
+  height: 74px;
+  border-radius: 999px;
+  background: rgba(95, 71, 53, 0.12);
+  color: #be7843;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.luxury-hero-badge-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: #4b413c;
+  font-size: 18px;
+  line-height: 1.4;
+  font-weight: 800;
+}
+
+.luxury-hero-title {
+  margin: 0;
+  max-width: 650px;
+  color: #433b39;
+  font-size: clamp(42px, 4.2vw, 62px);
+  line-height: 1.08;
+  letter-spacing: -0.06em;
+  font-weight: 950;
+}
+
+.luxury-hero-price-row {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  margin-top: 36px;
+}
+
+.luxury-hero-shop-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 148px;
+  height: 52px;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #3a332f;
+  text-decoration: none;
+  font-size: 16px;
+  font-weight: 900;
+  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.08);
+}
+
+.luxury-hero-price-row strong {
+  color: #433b39;
+  font-size: clamp(30px, 2.7vw, 46px);
+  font-weight: 950;
+  line-height: 1;
+  letter-spacing: -0.04em;
+}
+
+.luxury-hero-image-area {
+  position: relative;
+  z-index: 2;
+  height: 100%;
+  min-height: 560px;
+  overflow: hidden;
+}
+
+.luxury-hero-shape {
+  position: absolute;
+  background: rgba(232, 194, 163, 0.9);
+  z-index: 1;
+  pointer-events: none;
+}
+
+.luxury-hero-shape-left {
+  width: 180px;
+  height: 760px;
+  left: -10px;
+  top: -70px;
+  transform: rotate(12deg);
+}
+
+.luxury-hero-shape-middle {
+  width: 120px;
+  height: 460px;
+  left: 270px;
+  bottom: -90px;
+  transform: rotate(13deg);
+}
+
+.luxury-hero-shape-right {
+  width: 120px;
+  height: 460px;
+  right: 52px;
+  bottom: -90px;
+  transform: rotate(13deg);
+}
+
+.luxury-hero-circle {
+  position: absolute;
+  overflow: hidden;
+  z-index: 2;
+}
+
+.luxury-hero-circle img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.luxury-hero-circle-left {
+  left: 0;
+  top: 20px;
+  width: 210px;
+  height: 420px;
+  border-radius: 0 999px 999px 0;
+}
+
+.luxury-hero-circle-main {
+  left: 160px;
+  top: 96px;
+  width: 390px;
+  height: 390px;
+  border-radius: 50%;
+}
+
+.luxury-hero-circle-right {
+  right: 78px;
+  top: 82px;
+  width: 340px;
+  height: 430px;
+  border-radius: 999px;
+}
+
+.luxury-hero-bubbles {
+  position: absolute;
+  right: 100px;
+  top: 48px;
+  width: 180px;
+  height: 180px;
+  z-index: 4;
+  pointer-events: none;
+  transform: scale(0.85);
+  transform-origin: top right;
+}
+
+.luxury-hero-bubbles span {
+  position: absolute;
+  display: block;
+  border-radius: 999px;
+  background: rgba(86, 73, 64, 0.65);
+}
+
+.luxury-hero-bubbles span:nth-child(1) {
+  width: 88px;
+  height: 88px;
+  right: 0;
+  top: 0;
+}
+
+.luxury-hero-bubbles span:nth-child(2) {
+  width: 56px;
+  height: 56px;
+  right: 118px;
+  top: -12px;
+}
+
+.luxury-hero-bubbles span:nth-child(3) {
+  width: 38px;
+  height: 38px;
+  right: 106px;
+  top: 92px;
+}
+
+.luxury-hero-bubbles span:nth-child(4) {
+  width: 46px;
+  height: 46px;
+  right: 28px;
+  top: 114px;
+}
+
+.luxury-hero-bubbles span:nth-child(5) {
+  width: 26px;
+  height: 26px;
+  right: 148px;
+  top: 134px;
+}
+
+.luxury-hero-arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 6;
+  width: 52px;
+  height: 52px;
+  border: none;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #403835;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 18px 36px rgba(0, 0, 0, 0.1);
+}
+
+.luxury-hero-arrow-left {
+  left: 14px;
+}
+
+.luxury-hero-arrow-right {
+  right: 14px;
+}
+
+.luxury-hero-dots {
+  position: absolute;
+  left: 50%;
+  bottom: 22px;
+  transform: translateX(-50%);
+  z-index: 7;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  background: rgba(255, 255, 255, 0.9);
+  padding: 6px 12px;
+  border-radius: 999px;
+}
+
+.luxury-hero-dots button {
+  width: 12px;
+  height: 12px;
+  border: none;
+  border-radius: 999px;
+  background: #c0b6ad;
+  cursor: pointer;
+}
+
+.luxury-hero-dots button.active {
+  background: #403835;
+}
+
+/* TABLET */
+@media (max-width: 1199px) {
+  .luxury-hero-bg {
+    grid-template-columns: 1fr;
+    min-height: auto;
+  }
+
+  .luxury-hero-left {
+    padding: 34px 24px 4px;
+  }
+
+  .luxury-hero-category-badge {
+    margin-bottom: 22px;
+  }
+
+  .luxury-hero-icon {
+    width: 56px;
+    height: 56px;
+  }
+
+  .luxury-hero-badge-copy {
+    font-size: 15px;
+  }
+
+  .luxury-hero-title {
+    font-size: 38px;
+    max-width: 100%;
+  }
+
+  .luxury-hero-price-row {
+    margin-top: 20px;
+  }
+
+  .luxury-hero-shop-btn {
+    min-width: 130px;
+    height: 46px;
+    font-size: 14px;
+  }
+
+  .luxury-hero-price-row strong {
+    font-size: 30px;
+  }
+
+  .luxury-hero-image-area {
+    min-height: 390px;
+  }
+
+  .luxury-hero-circle-left {
+    left: 0;
+    top: 10px;
+    width: 150px;
+    height: 300px;
+  }
+
+  .luxury-hero-circle-main {
+    left: 110px;
+    top: 72px;
+    width: 280px;
+    height: 280px;
+  }
+
+  .luxury-hero-circle-right {
+    right: 30px;
+    top: 50px;
+    width: 230px;
+    height: 290px;
+  }
+
+  .luxury-hero-shape-left {
+    width: 125px;
+    height: 450px;
+  }
+
+  .luxury-hero-shape-middle {
+    width: 90px;
+    height: 310px;
+    left: 190px;
+  }
+
+  .luxury-hero-shape-right {
+    width: 90px;
+    height: 300px;
+    right: 20px;
+  }
+
+  .luxury-hero-bubbles {
+    right: 26px;
+    top: 24px;
+    transform: scale(0.62);
+  }
+}
+
+/* MOBILE */
+@media (max-width: 767px) {
+  .luxury-hero-bg {
+    min-height: auto;
+  }
+
+  .luxury-hero-left {
+    padding: 20px 14px 0;
+  }
+
+  .luxury-hero-category-badge {
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+
+  .luxury-hero-icon {
+    width: 42px;
+    height: 42px;
+  }
+
+  .luxury-hero-badge-copy {
+    font-size: 12px;
+    line-height: 1.35;
+  }
+
+  .luxury-hero-title {
+    font-size: 24px;
+    line-height: 1.12;
+  }
+
+  .luxury-hero-price-row {
+    margin-top: 14px;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .luxury-hero-shop-btn {
+    min-width: 102px;
+    height: 38px;
+    font-size: 12px;
+  }
+
+  .luxury-hero-price-row strong {
+    font-size: 21px;
+  }
+
+  .luxury-hero-image-area {
+    min-height: 240px;
+    margin-top: 8px;
+  }
+
+  .luxury-hero-circle-left {
+    left: 0;
+    top: 12px;
+    width: 80px;
+    height: 170px;
+  }
+
+  .luxury-hero-circle-main {
+    left: 64px;
+    top: 48px;
+    width: 150px;
+    height: 150px;
+  }
+
+  .luxury-hero-circle-right {
+    right: 8px;
+    top: 34px;
+    width: 118px;
+    height: 170px;
+  }
+
+  .luxury-hero-shape-left {
+    width: 66px;
+    height: 270px;
+    top: -34px;
+  }
+
+  .luxury-hero-shape-middle {
+    width: 48px;
+    height: 170px;
+    left: 120px;
+    bottom: -42px;
+  }
+
+  .luxury-hero-shape-right {
+    width: 48px;
+    height: 170px;
+    right: 8px;
+    bottom: -36px;
+  }
+
+  .luxury-hero-bubbles {
+    right: 14px;
+    top: 12px;
+    transform: scale(0.34);
+    transform-origin: top right;
+  }
+
+  .luxury-hero-arrow {
+    width: 36px;
+    height: 36px;
+  }
+
+  .luxury-hero-arrow-left {
+    left: 8px;
+  }
+
+  .luxury-hero-arrow-right {
+    right: 8px;
+  }
+
+  .luxury-hero-dots {
+    bottom: 10px;
+    gap: 6px;
+    padding: 5px 9px;
+  }
+
+  .luxury-hero-dots button {
+    width: 9px;
+    height: 9px;
+  }
+}

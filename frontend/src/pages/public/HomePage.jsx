@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import {
   Camera,
   CheckCircle2,
+  CheckCircle,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
@@ -159,14 +160,14 @@ function getCategoryIcon(name = '') {
 
 function createDummyProduct(seed, index, overrides = {}) {
   const imagePool = [
-    'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=900&q=80',
-    'https://images.unsplash.com/photo-1517336714739-489689fd1ca8?auto=format&fit=crop&w=900&q=80',
-    'https://images.unsplash.com/photo-1580910051074-3eb694886505?auto=format&fit=crop&w=900&q=80',
-    'https://images.unsplash.com/photo-1601784551446-20c9e07cdbdb?auto=format&fit=crop&w=900&q=80',
-    'https://images.unsplash.com/photo-1606220588913-b3aacb4d2f46?auto=format&fit=crop&w=900&q=80',
-    'https://images.unsplash.com/photo-1541807084-5c52b6b3adef?auto=format&fit=crop&w=900&q=80',
-    'https://images.unsplash.com/photo-1526738549149-8e07eca6c147?auto=format&fit=crop&w=900&q=80',
-    'https://images.unsplash.com/photo-1545454675-3531b543be5d?auto=format&fit=crop&w=900&q=80',
+    'https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1512436991641-6745cdb1723f?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1523381210434-271e8be1f52b?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1546868871-7041f2a55e12?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1491553895911-0055eca6402d?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=1200&q=80',
+    'https://images.unsplash.com/photo-1560343090-f0409e92791a?auto=format&fit=crop&w=1200&q=80',
   ];
 
   return {
@@ -464,111 +465,179 @@ function HeaderNav({ categoryTree, featuredWebsites }) {
   );
 }
 
-function MainSlider({ products }) {
-  const slides = useMemo(() => ensureProducts(products, 4, 'slider', 'Featured Product'), [products]);
+function MainSlider() {
+  const slides = [
+    {
+      id: 'slide-1',
+      eyebrowIcon: <Home size={18} />,
+      eyebrowTextTop: 'Discover curated home collections',
+      eyebrowTextBottom: 'in the modern living category',
+      title: 'Sectional fabric sofa by Ramón Esteve',
+      price: '$3620',
+      cta: 'Shop Now',
+      image:
+        'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=1600&q=80',
+      circleImage:
+        'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=1200&q=80',
+      theme: 'sofa',
+    },
+    {
+      id: 'slide-2',
+      eyebrowIcon: <Laptop size={18} />,
+      eyebrowTextTop: 'Fresh premium gadgets',
+      eyebrowTextBottom: 'for the smart lifestyle category',
+      title: 'Modern tech essentials for your daily space',
+      price: '$1890',
+      cta: 'Shop Now',
+      image:
+        'https://images.unsplash.com/photo-1519389950473-47ba0277781c?auto=format&fit=crop&w=1600&q=80',
+      circleImage:
+        'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=1200&q=80',
+      theme: 'tech',
+    },
+    {
+      id: 'slide-3',
+      eyebrowIcon: <CheckCircle size={18} />,
+      eyebrowTextTop: 'Best reviewed arrivals',
+      eyebrowTextBottom: 'in the fashion picks category',
+      title: 'Elegant fashion pieces designed for every day',
+      price: '$980',
+      cta: 'Shop Now',
+      image:
+        'https://images.unsplash.com/photo-1529139574466-a303027c1d8b?auto=format&fit=crop&w=1600&q=80',
+      circleImage:
+        'https://images.unsplash.com/photo-1496747611176-843222e1e57c?auto=format&fit=crop&w=1200&q=80',
+      theme: 'fashion',
+    },
+    {
+      id: 'slide-4',
+      eyebrowIcon: <Smartphone size={18} />,
+      eyebrowTextTop: 'Discover trending accessories',
+      eyebrowTextBottom: 'in the smart collection category',
+      title: 'Accessories and gadgets that lift your setup',
+      price: '$740',
+      cta: 'Shop Now',
+      image:
+        'https://images.unsplash.com/photo-1511499767150-a48a237f0083?auto=format&fit=crop&w=1600&q=80',
+      circleImage:
+        'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=1200&q=80',
+      theme: 'minimal',
+    },
+    {
+      id: 'slide-5',
+      eyebrowIcon: <Tv size={18} />,
+      eyebrowTextTop: 'Premium lifestyle showcases',
+      eyebrowTextBottom: 'inside the entertainment category',
+      title: 'Create a warm stylish room with standout pieces',
+      price: '$2140',
+      cta: 'Shop Now',
+      image:
+        'https://images.unsplash.com/photo-1484101403633-562f891dc89a?auto=format&fit=crop&w=1600&q=80',
+      circleImage:
+        'https://images.unsplash.com/photo-1493663284031-b7e3aefcae8e?auto=format&fit=crop&w=1200&q=80',
+      theme: 'lifestyle',
+    },
+    {
+      id: 'slide-6',
+      eyebrowIcon: <Camera size={18} />,
+      eyebrowTextTop: 'Creative decor inspiration',
+      eyebrowTextBottom: 'from the interior design category',
+      title: 'Decor ideas and statement products for your home',
+      price: '$1260',
+      cta: 'Shop Now',
+      image:
+        'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=1600&q=80',
+      circleImage:
+        'https://images.unsplash.com/photo-1513694203232-719a280e022f?auto=format&fit=crop&w=1200&q=80',
+      theme: 'decor',
+    },
+  ];
+
   const [activeSlide, setActiveSlide] = useState(0);
 
   useEffect(() => {
-    const interval = setInterval(() => {
+    const timer = setInterval(() => {
       setActiveSlide((prev) => (prev + 1) % slides.length);
-    }, 5000);
+    }, 6000);
 
-    return () => clearInterval(interval);
+    return () => clearInterval(timer);
   }, [slides.length]);
 
-  const current = slides[activeSlide];
+  const slide = slides[activeSlide];
 
   return (
-    <section className="main-slider-card">
-      <div className="main-slider-bg">
-        <div className="main-slider-inner">
-          <div className="main-slider-copy">
-            <div className="main-slider-sale">
-              Sale Ends in:
-              <span>16</span>:
-              <span>46</span>:
-              <span>51</span>
-            </div>
+    <section className="luxury-hero-slider">
+      <div className={`luxury-hero-bg luxury-hero-theme-${slide.theme}`}>
+        <div className="luxury-hero-left">
+          <div className="luxury-hero-category-badge">
+            <span className="luxury-hero-icon">{slide.eyebrowIcon}</span>
 
-            <h1 className="main-slider-title">{current?.title || 'Featured Product'}</h1>
-
-            <div className="main-slider-subtitle">
-              {current?.short_description || 'Discover products reviewed and promoted by real affiliates.'}
-            </div>
-
-            <div className="main-slider-coupon-row">
-              <div className="coupon-card">
-                <strong>$24 OFF</strong>
-                <span>orders $209+</span>
-              </div>
-              <div className="coupon-card">
-                <strong>$10 OFF</strong>
-                <span>orders $99+</span>
-              </div>
-              <div className="coupon-card">
-                <strong>$7 OFF</strong>
-                <span>orders $65+</span>
-              </div>
-            </div>
-
-            <div className="main-slider-actions">
-              <Link to={resolveReadMoreUrl(current)} className="main-slider-learn-btn">
-                Read More
-              </Link>
-
-              <a href={resolveBuyNowUrl(current)} target="_blank" rel="noreferrer" className="main-slider-buy-btn">
-                Buy Now
-              </a>
-            </div>
+            <span className="luxury-hero-badge-copy">
+              <span>{slide.eyebrowTextTop}</span>
+              <span>{slide.eyebrowTextBottom}</span>
+            </span>
           </div>
 
-          <div className="main-slider-product-deal">
-            <div className="main-slider-lifestyle-frame">
-              <img
-                src="https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?auto=format&fit=crop&w=900&q=80"
-                alt="Bloggad shopping marketplace"
-                className="main-slider-lifestyle-image"
-              />
+          <h1 className="luxury-hero-title">{slide.title}</h1>
 
-              <div className="main-slider-floating-product">
-                <img
-                  src={current?.product_image}
-                  alt={current?.title || 'Featured Product'}
-                  className="main-slider-image"
-                />
-              </div>
-            </div>
+          <div className="luxury-hero-price-row">
+            <Link to="/products" className="luxury-hero-shop-btn">
+              {slide.cta}
+            </Link>
 
-            <div className="main-slider-deal-box">
-              <span>Bestsellers</span>
-              <strong>{renderPrice(current)}</strong>
-            </div>
+            <strong>{slide.price}</strong>
+          </div>
+        </div>
+
+        <div className="luxury-hero-image-area">
+          <div className="luxury-hero-shape luxury-hero-shape-left" />
+          <div className="luxury-hero-shape luxury-hero-shape-middle" />
+          <div className="luxury-hero-shape luxury-hero-shape-right" />
+
+          <div className="luxury-hero-circle luxury-hero-circle-left">
+            <img src={slide.circleImage} alt={slide.title} />
+          </div>
+
+          <div className="luxury-hero-circle luxury-hero-circle-main">
+            <img src={slide.image} alt={slide.title} />
+          </div>
+
+          <div className="luxury-hero-circle luxury-hero-circle-right">
+            <img src={slide.image} alt={slide.title} />
+          </div>
+
+          <div className="luxury-hero-bubbles">
+            <span />
+            <span />
+            <span />
+            <span />
+            <span />
           </div>
         </div>
 
         <button
           type="button"
+          className="luxury-hero-arrow luxury-hero-arrow-left"
           onClick={() => setActiveSlide((prev) => (prev - 1 + slides.length) % slides.length)}
-          className="main-slider-nav main-slider-nav-left"
         >
-          <ChevronLeft size={20} />
+          <ChevronLeft size={28} />
         </button>
 
         <button
           type="button"
+          className="luxury-hero-arrow luxury-hero-arrow-right"
           onClick={() => setActiveSlide((prev) => (prev + 1) % slides.length)}
-          className="main-slider-nav main-slider-nav-right"
         >
-          <ChevronRight size={20} />
+          <ChevronRight size={28} />
         </button>
 
-        <div className="main-slider-tabs">
-          {slides.map((slide, index) => (
+        <div className="luxury-hero-dots">
+          {slides.map((item, index) => (
             <button
-              key={slide._renderId || slide.id || index}
+              key={item.id}
               type="button"
               onClick={() => setActiveSlide(index)}
-              className={index === activeSlide ? 'main-slider-tab active' : 'main-slider-tab'}
+              className={index === activeSlide ? 'active' : ''}
             />
           ))}
         </div>
@@ -803,7 +872,6 @@ function ProductQuickViewModal({
             <div className="home-quick-view-title-row">
               <div>
                 <div className="home-quick-view-category">{product?.category?.name || 'Marketplace Product'}</div>
-
                 <h2 className="home-quick-view-title">{product?.title || 'Product'}</h2>
               </div>
 
@@ -1336,15 +1404,12 @@ export default function HomePage() {
         </div>
       ) : null}
 
-      <MainSlider products={promoProducts} />
+      <MainSlider />
 
       <main className="homepage-shell">
         <DealShowcaseSection products={todayDeals} />
-
         <TodayDealsStrip products={todayDeals} />
-
         <WidePromoSection products={promoProducts} />
-
         <ShopByCategory categoryTree={categoryTree} products={categoryProducts} />
 
         <ProductGridSection
