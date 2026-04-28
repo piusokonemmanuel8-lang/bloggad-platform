@@ -42,6 +42,8 @@ import AffiliateBlogPulseAnalyticsPage from './pages/affiliate/AffiliateBlogPuls
 import AffiliateBlogPulseWalletPage from './pages/affiliate/AffiliateBlogPulseWalletPage';
 import AffiliateAdPlacementPage from './pages/affiliate/AffiliateAdPlacementPage';
 import AffiliateMonetizationAnalyticsOverviewPage from './pages/affiliate/AffiliateMonetizationAnalyticsOverviewPage';
+import AffiliateNotificationsPage from './pages/affiliate/AffiliateNotificationsPage';
+import AffiliateAdsPage from './pages/affiliate/AffiliateAdsPage';
 
 import AdminDashboardPage from './pages/admin/AdminDashboardPage';
 import AdminCategoriesPage from './pages/admin/AdminCategoriesPage';
@@ -59,6 +61,9 @@ import AdminCampaignModerationPage from './pages/admin/AdminCampaignModerationPa
 import AdminCampaignModerationDetailsPage from './pages/admin/AdminCampaignModerationDetailsPage';
 import AdminPaymentModerationPage from './pages/admin/AdminPaymentModerationPage';
 import AdminPaymentModerationDetailsPage from './pages/admin/AdminPaymentModerationDetailsPage';
+import AdminNotificationsPage from './pages/admin/AdminNotificationsPage';
+import AdminAffiliateAdsPage from './pages/admin/AdminAffiliateAdsPage';
+import AdminAffiliateAdsSettingsPage from './pages/admin/AdminAffiliateAdsSettingsPage';
 
 import HomePage from './pages/public/HomePage';
 import WebsiteStorefrontPage from './pages/public/WebsiteStorefrontPage';
@@ -154,6 +159,8 @@ ReactDOM.createRoot(document.getElementById('root')).render(
             <Route path="/affiliate/email-lists" element={<AffiliateEmailListsPage />} />
             <Route path="/affiliate/chats" element={<AffiliateChatsPage />} />
             <Route path="/affiliate/subscription" element={<AffiliateSubscriptionPage />} />
+            <Route path="/affiliate/notifications" element={<AffiliateNotificationsPage />} />
+            <Route path="/affiliate/ads" element={<AffiliateAdsPage />} />
             <Route path="/affiliate/settings" element={<AffiliateSettingsPage />} />
 
             <Route
@@ -194,6 +201,12 @@ ReactDOM.createRoot(document.getElementById('root')).render(
             <Route path="/admin/products" element={<AdminProductsPage />} />
             <Route path="/admin/posts" element={<AdminPostsPage />} />
             <Route path="/admin/chats" element={<AdminChatsPage />} />
+            <Route path="/admin/notifications" element={<AdminNotificationsPage />} />
+            <Route path="/admin/affiliate-ads" element={<AdminAffiliateAdsPage />} />
+            <Route
+              path="/admin/affiliate-ads-settings"
+              element={<AdminAffiliateAdsSettingsPage />}
+            />
             <Route path="/admin/link-validation" element={<AdminLinkValidationPage />} />
             <Route path="/admin/campaign-moderation" element={<AdminCampaignModerationPage />} />
             <Route

@@ -25,6 +25,8 @@ import {
   SquarePen,
   PanelsTopLeft,
   ChartNoAxesCombined,
+  Bell,
+  Megaphone,
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 
@@ -62,6 +64,8 @@ export default function AffiliateLayout() {
 
   const navItems = [
     { label: 'Dashboard', to: '/affiliate/dashboard', icon: LayoutDashboard },
+    { label: 'Notifications', to: '/affiliate/notifications', icon: Bell },
+    { label: 'Ads Account', to: '/affiliate/ads', icon: Megaphone },
     { label: 'Website', to: '/affiliate/website', icon: Globe },
     { label: 'Products', to: '/affiliate/products', icon: ShoppingBag },
     { label: 'Posts', to: '/affiliate/posts/create', icon: FileText },
@@ -175,8 +179,9 @@ export default function AffiliateLayout() {
             <div className="affiliate-layout-topbar-copy">
               <h1>{greeting}</h1>
               <p>
-                Manage your website, products, posts, design, monetization, analytics,
-                customers, email lists, chats, and settings from one place.
+                Manage your website, products, posts, design, ads account,
+                monetization, analytics, customers, email lists, chats, notifications,
+                and settings from one place.
               </p>
             </div>
           </div>

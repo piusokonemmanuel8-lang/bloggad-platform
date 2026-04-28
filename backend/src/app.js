@@ -151,9 +151,29 @@ function createApp() {
     './routes/affiliate/affiliateTemplateRoutes',
   ]);
 
+  mount(app, '/api/affiliate/notifications', 'affiliateNotificationRoutes', [
+    './routes/affiliate/affiliateNotificationRoutes',
+  ]);
+
+  mount(app, '/api/affiliate/ads', 'affiliateAdsRoutes', [
+    './routes/affiliate/affiliateAdsRoutes',
+  ]);
+
   // admin core
   mount(app, '/api/admin/dashboard', 'adminDashboardRoutes', [
     './routes/admin/adminDashboardRoutes',
+  ]);
+
+  mount(app, '/api/admin/notifications', 'adminNotificationRoutes', [
+    './routes/admin/adminNotificationRoutes',
+  ]);
+
+  mount(app, '/api/admin/affiliate-ads', 'adminAffiliateAdsRoutes', [
+    './routes/admin/adminAffiliateAdsRoutes',
+  ]);
+
+  mount(app, '/api/admin/affiliate-ads-settings', 'adminAffiliateAdsSettingsRoutes', [
+    './routes/admin/adminAffiliateAdsSettingsRoutes',
   ]);
 
   mount(app, '/api/admin/categories', 'adminCategoriesRoutes', [
@@ -229,6 +249,10 @@ function createApp() {
 
   mount(app, '/api/public/ads', 'publicAdRoutes', [
     './routes/public/publicAdRoutes',
+  ]);
+
+  mount(app, '/api/public/affiliate-ads', 'publicAffiliateAdsRoutes', [
+    './routes/public/publicAffiliateAdsRoutes',
   ]);
 
   mount(app, '/api/public', 'publicTemplateRoutes', [

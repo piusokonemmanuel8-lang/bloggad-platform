@@ -17,11 +17,15 @@ import {
   CircleDollarSign,
   Megaphone,
   Wallet,
+  Bell,
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 
 const adminMenu = [
   { label: 'Dashboard', to: '/admin/dashboard', icon: LayoutDashboard },
+  { label: 'Notifications', to: '/admin/notifications', icon: Bell },
+  { label: 'Affiliate Ads', to: '/admin/affiliate-ads', icon: Megaphone },
+  { label: 'Ads Settings', to: '/admin/affiliate-ads-settings', icon: CreditCard },
   { label: 'Affiliates', to: '/admin/affiliates', icon: Users },
   { label: 'Users', to: '/admin/users', icon: Users },
   { label: 'Email Lists', to: '/admin/email-lists', icon: Mail },
