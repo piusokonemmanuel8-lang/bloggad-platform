@@ -1,6 +1,7 @@
 const pool = require('../../config/db');
 
 const SETTINGS_TABLE = 'blogpulse_settings';
+const ELIGIBILITY_TABLE = 'blogpulse_monetization_eligibility_settings';
 
 const BASE_DEFAULT_SETTINGS = {
   is_enabled: 0,
@@ -23,6 +24,23 @@ const OPTIONAL_DEFAULT_SETTINGS = {
   individual_premium_only: 1,
   allow_custom_html_ad_code: 0,
   allow_network_js_code: 1,
+};
+
+const DEFAULT_ELIGIBILITY_SETTINGS = {
+  paid_subscription_required: 1,
+  active_storefront_required: 1,
+  required_pages_count: 4,
+  minimum_published_posts: 15,
+  minimum_valid_page_views: 1000,
+  content_quality_review_required: 1,
+
+  local_ads_enabled: 1,
+  affiliate_ads_enabled: 1,
+  global_ads_enabled: 1,
+  personal_ad_id_enabled: 1,
+
+  publisher_max_revenue_percent: 60.0,
+  status: 'active',
 };
 
 function normalizeBoolean(value, fallback = 0) {
@@ -80,6 +98,49 @@ function sanitizeReviewStatus(value) {
   return 'pending';
 }
 
+function sanitizeContentQualityStatus(value) {
+  if (value === 'approved' || value === 'rejected' || value === 'pending') {
+    return value;
+  }
+
+  return 'pending';
+}
+
+function sanitizeEligibilityStatus(value) {
+  return value === 'disabled' ? 'disabled' : 'active';
+}
+
+async function tableExists(connection, tableName) {
+  const [rows] = await connection.query(
+    `
+      SELECT TABLE_NAME
+      FROM information_schema.TABLES
+      WHERE TABLE_SCHEMA = DATABASE()
+        AND TABLE_NAME = ?
+      LIMIT 1
+    `,
+    [tableName]
+  );
+
+  return rows.length > 0;
+}
+
+async function columnExists(connection, tableName, columnName) {
+  const [rows] = await connection.query(
+    `
+      SELECT COLUMN_NAME
+      FROM information_schema.COLUMNS
+      WHERE TABLE_SCHEMA = DATABASE()
+        AND TABLE_NAME = ?
+        AND COLUMN_NAME = ?
+      LIMIT 1
+    `,
+    [tableName, columnName]
+  );
+
+  return rows.length > 0;
+}
+
 async function getExistingColumns(connection, tableName) {
   const [rows] = await connection.query(
     `
@@ -111,6 +172,242 @@ async function ensureColumn(connection, tableName, columnName, alterSql) {
   }
 }
 
+async function ensureBlogPulseSettingsTable(connection) {
+  await connection.query(`
+    CREATE TABLE IF NOT EXISTS \`${SETTINGS_TABLE}\` (
+      id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+
+      is_enabled TINYINT(1) NOT NULL DEFAULT 0,
+      premium_only TINYINT(1) NOT NULL DEFAULT 1,
+      default_rate_per_view DECIMAL(18,8) NOT NULL DEFAULT 0.00010000,
+      minimum_view_seconds INT NOT NULL DEFAULT 15,
+      minimum_scroll_percent INT NOT NULL DEFAULT 10,
+      ip_repeat_window_hours INT NOT NULL DEFAULT 24,
+      fingerprint_repeat_window_hours INT NOT NULL DEFAULT 24,
+      daily_ip_view_cap INT NOT NULL DEFAULT 5,
+      withdrawal_threshold DECIMAL(12,2) NOT NULL DEFAULT 10.00,
+      count_only_if_ad_loaded TINYINT(1) NOT NULL DEFAULT 0,
+      block_vpn_proxy_traffic TINYINT(1) NOT NULL DEFAULT 0,
+      block_suspicious_user_agents TINYINT(1) NOT NULL DEFAULT 1,
+
+      allow_individual_monetization TINYINT(1) NOT NULL DEFAULT 1,
+      individual_requires_admin_approval TINYINT(1) NOT NULL DEFAULT 1,
+      individual_premium_only TINYINT(1) NOT NULL DEFAULT 1,
+      allow_custom_html_ad_code TINYINT(1) NOT NULL DEFAULT 0,
+      allow_network_js_code TINYINT(1) NOT NULL DEFAULT 1,
+
+      created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+      PRIMARY KEY (id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+  `);
+
+  const allDefaults = {
+    ...BASE_DEFAULT_SETTINGS,
+    ...OPTIONAL_DEFAULT_SETTINGS,
+  };
+
+  for (const [key, value] of Object.entries(allDefaults)) {
+    if (Number.isInteger(value)) {
+      await ensureColumn(
+        connection,
+        SETTINGS_TABLE,
+        key,
+        `ALTER TABLE \`${SETTINGS_TABLE}\` ADD COLUMN \`${key}\` INT NOT NULL DEFAULT ${value}`
+      );
+    } else {
+      await ensureColumn(
+        connection,
+        SETTINGS_TABLE,
+        key,
+        `ALTER TABLE \`${SETTINGS_TABLE}\` ADD COLUMN \`${key}\` DECIMAL(18,8) NOT NULL DEFAULT ${value}`
+      );
+    }
+  }
+
+  await ensureColumn(
+    connection,
+    SETTINGS_TABLE,
+    'created_at',
+    `ALTER TABLE \`${SETTINGS_TABLE}\` ADD COLUMN created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP`
+  );
+
+  await ensureColumn(
+    connection,
+    SETTINGS_TABLE,
+    'updated_at',
+    `ALTER TABLE \`${SETTINGS_TABLE}\` ADD COLUMN updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP`
+  );
+}
+
+async function ensureBlogPulseEligibilitySettingsTable(connection) {
+  await connection.query(`
+    CREATE TABLE IF NOT EXISTS \`${ELIGIBILITY_TABLE}\` (
+      id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+
+      paid_subscription_required TINYINT(1) NOT NULL DEFAULT 1,
+      active_storefront_required TINYINT(1) NOT NULL DEFAULT 1,
+      required_pages_count INT NOT NULL DEFAULT 4,
+      minimum_published_posts INT NOT NULL DEFAULT 15,
+      minimum_valid_page_views INT NOT NULL DEFAULT 1000,
+      content_quality_review_required TINYINT(1) NOT NULL DEFAULT 1,
+
+      local_ads_enabled TINYINT(1) NOT NULL DEFAULT 1,
+      affiliate_ads_enabled TINYINT(1) NOT NULL DEFAULT 1,
+      global_ads_enabled TINYINT(1) NOT NULL DEFAULT 1,
+      personal_ad_id_enabled TINYINT(1) NOT NULL DEFAULT 1,
+
+      publisher_max_revenue_percent DECIMAL(5,2) NOT NULL DEFAULT 60.00,
+      status ENUM('active','disabled') NOT NULL DEFAULT 'active',
+
+      created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+      PRIMARY KEY (id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+  `);
+
+  await ensureColumn(
+    connection,
+    ELIGIBILITY_TABLE,
+    'paid_subscription_required',
+    `ALTER TABLE \`${ELIGIBILITY_TABLE}\` ADD COLUMN paid_subscription_required TINYINT(1) NOT NULL DEFAULT 1 AFTER id`
+  );
+
+  await ensureColumn(
+    connection,
+    ELIGIBILITY_TABLE,
+    'active_storefront_required',
+    `ALTER TABLE \`${ELIGIBILITY_TABLE}\` ADD COLUMN active_storefront_required TINYINT(1) NOT NULL DEFAULT 1 AFTER paid_subscription_required`
+  );
+
+  await ensureColumn(
+    connection,
+    ELIGIBILITY_TABLE,
+    'required_pages_count',
+    `ALTER TABLE \`${ELIGIBILITY_TABLE}\` ADD COLUMN required_pages_count INT NOT NULL DEFAULT 4 AFTER active_storefront_required`
+  );
+
+  await ensureColumn(
+    connection,
+    ELIGIBILITY_TABLE,
+    'minimum_published_posts',
+    `ALTER TABLE \`${ELIGIBILITY_TABLE}\` ADD COLUMN minimum_published_posts INT NOT NULL DEFAULT 15 AFTER required_pages_count`
+  );
+
+  await ensureColumn(
+    connection,
+    ELIGIBILITY_TABLE,
+    'minimum_valid_page_views',
+    `ALTER TABLE \`${ELIGIBILITY_TABLE}\` ADD COLUMN minimum_valid_page_views INT NOT NULL DEFAULT 1000 AFTER minimum_published_posts`
+  );
+
+  await ensureColumn(
+    connection,
+    ELIGIBILITY_TABLE,
+    'content_quality_review_required',
+    `ALTER TABLE \`${ELIGIBILITY_TABLE}\` ADD COLUMN content_quality_review_required TINYINT(1) NOT NULL DEFAULT 1 AFTER minimum_valid_page_views`
+  );
+
+  await ensureColumn(
+    connection,
+    ELIGIBILITY_TABLE,
+    'local_ads_enabled',
+    `ALTER TABLE \`${ELIGIBILITY_TABLE}\` ADD COLUMN local_ads_enabled TINYINT(1) NOT NULL DEFAULT 1 AFTER content_quality_review_required`
+  );
+
+  await ensureColumn(
+    connection,
+    ELIGIBILITY_TABLE,
+    'affiliate_ads_enabled',
+    `ALTER TABLE \`${ELIGIBILITY_TABLE}\` ADD COLUMN affiliate_ads_enabled TINYINT(1) NOT NULL DEFAULT 1 AFTER local_ads_enabled`
+  );
+
+  await ensureColumn(
+    connection,
+    ELIGIBILITY_TABLE,
+    'global_ads_enabled',
+    `ALTER TABLE \`${ELIGIBILITY_TABLE}\` ADD COLUMN global_ads_enabled TINYINT(1) NOT NULL DEFAULT 1 AFTER affiliate_ads_enabled`
+  );
+
+  await ensureColumn(
+    connection,
+    ELIGIBILITY_TABLE,
+    'personal_ad_id_enabled',
+    `ALTER TABLE \`${ELIGIBILITY_TABLE}\` ADD COLUMN personal_ad_id_enabled TINYINT(1) NOT NULL DEFAULT 1 AFTER global_ads_enabled`
+  );
+
+  await ensureColumn(
+    connection,
+    ELIGIBILITY_TABLE,
+    'publisher_max_revenue_percent',
+    `ALTER TABLE \`${ELIGIBILITY_TABLE}\` ADD COLUMN publisher_max_revenue_percent DECIMAL(5,2) NOT NULL DEFAULT 60.00 AFTER personal_ad_id_enabled`
+  );
+
+  await ensureColumn(
+    connection,
+    ELIGIBILITY_TABLE,
+    'status',
+    `ALTER TABLE \`${ELIGIBILITY_TABLE}\` ADD COLUMN status ENUM('active','disabled') NOT NULL DEFAULT 'active' AFTER publisher_max_revenue_percent`
+  );
+
+  await ensureColumn(
+    connection,
+    ELIGIBILITY_TABLE,
+    'created_at',
+    `ALTER TABLE \`${ELIGIBILITY_TABLE}\` ADD COLUMN created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP`
+  );
+
+  await ensureColumn(
+    connection,
+    ELIGIBILITY_TABLE,
+    'updated_at',
+    `ALTER TABLE \`${ELIGIBILITY_TABLE}\` ADD COLUMN updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP`
+  );
+
+  const [existingRows] = await connection.query(
+    `SELECT id FROM \`${ELIGIBILITY_TABLE}\` ORDER BY id ASC LIMIT 1`
+  );
+
+  if (!existingRows.length) {
+    await connection.query(
+      `
+        INSERT INTO \`${ELIGIBILITY_TABLE}\`
+        (
+          paid_subscription_required,
+          active_storefront_required,
+          required_pages_count,
+          minimum_published_posts,
+          minimum_valid_page_views,
+          content_quality_review_required,
+          local_ads_enabled,
+          affiliate_ads_enabled,
+          global_ads_enabled,
+          personal_ad_id_enabled,
+          publisher_max_revenue_percent,
+          status
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `,
+      [
+        DEFAULT_ELIGIBILITY_SETTINGS.paid_subscription_required,
+        DEFAULT_ELIGIBILITY_SETTINGS.active_storefront_required,
+        DEFAULT_ELIGIBILITY_SETTINGS.required_pages_count,
+        DEFAULT_ELIGIBILITY_SETTINGS.minimum_published_posts,
+        DEFAULT_ELIGIBILITY_SETTINGS.minimum_valid_page_views,
+        DEFAULT_ELIGIBILITY_SETTINGS.content_quality_review_required,
+        DEFAULT_ELIGIBILITY_SETTINGS.local_ads_enabled,
+        DEFAULT_ELIGIBILITY_SETTINGS.affiliate_ads_enabled,
+        DEFAULT_ELIGIBILITY_SETTINGS.global_ads_enabled,
+        DEFAULT_ELIGIBILITY_SETTINGS.personal_ad_id_enabled,
+        DEFAULT_ELIGIBILITY_SETTINGS.publisher_max_revenue_percent,
+        DEFAULT_ELIGIBILITY_SETTINGS.status,
+      ]
+    );
+  }
+}
+
 async function ensureAffiliateMonetizationReviewColumns(connection) {
   await connection.query(`
     CREATE TABLE IF NOT EXISTS affiliate_monetization_settings (
@@ -133,6 +430,9 @@ async function ensureAffiliateMonetizationReviewColumns(connection) {
       submitted_at TIMESTAMP NULL DEFAULT NULL,
       reviewed_at TIMESTAMP NULL DEFAULT NULL,
       admin_review_note TEXT DEFAULT NULL,
+      content_quality_status ENUM('pending','approved','rejected') NOT NULL DEFAULT 'pending',
+      content_quality_note TEXT DEFAULT NULL,
+      content_quality_reviewed_at TIMESTAMP NULL DEFAULT NULL,
       created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
       updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
       PRIMARY KEY (id),
@@ -166,6 +466,27 @@ async function ensureAffiliateMonetizationReviewColumns(connection) {
     'affiliate_monetization_settings',
     'admin_review_note',
     "ALTER TABLE affiliate_monetization_settings ADD COLUMN admin_review_note TEXT DEFAULT NULL AFTER reviewed_at"
+  );
+
+  await ensureColumn(
+    connection,
+    'affiliate_monetization_settings',
+    'content_quality_status',
+    "ALTER TABLE affiliate_monetization_settings ADD COLUMN content_quality_status ENUM('pending','approved','rejected') NOT NULL DEFAULT 'pending' AFTER admin_review_note"
+  );
+
+  await ensureColumn(
+    connection,
+    'affiliate_monetization_settings',
+    'content_quality_note',
+    "ALTER TABLE affiliate_monetization_settings ADD COLUMN content_quality_note TEXT DEFAULT NULL AFTER content_quality_status"
+  );
+
+  await ensureColumn(
+    connection,
+    'affiliate_monetization_settings',
+    'content_quality_reviewed_at',
+    "ALTER TABLE affiliate_monetization_settings ADD COLUMN content_quality_reviewed_at TIMESTAMP NULL DEFAULT NULL AFTER content_quality_note"
   );
 }
 
@@ -206,6 +527,21 @@ async function ensureSettingsRow(connection, availableColumns) {
   return result.insertId;
 }
 
+async function getEligibilitySettingsRow(connection) {
+  await ensureBlogPulseEligibilitySettingsTable(connection);
+
+  const [rows] = await connection.query(
+    `
+      SELECT *
+      FROM \`${ELIGIBILITY_TABLE}\`
+      ORDER BY id ASC
+      LIMIT 1
+    `
+  );
+
+  return rows[0] || { ...DEFAULT_ELIGIBILITY_SETTINGS };
+}
+
 function buildSelectableFields(availableColumns) {
   const fields = ['id'];
 
@@ -242,7 +578,69 @@ function buildResponsePayload(row = {}, availableColumns = new Set()) {
   return payload;
 }
 
-function buildEligibilityPolicy() {
+function buildEligibilitySettingsPayload(row = {}) {
+  return {
+    paid_subscription_required: normalizeBoolean(
+      row.paid_subscription_required,
+      DEFAULT_ELIGIBILITY_SETTINGS.paid_subscription_required
+    ),
+    active_storefront_required: normalizeBoolean(
+      row.active_storefront_required,
+      DEFAULT_ELIGIBILITY_SETTINGS.active_storefront_required
+    ),
+    required_pages_count: normalizeInteger(
+      row.required_pages_count,
+      DEFAULT_ELIGIBILITY_SETTINGS.required_pages_count,
+      0
+    ),
+    minimum_published_posts: normalizeInteger(
+      row.minimum_published_posts,
+      DEFAULT_ELIGIBILITY_SETTINGS.minimum_published_posts,
+      0
+    ),
+    minimum_valid_page_views: normalizeInteger(
+      row.minimum_valid_page_views,
+      DEFAULT_ELIGIBILITY_SETTINGS.minimum_valid_page_views,
+      0
+    ),
+    content_quality_review_required: normalizeBoolean(
+      row.content_quality_review_required,
+      DEFAULT_ELIGIBILITY_SETTINGS.content_quality_review_required
+    ),
+
+    local_ads_enabled: normalizeBoolean(
+      row.local_ads_enabled,
+      DEFAULT_ELIGIBILITY_SETTINGS.local_ads_enabled
+    ),
+    affiliate_ads_enabled: normalizeBoolean(
+      row.affiliate_ads_enabled,
+      DEFAULT_ELIGIBILITY_SETTINGS.affiliate_ads_enabled
+    ),
+    global_ads_enabled: normalizeBoolean(
+      row.global_ads_enabled,
+      DEFAULT_ELIGIBILITY_SETTINGS.global_ads_enabled
+    ),
+    personal_ad_id_enabled: normalizeBoolean(
+      row.personal_ad_id_enabled,
+      DEFAULT_ELIGIBILITY_SETTINGS.personal_ad_id_enabled
+    ),
+
+    publisher_max_revenue_percent: normalizeDecimal(
+      row.publisher_max_revenue_percent,
+      DEFAULT_ELIGIBILITY_SETTINGS.publisher_max_revenue_percent,
+      0,
+      100,
+      2
+    ),
+    status: sanitizeEligibilityStatus(row.status),
+    created_at: row.created_at || null,
+    updated_at: row.updated_at || null,
+  };
+}
+
+function buildEligibilityPolicy(eligibilitySettings = DEFAULT_ELIGIBILITY_SETTINGS) {
+  const settings = buildEligibilitySettingsPayload(eligibilitySettings);
+
   return {
     program_name: 'BlogPulse Earnings',
     platform_modes: [
@@ -258,23 +656,47 @@ function buildEligibilityPolicy() {
         description:
           'Affiliate uses their own approved ad code on their own storefront and post pages only.',
       },
+      {
+        key: 'publisher_ads',
+        label: 'Publisher Sponsored Ads',
+        description:
+          'Approved affiliates can turn on sponsored marketplace placements and earn from eligible ad activity.',
+      },
     ],
     minimum_requirements: [
-      'Active paid subscription is required. Free plans are not eligible.',
-      'Storefront/blog must be active and not suspended.',
-      'Content must be original and policy-safe.',
-      'Required pages should exist: About, Contact, Privacy Policy, and Terms.',
+      settings.paid_subscription_required
+        ? 'Active paid subscription is required. Free plans are not eligible.'
+        : 'Paid subscription is not required by current admin policy.',
+      settings.active_storefront_required
+        ? 'Storefront/blog must be active and not suspended.'
+        : 'Active storefront requirement is currently disabled.',
+      `Required pages target: ${settings.required_pages_count}.`,
+      `Published posts target: ${settings.minimum_published_posts}.`,
+      `Valid page views target: ${settings.minimum_valid_page_views}.`,
+      settings.content_quality_review_required
+        ? 'Content must pass original and policy-safe quality review.'
+        : 'Manual content quality review is currently disabled.',
       'Traffic must pass duplicate-IP and anti-bot checks.',
       'Admin approval is required before monetization goes live.',
     ],
+    ad_programs: {
+      local_ads_enabled: settings.local_ads_enabled,
+      affiliate_ads_enabled: settings.affiliate_ads_enabled,
+      global_ads_enabled: settings.global_ads_enabled,
+      personal_ad_id_enabled: settings.personal_ad_id_enabled,
+    },
+    publisher_revenue_message: `Affiliates can earn up to ${settings.publisher_max_revenue_percent}% ad revenue from eligible sponsored placements after approval.`,
     notes: [
       'Platform monetization pays through BlogPulse wallet rules.',
       'Individual monetization uses the affiliate’s own ad code and does not credit BlogPulse per-view earnings.',
+      'Publisher sponsored ad earnings are only active after monetization approval.',
     ],
   };
 }
 
 async function getSettingsRow(connection) {
+  await ensureBlogPulseSettingsTable(connection);
+
   const availableColumns = await getExistingColumns(connection, SETTINGS_TABLE);
   const settingsId = await ensureSettingsRow(connection, availableColumns);
 
@@ -290,15 +712,52 @@ async function getSettingsRow(connection) {
   };
 }
 
+async function buildPostCountSelect(connection) {
+  const hasPostsTable = await tableExists(connection, 'product_posts');
+
+  if (!hasPostsTable) {
+    return `0 AS total_posts`;
+  }
+
+  const conditions = [];
+
+  if (await columnExists(connection, 'product_posts', 'user_id')) {
+    conditions.push('pp.user_id = u.id');
+  }
+
+  if (await columnExists(connection, 'product_posts', 'affiliate_id')) {
+    conditions.push('pp.affiliate_id = u.id');
+  }
+
+  if (await columnExists(connection, 'product_posts', 'website_id')) {
+    conditions.push('pp.website_id = aw.id');
+  }
+
+  if (!conditions.length) {
+    return `0 AS total_posts`;
+  }
+
+  return `
+    (
+      SELECT COUNT(*)
+      FROM product_posts pp
+      WHERE (${conditions.join(' OR ')})
+    ) AS total_posts
+  `;
+}
+
 async function getAdminBlogPulseSettings(req, res) {
   try {
     const { row, availableColumns } = await getSettingsRow(pool);
+    const eligibilityRow = await getEligibilitySettingsRow(pool);
+    const eligibilitySettings = buildEligibilitySettingsPayload(eligibilityRow);
 
     return res.status(200).json({
       ok: true,
       message: 'BlogPulse settings fetched successfully.',
       settings: buildResponsePayload(row, availableColumns),
-      policy: buildEligibilityPolicy(),
+      eligibility_settings: eligibilitySettings,
+      policy: buildEligibilityPolicy(eligibilitySettings),
     });
   } catch (error) {
     console.error('getAdminBlogPulseSettings error:', error.message);
@@ -451,28 +910,134 @@ async function updateAdminBlogPulseSettings(req, res) {
 
     const updateEntries = Object.entries(nextValues);
 
-    if (!updateEntries.length) {
-      return res.status(400).json({
-        ok: false,
-        message: 'No valid BlogPulse settings fields were provided.',
-      });
+    if (updateEntries.length) {
+      const setClause = updateEntries.map(([key]) => `\`${key}\` = ?`).join(', ');
+      const values = updateEntries.map(([, value]) => value);
+
+      await pool.query(
+        `UPDATE \`${SETTINGS_TABLE}\` SET ${setClause} WHERE id = ?`,
+        [...values, row.id]
+      );
     }
 
-    const setClause = updateEntries.map(([key]) => `\`${key}\` = ?`).join(', ');
-    const values = updateEntries.map(([, value]) => value);
+    const eligibilityBody = req.body.eligibility_settings || req.body.eligibility || req.body;
+
+    await ensureBlogPulseEligibilitySettingsTable(pool);
+
+    const currentEligibility = await getEligibilitySettingsRow(pool);
+
+    const nextEligibility = {
+      paid_subscription_required: normalizeBoolean(
+        eligibilityBody.paid_subscription_required,
+        currentEligibility.paid_subscription_required ??
+          DEFAULT_ELIGIBILITY_SETTINGS.paid_subscription_required
+      ),
+      active_storefront_required: normalizeBoolean(
+        eligibilityBody.active_storefront_required,
+        currentEligibility.active_storefront_required ??
+          DEFAULT_ELIGIBILITY_SETTINGS.active_storefront_required
+      ),
+      required_pages_count: normalizeInteger(
+        eligibilityBody.required_pages_count,
+        currentEligibility.required_pages_count ??
+          DEFAULT_ELIGIBILITY_SETTINGS.required_pages_count,
+        0
+      ),
+      minimum_published_posts: normalizeInteger(
+        eligibilityBody.minimum_published_posts,
+        currentEligibility.minimum_published_posts ??
+          DEFAULT_ELIGIBILITY_SETTINGS.minimum_published_posts,
+        0
+      ),
+      minimum_valid_page_views: normalizeInteger(
+        eligibilityBody.minimum_valid_page_views,
+        currentEligibility.minimum_valid_page_views ??
+          DEFAULT_ELIGIBILITY_SETTINGS.minimum_valid_page_views,
+        0
+      ),
+      content_quality_review_required: normalizeBoolean(
+        eligibilityBody.content_quality_review_required,
+        currentEligibility.content_quality_review_required ??
+          DEFAULT_ELIGIBILITY_SETTINGS.content_quality_review_required
+      ),
+
+      local_ads_enabled: normalizeBoolean(
+        eligibilityBody.local_ads_enabled,
+        currentEligibility.local_ads_enabled ?? DEFAULT_ELIGIBILITY_SETTINGS.local_ads_enabled
+      ),
+      affiliate_ads_enabled: normalizeBoolean(
+        eligibilityBody.affiliate_ads_enabled,
+        currentEligibility.affiliate_ads_enabled ??
+          DEFAULT_ELIGIBILITY_SETTINGS.affiliate_ads_enabled
+      ),
+      global_ads_enabled: normalizeBoolean(
+        eligibilityBody.global_ads_enabled,
+        currentEligibility.global_ads_enabled ?? DEFAULT_ELIGIBILITY_SETTINGS.global_ads_enabled
+      ),
+      personal_ad_id_enabled: normalizeBoolean(
+        eligibilityBody.personal_ad_id_enabled,
+        currentEligibility.personal_ad_id_enabled ??
+          DEFAULT_ELIGIBILITY_SETTINGS.personal_ad_id_enabled
+      ),
+
+      publisher_max_revenue_percent: normalizeDecimal(
+        eligibilityBody.publisher_max_revenue_percent,
+        currentEligibility.publisher_max_revenue_percent ??
+          DEFAULT_ELIGIBILITY_SETTINGS.publisher_max_revenue_percent,
+        0,
+        100,
+        2
+      ),
+      status: sanitizeEligibilityStatus(
+        eligibilityBody.status || currentEligibility.status || DEFAULT_ELIGIBILITY_SETTINGS.status
+      ),
+    };
 
     await pool.query(
-      `UPDATE \`${SETTINGS_TABLE}\` SET ${setClause} WHERE id = ?`,
-      [...values, row.id]
+      `
+        UPDATE \`${ELIGIBILITY_TABLE}\`
+        SET
+          paid_subscription_required = ?,
+          active_storefront_required = ?,
+          required_pages_count = ?,
+          minimum_published_posts = ?,
+          minimum_valid_page_views = ?,
+          content_quality_review_required = ?,
+          local_ads_enabled = ?,
+          affiliate_ads_enabled = ?,
+          global_ads_enabled = ?,
+          personal_ad_id_enabled = ?,
+          publisher_max_revenue_percent = ?,
+          status = ?,
+          updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+      `,
+      [
+        nextEligibility.paid_subscription_required,
+        nextEligibility.active_storefront_required,
+        nextEligibility.required_pages_count,
+        nextEligibility.minimum_published_posts,
+        nextEligibility.minimum_valid_page_views,
+        nextEligibility.content_quality_review_required,
+        nextEligibility.local_ads_enabled,
+        nextEligibility.affiliate_ads_enabled,
+        nextEligibility.global_ads_enabled,
+        nextEligibility.personal_ad_id_enabled,
+        nextEligibility.publisher_max_revenue_percent,
+        nextEligibility.status,
+        currentEligibility.id,
+      ]
     );
 
     const refreshed = await getSettingsRow(pool);
+    const refreshedEligibility = buildEligibilitySettingsPayload(await getEligibilitySettingsRow(pool));
 
     return res.status(200).json({
       ok: true,
       message: 'BlogPulse settings updated successfully.',
       settings: buildResponsePayload(refreshed.row, refreshed.availableColumns),
-      policy: buildEligibilityPolicy(),
+      eligibility_settings: refreshedEligibility,
+      policy: buildEligibilityPolicy(refreshedEligibility),
     });
   } catch (error) {
     console.error('updateAdminBlogPulseSettings error:', error.message);
@@ -487,10 +1052,13 @@ async function updateAdminBlogPulseSettings(req, res) {
 
 async function getAdminBlogPulsePolicy(req, res) {
   try {
+    const eligibilitySettings = buildEligibilitySettingsPayload(await getEligibilitySettingsRow(pool));
+
     return res.status(200).json({
       ok: true,
       message: 'BlogPulse policy fetched successfully.',
-      policy: buildEligibilityPolicy(),
+      eligibility_settings: eligibilitySettings,
+      policy: buildEligibilityPolicy(eligibilitySettings),
     });
   } catch (error) {
     console.error('getAdminBlogPulsePolicy error:', error.message);
@@ -577,6 +1145,9 @@ async function getAdminMonetizationSubmissions(req, res) {
           ams.submitted_at,
           ams.reviewed_at,
           ams.admin_review_note,
+          ams.content_quality_status,
+          ams.content_quality_note,
+          ams.content_quality_reviewed_at,
           ams.created_at,
           ams.updated_at,
           u.name AS user_name,
@@ -643,6 +1214,9 @@ async function getAdminMonetizationSubmissions(req, res) {
         submitted_at: row.submitted_at || null,
         reviewed_at: row.reviewed_at || null,
         admin_review_note: row.admin_review_note || '',
+        content_quality_status: row.content_quality_status || 'pending',
+        content_quality_note: row.content_quality_note || '',
+        content_quality_reviewed_at: row.content_quality_reviewed_at || null,
         created_at: row.created_at || null,
         updated_at: row.updated_at || null,
       })),
@@ -748,10 +1322,230 @@ async function reviewAdminMonetizationSubmission(req, res) {
   }
 }
 
+async function getAdminContentQualityReviews(req, res) {
+  try {
+    await ensureAffiliateMonetizationReviewColumns(pool);
+
+    const search = cleanText(req.query.search, 100);
+    const status = cleanText(req.query.status, 20) || 'all';
+
+    const conditions = [];
+    const params = [];
+
+    if (status !== 'all') {
+      conditions.push(`COALESCE(ams.content_quality_status, 'pending') = ?`);
+      params.push(status);
+    }
+
+    if (search) {
+      conditions.push(`
+        (
+          u.name LIKE ?
+          OR u.email LIKE ?
+          OR aw.website_name LIKE ?
+          OR aw.slug LIKE ?
+        )
+      `);
+
+      params.push(`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`);
+    }
+
+    const whereClause = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+    const postCountSelect = await buildPostCountSelect(pool);
+
+    const [rows] = await pool.query(
+      `
+        SELECT
+          u.id AS user_id,
+          u.name AS user_name,
+          u.email AS user_email,
+          u.status AS user_status,
+
+          aw.id AS website_id,
+          aw.website_name,
+          aw.slug AS website_slug,
+          aw.status AS website_status,
+
+          ams.id AS monetization_id,
+          COALESCE(ams.content_quality_status, 'pending') AS content_quality_status,
+          ams.content_quality_note,
+          ams.content_quality_reviewed_at,
+          ams.review_status,
+          ams.submitted_at,
+          ams.updated_at,
+
+          ${postCountSelect}
+
+        FROM users u
+
+        LEFT JOIN affiliate_websites aw
+          ON aw.user_id = u.id
+
+        LEFT JOIN affiliate_monetization_settings ams
+          ON ams.user_id = u.id
+
+        ${whereClause}
+
+        ORDER BY
+          CASE COALESCE(ams.content_quality_status, 'pending')
+            WHEN 'pending' THEN 1
+            WHEN 'rejected' THEN 2
+            WHEN 'approved' THEN 3
+            ELSE 4
+          END,
+          ams.content_quality_reviewed_at DESC,
+          u.id DESC
+      `,
+      params
+    );
+
+    return res.status(200).json({
+      ok: true,
+      message: 'Content quality reviews fetched successfully.',
+      reviews: rows.map((row) => ({
+        user_id: row.user_id,
+        affiliate: {
+          name: row.user_name,
+          email: row.user_email,
+          status: row.user_status,
+        },
+        website: row.website_id
+          ? {
+              id: row.website_id,
+              website_name: row.website_name,
+              slug: row.website_slug,
+              status: row.website_status,
+            }
+          : null,
+        total_posts: Number(row.total_posts || 0),
+        monetization_id: row.monetization_id || null,
+        review_status: row.review_status || 'draft',
+        content_quality_status: row.content_quality_status || 'pending',
+        content_quality_note: row.content_quality_note || '',
+        content_quality_reviewed_at: row.content_quality_reviewed_at || null,
+        submitted_at: row.submitted_at || null,
+        updated_at: row.updated_at || null,
+      })),
+    });
+  } catch (error) {
+    console.error('getAdminContentQualityReviews error:', error.message);
+
+    return res.status(500).json({
+      ok: false,
+      message: 'Failed to fetch content quality reviews.',
+      error: error.message,
+    });
+  }
+}
+
+async function reviewAdminContentQuality(req, res) {
+  try {
+    await ensureAffiliateMonetizationReviewColumns(pool);
+
+    const userId = Number(req.params.userId);
+    const contentQualityStatus = sanitizeContentQualityStatus(req.body.content_quality_status);
+    const contentQualityNote = cleanText(req.body.content_quality_note);
+
+    if (!Number.isInteger(userId) || userId <= 0) {
+      return res.status(400).json({
+        ok: false,
+        message: 'Invalid affiliate user id.',
+      });
+    }
+
+    if (!['approved', 'rejected', 'pending'].includes(contentQualityStatus)) {
+      return res.status(400).json({
+        ok: false,
+        message: 'Content quality status must be pending, approved, or rejected.',
+      });
+    }
+
+    const [[user]] = await pool.query(
+      `
+        SELECT id, name, email
+        FROM users
+        WHERE id = ?
+        LIMIT 1
+      `,
+      [userId]
+    );
+
+    if (!user) {
+      return res.status(404).json({
+        ok: false,
+        message: 'Affiliate user not found.',
+      });
+    }
+
+    await pool.query(
+      `
+        INSERT INTO affiliate_monetization_settings
+        (
+          user_id,
+          monetization_mode,
+          review_status,
+          content_quality_status,
+          content_quality_note,
+          content_quality_reviewed_at
+        )
+        VALUES (?, 'individual', 'draft', ?, ?, CURRENT_TIMESTAMP)
+        ON DUPLICATE KEY UPDATE
+          content_quality_status = VALUES(content_quality_status),
+          content_quality_note = VALUES(content_quality_note),
+          content_quality_reviewed_at = CURRENT_TIMESTAMP,
+          updated_at = CURRENT_TIMESTAMP
+      `,
+      [userId, contentQualityStatus, contentQualityNote]
+    );
+
+    const [[updated]] = await pool.query(
+      `
+        SELECT
+          id,
+          user_id,
+          content_quality_status,
+          content_quality_note,
+          content_quality_reviewed_at
+        FROM affiliate_monetization_settings
+        WHERE user_id = ?
+        LIMIT 1
+      `,
+      [userId]
+    );
+
+    return res.status(200).json({
+      ok: true,
+      message:
+        contentQualityStatus === 'approved'
+          ? 'Content quality approved successfully.'
+          : contentQualityStatus === 'rejected'
+          ? 'Content quality rejected successfully.'
+          : 'Content quality review reset to pending.',
+      review: {
+        id: updated.id,
+        user_id: updated.user_id,
+        content_quality_status: updated.content_quality_status,
+        content_quality_note: updated.content_quality_note || '',
+        content_quality_reviewed_at: updated.content_quality_reviewed_at || null,
+      },
+    });
+  } catch (error) {
+    console.error('reviewAdminContentQuality error:', error.message);
+
+    return res.status(500).json({
+      ok: false,
+      message: 'Failed to review content quality.',
+      error: error.message,
+    });
+  }
+}
+
 module.exports = {
   getAdminBlogPulseSettings,
   updateAdminBlogPulseSettings,
   getAdminBlogPulsePolicy,
   getAdminMonetizationSubmissions,
   reviewAdminMonetizationSubmission,
+  getAdminContentQualityReviews,
+  reviewAdminContentQuality,
 };

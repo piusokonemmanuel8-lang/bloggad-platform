@@ -273,6 +273,7 @@ export default function SimplePostsTemplate({
   placements,
   platformPlacements,
   directPlacements,
+  sponsoredRelatedPostsSlot,
 }) {
   const { fieldMap, buttonMap } = useTemplateMap(templateFields, ctaButtons);
 
@@ -671,6 +672,10 @@ export default function SimplePostsTemplate({
           font-size: 15.5px;
           line-height: 1.58;
           font-weight: 650;
+        }
+
+        .sp-sponsored-slot-wrap {
+          margin: 28px 0 24px;
         }
 
         .sp-content-row {
@@ -1395,6 +1400,12 @@ export default function SimplePostsTemplate({
 
               <CtaButton button={finalButton} fallbackLabel="Try ProductX Now" />
             </section>
+
+            {sponsoredRelatedPostsSlot ? (
+              <div className="sp-sponsored-slot-wrap">
+                {sponsoredRelatedPostsSlot}
+              </div>
+            ) : null}
 
             <section className="sp-section">
               <h2>{fieldMap.related_posts_title || 'Related Posts'}</h2>

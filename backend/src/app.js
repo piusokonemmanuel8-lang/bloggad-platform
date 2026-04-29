@@ -129,6 +129,10 @@ function createApp() {
     './routes/affiliate/affiliateSliderRoutes',
   ]);
 
+  mount(app, '/api/affiliate/banner-home-ads', 'affiliateBannerHomeAdsRoutes', [
+    './routes/affiliate/affiliateBannerHomeAdsRoutes',
+  ]);
+
   mount(app, '/api/affiliate/design', 'affiliateDesignRoutes', [
     './routes/affiliate/affiliateDesignRoutes',
   ]);
@@ -139,6 +143,10 @@ function createApp() {
 
   mount(app, '/api/affiliate/blogpulse-earnings', 'affiliateBlogPulseEarningsRoutes', [
     './routes/affiliate/affiliateBlogPulseEarningsRoutes',
+  ]);
+
+  mount(app, '/api/affiliate/monetization', 'affiliateMonetizationRoutes', [
+    './routes/affiliate/affiliateMonetizationRoutes',
   ]);
 
   mount(app, '/api/affiliate/media', 'affiliateMediaRoutes', [
@@ -174,6 +182,14 @@ function createApp() {
 
   mount(app, '/api/admin/affiliate-ads-settings', 'adminAffiliateAdsSettingsRoutes', [
     './routes/admin/adminAffiliateAdsSettingsRoutes',
+  ]);
+
+  mount(app, '/api/admin/banner-home-ads', 'adminBannerHomeAdsRoutes', [
+    './routes/admin/adminBannerHomeAdsRoutes',
+  ]);
+
+  mount(app, '/api/admin/banner-home-ad-campaigns', 'adminBannerHomeAdCampaignsRoutes', [
+    './routes/admin/adminBannerHomeAdCampaignsRoutes',
   ]);
 
   mount(app, '/api/admin/categories', 'adminCategoriesRoutes', [
@@ -253,6 +269,10 @@ function createApp() {
 
   mount(app, '/api/public/affiliate-ads', 'publicAffiliateAdsRoutes', [
     './routes/public/publicAffiliateAdsRoutes',
+  ]);
+
+  mount(app, '/api/public/banner-home-ads', 'publicBannerHomeAdsRoutes', [
+    './routes/public/publicBannerHomeAdsRoutes',
   ]);
 
   mount(app, '/api/public', 'publicTemplateRoutes', [

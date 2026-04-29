@@ -64,6 +64,8 @@ import AdminPaymentModerationDetailsPage from './pages/admin/AdminPaymentModerat
 import AdminNotificationsPage from './pages/admin/AdminNotificationsPage';
 import AdminAffiliateAdsPage from './pages/admin/AdminAffiliateAdsPage';
 import AdminAffiliateAdsSettingsPage from './pages/admin/AdminAffiliateAdsSettingsPage';
+import AdminBannerHomeSlidesPage from './pages/admin/AdminBannerHomeSlidesPage';
+import AdminBannerHomeAdCampaignsPage from './pages/admin/AdminBannerHomeAdCampaignsPage';
 
 import HomePage from './pages/public/HomePage';
 import WebsiteStorefrontPage from './pages/public/WebsiteStorefrontPage';
@@ -72,6 +74,7 @@ import ProductPage from './pages/public/ProductPage';
 import PostPage from './pages/public/PostPage';
 import WebsitePostsPage from './pages/public/WebsitePostsPage';
 import WebsiteCategoryPage from './pages/public/WebsiteCategoryPage';
+import WebsitePostCategoryPage from './pages/public/WebsitePostCategoryPage';
 
 import CustomerDashboardPage from './pages/customer/CustomerDashboardPage';
 import CustomerAdvertiserDashboardPage from './pages/customer/CustomerAdvertiserDashboardPage';
@@ -126,6 +129,10 @@ ReactDOM.createRoot(document.getElementById('root')).render(
               <Route path="category/:slug" element={<CategoryPage />} />
               <Route path=":websiteSlug" element={<WebsiteStorefrontPage />} />
               <Route path=":websiteSlug/posts" element={<WebsitePostsPage />} />
+              <Route
+                path=":websiteSlug/posts/category/:categorySlug"
+                element={<WebsitePostCategoryPage />}
+              />
               <Route path=":websiteSlug/category/:slug" element={<WebsiteCategoryPage />} />
               <Route path=":websiteSlug/product/:slug" element={<ProductPage />} />
               <Route path=":websiteSlug/post/:slug" element={<PostPage />} />
@@ -206,6 +213,11 @@ ReactDOM.createRoot(document.getElementById('root')).render(
             <Route
               path="/admin/affiliate-ads-settings"
               element={<AdminAffiliateAdsSettingsPage />}
+            />
+            <Route path="/admin/banner-home-slides" element={<AdminBannerHomeSlidesPage />} />
+            <Route
+              path="/admin/banner-home-ad-campaigns"
+              element={<AdminBannerHomeAdCampaignsPage />}
             />
             <Route path="/admin/link-validation" element={<AdminLinkValidationPage />} />
             <Route path="/admin/campaign-moderation" element={<AdminCampaignModerationPage />} />

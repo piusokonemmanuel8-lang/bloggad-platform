@@ -530,6 +530,7 @@ export default function DxtTemplate({
   emailCaptureFooter,
   website,
   settings,
+  sponsoredRelatedPostsSlot,
 }) {
   const { fieldMap, buttonMap } = useTemplateMap(templateFields, ctaButtons);
   const { settings: monetizationSettings } = useAffiliateMonetizationSlots({ enabled: true });
@@ -637,7 +638,10 @@ export default function DxtTemplate({
     answer: fieldMap[`faq_${index + 1}_answer`],
   }));
 
-  const learnMoreParagraphs = Array.from({ length: 10 }, (_, index) => fieldMap[`learn_more_paragraph_${index + 1}`]).filter(Boolean);
+  const learnMoreParagraphs = Array.from(
+    { length: 10 },
+    (_, index) => fieldMap[`learn_more_paragraph_${index + 1}`]
+  ).filter(Boolean);
 
   return (
     <div
@@ -678,6 +682,10 @@ export default function DxtTemplate({
 
         .dxt-ad-bottom-wrap {
           margin: 28px 0 18px;
+        }
+
+        .dxt-sponsored-related-wrap {
+          margin: 28px 0 24px;
         }
 
         .dxt-hero-grid {
@@ -1433,6 +1441,11 @@ export default function DxtTemplate({
             margin-bottom: 12px;
           }
 
+          .dxt-sponsored-related-wrap {
+            margin-top: 22px;
+            margin-bottom: 18px;
+          }
+
           section,
           div,
           p,
@@ -1725,6 +1738,14 @@ export default function DxtTemplate({
           />
         </div>
       </PageContainer>
+
+      {sponsoredRelatedPostsSlot ? (
+        <PageContainer>
+          <div className="dxt-sponsored-related-wrap">
+            {sponsoredRelatedPostsSlot}
+          </div>
+        </PageContainer>
+      ) : null}
 
       <SectionHeader>Related Posts</SectionHeader>
       <PageContainer style={{ marginTop: 26, paddingBottom: 40 }}>

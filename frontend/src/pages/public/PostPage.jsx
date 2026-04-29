@@ -1,5 +1,16 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Loader2, Mail, Sparkles, Check, X, BellRing, BadgeCheck } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  Loader2,
+  Mail,
+  Sparkles,
+  Check,
+  X,
+  BellRing,
+  BadgeCheck,
+  Tag,
+  Megaphone,
+  ArrowRight,
+} from 'lucide-react';
 import { useParams } from 'react-router-dom';
 import api from '../../api/axios';
 import { resolvePostTemplateComponent } from './templates/posts';
@@ -18,12 +29,9 @@ function shouldShowEmailPopup(capture, websiteId) {
   const displayMode = String(capture?.display_mode || capture?.show_mode || 'popup').toLowerCase();
   if (!['popup', 'both'].includes(displayMode)) return false;
 
-  const dismissKey = getEmailCaptureDismissKey(websiteId);
-  const cooldownKey = getEmailCaptureCooldownKey(websiteId);
-
   try {
-    const dismissed = localStorage.getItem(dismissKey);
-    const cooldownUntil = Number(localStorage.getItem(cooldownKey) || 0);
+    const dismissed = localStorage.getItem(getEmailCaptureDismissKey(websiteId));
+    const cooldownUntil = Number(localStorage.getItem(getEmailCaptureCooldownKey(websiteId)) || 0);
 
     if (dismissed === '1') return false;
     if (cooldownUntil && Date.now() < cooldownUntil) return false;
@@ -38,8 +46,7 @@ function setEmailCaptureCooldown(websiteId, minutes = 10) {
   if (!websiteId) return;
 
   try {
-    const cooldownKey = getEmailCaptureCooldownKey(websiteId);
-    localStorage.setItem(cooldownKey, String(Date.now() + minutes * 60 * 1000));
+    localStorage.setItem(getEmailCaptureCooldownKey(websiteId), String(Date.now() + minutes * 60 * 1000));
   } catch (error) {}
 }
 
@@ -47,8 +54,7 @@ function dismissEmailCaptureForNow(websiteId, minutes = 10) {
   if (!websiteId) return;
 
   try {
-    const dismissKey = getEmailCaptureDismissKey(websiteId);
-    localStorage.setItem(dismissKey, '1');
+    localStorage.setItem(getEmailCaptureDismissKey(websiteId), '1');
   } catch (error) {}
 
   setEmailCaptureCooldown(websiteId, minutes);
@@ -107,6 +113,410 @@ function getCaptureTheme(capture) {
     text: '#64748b',
     buttonBg: '#111827',
   };
+}
+
+function resolveSponsoredPostUrl(ad, fallbackWebsiteSlug = '') {
+  const websiteSlug = ad?.website_slug || fallbackWebsiteSlug;
+  const postSlug = ad?.post_slug || '';
+
+  if (websiteSlug && postSlug) return `/${websiteSlug}/post/${postSlug}`;
+  if (postSlug) return `/post/${postSlug}`;
+  return '#';
+}
+
+function resolveSponsoredImage(ad) {
+  return (
+    ad?.display_image ||
+    ad?.campaign_image_url ||
+    ad?.campaign_image ||
+    ad?.target_image ||
+    ad?.featured_image ||
+    ''
+  );
+}
+
+function SponsoredRelatedPostCard({ ad, websiteSlug, onView, onClick, index }) {
+  const cardRef = useRef(null);
+
+  useEffect(() => {
+    const node = cardRef.current;
+    if (!node) return undefined;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            onView(ad);
+            observer.unobserve(entry.target);
+          }
+        });
+      },
+      { threshold: 0.3 }
+    );
+
+    observer.observe(node);
+
+    return () => observer.disconnect();
+  }, [ad, onView]);
+
+  const image = resolveSponsoredImage(ad);
+  const title = ad?.target_title || ad?.campaign_title || 'Sponsored Post';
+  const description = ad?.campaign_description || 'Promoted article selected for readers of this category.';
+  const sponsorNumber = String(index + 1).padStart(2, '0');
+
+  return (
+    <article ref={cardRef} className="sponsored-premium-card">
+      <div className="sponsored-premium-image-wrap">
+        <div className="sponsored-premium-top-label">Sponsored</div>
+
+        {image ? (
+          <img src={image} alt={title} className="sponsored-premium-image" />
+        ) : (
+          <div className="sponsored-premium-image-fallback">
+            <Megaphone size={30} />
+            <span>Sponsored</span>
+          </div>
+        )}
+      </div>
+
+      <div className="sponsored-premium-body">
+        <div className="sponsored-premium-meta">
+          <span>
+            <Tag size={13} />
+            Promoted Post
+          </span>
+          <strong>{sponsorNumber}</strong>
+        </div>
+
+        <h3 className="sponsored-premium-title">{title}</h3>
+        <p className="sponsored-premium-description">{description}</p>
+
+        <button
+          type="button"
+          onClick={() => onClick(ad, websiteSlug)}
+          className="sponsored-premium-button"
+        >
+          Read Sponsored Post
+          <ArrowRight size={16} />
+        </button>
+      </div>
+    </article>
+  );
+}
+
+function SponsoredRelatedPosts({ ads, websiteSlug, onView, onClick }) {
+  if (!ads?.length) return null;
+
+  return (
+    <section className="sponsored-premium-section">
+      <style>{`
+        .sponsored-premium-section {
+          width: 100%;
+          margin: 24px 0;
+          border-radius: 30px;
+          padding: 22px;
+          background:
+            radial-gradient(circle at top left, rgba(37, 99, 235, 0.18), transparent 32%),
+            linear-gradient(135deg, #07111f 0%, #111827 48%, #1e1b4b 100%);
+          border: 1px solid rgba(191, 219, 254, 0.28);
+          box-shadow: 0 24px 70px rgba(15, 23, 42, 0.18);
+          overflow: hidden;
+        }
+
+        .sponsored-premium-header {
+          display: grid;
+          grid-template-columns: minmax(0, 1fr) auto;
+          gap: 18px;
+          align-items: end;
+          margin-bottom: 18px;
+        }
+
+        .sponsored-premium-kicker {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          width: fit-content;
+          padding: 8px 12px;
+          border-radius: 999px;
+          background: rgba(255, 255, 255, 0.1);
+          border: 1px solid rgba(255, 255, 255, 0.16);
+          color: #bfdbfe;
+          font-size: 11px;
+          font-weight: 950;
+          text-transform: uppercase;
+          letter-spacing: 0.12em;
+          margin-bottom: 10px;
+        }
+
+        .sponsored-premium-heading {
+          margin: 0;
+          color: #ffffff;
+          font-size: clamp(1.4rem, 3vw, 2.2rem);
+          line-height: 1.05;
+          font-weight: 950;
+          letter-spacing: -0.04em;
+        }
+
+        .sponsored-premium-subtitle {
+          margin: 8px 0 0;
+          color: rgba(226, 232, 240, 0.82);
+          font-size: 14px;
+          line-height: 1.7;
+          max-width: 760px;
+        }
+
+        .sponsored-premium-count {
+          min-height: 42px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          padding: 0 14px;
+          border-radius: 999px;
+          background: #ffffff;
+          color: #111827;
+          font-size: 13px;
+          font-weight: 900;
+          white-space: nowrap;
+        }
+
+        .sponsored-premium-grid {
+          display: grid;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          gap: 16px;
+        }
+
+        .sponsored-premium-card {
+          background: rgba(255, 255, 255, 0.96);
+          border: 1px solid rgba(255, 255, 255, 0.7);
+          border-radius: 24px;
+          overflow: hidden;
+          min-height: 100%;
+          display: flex;
+          flex-direction: column;
+          box-shadow: 0 18px 44px rgba(2, 6, 23, 0.18);
+          position: relative;
+          transition: transform 0.18s ease, box-shadow 0.18s ease;
+        }
+
+        .sponsored-premium-card:hover {
+          transform: translateY(-3px);
+          box-shadow: 0 24px 58px rgba(2, 6, 23, 0.24);
+        }
+
+        .sponsored-premium-image-wrap {
+          position: relative;
+          width: 100%;
+          height: 210px;
+          background: #e5e7eb;
+          overflow: hidden;
+        }
+
+        .sponsored-premium-image {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+          display: block;
+          transform: scale(1.01);
+        }
+
+        .sponsored-premium-image-fallback {
+          width: 100%;
+          height: 100%;
+          display: grid;
+          place-items: center;
+          gap: 8px;
+          background: linear-gradient(135deg, #1d4ed8, #7c3aed);
+          color: #ffffff;
+          font-weight: 950;
+        }
+
+        .sponsored-premium-top-label {
+          position: absolute;
+          top: 12px;
+          left: 12px;
+          z-index: 2;
+          display: inline-flex;
+          align-items: center;
+          min-height: 30px;
+          padding: 0 11px;
+          border-radius: 999px;
+          background: rgba(255, 255, 255, 0.95);
+          color: #1d4ed8;
+          border: 1px solid rgba(37, 99, 235, 0.2);
+          font-size: 11px;
+          font-weight: 950;
+          text-transform: uppercase;
+          letter-spacing: 0.1em;
+          box-shadow: 0 10px 20px rgba(15, 23, 42, 0.1);
+        }
+
+        .sponsored-premium-body {
+          padding: 17px;
+          display: flex;
+          flex-direction: column;
+          flex: 1;
+        }
+
+        .sponsored-premium-meta {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+          margin-bottom: 10px;
+        }
+
+        .sponsored-premium-meta span {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          width: fit-content;
+          padding: 7px 10px;
+          border-radius: 999px;
+          background: #eff6ff;
+          color: #2563eb;
+          font-size: 11px;
+          font-weight: 950;
+          text-transform: uppercase;
+          letter-spacing: 0.08em;
+        }
+
+        .sponsored-premium-meta strong {
+          width: 34px;
+          height: 34px;
+          border-radius: 12px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          background: #111827;
+          color: #ffffff;
+          font-size: 12px;
+          font-weight: 950;
+        }
+
+        .sponsored-premium-title {
+          margin: 0 0 9px;
+          color: #111827;
+          font-size: 19px;
+          line-height: 1.28;
+          font-weight: 950;
+          letter-spacing: -0.02em;
+          display: -webkit-box;
+          -webkit-line-clamp: 2;
+          -webkit-box-orient: vertical;
+          overflow: hidden;
+        }
+
+        .sponsored-premium-description {
+          margin: 0 0 15px;
+          color: #475569;
+          font-size: 13px;
+          line-height: 1.65;
+          display: -webkit-box;
+          -webkit-line-clamp: 3;
+          -webkit-box-orient: vertical;
+          overflow: hidden;
+        }
+
+        .sponsored-premium-button {
+          margin-top: auto;
+          border: 0;
+          min-height: 48px;
+          width: 100%;
+          border-radius: 16px;
+          background: linear-gradient(90deg, #2563eb 0%, #4f46e5 50%, #7c3aed 100%);
+          color: #ffffff;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          font-size: 14px;
+          font-weight: 950;
+          cursor: pointer;
+          box-shadow: 0 14px 26px rgba(37, 99, 235, 0.22);
+        }
+
+        @media (max-width: 1100px) {
+          .sponsored-premium-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+          }
+        }
+
+        @media (max-width: 760px) {
+          .sponsored-premium-section {
+            border-radius: 24px;
+            padding: 16px;
+          }
+
+          .sponsored-premium-header {
+            grid-template-columns: 1fr;
+            align-items: start;
+          }
+
+          .sponsored-premium-count {
+            width: fit-content;
+          }
+
+          .sponsored-premium-grid {
+            display: flex;
+            overflow-x: auto;
+            gap: 14px;
+            padding: 2px 2px 8px;
+            scroll-snap-type: x mandatory;
+            -webkit-overflow-scrolling: touch;
+          }
+
+          .sponsored-premium-card {
+            min-width: 82%;
+            scroll-snap-align: start;
+          }
+
+          .sponsored-premium-image-wrap {
+            height: 190px;
+          }
+        }
+
+        @media (max-width: 440px) {
+          .sponsored-premium-card {
+            min-width: 90%;
+          }
+
+          .sponsored-premium-image-wrap {
+            height: 175px;
+          }
+        }
+      `}</style>
+
+      <div className="sponsored-premium-header">
+        <div>
+          <div className="sponsored-premium-kicker">
+            <Megaphone size={14} />
+            Sponsored Picks
+          </div>
+
+          <h2 className="sponsored-premium-heading">Promoted stories you may like</h2>
+
+          <p className="sponsored-premium-subtitle">
+            Rotated sponsored posts from approved campaigns. Each view and click is tracked for fair delivery.
+          </p>
+        </div>
+
+        <div className="sponsored-premium-count">{ads.length} shown now</div>
+      </div>
+
+      <div className="sponsored-premium-grid">
+        {ads.map((ad, index) => (
+          <SponsoredRelatedPostCard
+            key={ad.id}
+            ad={ad}
+            index={index}
+            websiteSlug={websiteSlug}
+            onView={onView}
+            onClick={onClick}
+          />
+        ))}
+      </div>
+    </section>
+  );
 }
 
 function EmailCapturePopup({
@@ -224,14 +634,7 @@ function EmailCapturePopup({
             <X size={18} />
           </button>
 
-          <div
-            style={{
-              display: 'flex',
-              gap: 12,
-              flexWrap: 'wrap',
-              marginBottom: 14,
-            }}
-          >
+          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 14 }}>
             <div
               style={{
                 width: 58,
@@ -295,14 +698,7 @@ function EmailCapturePopup({
             {capture?.subtitle || 'Get updates, offers, and new post alerts.'}
           </p>
 
-          <div
-            style={{
-              marginTop: 16,
-              display: 'flex',
-              gap: 10,
-              flexWrap: 'wrap',
-            }}
-          >
+          <div style={{ marginTop: 16, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
             {['New posts', 'Special updates', 'Helpful offers'].map((item) => (
               <div
                 key={item}
@@ -409,13 +805,7 @@ function EmailCapturePopup({
             </div>
           ) : null}
 
-          <div
-            style={{
-              color: '#94a3b8',
-              fontSize: 12,
-              lineHeight: 1.7,
-            }}
-          >
+          <div style={{ color: '#94a3b8', fontSize: 12, lineHeight: 1.7 }}>
             We keep this simple. Enter your email once and continue reading.
           </div>
         </form>
@@ -432,11 +822,7 @@ function EmailCapturePopup({
   );
 }
 
-function EmailCaptureFooter({
-  capture,
-  websiteSlug,
-  websiteId,
-}) {
+function EmailCaptureFooter({ capture, websiteSlug, websiteId }) {
   const [email, setEmail] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [localError, setLocalError] = useState('');
@@ -478,16 +864,7 @@ function EmailCaptureFooter({
   }
 
   return (
-    <section
-      style={{
-        ...cardStyle({
-          padding: 0,
-          marginTop: 24,
-          overflow: 'hidden',
-          background: '#ffffff',
-        }),
-      }}
-    >
+    <section style={cardStyle({ padding: 0, marginTop: 24, overflow: 'hidden', background: '#ffffff' })}>
       <div
         style={{
           padding: 24,
@@ -551,14 +928,7 @@ function EmailCaptureFooter({
               {capture?.subtitle || 'Subscribe for new posts and important updates.'}
             </p>
 
-            <div
-              style={{
-                marginTop: 16,
-                display: 'flex',
-                gap: 10,
-                flexWrap: 'wrap',
-              }}
-            >
+            <div style={{ marginTop: 16, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
               {['Fresh post alerts', 'Useful updates', 'No long process'].map((item) => (
                 <div
                   key={item}
@@ -659,15 +1029,7 @@ function EmailCaptureFooter({
         </div>
       </div>
 
-      <div
-        style={{
-          padding: '14px 24px',
-          color: '#94a3b8',
-          fontSize: 12,
-          lineHeight: 1.7,
-          background: '#ffffff',
-        }}
-      >
+      <div style={{ padding: '14px 24px', color: '#94a3b8', fontSize: 12, lineHeight: 1.7, background: '#ffffff' }}>
         Quick signup for updates related to this post.
       </div>
 
@@ -688,15 +1050,22 @@ export default function PostPage() {
   const [postData, setPostData] = useState(null);
   const [homeData, setHomeData] = useState(null);
   const [emailCapture, setEmailCapture] = useState(null);
+  const [sponsoredAds, setSponsoredAds] = useState([]);
   const [popupOpen, setPopupOpen] = useState(false);
+  const trackedSponsoredViewsRef = useRef(new Set());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
   useEffect(() => {
+    let ignore = false;
+    let popupTimer = null;
+
     const fetchPost = async () => {
       try {
         setLoading(true);
         setError('');
+        setSponsoredAds([]);
+        trackedSponsoredViewsRef.current = new Set();
 
         const [postRes, homeRes, captureRes] = await Promise.all([
           api.get(`/api/public/posts/${websiteSlug}/post/${slug}`),
@@ -706,11 +1075,11 @@ export default function PostPage() {
           }),
         ]);
 
+        if (ignore) return;
+
         const nextPostData = postRes?.data || null;
-        const nextCapture =
-          captureRes?.data?.capture ||
-          captureRes?.data?.popup ||
-          null;
+        const nextPost = nextPostData?.post || null;
+        const nextCapture = captureRes?.data?.capture || captureRes?.data?.popup || null;
 
         setPostData(nextPostData);
         setHomeData(homeRes?.data || null);
@@ -723,41 +1092,81 @@ export default function PostPage() {
             : null
         );
 
+        const rawCategoryId =
+          nextPost?.category?.id ||
+          nextPost?.category_id ||
+          nextPost?.post_category_id ||
+          nextPost?.product?.category_id ||
+          nextPost?.product_category_id ||
+          nextPost?.categoryId ||
+          null;
+
+        const categoryId = Number(rawCategoryId || 0);
+
+        try {
+          const adsParams = {
+            ad_type: 'post',
+            placement_key: 'post_page_related_posts',
+            publisher_website_slug: websiteSlug,
+            publisher_website_id: nextPost?.website?.id || '',
+            publisher_affiliate_id: nextPost?.website?.user_id || '',
+            limit: 6,
+          };
+
+          if (categoryId > 0) {
+            adsParams.category_id = categoryId;
+          }
+
+          const adsRes = await api.get('/api/public/affiliate-ads', {
+            params: adsParams,
+          });
+
+          if (!ignore) {
+            setSponsoredAds(Array.isArray(adsRes?.data?.ads) ? adsRes.data.ads : []);
+          }
+        } catch (adsError) {
+          if (!ignore) {
+            setSponsoredAds([]);
+          }
+        }
+
         const websiteId = nextPostData?.post?.website?.id || captureRes?.data?.website?.id || null;
-        const delaySeconds =
-          Number(nextCapture?.popup_delay_seconds ?? nextCapture?.delay_seconds ?? 8) || 8;
+        const delaySeconds = Number(nextCapture?.popup_delay_seconds ?? nextCapture?.delay_seconds ?? 8) || 8;
 
         if (
           websiteId &&
           captureRes?.data?.enabled &&
-          shouldShowEmailPopup(
-            { enabled: true, ...nextCapture },
-            websiteId
-          )
+          shouldShowEmailPopup({ enabled: true, ...nextCapture }, websiteId)
         ) {
           clearEmailCaptureDismiss(websiteId);
 
-          window.setTimeout(() => {
-            if (
-              shouldShowEmailPopup(
-                { enabled: true, ...nextCapture },
-                websiteId
-              )
-            ) {
+          popupTimer = window.setTimeout(() => {
+            if (!ignore && shouldShowEmailPopup({ enabled: true, ...nextCapture }, websiteId)) {
               setPopupOpen(true);
             }
           }, delaySeconds * 1000);
         }
       } catch (err) {
-        setError(err?.response?.data?.message || 'Failed to load post');
+        if (!ignore) {
+          setError(err?.response?.data?.message || 'Failed to load post');
+        }
       } finally {
-        setLoading(false);
+        if (!ignore) {
+          setLoading(false);
+        }
       }
     };
 
     if (websiteSlug && slug) {
       fetchPost();
     }
+
+    return () => {
+      ignore = true;
+      if (popupTimer) {
+        window.clearTimeout(popupTimer);
+      }
+    };
   }, [websiteSlug, slug]);
 
   const post = postData?.post;
@@ -769,6 +1178,58 @@ export default function PostPage() {
   const TemplateComponent = useMemo(() => {
     return resolvePostTemplateComponent(post?.template);
   }, [post?.template]);
+
+  const trackSponsoredView = useCallback(
+    async (ad) => {
+      if (!ad?.id || trackedSponsoredViewsRef.current.has(ad.id)) return;
+
+      trackedSponsoredViewsRef.current.add(ad.id);
+
+      try {
+        await api.post(`/api/public/affiliate-ads/${ad.id}/view`, {
+          placement_key: 'post_page_related_posts',
+          page_url: window.location.href,
+          publisher_website_slug: websiteSlug,
+          publisher_website_id: post?.website?.id || '',
+          publisher_affiliate_id: post?.website?.user_id || '',
+        });
+      } catch (err) {}
+    },
+    [post?.website?.id, post?.website?.user_id, websiteSlug]
+  );
+
+  const trackSponsoredClick = useCallback(
+    async (ad, fallbackWebsiteSlug = '') => {
+      if (!ad?.id) return;
+
+      const targetUrl = resolveSponsoredPostUrl(ad, fallbackWebsiteSlug);
+
+      try {
+        await api.post(`/api/public/affiliate-ads/${ad.id}/click`, {
+          placement_key: 'post_page_related_posts',
+          page_url: window.location.href,
+          destination_url: targetUrl,
+          publisher_website_slug: websiteSlug,
+          publisher_website_id: post?.website?.id || '',
+          publisher_affiliate_id: post?.website?.user_id || '',
+        });
+      } catch (err) {}
+
+      if (targetUrl && targetUrl !== '#') {
+        window.location.href = targetUrl;
+      }
+    },
+    [post?.website?.id, post?.website?.user_id, websiteSlug]
+  );
+
+  const sponsoredRelatedPostsSlot = (
+    <SponsoredRelatedPosts
+      ads={sponsoredAds}
+      websiteSlug={websiteSlug}
+      onView={trackSponsoredView}
+      onClick={trackSponsoredClick}
+    />
+  );
 
   const emailCaptureFooter = (
     <EmailCaptureFooter
@@ -822,13 +1283,7 @@ export default function PostPage() {
 
   if (error) {
     return (
-      <div
-        style={{
-          minHeight: '100vh',
-          background: '#f5f7fb',
-          padding: 24,
-        }}
-      >
+      <div style={{ minHeight: '100vh', background: '#f5f7fb', padding: 24 }}>
         <div
           style={{
             width: 'min(1100px, calc(100% - 24px))',
@@ -859,6 +1314,7 @@ export default function PostPage() {
         categories={categories}
         emailCapture={emailCapture}
         emailCaptureFooter={emailCaptureFooter}
+        sponsoredRelatedPostsSlot={sponsoredRelatedPostsSlot}
         onOpenPopup={() => setPopupOpen(true)}
       />
 

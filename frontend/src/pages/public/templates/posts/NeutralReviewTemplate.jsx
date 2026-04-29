@@ -212,6 +212,7 @@ export default function NeutralReviewTemplate({
   emailCaptureFooter,
   onOpenPopup,
   emailCapture,
+  sponsoredRelatedPostsSlot,
 }) {
   const { fieldMap, buttonMap } = useTemplateMap(templateFields, ctaButtons);
 
@@ -1187,6 +1188,12 @@ export default function NeutralReviewTemplate({
             <TextParagraph>{fieldMap.fda_compliance_statement_paragraph_2}</TextParagraph>
           </div>
         </section>
+
+        {sponsoredRelatedPostsSlot ? (
+          <section style={{ margin: '26px 0 22px' }}>
+            {sponsoredRelatedPostsSlot}
+          </section>
+        ) : null}
 
         {emailCaptureFooter}
 

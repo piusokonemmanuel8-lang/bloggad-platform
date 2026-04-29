@@ -16,6 +16,8 @@ function sanitizeProduct(row) {
     storefront_cta_label: row.storefront_cta_label,
     affiliate_buy_url: row.affiliate_buy_url,
     short_description: row.short_description,
+    visit_count: Number(row.visit_count || 0),
+    product_score: row.product_score !== null ? Number(row.product_score) : 4.1,
     status: row.status,
     created_at: row.created_at,
     updated_at: row.updated_at,
@@ -83,9 +85,36 @@ function normalizeClickType(value = '') {
     'share',
     'visit_website',
     'impression',
+    'product_visit',
   ]);
 
   return allowedTypes.has(clickType) ? clickType : '';
+}
+
+function getVisitIncrement(clickType) {
+  if (clickType === 'quick_view') return 1;
+
+  if (['buy_now', 'read_more', 'learn_more', 'visit_website', 'product_visit'].includes(clickType)) {
+    return 5;
+  }
+
+  return 0;
+}
+
+function calculateProductScore(visitCount) {
+  const visits = Number(visitCount || 0);
+
+  if (visits >= 1000000) return 5.0;
+  if (visits >= 500000) return 4.9;
+  if (visits >= 100000) return 4.8;
+  if (visits >= 50000) return 4.7;
+  if (visits >= 10000) return 4.6;
+  if (visits >= 5000) return 4.5;
+  if (visits >= 1000) return 4.4;
+  if (visits >= 500) return 4.3;
+  if (visits >= 100) return 4.2;
+
+  return 4.1;
 }
 
 function getRedirectUrlForClick(product, clickType) {
@@ -99,7 +128,76 @@ function getRedirectUrlForClick(product, clickType) {
     return product.website_slug ? `/${product.website_slug}` : '#';
   }
 
+  if (clickType === 'quick_view' || clickType === 'save' || clickType === 'share' || clickType === 'impression') {
+    return '#';
+  }
+
   return `/${product.website_slug}/product/${product.slug}`;
+}
+
+async function increaseProductVisitCount(productId, increment = 5) {
+  const safeIncrement = Number(increment || 0);
+
+  if (!safeIncrement || safeIncrement < 1) {
+    return getProductVisitData(productId);
+  }
+
+  await pool.query(
+    `
+    UPDATE products
+    SET visit_count = COALESCE(visit_count, 0) + ?
+    WHERE id = ?
+    LIMIT 1
+    `,
+    [safeIncrement, productId]
+  );
+
+  const [[visitRow]] = await pool.query(
+    `
+    SELECT COALESCE(visit_count, 0) AS visit_count
+    FROM products
+    WHERE id = ?
+    LIMIT 1
+    `,
+    [productId]
+  );
+
+  const visitCount = Number(visitRow?.visit_count || 0);
+  const productScore = calculateProductScore(visitCount);
+
+  await pool.query(
+    `
+    UPDATE products
+    SET product_score = ?
+    WHERE id = ?
+    LIMIT 1
+    `,
+    [productScore, productId]
+  );
+
+  return {
+    visit_count: visitCount,
+    product_score: productScore,
+  };
+}
+
+async function getProductVisitData(productId) {
+  const [[row]] = await pool.query(
+    `
+    SELECT
+      COALESCE(visit_count, 0) AS visit_count,
+      COALESCE(product_score, 4.1) AS product_score
+    FROM products
+    WHERE id = ?
+    LIMIT 1
+    `,
+    [productId]
+  );
+
+  return {
+    visit_count: Number(row?.visit_count || 0),
+    product_score: row?.product_score !== null ? Number(row?.product_score || 4.1) : 4.1,
+  };
 }
 
 async function trackProductView(productId, websiteId, req) {
@@ -150,6 +248,8 @@ async function getPublicProductBySlug(websiteSlug, productSlug) {
       p.storefront_cta_label,
       p.affiliate_buy_url,
       p.short_description,
+      COALESCE(p.visit_count, 0) AS visit_count,
+      COALESCE(p.product_score, 4.1) AS product_score,
       p.status,
       p.created_at,
       p.updated_at,
@@ -240,6 +340,8 @@ async function getRelatedProducts(websiteId, categoryId, currentProductId, websi
       p.storefront_cta_label,
       p.affiliate_buy_url,
       p.short_description,
+      COALESCE(p.visit_count, 0) AS visit_count,
+      COALESCE(p.product_score, 4.1) AS product_score,
       p.status,
       p.created_at,
       p.updated_at,
@@ -382,7 +484,7 @@ async function trackPublicProductClick(req, res) {
   try {
     const websiteSlug = String(req.params.websiteSlug || '').trim().toLowerCase();
     const productSlug = String(req.params.slug || '').trim().toLowerCase();
-    const clickType = normalizeClickType(req.body?.click_type);
+    const clickType = normalizeClickType(req.body?.click_type || 'product_visit');
 
     if (!websiteSlug || !productSlug) {
       return res.status(400).json({
@@ -431,9 +533,19 @@ async function trackPublicProductClick(req, res) {
       ]
     );
 
+    const visitIncrement = getVisitIncrement(clickType);
+    const visitData = visitIncrement > 0
+      ? await increaseProductVisitCount(product.id, visitIncrement)
+      : await getProductVisitData(product.id);
+
     return res.status(200).json({
       ok: true,
-      message: 'Product click tracked successfully',
+      message: visitIncrement > 0
+        ? 'Product visit tracked successfully'
+        : 'Product event tracked successfully',
+      visit_increment: visitIncrement,
+      visit_count: visitData.visit_count,
+      product_score: visitData.product_score,
       redirect_url: getRedirectUrlForClick(product, clickType),
     });
   } catch (error) {

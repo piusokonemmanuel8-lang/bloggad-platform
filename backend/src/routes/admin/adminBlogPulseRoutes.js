@@ -5,6 +5,8 @@ const {
   getAdminBlogPulsePolicy,
   getAdminMonetizationSubmissions,
   reviewAdminMonetizationSubmission,
+  getAdminContentQualityReviews,
+  reviewAdminContentQuality,
 } = require('../../controllers/admin/adminBlogPulseController');
 const { protect, adminOnly } = require('../../middleware/authMiddleware');
 
@@ -19,5 +21,8 @@ router.get('/policy', getAdminBlogPulsePolicy);
 
 router.get('/submissions', getAdminMonetizationSubmissions);
 router.patch('/submissions/:submissionId/review', reviewAdminMonetizationSubmission);
+
+router.get('/content-quality', getAdminContentQualityReviews);
+router.patch('/content-quality/:userId/review', reviewAdminContentQuality);
 
 module.exports = router;

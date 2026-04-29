@@ -1,64 +1,97 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
-  Image as ImageIcon,
-  Plus,
-  RefreshCw,
   AlertCircle,
   CheckCircle2,
-  Link as LinkIcon,
-  FileText,
-  Package,
-  ToggleLeft,
-  ToggleRight,
-  Pencil,
+  Image as ImageIcon,
   LayoutTemplate,
+  Pause,
+  Play,
+  Plus,
+  RefreshCw,
+  Save,
+  Settings,
+  Trash2,
+  Video,
+  Wallet,
 } from 'lucide-react';
 import api from '../../api/axios';
 import validateSupgadUrl from '../../utils/validateSupgadUrl';
 
-function emptySlider() {
+function emptyCampaign() {
   return {
-    image: '',
+    campaign_title: '',
+    campaign_description: '',
+    internal_note: '',
+    media_type: 'image',
+    image_url: '',
+    video_url: '',
+    poster_url: '',
+    eyebrow_text: 'Sponsored',
     title: '',
     subtitle: '',
-    link_type: 'internal_post',
-    linked_post_id: '',
-    linked_product_id: '',
-    external_url: '',
-    sort_order: 0,
-    status: 'active',
+    promo_text: '',
+    cta_label: 'Shop Now',
+    cta_url: '',
+    secondary_cta_label: '',
+    secondary_cta_url: '',
+    total_budget: '',
+    daily_budget_cap: '',
+    start_date: '',
+    end_date: '',
+    payment_reference: '',
   };
+}
+
+function formatMoney(value) {
+  const number = Number(value || 0);
+  return `$${number.toFixed(2)}`;
 }
 
 function getStatusClass(status = '') {
   const value = String(status).toLowerCase();
 
-  if (value === 'active') return 'affiliate-sliders-status active';
-  if (value === 'inactive') return 'affiliate-sliders-status inactive';
+  if (value === 'active') return 'bha-status active';
+  if (value === 'pending') return 'bha-status pending';
+  if (value === 'paused') return 'bha-status paused';
+  if (value === 'rejected') return 'bha-status rejected';
+  if (value === 'exhausted' || value === 'ended') return 'bha-status ended';
 
-  return 'affiliate-sliders-status neutral';
+  return 'bha-status neutral';
 }
 
-function getLinkTypeLabel(value = '') {
-  if (value === 'internal_post') return 'Internal Post';
-  if (value === 'product') return 'Product';
-  if (value === 'external_url') return 'External URL';
-  return value || '-';
+function getApprovalClass(status = '') {
+  const value = String(status).toLowerCase();
+
+  if (value === 'approved') return 'bha-approval approved';
+  if (value === 'pending') return 'bha-approval pending';
+  if (value === 'rejected') return 'bha-approval rejected';
+
+  return 'bha-approval neutral';
 }
 
 export default function AffiliateSlidersPage() {
-  const [sliders, setSliders] = useState([]);
-  const [posts, setPosts] = useState([]);
-  const [products, setProducts] = useState([]);
-  const [selectedSliderId, setSelectedSliderId] = useState('');
-  const [form, setForm] = useState(emptySlider());
+  const [campaigns, setCampaigns] = useState([]);
+  const [settings, setSettings] = useState(null);
+  const [selectedCampaignId, setSelectedCampaignId] = useState('');
+  const [form, setForm] = useState(emptyCampaign());
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [statusSaving, setStatusSaving] = useState(false);
+  const [topUpSaving, setTopUpSaving] = useState(false);
+  const [topUpAmount, setTopUpAmount] = useState('');
+
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+
+  const selectedCampaign = useMemo(
+    () => campaigns.find((item) => String(item.id) === String(selectedCampaignId)) || null,
+    [campaigns, selectedCampaignId]
+  );
+
+  const minimumBudget = Number(settings?.minimum_budget || 200);
+  const minimumDailyCap = Number(settings?.minimum_daily_cap || 20);
 
   const fetchData = async (isRefresh = false) => {
     try {
@@ -68,22 +101,20 @@ export default function AffiliateSlidersPage() {
         setLoading(true);
       }
 
-      const [slidersRes, postsRes, productsRes] = await Promise.all([
-        api.get('/api/affiliate/sliders'),
-        api.get('/api/affiliate/posts'),
-        api.get('/api/affiliate/products'),
-      ]);
+      setError('');
 
-      const sliderList = slidersRes?.data?.sliders || [];
-      setSliders(sliderList);
-      setPosts(postsRes?.data?.posts || []);
-      setProducts(productsRes?.data?.products || []);
+      const { data } = await api.get('/api/affiliate/banner-home-ads');
 
-      if (!selectedSliderId && sliderList.length) {
-        loadSliderIntoForm(sliderList[0]);
+      const list = Array.isArray(data?.campaigns) ? data.campaigns : [];
+
+      setCampaigns(list);
+      setSettings(data?.settings || null);
+
+      if (!selectedCampaignId && list.length) {
+        loadCampaignIntoForm(list[0]);
       }
     } catch (err) {
-      setError(err?.response?.data?.message || 'Failed to load sliders');
+      setError(err?.response?.data?.message || 'Failed to load homepage slider ads');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -94,26 +125,39 @@ export default function AffiliateSlidersPage() {
     fetchData();
   }, []);
 
-  const loadSliderIntoForm = (slider) => {
-    setSelectedSliderId(String(slider.id));
+  const loadCampaignIntoForm = (campaign) => {
+    setSelectedCampaignId(String(campaign.id));
     setForm({
-      image: slider.image || '',
-      title: slider.title || '',
-      subtitle: slider.subtitle || '',
-      link_type: slider.link_type || 'internal_post',
-      linked_post_id: slider.linked_post_id || '',
-      linked_product_id: slider.linked_product_id || '',
-      external_url: slider.external_url || '',
-      sort_order: slider.sort_order ?? 0,
-      status: slider.status || 'active',
+      campaign_title: campaign.campaign_title || '',
+      campaign_description: campaign.campaign_description || '',
+      internal_note: campaign.internal_note || '',
+      media_type: campaign.media_type || 'image',
+      image_url: campaign.image_url || '',
+      video_url: campaign.video_url || '',
+      poster_url: campaign.poster_url || '',
+      eyebrow_text: campaign.eyebrow_text || 'Sponsored',
+      title: campaign.title || '',
+      subtitle: campaign.subtitle || '',
+      promo_text: campaign.promo_text || '',
+      cta_label: campaign.cta_label || 'Shop Now',
+      cta_url: campaign.cta_url || '',
+      secondary_cta_label: campaign.secondary_cta_label || '',
+      secondary_cta_url: campaign.secondary_cta_url || '',
+      total_budget: campaign.total_budget || '',
+      daily_budget_cap: campaign.daily_budget_cap || '',
+      start_date: campaign.start_date ? String(campaign.start_date).slice(0, 10) : '',
+      end_date: campaign.end_date ? String(campaign.end_date).slice(0, 10) : '',
+      payment_reference: '',
     });
+    setTopUpAmount('');
     setError('');
     setSuccess('');
   };
 
   const resetForNew = () => {
-    setSelectedSliderId('');
-    setForm(emptySlider());
+    setSelectedCampaignId('');
+    setForm(emptyCampaign());
+    setTopUpAmount('');
     setError('');
     setSuccess('');
   };
@@ -121,156 +165,215 @@ export default function AffiliateSlidersPage() {
   const handleChange = (event) => {
     const { name, value } = event.target;
 
-    setForm((prev) => {
-      const next = {
-        ...prev,
-        [name]: value,
-      };
-
-      if (name === 'link_type') {
-        if (value === 'internal_post') {
-          next.linked_product_id = '';
-          next.external_url = '';
-        }
-        if (value === 'product') {
-          next.linked_post_id = '';
-          next.external_url = '';
-        }
-        if (value === 'external_url') {
-          next.linked_post_id = '';
-          next.linked_product_id = '';
-        }
-      }
-
-      return next;
-    });
+    setForm((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
   };
 
-  const refreshSliders = async (targetId = null) => {
-    const { data } = await api.get('/api/affiliate/sliders');
-    const list = data?.sliders || [];
-    setSliders(list);
+  const refreshCampaigns = async (targetId = null) => {
+    const { data } = await api.get('/api/affiliate/banner-home-ads');
+    const list = Array.isArray(data?.campaigns) ? data.campaigns : [];
 
-    const found = list.find((item) => String(item.id) === String(targetId || selectedSliderId));
+    setCampaigns(list);
+    setSettings(data?.settings || null);
+
+    const found = list.find((item) => String(item.id) === String(targetId || selectedCampaignId));
 
     if (found) {
-      loadSliderIntoForm(found);
+      loadCampaignIntoForm(found);
     } else if (!list.length) {
       resetForNew();
     }
   };
 
   const validateForm = () => {
-    if (!form.image.trim()) {
-      throw new Error('Slider image is required');
+    if (!form.campaign_title.trim()) {
+      throw new Error('Campaign title is required');
     }
 
-    if (form.link_type === 'internal_post' && !form.linked_post_id) {
-      throw new Error('Select a linked post');
+    if (!form.title.trim()) {
+      throw new Error('Slider headline is required');
     }
 
-    if (form.link_type === 'product' && !form.linked_product_id) {
-      throw new Error('Select a linked product');
+    if (!form.cta_label.trim()) {
+      throw new Error('CTA label is required');
     }
 
-    if (form.link_type === 'external_url') {
-      const result = validateSupgadUrl(form.external_url, {
-        required: true,
-        allowEmpty: false,
-        fieldName: 'Slider external URL',
+    const urlResult = validateSupgadUrl(form.cta_url, {
+      required: true,
+      allowEmpty: false,
+      fieldName: 'CTA URL',
+    });
+
+    if (!urlResult.ok) {
+      throw new Error(urlResult.message);
+    }
+
+    if (form.secondary_cta_url.trim()) {
+      const secondaryResult = validateSupgadUrl(form.secondary_cta_url, {
+        required: false,
+        allowEmpty: true,
+        fieldName: 'Secondary CTA URL',
       });
 
-      if (!result.ok) {
-        throw new Error(result.message);
+      if (!secondaryResult.ok) {
+        throw new Error(secondaryResult.message);
       }
+    }
+
+    if (form.media_type === 'image' && !form.image_url.trim()) {
+      throw new Error('Image URL is required for image slider ads');
+    }
+
+    if (form.media_type === 'video' && !form.video_url.trim()) {
+      throw new Error('Video URL is required for video slider ads');
+    }
+
+    if (!selectedCampaignId && Number(form.total_budget || 0) < minimumBudget) {
+      throw new Error(`Minimum homepage slider ad budget is ${formatMoney(minimumBudget)}`);
+    }
+
+    if (form.daily_budget_cap && Number(form.daily_budget_cap || 0) < minimumDailyCap) {
+      throw new Error(`Minimum daily cap is ${formatMoney(minimumDailyCap)}`);
     }
   };
 
+  const buildPayload = () => ({
+    campaign_title: form.campaign_title,
+    campaign_description: form.campaign_description,
+    internal_note: form.internal_note,
+    media_type: form.media_type,
+    image_url: form.media_type === 'image' ? form.image_url : form.image_url,
+    video_url: form.media_type === 'video' ? form.video_url : '',
+    poster_url: form.poster_url,
+    eyebrow_text: form.eyebrow_text,
+    title: form.title,
+    subtitle: form.subtitle,
+    promo_text: form.promo_text,
+    cta_label: form.cta_label,
+    cta_url: form.cta_url,
+    secondary_cta_label: form.secondary_cta_label,
+    secondary_cta_url: form.secondary_cta_url,
+    total_budget: Number(form.total_budget || 0),
+    daily_budget_cap: form.daily_budget_cap === '' ? null : Number(form.daily_budget_cap || 0),
+    start_date: form.start_date || null,
+    end_date: form.end_date || null,
+    payment_reference: form.payment_reference,
+  });
+
   const handleSubmit = async (event) => {
     event.preventDefault();
-    setSaving(true);
-    setError('');
-    setSuccess('');
 
     try {
+      setSaving(true);
+      setError('');
+      setSuccess('');
+
       validateForm();
 
-      const payload = {
-        image: form.image,
-        title: form.title,
-        subtitle: form.subtitle,
-        link_type: form.link_type,
-        linked_post_id: form.link_type === 'internal_post' ? Number(form.linked_post_id) : null,
-        linked_product_id: form.link_type === 'product' ? Number(form.linked_product_id) : null,
-        external_url: form.link_type === 'external_url' ? form.external_url : null,
-        sort_order: Number(form.sort_order || 0),
-        status: form.status,
-      };
-
+      const payload = buildPayload();
       let response;
 
-      if (selectedSliderId) {
-        response = await api.put(`/api/affiliate/sliders/${selectedSliderId}`, payload);
+      if (selectedCampaignId) {
+        response = await api.put(`/api/affiliate/banner-home-ads/${selectedCampaignId}`, payload);
       } else {
-        response = await api.post('/api/affiliate/sliders', payload);
+        response = await api.post('/api/affiliate/banner-home-ads', payload);
       }
 
-      const savedSlider = response?.data?.slider;
+      const savedCampaign = response?.data?.campaign;
 
-      if (savedSlider?.id) {
-        await refreshSliders(savedSlider.id);
+      if (savedCampaign?.id) {
+        await refreshCampaigns(savedCampaign.id);
       }
 
-      setSuccess(response?.data?.message || 'Slider saved successfully');
+      setSuccess(response?.data?.message || 'Homepage slider ad saved successfully');
     } catch (err) {
-      setError(err?.response?.data?.message || err.message || 'Failed to save slider');
+      setError(err?.response?.data?.message || err.message || 'Failed to save homepage slider ad');
     } finally {
       setSaving(false);
     }
   };
 
-  const handleStatusToggle = async () => {
-    if (!selectedSliderId) return;
-
-    setStatusSaving(true);
-    setError('');
-    setSuccess('');
+  const handleStatusAction = async (action) => {
+    if (!selectedCampaignId) return;
 
     try {
-      const nextStatus = form.status === 'active' ? 'inactive' : 'active';
+      setStatusSaving(true);
+      setError('');
+      setSuccess('');
 
-      const { data } = await api.put(`/api/affiliate/sliders/${selectedSliderId}/status`, {
-        status: nextStatus,
+      const { data } = await api.put(`/api/affiliate/banner-home-ads/${selectedCampaignId}/status`, {
+        action,
       });
 
-      await refreshSliders(selectedSliderId);
-      setSuccess(data?.message || 'Slider status updated successfully');
+      await refreshCampaigns(selectedCampaignId);
+      setSuccess(data?.message || 'Homepage slider ad status updated');
     } catch (err) {
-      setError(err?.response?.data?.message || 'Failed to update slider status');
+      setError(err?.response?.data?.message || 'Failed to update homepage slider ad status');
     } finally {
       setStatusSaving(false);
     }
   };
 
-  const selectedPostTitle = useMemo(() => {
-    const found = posts.find((item) => String(item.id) === String(form.linked_post_id));
-    return found?.title || '-';
-  }, [posts, form.linked_post_id]);
+  const handleTopUp = async () => {
+    if (!selectedCampaignId) return;
 
-  const selectedProductTitle = useMemo(() => {
-    const found = products.find((item) => String(item.id) === String(form.linked_product_id));
-    return found?.title || '-';
-  }, [products, form.linked_product_id]);
+    const amount = Number(topUpAmount || 0);
+
+    if (!amount || amount <= 0) {
+      setError('Enter a valid top-up amount');
+      return;
+    }
+
+    try {
+      setTopUpSaving(true);
+      setError('');
+      setSuccess('');
+
+      const { data } = await api.post(`/api/affiliate/banner-home-ads/${selectedCampaignId}/top-up`, {
+        amount,
+        note: 'Affiliate homepage slider ad top-up',
+      });
+
+      await refreshCampaigns(selectedCampaignId);
+      setTopUpAmount('');
+      setSuccess(data?.message || 'Homepage slider ad topped up successfully');
+    } catch (err) {
+      setError(err?.response?.data?.message || 'Failed to top up homepage slider ad');
+    } finally {
+      setTopUpSaving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!selectedCampaignId) return;
+
+    try {
+      setSaving(true);
+      setError('');
+      setSuccess('');
+
+      const { data } = await api.delete(`/api/affiliate/banner-home-ads/${selectedCampaignId}`);
+
+      await refreshCampaigns();
+      setSuccess(data?.message || 'Homepage slider ad deleted successfully');
+    } catch (err) {
+      setError(err?.response?.data?.message || 'Failed to delete homepage slider ad');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   if (loading) {
     return (
-      <div className="affiliate-sliders-page">
+      <div className="bha-page">
         <style>{styles}</style>
 
-        <div className="affiliate-sliders-loading-wrap">
-          <div className="affiliate-sliders-loading-card">
-            <div className="affiliate-sliders-spinner" />
-            <p>Loading sliders...</p>
+        <div className="bha-loading-wrap">
+          <div className="bha-loading-card">
+            <div className="bha-spinner" />
+            <p>Loading homepage slider ads...</p>
           </div>
         </div>
       </div>
@@ -278,22 +381,22 @@ export default function AffiliateSlidersPage() {
   }
 
   return (
-    <div className="affiliate-sliders-page">
+    <div className="bha-page">
       <style>{styles}</style>
 
-      <section className="affiliate-sliders-hero">
-        <div className="affiliate-sliders-hero-copy">
-          <div className="affiliate-sliders-badge">Homepage sliders</div>
-          <h1 className="affiliate-sliders-title">Sliders</h1>
-          <p className="affiliate-sliders-subtitle">
-            Create homepage sliders and link them to posts, products, or approved Supgad URLs.
+      <section className="bha-hero">
+        <div>
+          <div className="bha-badge">Homepage Slider Ads</div>
+          <h1 className="bha-title">Banner Home Ads</h1>
+          <p className="bha-subtitle">
+            Create paid image or video ads for the homepage hero slider. Once approved by admin, your ad can appear inside the main homepage slider.
           </p>
         </div>
 
-        <div className="affiliate-sliders-hero-actions">
+        <div className="bha-hero-actions">
           <button
             type="button"
-            className="affiliate-sliders-btn secondary"
+            className="bha-btn secondary"
             onClick={() => fetchData(true)}
             disabled={refreshing}
           >
@@ -301,325 +404,447 @@ export default function AffiliateSlidersPage() {
             {refreshing ? 'Refreshing...' : 'Refresh'}
           </button>
 
-          <button className="affiliate-sliders-btn primary" type="button" onClick={resetForNew}>
+          <button type="button" className="bha-btn primary" onClick={resetForNew}>
             <Plus size={16} />
-            New Slider
+            New Slider Ad
           </button>
         </div>
       </section>
 
-      <section className="affiliate-sliders-grid">
-        <div className="affiliate-sliders-panel">
-          <div className="affiliate-sliders-panel-head">
+      <section className="bha-settings-strip">
+        <div className="bha-setting-card">
+          <Settings size={18} />
+          <span>Minimum Budget</span>
+          <strong>{formatMoney(minimumBudget)}</strong>
+        </div>
+
+        <div className="bha-setting-card">
+          <Wallet size={18} />
+          <span>Cost Per View</span>
+          <strong>{formatMoney(settings?.cost_per_view || 0)}</strong>
+        </div>
+
+        <div className="bha-setting-card">
+          <Wallet size={18} />
+          <span>Cost Per Click</span>
+          <strong>{formatMoney(settings?.cost_per_click || 0)}</strong>
+        </div>
+
+        <div className="bha-setting-card">
+          <LayoutTemplate size={18} />
+          <span>Slider Position</span>
+          <strong>Slot {settings?.ad_insert_position || 5}</strong>
+        </div>
+      </section>
+
+      <section className="bha-grid">
+        <aside className="bha-panel">
+          <div className="bha-panel-head">
             <div>
-              <p className="affiliate-sliders-panel-kicker">Slider list</p>
-              <h2 className="affiliate-sliders-panel-title">Existing Sliders</h2>
+              <p>Campaign list</p>
+              <h2>Your Slider Ads</h2>
             </div>
           </div>
 
-          {sliders.length ? (
-            <div className="affiliate-sliders-list">
-              {sliders.map((slider) => {
-                const active = String(selectedSliderId) === String(slider.id);
+          {campaigns.length ? (
+            <div className="bha-campaign-list">
+              {campaigns.map((campaign) => {
+                const active = String(selectedCampaignId) === String(campaign.id);
 
                 return (
                   <button
-                    key={slider.id}
+                    key={campaign.id}
                     type="button"
-                    className={`affiliate-sliders-list-card${active ? ' active' : ''}`}
-                    onClick={() => loadSliderIntoForm(slider)}
+                    className={`bha-campaign-card${active ? ' active' : ''}`}
+                    onClick={() => loadCampaignIntoForm(campaign)}
                   >
-                    <div className="affiliate-sliders-list-card-top">
+                    <div className="bha-campaign-top">
                       <div>
-                        <h3>{slider.title || 'Untitled Slider'}</h3>
-                        <p>{getLinkTypeLabel(slider.link_type)}</p>
+                        <h3>{campaign.campaign_title || 'Untitled Campaign'}</h3>
+                        <p>{campaign.media_type === 'video' ? 'Video slider ad' : 'Image slider ad'}</p>
                       </div>
 
-                      <span className={getStatusClass(slider.status)}>
-                        {slider.status || '-'}
+                      <span className={getStatusClass(campaign.status)}>
+                        {campaign.status || '-'}
                       </span>
                     </div>
+
+                    <div className="bha-campaign-metrics">
+                      <span>Views: {campaign.total_views || 0}</span>
+                      <span>Clicks: {campaign.total_clicks || 0}</span>
+                      <span>Left: {formatMoney(campaign.remaining_budget)}</span>
+                    </div>
+
+                    <span className={getApprovalClass(campaign.approval_status)}>
+                      {campaign.approval_status || 'pending'}
+                    </span>
                   </button>
                 );
               })}
             </div>
           ) : (
-            <div className="affiliate-sliders-empty-small">
-              <LayoutTemplate size={24} />
-              <p>No sliders yet.</p>
+            <div className="bha-empty">
+              <LayoutTemplate size={28} />
+              <strong>No homepage slider ads yet.</strong>
+              <span>Create your first slider ad.</span>
             </div>
           )}
-        </div>
+        </aside>
 
-        <div className="affiliate-sliders-side-stack">
-          <div className="affiliate-sliders-panel">
-            <div className="affiliate-sliders-panel-head">
+        <main className="bha-main-stack">
+          <section className="bha-panel">
+            <div className="bha-panel-head">
               <div>
-                <p className="affiliate-sliders-panel-kicker">Editor</p>
-                <h2 className="affiliate-sliders-panel-title">
-                  {selectedSliderId ? 'Edit Slider' : 'Create Slider'}
-                </h2>
+                <p>Editor</p>
+                <h2>{selectedCampaignId ? 'Edit Slider Ad' : 'Create Slider Ad'}</h2>
               </div>
             </div>
 
-            <form className="affiliate-sliders-form" onSubmit={handleSubmit}>
-              <div className="affiliate-sliders-form-grid">
-                <label className="affiliate-sliders-field affiliate-sliders-field-full">
-                  <span className="affiliate-sliders-label">
-                    <ImageIcon size={16} />
-                    Slider image URL
-                  </span>
+            <form className="bha-form" onSubmit={handleSubmit}>
+              <div className="bha-form-grid">
+                <label className="bha-field">
+                  <span>Campaign Title</span>
                   <input
-                    className="affiliate-sliders-input"
-                    name="image"
-                    placeholder="Slider image URL"
-                    value={form.image}
+                    name="campaign_title"
+                    value={form.campaign_title}
                     onChange={handleChange}
+                    placeholder="Campaign title"
                   />
                 </label>
 
-                <label className="affiliate-sliders-field">
-                  <span className="affiliate-sliders-label">
-                    <Pencil size={16} />
-                    Slider title
-                  </span>
+                <label className="bha-field">
+                  <span>Media Type</span>
+                  <select name="media_type" value={form.media_type} onChange={handleChange}>
+                    <option value="image">Image</option>
+                    <option value="video">Video</option>
+                  </select>
+                </label>
+
+                <label className="bha-field">
+                  <span>Eyebrow Text</span>
                   <input
-                    className="affiliate-sliders-input"
+                    name="eyebrow_text"
+                    value={form.eyebrow_text}
+                    onChange={handleChange}
+                    placeholder="Sponsored"
+                  />
+                </label>
+
+                <label className="bha-field">
+                  <span>Promo Text</span>
+                  <input
+                    name="promo_text"
+                    value={form.promo_text}
+                    onChange={handleChange}
+                    placeholder="Limited offer"
+                  />
+                </label>
+
+                <label className="bha-field bha-field-full">
+                  <span>Main Headline</span>
+                  <input
                     name="title"
-                    placeholder="Slider title"
                     value={form.title}
                     onChange={handleChange}
+                    placeholder="Your slider headline"
                   />
                 </label>
 
-                <label className="affiliate-sliders-field">
-                  <span className="affiliate-sliders-label">
-                    <Pencil size={16} />
-                    Slider subtitle
-                  </span>
-                  <input
-                    className="affiliate-sliders-input"
+                <label className="bha-field bha-field-full">
+                  <span>Subtitle</span>
+                  <textarea
                     name="subtitle"
-                    placeholder="Slider subtitle"
                     value={form.subtitle}
                     onChange={handleChange}
+                    placeholder="Short text to support your slider headline"
+                    rows={3}
                   />
                 </label>
 
-                <label className="affiliate-sliders-field">
-                  <span className="affiliate-sliders-label">
-                    <LinkIcon size={16} />
-                    Link type
-                  </span>
-                  <select
-                    className="affiliate-sliders-input"
-                    name="link_type"
-                    value={form.link_type}
+                <label className="bha-field bha-field-full">
+                  <span>Campaign Description</span>
+                  <textarea
+                    name="campaign_description"
+                    value={form.campaign_description}
                     onChange={handleChange}
-                  >
-                    <option value="internal_post">Internal Post</option>
-                    <option value="product">Product</option>
-                    <option value="external_url">External URL</option>
-                  </select>
+                    placeholder="Describe this ad for admin review"
+                    rows={3}
+                  />
                 </label>
 
-                {form.link_type === 'internal_post' ? (
-                  <label className="affiliate-sliders-field">
-                    <span className="affiliate-sliders-label">
-                      <FileText size={16} />
-                      Linked post
-                    </span>
-                    <select
-                      className="affiliate-sliders-input"
-                      name="linked_post_id"
-                      value={form.linked_post_id}
-                      onChange={handleChange}
-                    >
-                      <option value="">Select post</option>
-                      {posts.map((post) => (
-                        <option key={post.id} value={post.id}>
-                          {post.title}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                ) : null}
-
-                {form.link_type === 'product' ? (
-                  <label className="affiliate-sliders-field">
-                    <span className="affiliate-sliders-label">
-                      <Package size={16} />
-                      Linked product
-                    </span>
-                    <select
-                      className="affiliate-sliders-input"
-                      name="linked_product_id"
-                      value={form.linked_product_id}
-                      onChange={handleChange}
-                    >
-                      <option value="">Select product</option>
-                      {products.map((product) => (
-                        <option key={product.id} value={product.id}>
-                          {product.title}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                ) : null}
-
-                {form.link_type === 'external_url' ? (
-                  <label className="affiliate-sliders-field affiliate-sliders-field-full">
-                    <span className="affiliate-sliders-label">
-                      <LinkIcon size={16} />
-                      External URL
+                {form.media_type === 'image' ? (
+                  <label className="bha-field bha-field-full">
+                    <span>
+                      <ImageIcon size={15} />
+                      Image URL
                     </span>
                     <input
-                      className="affiliate-sliders-input"
-                      name="external_url"
-                      placeholder="External URL (must be supgad.com)"
-                      value={form.external_url}
+                      name="image_url"
+                      value={form.image_url}
                       onChange={handleChange}
+                      placeholder="https://..."
                     />
-                    <small className="affiliate-sliders-help">
-                      Only supgad.com links are allowed.
-                    </small>
+                  </label>
+                ) : (
+                  <>
+                    <label className="bha-field bha-field-full">
+                      <span>
+                        <Video size={15} />
+                        Video URL
+                      </span>
+                      <input
+                        name="video_url"
+                        value={form.video_url}
+                        onChange={handleChange}
+                        placeholder="YouTube, VideoGad, or supported video URL"
+                      />
+                    </label>
+
+                    <label className="bha-field bha-field-full">
+                      <span>Poster Image URL</span>
+                      <input
+                        name="poster_url"
+                        value={form.poster_url}
+                        onChange={handleChange}
+                        placeholder="Image to show before video loads"
+                      />
+                    </label>
+                  </>
+                )}
+
+                <label className="bha-field">
+                  <span>CTA Label</span>
+                  <input
+                    name="cta_label"
+                    value={form.cta_label}
+                    onChange={handleChange}
+                    placeholder="Shop Now"
+                  />
+                </label>
+
+                <label className="bha-field">
+                  <span>CTA URL</span>
+                  <input
+                    name="cta_url"
+                    value={form.cta_url}
+                    onChange={handleChange}
+                    placeholder="https://supgad.com/..."
+                  />
+                </label>
+
+                <label className="bha-field">
+                  <span>Secondary CTA Label</span>
+                  <input
+                    name="secondary_cta_label"
+                    value={form.secondary_cta_label}
+                    onChange={handleChange}
+                    placeholder="Learn More"
+                  />
+                </label>
+
+                <label className="bha-field">
+                  <span>Secondary CTA URL</span>
+                  <input
+                    name="secondary_cta_url"
+                    value={form.secondary_cta_url}
+                    onChange={handleChange}
+                    placeholder="https://supgad.com/..."
+                  />
+                </label>
+
+                {!selectedCampaignId ? (
+                  <label className="bha-field">
+                    <span>Total Budget</span>
+                    <input
+                      type="number"
+                      min={minimumBudget}
+                      step="0.01"
+                      name="total_budget"
+                      value={form.total_budget}
+                      onChange={handleChange}
+                      placeholder={String(minimumBudget)}
+                    />
                   </label>
                 ) : null}
 
-                <label className="affiliate-sliders-field">
-                  <span className="affiliate-sliders-label">Sort order</span>
+                <label className="bha-field">
+                  <span>Daily Budget Cap</span>
                   <input
-                    className="affiliate-sliders-input"
                     type="number"
-                    name="sort_order"
-                    placeholder="Sort order"
-                    value={form.sort_order}
+                    min={minimumDailyCap}
+                    step="0.01"
+                    name="daily_budget_cap"
+                    value={form.daily_budget_cap}
+                    onChange={handleChange}
+                    placeholder={`Optional, min ${minimumDailyCap}`}
+                  />
+                </label>
+
+                <label className="bha-field">
+                  <span>Start Date</span>
+                  <input
+                    type="date"
+                    name="start_date"
+                    value={form.start_date}
                     onChange={handleChange}
                   />
                 </label>
 
-                <label className="affiliate-sliders-field">
-                  <span className="affiliate-sliders-label">Status</span>
-                  <select
-                    className="affiliate-sliders-input"
-                    name="status"
-                    value={form.status}
+                <label className="bha-field">
+                  <span>End Date</span>
+                  <input
+                    type="date"
+                    name="end_date"
+                    value={form.end_date}
                     onChange={handleChange}
-                  >
-                    <option value="active">Active</option>
-                    <option value="inactive">Inactive</option>
-                  </select>
+                  />
                 </label>
+
+                {!selectedCampaignId ? (
+                  <label className="bha-field bha-field-full">
+                    <span>Payment Reference</span>
+                    <input
+                      name="payment_reference"
+                      value={form.payment_reference}
+                      onChange={handleChange}
+                      placeholder="Optional payment reference"
+                    />
+                  </label>
+                ) : null}
               </div>
 
               {error ? (
-                <div className="affiliate-sliders-alert error">
+                <div className="bha-alert error">
                   <AlertCircle size={18} />
                   <span>{error}</span>
                 </div>
               ) : null}
 
               {success ? (
-                <div className="affiliate-sliders-alert success">
+                <div className="bha-alert success">
                   <CheckCircle2 size={18} />
                   <span>{success}</span>
                 </div>
               ) : null}
 
-              <div className="affiliate-sliders-actions">
-                <button className="affiliate-sliders-btn primary" type="submit" disabled={saving}>
-                  {saving ? 'Saving...' : selectedSliderId ? 'Update Slider' : 'Create Slider'}
+              <div className="bha-actions">
+                <button type="submit" className="bha-btn primary" disabled={saving}>
+                  <Save size={16} />
+                  {saving ? 'Saving...' : selectedCampaignId ? 'Update Ad' : 'Submit For Approval'}
                 </button>
 
-                {selectedSliderId ? (
+                {selectedCampaignId && selectedCampaign?.status === 'active' ? (
                   <button
-                    className="affiliate-sliders-btn secondary"
                     type="button"
-                    onClick={handleStatusToggle}
+                    className="bha-btn secondary"
                     disabled={statusSaving}
+                    onClick={() => handleStatusAction('pause')}
                   >
-                    {form.status === 'active' ? <ToggleLeft size={16} /> : <ToggleRight size={16} />}
-                    {statusSaving
-                      ? 'Updating...'
-                      : form.status === 'active'
-                      ? 'Set Inactive'
-                      : 'Set Active'}
+                    <Pause size={16} />
+                    {statusSaving ? 'Updating...' : 'Pause'}
+                  </button>
+                ) : null}
+
+                {selectedCampaignId && selectedCampaign?.status === 'paused' ? (
+                  <button
+                    type="button"
+                    className="bha-btn secondary"
+                    disabled={statusSaving}
+                    onClick={() => handleStatusAction('resume')}
+                  >
+                    <Play size={16} />
+                    {statusSaving ? 'Updating...' : 'Resume'}
+                  </button>
+                ) : null}
+
+                {selectedCampaignId ? (
+                  <button
+                    type="button"
+                    className="bha-btn danger"
+                    disabled={saving}
+                    onClick={handleDelete}
+                  >
+                    <Trash2 size={16} />
+                    Delete
                   </button>
                 ) : null}
               </div>
             </form>
+          </section>
+
+          {selectedCampaignId ? (
+            <section className="bha-panel">
+              <div className="bha-panel-head">
+                <div>
+                  <p>Funding</p>
+                  <h2>Top Up Campaign</h2>
+                </div>
+              </div>
+
+              <div className="bha-topup-row">
+                <input
+                  type="number"
+                  step="0.01"
+                  min="1"
+                  value={topUpAmount}
+                  onChange={(event) => setTopUpAmount(event.target.value)}
+                  placeholder="Top-up amount"
+                />
+
+                <button type="button" className="bha-btn primary" onClick={handleTopUp} disabled={topUpSaving}>
+                  <Wallet size={16} />
+                  {topUpSaving ? 'Adding...' : 'Top Up'}
+                </button>
+              </div>
+            </section>
+          ) : null}
+        </main>
+      </section>
+
+      <section className="bha-panel bha-preview-footer-panel">
+        <div className="bha-panel-head">
+          <div>
+            <p>Live Preview</p>
+            <h2>Homepage Slider Banner Preview</h2>
+          </div>
+        </div>
+
+        <div className="bha-footer-preview">
+          <div className="bha-footer-preview-left">
+            <span className="bha-preview-eyebrow">{form.eyebrow_text || 'Sponsored'}</span>
+
+            <h3>{form.title || 'Your slider headline appears here'}</h3>
+
+            <p>{form.subtitle || 'Your slider subtitle will appear here as users view the homepage banner.'}</p>
+
+            <div className="bha-footer-preview-actions">
+              <span>{form.cta_label || 'Shop Now'}</span>
+              {form.secondary_cta_label ? <em>{form.secondary_cta_label}</em> : null}
+              {form.promo_text ? <strong>{form.promo_text}</strong> : null}
+            </div>
           </div>
 
-          <div className="affiliate-sliders-panel">
-            <div className="affiliate-sliders-panel-head">
-              <div>
-                <p className="affiliate-sliders-panel-kicker">Preview</p>
-                <h2 className="affiliate-sliders-panel-title">Slider Summary</h2>
-              </div>
-            </div>
+          <div className="bha-footer-preview-media">
+            <div className="bha-footer-preview-shape bha-footer-preview-shape-one" />
+            <div className="bha-footer-preview-shape bha-footer-preview-shape-two" />
 
-            <div className="affiliate-sliders-preview-card">
-              {form.image ? (
-                <img
-                  src={form.image}
-                  alt={form.title || 'Slider preview'}
-                  className="affiliate-sliders-preview-image"
-                />
+            {form.media_type === 'video' ? (
+              form.poster_url ? (
+                <img src={form.poster_url} alt="Video poster preview" />
               ) : (
-                <div className="affiliate-sliders-preview-placeholder">
-                  <ImageIcon size={26} />
-                  <span>No image preview</span>
+                <div className="bha-preview-video-box">
+                  <Video size={42} />
+                  <span>Video Preview</span>
                 </div>
-              )}
-
-              <div className="affiliate-sliders-summary-list">
-                <div className="affiliate-sliders-summary-row">
-                  <span>Title</span>
-                  <strong>{form.title || '-'}</strong>
-                </div>
-
-                <div className="affiliate-sliders-summary-row">
-                  <span>Subtitle</span>
-                  <strong>{form.subtitle || '-'}</strong>
-                </div>
-
-                <div className="affiliate-sliders-summary-row">
-                  <span>Link type</span>
-                  <strong>{getLinkTypeLabel(form.link_type)}</strong>
-                </div>
-
-                {form.link_type === 'internal_post' ? (
-                  <div className="affiliate-sliders-summary-row">
-                    <span>Linked post</span>
-                    <strong>{selectedPostTitle}</strong>
-                  </div>
-                ) : null}
-
-                {form.link_type === 'product' ? (
-                  <div className="affiliate-sliders-summary-row">
-                    <span>Linked product</span>
-                    <strong>{selectedProductTitle}</strong>
-                  </div>
-                ) : null}
-
-                {form.link_type === 'external_url' ? (
-                  <div className="affiliate-sliders-summary-row">
-                    <span>External URL</span>
-                    <strong className="wrap">{form.external_url || '-'}</strong>
-                  </div>
-                ) : null}
-
-                <div className="affiliate-sliders-summary-row">
-                  <span>Status</span>
-                  <strong>{form.status || '-'}</strong>
-                </div>
-
-                <div className="affiliate-sliders-summary-row">
-                  <span>Sort order</span>
-                  <strong>{form.sort_order || 0}</strong>
-                </div>
+              )
+            ) : form.image_url ? (
+              <img src={form.image_url} alt="Slider ad preview" />
+            ) : (
+              <div className="bha-preview-video-box">
+                <ImageIcon size={42} />
+                <span>Image Preview</span>
               </div>
-            </div>
+            )}
           </div>
         </div>
       </section>
@@ -632,17 +857,17 @@ const styles = `
     box-sizing: border-box;
   }
 
-  .affiliate-sliders-page {
+  .bha-page {
     width: 100%;
   }
 
-  .affiliate-sliders-loading-wrap {
+  .bha-loading-wrap {
     min-height: 60vh;
     display: grid;
     place-items: center;
   }
 
-  .affiliate-sliders-loading-card {
+  .bha-loading-card {
     min-width: 260px;
     background: #ffffff;
     border: 1px solid #e5e7eb;
@@ -652,27 +877,27 @@ const styles = `
     box-shadow: 0 18px 45px rgba(15, 23, 42, 0.06);
   }
 
-  .affiliate-sliders-spinner {
+  .bha-spinner {
     width: 38px;
     height: 38px;
     border-radius: 999px;
     border: 3px solid #e5e7eb;
     border-top-color: #111827;
     margin: 0 auto 12px;
-    animation: affiliateSlidersSpin 0.8s linear infinite;
+    animation: bhaSpin 0.8s linear infinite;
   }
 
-  @keyframes affiliateSlidersSpin {
+  @keyframes bhaSpin {
     to {
       transform: rotate(360deg);
     }
   }
 
   .spin {
-    animation: affiliateSlidersSpin 0.8s linear infinite;
+    animation: bhaSpin 0.8s linear infinite;
   }
 
-  .affiliate-sliders-hero {
+  .bha-hero {
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
@@ -685,7 +910,7 @@ const styles = `
     margin-bottom: 20px;
   }
 
-  .affiliate-sliders-badge {
+  .bha-badge {
     display: inline-flex;
     align-items: center;
     padding: 8px 12px;
@@ -699,7 +924,7 @@ const styles = `
     margin-bottom: 14px;
   }
 
-  .affiliate-sliders-title {
+  .bha-title {
     margin: 0;
     font-size: 30px;
     line-height: 1.1;
@@ -707,64 +932,68 @@ const styles = `
     color: #111827;
   }
 
-  .affiliate-sliders-subtitle {
+  .bha-subtitle {
     margin: 12px 0 0;
-    max-width: 760px;
+    max-width: 800px;
     color: #6b7280;
     font-size: 15px;
     line-height: 1.7;
   }
 
-  .affiliate-sliders-hero-actions,
-  .affiliate-sliders-actions {
+  .bha-hero-actions,
+  .bha-actions {
     display: flex;
     align-items: center;
     gap: 12px;
     flex-wrap: wrap;
   }
 
-  .affiliate-sliders-btn {
-    height: 46px;
-    padding: 0 16px;
-    border-radius: 14px;
-    border: 1px solid #dbe2ea;
-    background: #ffffff;
-    color: #111827;
-    font-size: 14px;
-    font-weight: 800;
-    text-decoration: none;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    cursor: pointer;
-    transition: 0.2s ease;
-  }
-
-  .affiliate-sliders-btn.primary {
-    background: #111827;
-    color: #ffffff;
-    border-color: #111827;
-  }
-
-  .affiliate-sliders-btn:disabled {
-    opacity: 0.7;
-    cursor: not-allowed;
-  }
-
-  .affiliate-sliders-grid {
+  .bha-settings-strip {
     display: grid;
-    grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.25fr);
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 14px;
+    margin-bottom: 20px;
+  }
+
+  .bha-setting-card {
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 20px;
+    padding: 16px;
+    display: grid;
+    gap: 8px;
+    color: #111827;
+    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.04);
+  }
+
+  .bha-setting-card svg {
+    color: #ff2b05;
+  }
+
+  .bha-setting-card span {
+    color: #6b7280;
+    font-size: 13px;
+    font-weight: 700;
+  }
+
+  .bha-setting-card strong {
+    font-size: 22px;
+    font-weight: 900;
+  }
+
+  .bha-grid {
+    display: grid;
+    grid-template-columns: minmax(260px, 0.7fr) minmax(520px, 1.8fr);
+    gap: 20px;
+    align-items: start;
+  }
+
+  .bha-main-stack {
+    display: grid;
     gap: 20px;
   }
 
-  .affiliate-sliders-side-stack {
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
-  }
-
-  .affiliate-sliders-panel {
+  .bha-panel {
     background: #ffffff;
     border: 1px solid #e5e7eb;
     border-radius: 24px;
@@ -772,15 +1001,18 @@ const styles = `
     box-shadow: 0 16px 35px rgba(15, 23, 42, 0.04);
   }
 
-  .affiliate-sliders-panel-head {
+  .bha-preview-footer-panel {
+    margin-top: 20px;
+  }
+
+  .bha-panel-head {
     display: flex;
-    align-items: flex-start;
     justify-content: space-between;
     gap: 14px;
     margin-bottom: 18px;
   }
 
-  .affiliate-sliders-panel-kicker {
+  .bha-panel-head p {
     margin: 0 0 6px;
     font-size: 12px;
     font-weight: 800;
@@ -789,21 +1021,58 @@ const styles = `
     letter-spacing: 0.06em;
   }
 
-  .affiliate-sliders-panel-title {
+  .bha-panel-head h2 {
     margin: 0;
     font-size: 22px;
     font-weight: 900;
     color: #111827;
-    line-height: 1.2;
   }
 
-  .affiliate-sliders-list {
-    display: flex;
-    flex-direction: column;
+  .bha-btn {
+    height: 46px;
+    padding: 0 16px;
+    border-radius: 14px;
+    border: 1px solid #dbe2ea;
+    background: #ffffff;
+    color: #111827;
+    font-size: 14px;
+    font-weight: 800;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    cursor: pointer;
+    transition: 0.2s ease;
+  }
+
+  .bha-btn.primary {
+    background: #111827;
+    color: #ffffff;
+    border-color: #111827;
+  }
+
+  .bha-btn.secondary {
+    background: #ffffff;
+    color: #111827;
+  }
+
+  .bha-btn.danger {
+    background: #fff1f2;
+    color: #be123c;
+    border-color: #fecdd3;
+  }
+
+  .bha-btn:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+  }
+
+  .bha-campaign-list {
+    display: grid;
     gap: 12px;
   }
 
-  .affiliate-sliders-list-card {
+  .bha-campaign-card {
     width: 100%;
     padding: 16px;
     border-radius: 18px;
@@ -811,100 +1080,140 @@ const styles = `
     border: 1px solid #edf2f7;
     cursor: pointer;
     text-align: left;
-    transition: 0.2s ease;
+    display: grid;
+    gap: 12px;
   }
 
-  .affiliate-sliders-list-card.active {
+  .bha-campaign-card.active {
     border-color: #111827;
     background: #ffffff;
     box-shadow: inset 0 0 0 1px #111827;
   }
 
-  .affiliate-sliders-list-card-top {
+  .bha-campaign-top {
     display: flex;
-    align-items: flex-start;
     justify-content: space-between;
     gap: 12px;
   }
 
-  .affiliate-sliders-list-card h3 {
+  .bha-campaign-top h3 {
     margin: 0 0 6px;
     font-size: 16px;
     font-weight: 900;
     color: #111827;
   }
 
-  .affiliate-sliders-list-card p {
+  .bha-campaign-top p {
     margin: 0;
     color: #6b7280;
     font-size: 13px;
   }
 
-  .affiliate-sliders-status {
+  .bha-campaign-metrics {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .bha-campaign-metrics span {
+    font-size: 11px;
+    font-weight: 800;
+    color: #334155;
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    padding: 6px 8px;
+    border-radius: 999px;
+  }
+
+  .bha-status,
+  .bha-approval {
     display: inline-flex;
     width: fit-content;
     align-items: center;
     justify-content: center;
-    min-height: 34px;
-    padding: 0 12px;
+    min-height: 28px;
+    padding: 0 10px;
     border-radius: 999px;
-    font-size: 12px;
-    font-weight: 800;
+    font-size: 11px;
+    font-weight: 900;
     text-transform: capitalize;
     border: 1px solid transparent;
     white-space: nowrap;
   }
 
-  .affiliate-sliders-status.active {
+  .bha-status.active,
+  .bha-approval.approved {
     background: #ecfdf3;
     color: #027a48;
     border-color: #abefc6;
   }
 
-  .affiliate-sliders-status.inactive {
+  .bha-status.pending,
+  .bha-approval.pending {
     background: #fff7ed;
     color: #b54708;
     border-color: #fed7aa;
   }
 
-  .affiliate-sliders-status.neutral {
+  .bha-status.paused {
+    background: #eff6ff;
+    color: #1d4ed8;
+    border-color: #bfdbfe;
+  }
+
+  .bha-status.rejected,
+  .bha-approval.rejected {
+    background: #fff1f2;
+    color: #be123c;
+    border-color: #fecdd3;
+  }
+
+  .bha-status.ended {
+    background: #f1f5f9;
+    color: #475569;
+    border-color: #cbd5e1;
+  }
+
+  .bha-status.neutral,
+  .bha-approval.neutral {
     background: #eef2f7;
     color: #344054;
     border-color: #dbe2ea;
   }
 
-  .affiliate-sliders-form {
-    display: flex;
-    flex-direction: column;
+  .bha-form {
+    display: grid;
     gap: 18px;
   }
 
-  .affiliate-sliders-form-grid {
+  .bha-form-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 16px;
   }
 
-  .affiliate-sliders-field {
-    display: flex;
-    flex-direction: column;
+  .bha-field {
+    display: grid;
     gap: 8px;
   }
 
-  .affiliate-sliders-field-full {
+  .bha-field-full {
     grid-column: span 2;
   }
 
-  .affiliate-sliders-label {
+  .bha-field span {
     display: inline-flex;
     align-items: center;
-    gap: 8px;
+    gap: 7px;
     font-size: 13px;
     font-weight: 800;
     color: #111827;
   }
 
-  .affiliate-sliders-input {
+  .bha-field input,
+  .bha-field select,
+  .bha-field textarea,
+  .bha-topup-row input {
     width: 100%;
     min-height: 50px;
     border-radius: 16px;
@@ -917,18 +1226,20 @@ const styles = `
     transition: 0.2s ease;
   }
 
-  .affiliate-sliders-input:focus {
+  .bha-field textarea {
+    padding: 14px;
+    resize: vertical;
+  }
+
+  .bha-field input:focus,
+  .bha-field select:focus,
+  .bha-field textarea:focus,
+  .bha-topup-row input:focus {
     border-color: #111827;
     box-shadow: 0 0 0 4px rgba(17, 24, 39, 0.06);
   }
 
-  .affiliate-sliders-help {
-    color: #6b7280;
-    font-size: 12px;
-    line-height: 1.5;
-  }
-
-  .affiliate-sliders-alert {
+  .bha-alert {
     display: flex;
     align-items: flex-start;
     gap: 10px;
@@ -938,151 +1249,260 @@ const styles = `
     font-weight: 700;
   }
 
-  .affiliate-sliders-alert.error {
+  .bha-alert.error {
     background: #fff7ed;
     border: 1px solid #fed7aa;
     color: #9a3412;
   }
 
-  .affiliate-sliders-alert.success {
+  .bha-alert.success {
     background: #ecfdf3;
     border: 1px solid #abefc6;
     color: #027a48;
   }
 
-  .affiliate-sliders-preview-card {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-  }
-
-  .affiliate-sliders-preview-image,
-  .affiliate-sliders-preview-placeholder {
-    width: 100%;
-    height: 220px;
-    border-radius: 18px;
-    border: 1px solid #edf2f7;
-    background: #f8fafc;
-  }
-
-  .affiliate-sliders-preview-image {
-    object-fit: cover;
-    display: block;
-  }
-
-  .affiliate-sliders-preview-placeholder {
+  .bha-topup-row {
     display: grid;
-    place-items: center;
-    color: #6b7280;
-    gap: 8px;
-    text-align: center;
-  }
-
-  .affiliate-sliders-summary-list {
-    display: flex;
-    flex-direction: column;
+    grid-template-columns: 1fr auto;
     gap: 12px;
   }
 
-  .affiliate-sliders-summary-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    padding: 14px 16px;
-    background: #f8fafc;
-    border: 1px solid #edf2f7;
-    border-radius: 16px;
-  }
-
-  .affiliate-sliders-summary-row span {
-    color: #6b7280;
-    font-weight: 700;
-    font-size: 13px;
-  }
-
-  .affiliate-sliders-summary-row strong {
-    color: #111827;
-    font-weight: 900;
-    text-align: right;
-  }
-
-  .affiliate-sliders-summary-row strong.wrap {
-    word-break: break-word;
-  }
-
-  .affiliate-sliders-empty-small {
-    min-height: 180px;
+  .bha-empty {
+    min-height: 220px;
     border: 1px dashed #dbe2ea;
     background: #f8fafc;
     border-radius: 20px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
+    display: grid;
+    place-items: center;
     text-align: center;
     padding: 22px;
+    color: #6b7280;
   }
 
-  .affiliate-sliders-empty-small p {
-    margin: 0;
+  .bha-empty strong {
     color: #111827;
-    font-weight: 800;
   }
 
-  @media (max-width: 1100px) {
-    .affiliate-sliders-grid {
+  .bha-footer-preview {
+    position: relative;
+    overflow: hidden;
+    min-height: 430px;
+    border-radius: 28px;
+    display: grid;
+    grid-template-columns: 37% 63%;
+    align-items: center;
+    background:
+      radial-gradient(circle at top left, rgba(255, 255, 255, 0.18), transparent 28%),
+      linear-gradient(135deg, #e0b894 0%, #ddb38c 38%, #dcb28b 100%);
+  }
+
+  .bha-footer-preview::before {
+    content: "";
+    position: absolute;
+    left: -90px;
+    top: 60px;
+    width: 420px;
+    height: 420px;
+    border-radius: 50%;
+    background:
+      radial-gradient(circle, rgba(255, 255, 255, 0.12) 0, rgba(255, 255, 255, 0.12) 22%, transparent 23%),
+      radial-gradient(circle, rgba(255, 255, 255, 0.08) 0, rgba(255, 255, 255, 0.08) 38%, transparent 39%),
+      radial-gradient(circle, rgba(111, 78, 55, 0.05) 0, rgba(111, 78, 55, 0.05) 54%, transparent 55%);
+    pointer-events: none;
+  }
+
+  .bha-footer-preview-left {
+    position: relative;
+    z-index: 3;
+    padding: 46px 26px 46px 58px;
+    display: grid;
+    align-content: center;
+    gap: 16px;
+  }
+
+  .bha-preview-eyebrow {
+    display: inline-flex;
+    width: fit-content;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.24);
+    border: 1px solid rgba(255,255,255,0.32);
+    color: #3f332c;
+    padding: 8px 12px;
+    font-size: 12px;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  .bha-footer-preview-left h3 {
+    margin: 0;
+    color: #3a322e;
+    font-size: clamp(34px, 4.8vw, 68px);
+    line-height: 0.96;
+    font-weight: 950;
+    letter-spacing: -0.06em;
+  }
+
+  .bha-footer-preview-left p {
+    margin: 0;
+    max-width: 520px;
+    color: rgba(58, 50, 46, 0.78);
+    line-height: 1.7;
+    font-size: 16px;
+    font-weight: 750;
+  }
+
+  .bha-footer-preview-actions {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+    margin-top: 8px;
+  }
+
+  .bha-footer-preview-actions span,
+  .bha-footer-preview-actions em {
+    min-height: 50px;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    padding: 0 22px;
+    font-size: 13px;
+    font-weight: 900;
+    font-style: normal;
+  }
+
+  .bha-footer-preview-actions span {
+    background: #ffffff;
+    color: #111827;
+  }
+
+  .bha-footer-preview-actions em {
+    border: 1px solid rgba(17, 24, 39, 0.18);
+    background: rgba(255, 255, 255, 0.34);
+    color: #3a322e;
+  }
+
+  .bha-footer-preview-actions strong {
+    color: #3a322e;
+    font-size: 34px;
+    font-weight: 950;
+  }
+
+  .bha-footer-preview-media {
+    position: relative;
+    z-index: 2;
+    min-height: 430px;
+    display: grid;
+    place-items: center;
+    padding: 34px 46px 34px 0;
+  }
+
+  .bha-footer-preview-media img,
+  .bha-preview-video-box {
+    position: relative;
+    z-index: 4;
+    width: min(880px, 94%);
+    height: 330px;
+    border-radius: 46px;
+    object-fit: cover;
+    background: rgba(255,255,255,0.16);
+    border: 1px solid rgba(255,255,255,0.26);
+    box-shadow: 0 30px 80px rgba(15, 23, 42, 0.22);
+  }
+
+  .bha-preview-video-box {
+    display: grid;
+    place-items: center;
+    color: rgba(58, 50, 46, 0.72);
+    font-weight: 900;
+  }
+
+  .bha-footer-preview-shape {
+    position: absolute;
+    pointer-events: none;
+    border-radius: 50%;
+    z-index: 5;
+    background: rgba(70, 51, 38, 0.14);
+  }
+
+  .bha-footer-preview-shape-one {
+    top: 48px;
+    right: 150px;
+    width: 76px;
+    height: 76px;
+  }
+
+  .bha-footer-preview-shape-two {
+    right: 56px;
+    top: 90px;
+    width: 42px;
+    height: 42px;
+  }
+
+  @media (max-width: 1280px) {
+    .bha-grid {
       grid-template-columns: 1fr;
     }
+
+    .bha-settings-strip {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
   }
 
-  @media (max-width: 991px) {
-    .affiliate-sliders-hero {
-      flex-direction: column;
-      padding: 20px;
+  @media (max-width: 900px) {
+    .bha-footer-preview {
+      grid-template-columns: 1fr;
     }
 
-    .affiliate-sliders-title {
-      font-size: 26px;
+    .bha-footer-preview-left {
+      padding: 32px 24px 12px;
     }
 
-    .affiliate-sliders-panel {
-      padding: 18px;
+    .bha-footer-preview-media {
+      min-height: 300px;
+      padding: 16px 24px 32px;
+    }
+
+    .bha-footer-preview-media img,
+    .bha-preview-video-box {
+      width: 100%;
+      height: 280px;
+      border-radius: 30px;
     }
   }
 
   @media (max-width: 767px) {
-    .affiliate-sliders-form-grid {
-      grid-template-columns: 1fr;
-    }
-
-    .affiliate-sliders-field-full {
-      grid-column: span 1;
-    }
-
-    .affiliate-sliders-title {
-      font-size: 22px;
-    }
-
-    .affiliate-sliders-subtitle {
-      font-size: 14px;
-    }
-
-    .affiliate-sliders-hero-actions,
-    .affiliate-sliders-actions {
+    .bha-hero,
+    .bha-actions,
+    .bha-hero-actions {
       flex-direction: column;
       align-items: stretch;
     }
 
-    .affiliate-sliders-btn {
+    .bha-settings-strip,
+    .bha-form-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .bha-field-full {
+      grid-column: span 1;
+    }
+
+    .bha-topup-row {
+      grid-template-columns: 1fr;
+    }
+
+    .bha-btn {
       width: 100%;
     }
 
-    .affiliate-sliders-summary-row,
-    .affiliate-sliders-list-card-top {
-      flex-direction: column;
-      align-items: flex-start;
+    .bha-title {
+      font-size: 24px;
+    }
+
+    .bha-panel {
+      padding: 18px;
     }
   }
 `;

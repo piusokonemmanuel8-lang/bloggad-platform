@@ -14,11 +14,21 @@ function formatDate(value) {
   if (!value) return '-';
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
+
   return date.toLocaleDateString(undefined, {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
   });
+}
+
+function makeSlug(value) {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/&/g, 'and')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
 }
 
 function resolveSponsoredPostUrl(ad, fallbackWebsiteSlug = '') {
@@ -30,34 +40,135 @@ function resolveSponsoredPostUrl(ad, fallbackWebsiteSlug = '') {
   return '#';
 }
 
-function makeDummyPosts(websiteSlug) {
-  const imagePool = [
-    'https://images.unsplash.com/photo-1519389950473-47ba0277781c?auto=format&fit=crop&w=1400&q=80',
-    'https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=1400&q=80',
-    'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=1400&q=80',
-    'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=1400&q=80',
-    'https://images.unsplash.com/photo-1504384308090-c894fdcc538d?auto=format&fit=crop&w=1400&q=80',
-    'https://images.unsplash.com/photo-1515879218367-8466d910aaa4?auto=format&fit=crop&w=1400&q=80',
-  ];
+function PostCard({ post, websiteSlug }) {
+  return (
+    <article
+      style={{
+        background: '#ffffff',
+        border: '1px solid #e5e7eb',
+        borderRadius: 22,
+        overflow: 'hidden',
+        boxShadow: '0 14px 32px rgba(15, 23, 42, 0.05)',
+        minHeight: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+      }}
+    >
+      {post?.featured_image ? (
+        <img
+          src={post.featured_image}
+          alt={post.title}
+          style={{
+            width: '100%',
+            height: 240,
+            objectFit: 'cover',
+            display: 'block',
+          }}
+        />
+      ) : (
+        <div
+          style={{
+            width: '100%',
+            height: 240,
+            background: '#f8fafc',
+            borderBottom: '1px solid #eef2f7',
+          }}
+        />
+      )}
 
-  return Array.from({ length: 9 }, (_, index) => ({
-    id: `dummy-post-${index + 1}`,
-    slug: `dummy-post-${index + 1}`,
-    title: `Bloggad Post ${index + 1}`,
-    excerpt: 'Premium website post card ready for your real published blog posts feed.',
-    featured_image: imagePool[index % imagePool.length],
-    published_at: new Date().toISOString(),
-    product: {
-      title: `Featured Product ${index + 1}`,
-    },
-    category: {
-      name: index % 2 === 0 ? 'Reviews' : 'Guides',
-    },
-    website: {
-      website_name: 'Bloggad Store',
-      slug: websiteSlug,
-    },
-  }));
+      <div style={{ padding: 20, display: 'flex', flexDirection: 'column', flex: 1 }}>
+        <span
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 6,
+            width: 'fit-content',
+            padding: '7px 12px',
+            borderRadius: 999,
+            background: '#eff6ff',
+            color: '#2563eb',
+            fontSize: 12,
+            fontWeight: 800,
+            textTransform: 'uppercase',
+            letterSpacing: '0.08em',
+            marginBottom: 12,
+          }}
+        >
+          <Tag size={13} />
+          {post?.category?.name || 'Post'}
+        </span>
+
+        <h2
+          style={{
+            margin: 0,
+            fontSize: 22,
+            lineHeight: 1.32,
+            fontWeight: 900,
+            color: '#111827',
+            letterSpacing: '-0.02em',
+            marginBottom: 12,
+          }}
+        >
+          {post?.title || 'Post'}
+        </h2>
+
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 14,
+            flexWrap: 'wrap',
+            fontSize: 13,
+            color: '#64748b',
+            fontWeight: 600,
+            marginBottom: 14,
+          }}
+        >
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            <CalendarDays size={14} />
+            {formatDate(post?.published_at)}
+          </span>
+
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            <User2 size={14} />
+            {post?.website?.website_name || 'Website'}
+          </span>
+        </div>
+
+        <div
+          style={{
+            fontSize: 14,
+            color: '#475569',
+            lineHeight: 1.75,
+            marginBottom: 14,
+          }}
+        >
+          {post?.excerpt || 'No excerpt'}
+        </div>
+
+        <Link
+          to={`/${websiteSlug}/post/${post.slug}`}
+          style={{
+            marginTop: 'auto',
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 8,
+            minHeight: 50,
+            borderRadius: 16,
+            background: 'linear-gradient(90deg, #6d4aff 0%, #5644f4 100%)',
+            color: '#ffffff',
+            fontSize: 14,
+            fontWeight: 800,
+            textDecoration: 'none',
+          }}
+        >
+          Read Post
+          <ChevronRight size={16} />
+        </Link>
+      </div>
+    </article>
+  );
 }
 
 function SponsoredPostCard({ ad, websiteSlug, onView, onClick }) {
@@ -86,7 +197,7 @@ function SponsoredPostCard({ ad, websiteSlug, onView, onClick }) {
 
   const image = ad?.target_image || ad?.campaign_image || '';
   const title = ad?.target_title || ad?.campaign_title || 'Sponsored Post';
-  const description = ad?.campaign_description || 'Promoted article from this website.';
+  const description = ad?.campaign_description || 'Promoted article from this category.';
 
   return (
     <article
@@ -151,14 +262,7 @@ function SponsoredPostCard({ ad, websiteSlug, onView, onClick }) {
         </div>
       )}
 
-      <div
-        style={{
-          padding: 20,
-          display: 'flex',
-          flexDirection: 'column',
-          flex: 1,
-        }}
-      >
+      <div style={{ padding: 20, display: 'flex', flexDirection: 'column', flex: 1 }}>
         <span
           style={{
             display: 'inline-flex',
@@ -232,179 +336,8 @@ function SponsoredPostCard({ ad, websiteSlug, onView, onClick }) {
   );
 }
 
-function PostCard({ post, websiteSlug }) {
-  return (
-    <article
-      style={{
-        background: '#ffffff',
-        border: '1px solid #e5e7eb',
-        borderRadius: 22,
-        overflow: 'hidden',
-        boxShadow: '0 14px 32px rgba(15, 23, 42, 0.05)',
-        minHeight: '100%',
-        display: 'flex',
-        flexDirection: 'column',
-      }}
-    >
-      {post?.featured_image ? (
-        <img
-          src={post.featured_image}
-          alt={post.title}
-          style={{
-            width: '100%',
-            height: 240,
-            objectFit: 'cover',
-            display: 'block',
-          }}
-        />
-      ) : (
-        <div
-          style={{
-            width: '100%',
-            height: 240,
-            background: '#f8fafc',
-            borderBottom: '1px solid #eef2f7',
-          }}
-        />
-      )}
-
-      <div
-        style={{
-          padding: 20,
-          display: 'flex',
-          flexDirection: 'column',
-          flex: 1,
-        }}
-      >
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            flexWrap: 'wrap',
-            marginBottom: 12,
-          }}
-        >
-          <span
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 6,
-              padding: '7px 12px',
-              borderRadius: 999,
-              background: '#eff6ff',
-              color: '#2563eb',
-              fontSize: 12,
-              fontWeight: 800,
-              textTransform: 'uppercase',
-              letterSpacing: '0.08em',
-            }}
-          >
-            <Tag size={13} />
-            {post?.category?.name || 'Post'}
-          </span>
-        </div>
-
-        <h2
-          style={{
-            margin: 0,
-            fontSize: 22,
-            lineHeight: 1.32,
-            fontWeight: 900,
-            color: '#111827',
-            letterSpacing: '-0.02em',
-            marginBottom: 12,
-          }}
-        >
-          {post?.title || 'Post'}
-        </h2>
-
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 14,
-            flexWrap: 'wrap',
-            fontSize: 13,
-            color: '#64748b',
-            fontWeight: 600,
-            marginBottom: 14,
-          }}
-        >
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-            <CalendarDays size={14} />
-            {formatDate(post?.published_at)}
-          </span>
-
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-            <User2 size={14} />
-            {post?.website?.website_name || 'Website'}
-          </span>
-        </div>
-
-        <div
-          style={{
-            display: 'grid',
-            gap: 8,
-            marginBottom: 14,
-          }}
-        >
-          <div
-            style={{
-              fontSize: 14,
-              color: '#475569',
-              lineHeight: 1.75,
-            }}
-          >
-            {post?.excerpt || 'No excerpt'}
-          </div>
-
-          <div
-            style={{
-              fontSize: 14,
-              color: '#64748b',
-            }}
-          >
-            <strong style={{ color: '#111827' }}>Product:</strong> {post?.product?.title || '-'}
-          </div>
-
-          <div
-            style={{
-              fontSize: 14,
-              color: '#64748b',
-            }}
-          >
-            <strong style={{ color: '#111827' }}>Category:</strong> {post?.category?.name || '-'}
-          </div>
-        </div>
-
-        <Link
-          to={`/${websiteSlug}/post/${post.slug}`}
-          style={{
-            marginTop: 'auto',
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 8,
-            minHeight: 50,
-            borderRadius: 16,
-            background: 'linear-gradient(90deg, #6d4aff 0%, #5644f4 100%)',
-            color: '#ffffff',
-            fontSize: 14,
-            fontWeight: 800,
-            textDecoration: 'none',
-          }}
-        >
-          Read Post
-          <ChevronRight size={16} />
-        </Link>
-      </div>
-    </article>
-  );
-}
-
-export default function WebsitePostsPage() {
-  const { websiteSlug } = useParams();
+export default function WebsitePostCategoryPage() {
+  const { websiteSlug, categorySlug } = useParams();
 
   const [postsData, setPostsData] = useState(null);
   const [sponsoredAds, setSponsoredAds] = useState([]);
@@ -420,47 +353,83 @@ export default function WebsitePostsPage() {
         setError('');
 
         const { data } = await api.get(`/api/public/posts/${websiteSlug}/posts`);
+        const allPosts = Array.isArray(data?.posts) ? data.posts : [];
+
+        const matchedCategoryPost = allPosts.find((post) => {
+          const postCategorySlug =
+            post?.category?.slug ||
+            post?.category_slug ||
+            makeSlug(post?.category?.name);
+
+          return postCategorySlug === categorySlug;
+        });
+
+        const categoryId =
+          matchedCategoryPost?.category?.id ||
+          matchedCategoryPost?.category_id ||
+          null;
+
         setPostsData(data || null);
+        setSearchTerm('');
         setSponsoredAds([]);
         trackedSponsoredViewsRef.current = new Set();
 
-        try {
-          const adsRes = await api.get('/api/public/affiliate-ads', {
-            params: {
-              ad_type: 'post',
-              placement_key: 'website_posts_top',
-              limit: 3,
-            },
-          });
+        if (categoryId) {
+          try {
+            const adsRes = await api.get('/api/public/affiliate-ads', {
+              params: {
+                ad_type: 'post',
+                category_id: categoryId,
+                placement_key: 'website_post_category_top',
+                limit: 3,
+              },
+            });
 
-          setSponsoredAds(Array.isArray(adsRes?.data?.ads) ? adsRes.data.ads : []);
-        } catch (adsError) {
-          setSponsoredAds([]);
+            setSponsoredAds(Array.isArray(adsRes?.data?.ads) ? adsRes.data.ads : []);
+          } catch (adsError) {
+            setSponsoredAds([]);
+          }
         }
       } catch (err) {
-        setError(err?.response?.data?.message || 'Failed to load website posts');
+        setError(err?.response?.data?.message || 'Failed to load post category');
       } finally {
         setLoading(false);
       }
     };
 
-    if (websiteSlug) {
+    if (websiteSlug && categorySlug) {
       fetchPosts();
     }
-  }, [websiteSlug]);
+  }, [websiteSlug, categorySlug]);
 
   const website = postsData?.website;
   const rawPosts = postsData?.posts || [];
-  const posts = useMemo(() => {
-    if (rawPosts.length) return rawPosts;
-    return makeDummyPosts(websiteSlug);
-  }, [rawPosts, websiteSlug]);
+
+  const categoryPosts = useMemo(() => {
+    return rawPosts.filter((post) => {
+      const postCategorySlug =
+        post?.category?.slug ||
+        post?.category_slug ||
+        makeSlug(post?.category?.name);
+
+      return postCategorySlug === categorySlug;
+    });
+  }, [rawPosts, categorySlug]);
+
+  const currentCategoryName =
+    categoryPosts?.[0]?.category?.name ||
+    categorySlug
+      ?.split('-')
+      .filter(Boolean)
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ') ||
+    'Category';
 
   const filteredPosts = useMemo(() => {
     const keyword = searchTerm.trim().toLowerCase();
-    if (!keyword) return posts;
+    if (!keyword) return categoryPosts;
 
-    return posts.filter((post) => {
+    return categoryPosts.filter((post) => {
       const title = String(post?.title || '').toLowerCase();
       const excerpt = String(post?.excerpt || '').toLowerCase();
       const product = String(post?.product?.title || '').toLowerCase();
@@ -473,7 +442,7 @@ export default function WebsitePostsPage() {
         category.includes(keyword)
       );
     });
-  }, [posts, searchTerm]);
+  }, [categoryPosts, searchTerm]);
 
   const trackSponsoredView = useCallback(async (ad) => {
     if (!ad?.id || trackedSponsoredViewsRef.current.has(ad.id)) return;
@@ -482,7 +451,7 @@ export default function WebsitePostsPage() {
 
     try {
       await api.post(`/api/public/affiliate-ads/${ad.id}/view`, {
-        placement_key: 'website_posts_top',
+        placement_key: 'website_post_category_top',
         page_url: window.location.href,
       });
     } catch (err) {
@@ -497,7 +466,7 @@ export default function WebsitePostsPage() {
 
     try {
       await api.post(`/api/public/affiliate-ads/${ad.id}/click`, {
-        placement_key: 'website_posts_top',
+        placement_key: 'website_post_category_top',
         page_url: window.location.href,
         destination_url: targetUrl,
       });
@@ -536,7 +505,7 @@ export default function WebsitePostsPage() {
           }}
         >
           <Loader2 size={18} className="spin-soft" />
-          <span>Loading website posts...</span>
+          <span>Loading post category...</span>
         </div>
 
         <style>{`
@@ -553,20 +522,15 @@ export default function WebsitePostsPage() {
   }
 
   return (
-    <div
-      style={{
-        minHeight: '100vh',
-        background: '#f5f7fb',
-      }}
-    >
+    <div style={{ minHeight: '100vh', background: '#f5f7fb' }}>
       <style>{`
-        .website-posts-grid {
+        .website-post-category-grid {
           display: grid;
           grid-template-columns: repeat(3, minmax(0, 1fr));
           gap: 24px;
         }
 
-        .website-posts-sponsored-grid {
+        .website-post-category-sponsored-grid {
           display: grid;
           grid-template-columns: repeat(3, minmax(0, 1fr));
           gap: 18px;
@@ -574,15 +538,15 @@ export default function WebsitePostsPage() {
         }
 
         @media (max-width: 1200px) {
-          .website-posts-grid,
-          .website-posts-sponsored-grid {
+          .website-post-category-grid,
+          .website-post-category-sponsored-grid {
             grid-template-columns: repeat(2, minmax(0, 1fr));
           }
         }
 
         @media (max-width: 760px) {
-          .website-posts-grid,
-          .website-posts-sponsored-grid {
+          .website-post-category-grid,
+          .website-post-category-sponsored-grid {
             grid-template-columns: 1fr;
           }
         }
@@ -627,7 +591,7 @@ export default function WebsitePostsPage() {
                   marginBottom: 8,
                 }}
               >
-                Website Blog Archive
+                Post Category
               </div>
 
               <h1
@@ -640,7 +604,8 @@ export default function WebsitePostsPage() {
                   letterSpacing: '-0.04em',
                 }}
               >
-                {website?.website_name || 'Website Posts'}
+                {currentCategoryName}
+                {website?.website_name ? ` • ${website.website_name}` : ''}
               </h1>
 
               <p
@@ -651,7 +616,7 @@ export default function WebsitePostsPage() {
                   lineHeight: 1.7,
                 }}
               >
-                Browse all published posts from this affiliate website.
+                Sponsored posts from this exact category appear first.
               </p>
             </div>
 
@@ -676,7 +641,7 @@ export default function WebsitePostsPage() {
                 type="text"
                 value={searchTerm}
                 onChange={(event) => setSearchTerm(event.target.value)}
-                placeholder="Search website posts"
+                placeholder="Search posts in this category"
                 style={{
                   width: '100%',
                   height: 52,
@@ -717,22 +682,26 @@ export default function WebsitePostsPage() {
                 Home
               </Link>
               <ChevronRight size={14} />
-              {websiteSlug ? (
-                <Link to={`/${websiteSlug}`} style={{ color: '#64748b', textDecoration: 'none' }}>
-                  {website?.website_name || websiteSlug}
-                </Link>
-              ) : null}
+
+              <Link to={`/${websiteSlug}`} style={{ color: '#64748b', textDecoration: 'none' }}>
+                {website?.website_name || websiteSlug}
+              </Link>
+
               <ChevronRight size={14} />
-              <span style={{ color: '#111827', fontWeight: 800 }}>Posts</span>
+
+              <Link
+                to={`/${websiteSlug}/posts`}
+                style={{ color: '#64748b', textDecoration: 'none' }}
+              >
+                Posts
+              </Link>
+
+              <ChevronRight size={14} />
+
+              <span style={{ color: '#111827', fontWeight: 800 }}>{currentCategoryName}</span>
             </div>
 
-            <div
-              style={{
-                color: '#64748b',
-                fontSize: 14,
-                fontWeight: 700,
-              }}
-            >
+            <div style={{ color: '#64748b', fontSize: 14, fontWeight: 700 }}>
               {filteredPosts.length} posts
             </div>
           </div>
@@ -811,23 +780,16 @@ export default function WebsitePostsPage() {
                       letterSpacing: '-0.03em',
                     }}
                   >
-                    Promoted Posts
+                    Promoted {currentCategoryName} Posts
                   </h2>
                 </div>
 
-                <p
-                  style={{
-                    margin: 0,
-                    color: '#64748b',
-                    fontSize: 14,
-                    fontWeight: 700,
-                  }}
-                >
-                  Sponsored posts appear first and are tracked by views and clicks.
+                <p style={{ margin: 0, color: '#64748b', fontSize: 14, fontWeight: 700 }}>
+                  These promoted posts match this exact category.
                 </p>
               </div>
 
-              <div className="website-posts-sponsored-grid">
+              <div className="website-post-category-sponsored-grid">
                 {sponsoredAds.map((ad) => (
                   <SponsoredPostCard
                     key={ad.id}
@@ -862,7 +824,7 @@ export default function WebsitePostsPage() {
                   marginBottom: 8,
                 }}
               >
-                Published Articles
+                Category Articles
               </div>
               <h2
                 style={{
@@ -879,7 +841,7 @@ export default function WebsitePostsPage() {
             </div>
           </div>
 
-          <div className="website-posts-grid">
+          <div className="website-post-category-grid">
             {filteredPosts.length ? (
               filteredPosts.map((post) => (
                 <PostCard key={post.id} post={post} websiteSlug={websiteSlug} />
@@ -895,7 +857,7 @@ export default function WebsitePostsPage() {
                   color: '#64748b',
                 }}
               >
-                No published posts found.
+                No posts found in this category.
               </div>
             )}
           </div>

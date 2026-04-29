@@ -18,6 +18,8 @@ import {
   Megaphone,
   Wallet,
   Bell,
+  Images,
+  BadgeDollarSign,
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 
@@ -26,6 +28,8 @@ const adminMenu = [
   { label: 'Notifications', to: '/admin/notifications', icon: Bell },
   { label: 'Affiliate Ads', to: '/admin/affiliate-ads', icon: Megaphone },
   { label: 'Ads Settings', to: '/admin/affiliate-ads-settings', icon: CreditCard },
+  { label: 'Homepage Slider', to: '/admin/banner-home-slides', icon: Images },
+  { label: 'Slider Ad Campaigns', to: '/admin/banner-home-ad-campaigns', icon: BadgeDollarSign },
   { label: 'Affiliates', to: '/admin/affiliates', icon: Users },
   { label: 'Users', to: '/admin/users', icon: Users },
   { label: 'Email Lists', to: '/admin/email-lists', icon: Mail },

@@ -38,22 +38,55 @@ function badgeStyle(type = 'default') {
   };
 }
 
-function StatCard({ label, value, helper }) {
+function StatCard({ label, value, helper, tone = 'default' }) {
+  const toneMap = {
+    success: {
+      background: 'linear-gradient(135deg, #ecfdf3 0%, #ffffff 70%)',
+      border: '#bbf7d0',
+      color: '#027a48',
+    },
+    warning: {
+      background: 'linear-gradient(135deg, #fffaeb 0%, #ffffff 70%)',
+      border: '#fedf89',
+      color: '#b54708',
+    },
+    info: {
+      background: 'linear-gradient(135deg, #eff6ff 0%, #ffffff 70%)',
+      border: '#bfdbfe',
+      color: '#175cd3',
+    },
+    default: {
+      background: '#ffffff',
+      border: '#e5e7eb',
+      color: '#111827',
+    },
+  };
+
+  const selected = toneMap[tone] || toneMap.default;
+
   return (
-    <div style={cardStyle()}>
+    <div
+      style={{
+        ...cardStyle(),
+        background: selected.background,
+        border: `1px solid ${selected.border}`,
+      }}
+    >
       <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 8 }}>{label}</div>
-      <div style={{ fontSize: 28, fontWeight: 900, color: '#111827', lineHeight: 1.1 }}>
+      <div style={{ fontSize: 28, fontWeight: 900, color: selected.color, lineHeight: 1.1 }}>
         {value}
       </div>
       {helper ? (
-        <div style={{ marginTop: 8, fontSize: 13, color: '#6b7280', lineHeight: 1.5 }}>{helper}</div>
+        <div style={{ marginTop: 8, fontSize: 13, color: '#6b7280', lineHeight: 1.5 }}>
+          {helper}
+        </div>
       ) : null}
     </div>
   );
 }
 
 function TableBadge({ status }) {
-  if (status === 'paid') return <div style={badgeStyle('success')}>Paid</div>;
+  if (status === 'paid' || status === 'settled') return <div style={badgeStyle('success')}>Settled</div>;
   if (status === 'pending') return <div style={badgeStyle('warning')}>Pending</div>;
   if (status === 'rejected') return <div style={badgeStyle('danger')}>Rejected</div>;
   return <div style={badgeStyle('default')}>Draft</div>;
@@ -107,14 +140,24 @@ export default function AffiliateBlogPulseWalletPage() {
 
   const monetization = earningsData?.monetization || {};
   const overview = earningsData?.overview || {};
+  const sponsoredAds = earningsData?.sponsored_ads || {};
   const summaryTable = earningsData?.summary_table || {};
 
-  const walletUnlocked =
-    monetization?.monetization_mode === 'platform' && Number(monetization?.platform_enabled || 0) === 1;
+  const platformEnabled = Number(monetization?.platform_enabled || 0) === 1;
+  const hasSponsoredEarnings =
+    Number(sponsoredAds?.total_earnings || 0) > 0 ||
+    Number(sponsoredAds?.pending_earnings || 0) > 0 ||
+    Number(sponsoredAds?.settled_earnings || 0) > 0;
 
-  const availableBalance = walletUnlocked ? Number(overview?.estimated_revenue || 0) : 0;
-  const pendingBalance = 0;
-  const totalEarned = walletUnlocked ? Number(overview?.estimated_revenue || 0) : 0;
+  const walletUnlocked = platformEnabled || hasSponsoredEarnings;
+
+  const availableBalance = Number(
+    overview?.wallet_available_estimate ??
+      Number(overview?.platform_estimated_revenue || 0) + Number(sponsoredAds?.settled_earnings || 0)
+  );
+
+  const pendingBalance = Number(sponsoredAds?.pending_earnings || 0);
+  const totalEarned = Number(overview?.estimated_revenue || 0);
   const totalWithdrawn = 0;
 
   const transactions = useMemo(
@@ -122,19 +165,33 @@ export default function AffiliateBlogPulseWalletPage() {
       {
         id: 1,
         date: 'Today',
-        type: 'Estimated Earnings',
+        type: 'Platform + Sponsored Earnings',
         amount: formatMoney(summaryTable?.today?.estimated_revenue || 0),
         status: walletUnlocked ? 'pending' : 'draft',
       },
       {
         id: 2,
         date: 'Last 7 Days',
-        type: 'Estimated Earnings',
+        type: 'Total Estimated Earnings',
         amount: formatMoney(summaryTable?.last_7_days?.estimated_revenue || 0),
         status: walletUnlocked ? 'pending' : 'draft',
       },
+      {
+        id: 3,
+        date: 'All Time',
+        type: 'Sponsored Ads Pending',
+        amount: formatMoney(sponsoredAds?.pending_earnings || 0),
+        status: Number(sponsoredAds?.pending_earnings || 0) > 0 ? 'pending' : 'draft',
+      },
+      {
+        id: 4,
+        date: 'All Time',
+        type: 'Sponsored Ads Settled',
+        amount: formatMoney(sponsoredAds?.settled_earnings || 0),
+        status: Number(sponsoredAds?.settled_earnings || 0) > 0 ? 'settled' : 'draft',
+      },
     ],
-    [summaryTable, walletUnlocked]
+    [summaryTable, sponsoredAds, walletUnlocked]
   );
 
   return (
@@ -176,7 +233,7 @@ export default function AffiliateBlogPulseWalletPage() {
             </div>
 
             <h1 style={{ margin: 0, fontSize: 32, lineHeight: 1.15, fontWeight: 900 }}>
-              Track your balance, earnings, and withdrawals
+              Track your BlogPulse and sponsored ad publisher earnings
             </h1>
 
             <p
@@ -188,8 +245,8 @@ export default function AffiliateBlogPulseWalletPage() {
                 lineHeight: 1.7,
               }}
             >
-              This wallet is used only for BlogPulse platform monetization. It shows your current earnings
-              summary, available balance, and withdrawal activity for approved platform monetization.
+              This wallet now includes BlogPulse platform earnings and sponsored ad revenue earned
+              when approved campaigns appear on your monetized post templates.
             </p>
           </div>
 
@@ -219,10 +276,10 @@ export default function AffiliateBlogPulseWalletPage() {
               }}
             >
               <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', marginBottom: 8 }}>
-                Withdrawal Status
+                Publisher Sponsored Earnings
               </div>
               <div style={{ fontSize: 22, fontWeight: 900 }}>
-                {walletUnlocked ? 'Ready When Threshold Is Met' : 'Not Available Yet'}
+                {formatMoney(sponsoredAds?.total_earnings || 0)}
               </div>
             </div>
           </div>
@@ -280,8 +337,8 @@ export default function AffiliateBlogPulseWalletPage() {
               lineHeight: 1.65,
             }}
           >
-            Your BlogPulse wallet becomes active after your platform monetization is approved. If you
-            use your own ad provider, payments come directly from that provider and do not appear here.
+            Your BlogPulse wallet becomes active after your platform monetization or sponsored
+            publisher ads begin recording eligible earnings.
           </div>
         </section>
       ) : null}
@@ -296,22 +353,56 @@ export default function AffiliateBlogPulseWalletPage() {
         <StatCard
           label="Available Balance"
           value={formatMoney(availableBalance)}
-          helper="Balance currently available in your BlogPulse wallet."
+          helper="Estimated balance available from platform earnings plus settled sponsored ad earnings."
+          tone="success"
         />
         <StatCard
-          label="Pending Balance"
+          label="Pending Sponsored Earnings"
           value={formatMoney(pendingBalance)}
-          helper="Earnings that are not yet ready for withdrawal."
+          helper="Sponsored ad revenue recorded but not settled yet."
+          tone="warning"
         />
         <StatCard
           label="Total Earned"
           value={formatMoney(totalEarned)}
-          helper="Total BlogPulse earnings recorded for your account."
+          helper="Total estimated platform and sponsored ad earnings."
+          tone="info"
         />
         <StatCard
           label="Total Withdrawn"
           value={formatMoney(totalWithdrawn)}
           helper="Total withdrawals completed from your BlogPulse wallet."
+        />
+      </section>
+
+      <section
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+          gap: 18,
+        }}
+      >
+        <StatCard
+          label="Sponsored Views"
+          value={Number(sponsoredAds?.total_views || 0).toLocaleString()}
+          helper="Sponsored ad views recorded on your monetized templates."
+        />
+        <StatCard
+          label="Sponsored Clicks"
+          value={Number(sponsoredAds?.total_clicks || 0).toLocaleString()}
+          helper="Sponsored ad clicks recorded on your monetized templates."
+        />
+        <StatCard
+          label="Settled Sponsored Earnings"
+          value={formatMoney(sponsoredAds?.settled_earnings || 0)}
+          helper="Sponsored earnings already settled."
+          tone="success"
+        />
+        <StatCard
+          label="Pending Events"
+          value={Number(sponsoredAds?.pending_events || 0).toLocaleString()}
+          helper="Sponsored events waiting for settlement."
+          tone="warning"
         />
       </section>
 
@@ -346,7 +437,7 @@ export default function AffiliateBlogPulseWalletPage() {
                   lineHeight: 1.6,
                 }}
               >
-                A summary of the latest amounts currently linked to your BlogPulse wallet.
+                A summary of your BlogPulse platform and sponsored publisher earnings.
               </p>
             </div>
 
@@ -411,10 +502,10 @@ export default function AffiliateBlogPulseWalletPage() {
 
             <div style={{ marginTop: 16, display: 'grid', gap: 12 }}>
               {[
-                'This wallet is only for BlogPulse platform monetization.',
-                'Individual ad accounts are paid directly by their own provider.',
-                'Withdrawals are available only after your platform monetization is approved.',
-                'Your wallet balance follows the current BlogPulse earning rules and thresholds.',
+                'BlogPulse platform earnings are estimated from tracked post views.',
+                'Sponsored ad publisher earnings are recorded when visitors view or click sponsored placements on your monetized templates.',
+                'Sponsored earnings can remain pending until platform settlement is completed.',
+                'Available balance includes platform estimated earnings and settled sponsored earnings.',
               ].map((text) => (
                 <div
                   key={text}
@@ -442,9 +533,9 @@ export default function AffiliateBlogPulseWalletPage() {
 
             <div style={{ marginTop: 16, display: 'grid', gap: 12 }}>
               {[
-                'Earn through BlogPulse platform monetization.',
-                'Let your balance build according to the current wallet rules.',
-                'Request a withdrawal when your account is eligible.',
+                'Earn through BlogPulse platform views and sponsored ad placements.',
+                'Pending sponsored earnings wait for settlement.',
+                'Settled earnings are added to your available wallet estimate.',
                 'Withdrawals are reviewed and processed by the platform.',
               ].map((text, index) => (
                 <div

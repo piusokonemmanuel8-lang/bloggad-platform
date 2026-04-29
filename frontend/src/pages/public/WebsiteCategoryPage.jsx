@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import {
   CheckCircle2,
@@ -69,6 +69,18 @@ function resolveTrackingEndpoint(product, fallbackWebsiteSlug = '') {
   return `/api/public/products/${websiteSlug}/product/${productSlug}/click`;
 }
 
+function resolveSponsoredProductUrl(ad) {
+  if (ad?.website_slug && ad?.product_slug) {
+    return `/${ad.website_slug}/product/${ad.product_slug}`;
+  }
+
+  if (ad?.product_slug) {
+    return `/product/${ad.product_slug}`;
+  }
+
+  return '#';
+}
+
 function makeDummyProducts(websiteSlug, categoryName) {
   const imagePool = [
     'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=1400&q=80',
@@ -103,6 +115,173 @@ function makeDummyProducts(websiteSlug, categoryName) {
     },
     website_slug: websiteSlug || 'bloggad-store',
   }));
+}
+
+function SponsoredAdCard({ ad, onView, onClick }) {
+  const cardRef = useRef(null);
+
+  useEffect(() => {
+    const node = cardRef.current;
+    if (!node) return undefined;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            onView(ad);
+            observer.unobserve(entry.target);
+          }
+        });
+      },
+      { threshold: 0.35 }
+    );
+
+    observer.observe(node);
+
+    return () => observer.disconnect();
+  }, [ad, onView]);
+
+  const image = ad?.target_image || ad?.campaign_image || '';
+  const title = ad?.target_title || ad?.campaign_title || 'Sponsored Product';
+  const description = ad?.campaign_description || 'Promoted product from this category.';
+
+  return (
+    <article
+      ref={cardRef}
+      style={{
+        background: '#ffffff',
+        border: '1px solid #bfdbfe',
+        borderRadius: 20,
+        overflow: 'hidden',
+        position: 'relative',
+        boxShadow: '0 14px 34px rgba(37, 99, 235, 0.08)',
+      }}
+    >
+      <div
+        style={{
+          position: 'absolute',
+          left: 12,
+          top: 12,
+          zIndex: 2,
+          padding: '7px 10px',
+          borderRadius: 999,
+          background: '#eff6ff',
+          border: '1px solid #bfdbfe',
+          color: '#1d4ed8',
+          fontSize: 11,
+          fontWeight: 900,
+          textTransform: 'uppercase',
+          letterSpacing: '0.08em',
+        }}
+      >
+        Sponsored
+      </div>
+
+      <button
+        type="button"
+        onClick={() => onClick(ad)}
+        style={{
+          width: '100%',
+          border: 0,
+          padding: 0,
+          background: 'transparent',
+          cursor: 'pointer',
+          textAlign: 'left',
+        }}
+      >
+        <div
+          style={{
+            background: '#f8fafc',
+            padding: 14,
+            borderBottom: '1px solid #eef2f7',
+          }}
+        >
+          {image ? (
+            <img
+              src={image}
+              alt={title}
+              style={{
+                width: '100%',
+                height: 240,
+                objectFit: 'cover',
+                borderRadius: 16,
+                background: '#ffffff',
+                display: 'block',
+              }}
+            />
+          ) : (
+            <div
+              style={{
+                width: '100%',
+                height: 240,
+                borderRadius: 16,
+                background: '#0f172a',
+                color: '#ffffff',
+                display: 'grid',
+                placeItems: 'center',
+                fontWeight: 900,
+                fontSize: 24,
+              }}
+            >
+              AD
+            </div>
+          )}
+        </div>
+
+        <div style={{ padding: 18 }}>
+          <div
+            style={{
+              fontSize: 13,
+              color: '#2563eb',
+              marginBottom: 8,
+              fontWeight: 900,
+            }}
+          >
+            Promoted Product
+          </div>
+
+          <h3
+            style={{
+              margin: 0,
+              fontSize: 19,
+              fontWeight: 900,
+              color: '#111827',
+              lineHeight: 1.35,
+              marginBottom: 10,
+            }}
+          >
+            {title}
+          </h3>
+
+          <p
+            style={{
+              margin: 0,
+              color: '#64748b',
+              fontSize: 14,
+              lineHeight: 1.6,
+            }}
+          >
+            {description}
+          </p>
+
+          <div
+            style={{
+              marginTop: 14,
+              padding: '12px 14px',
+              borderRadius: 14,
+              background: 'linear-gradient(90deg, #6d4aff 0%, #5644f4 100%)',
+              color: '#ffffff',
+              fontWeight: 900,
+              fontSize: 14,
+              textAlign: 'center',
+            }}
+          >
+            View Product
+          </div>
+        </div>
+      </button>
+    </article>
+  );
 }
 
 function ProductQuickViewModal({
@@ -765,6 +944,7 @@ export default function WebsiteCategoryPage() {
   const { websiteSlug, slug } = useParams();
 
   const [pageData, setPageData] = useState(null);
+  const [sponsoredAds, setSponsoredAds] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortValue, setSortValue] = useState('default');
@@ -773,6 +953,7 @@ export default function WebsiteCategoryPage() {
   const [actionLoading, setActionLoading] = useState(false);
   const trackedImpressionsRef = useRef(new Set());
   const trackedQuickViewsRef = useRef(new Set());
+  const trackedSponsoredViewsRef = useRef(new Set());
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -780,11 +961,33 @@ export default function WebsiteCategoryPage() {
       try {
         setLoading(true);
         setError('');
+
         const { data } = await api.get(`/api/public/categories/${websiteSlug}/${slug}`);
+        const nextCategory = data?.category || null;
+
         setPageData(data || null);
         setSearchTerm('');
         setSortValue('default');
         setQuickViewProduct(null);
+        setSponsoredAds([]);
+        trackedSponsoredViewsRef.current = new Set();
+
+        if (nextCategory?.id) {
+          try {
+            const adsRes = await api.get('/api/public/affiliate-ads', {
+              params: {
+                ad_type: 'product',
+                category_id: nextCategory.id,
+                placement_key: 'website_category_top_products',
+                limit: 4,
+              },
+            });
+
+            setSponsoredAds(Array.isArray(adsRes?.data?.ads) ? adsRes.data.ads : []);
+          } catch (adsError) {
+            setSponsoredAds([]);
+          }
+        }
       } catch (err) {
         setError(err?.response?.data?.message || 'Failed to load website category');
       } finally {
@@ -813,7 +1016,9 @@ export default function WebsiteCategoryPage() {
       nextProducts = nextProducts.filter((product) => {
         const title = String(product?.title || '').toLowerCase();
         const categoryName = String(product?.category?.name || '').toLowerCase();
-        const websiteName = String(product?.affiliate?.website_name || website?.website_name || '').toLowerCase();
+        const websiteName = String(
+          product?.affiliate?.website_name || website?.website_name || ''
+        ).toLowerCase();
         const description = String(product?.short_description || '').toLowerCase();
 
         return (
@@ -853,6 +1058,41 @@ export default function WebsiteCategoryPage() {
       }
     };
   }, [websiteSlug]);
+
+  const trackSponsoredView = useCallback(async (ad) => {
+    if (!ad?.id || trackedSponsoredViewsRef.current.has(ad.id)) return;
+
+    trackedSponsoredViewsRef.current.add(ad.id);
+
+    try {
+      await api.post(`/api/public/affiliate-ads/${ad.id}/view`, {
+        placement_key: 'website_category_top_products',
+        page_url: window.location.href,
+      });
+    } catch (err) {
+      // ignore ad tracking failure
+    }
+  }, []);
+
+  const trackSponsoredClick = useCallback(async (ad) => {
+    if (!ad?.id) return;
+
+    const targetUrl = resolveSponsoredProductUrl(ad);
+
+    try {
+      await api.post(`/api/public/affiliate-ads/${ad.id}/click`, {
+        placement_key: 'website_category_top_products',
+        page_url: window.location.href,
+        destination_url: targetUrl,
+      });
+    } catch (err) {
+      // ignore ad tracking failure
+    }
+
+    if (targetUrl && targetUrl !== '#') {
+      window.location.href = targetUrl;
+    }
+  }, []);
 
   const handleImpression = async (product) => {
     if (!product?.id || trackedImpressionsRef.current.has(product.id)) return;
@@ -974,12 +1214,7 @@ export default function WebsiteCategoryPage() {
   }
 
   return (
-    <div
-      style={{
-        minHeight: '100vh',
-        background: '#f5f7fb',
-      }}
-    >
+    <div style={{ minHeight: '100vh', background: '#f5f7fb' }}>
       <style>{`
         .website-category-grid {
           display: grid;
@@ -987,20 +1222,30 @@ export default function WebsiteCategoryPage() {
           gap: 24px;
         }
 
+        .website-category-sponsored-grid {
+          display: grid;
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+          gap: 16px;
+          margin-bottom: 22px;
+        }
+
         @media (max-width: 1280px) {
-          .website-category-grid {
+          .website-category-grid,
+          .website-category-sponsored-grid {
             grid-template-columns: repeat(3, minmax(0, 1fr));
           }
         }
 
         @media (max-width: 980px) {
-          .website-category-grid {
+          .website-category-grid,
+          .website-category-sponsored-grid {
             grid-template-columns: repeat(2, minmax(0, 1fr));
           }
         }
 
         @media (max-width: 720px) {
-          .website-category-grid {
+          .website-category-grid,
+          .website-category-sponsored-grid {
             grid-template-columns: 1fr;
           }
         }
@@ -1133,7 +1378,9 @@ export default function WebsiteCategoryPage() {
                   <ChevronRight size={14} />
                 </>
               ) : null}
-              <span style={{ color: '#111827', fontWeight: 800 }}>{category?.name || 'Category'}</span>
+              <span style={{ color: '#111827', fontWeight: 800 }}>
+                {category?.name || 'Category'}
+              </span>
             </div>
 
             <div
@@ -1201,6 +1448,83 @@ export default function WebsiteCategoryPage() {
             padding: 20,
           }}
         >
+          {sponsoredAds.length ? (
+            <div
+              style={{
+                marginBottom: 24,
+                background:
+                  'linear-gradient(135deg, rgba(239,246,255,0.95), rgba(255,255,255,0.98))',
+                border: '1px solid #bfdbfe',
+                borderRadius: 22,
+                padding: 18,
+              }}
+            >
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 12,
+                  flexWrap: 'wrap',
+                  marginBottom: 16,
+                }}
+              >
+                <div>
+                  <div
+                    style={{
+                      display: 'inline-flex',
+                      padding: '7px 10px',
+                      borderRadius: 999,
+                      background: '#dbeafe',
+                      color: '#1d4ed8',
+                      fontSize: 11,
+                      fontWeight: 900,
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.08em',
+                      marginBottom: 8,
+                    }}
+                  >
+                    Sponsored
+                  </div>
+
+                  <h2
+                    style={{
+                      margin: 0,
+                      color: '#111827',
+                      fontSize: 24,
+                      fontWeight: 900,
+                      letterSpacing: '-0.03em',
+                    }}
+                  >
+                    Promoted {category?.name || 'Category'} Products
+                  </h2>
+                </div>
+
+                <p
+                  style={{
+                    margin: 0,
+                    color: '#64748b',
+                    fontSize: 14,
+                    fontWeight: 700,
+                  }}
+                >
+                  Ads from this same category appear here first.
+                </p>
+              </div>
+
+              <div className="website-category-sponsored-grid">
+                {sponsoredAds.map((ad) => (
+                  <SponsoredAdCard
+                    key={ad.id}
+                    ad={ad}
+                    onView={trackSponsoredView}
+                    onClick={trackSponsoredClick}
+                  />
+                ))}
+              </div>
+            </div>
+          ) : null}
+
           <div
             style={{
               display: 'flex',

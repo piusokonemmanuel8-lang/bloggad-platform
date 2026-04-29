@@ -3,6 +3,21 @@ const pool = require('../../config/db');
 let monetizationTableReady = false;
 let blogPulseSettingsReady = false;
 
+async function tableExists(tableName) {
+  const [rows] = await pool.query(
+    `
+      SELECT TABLE_NAME
+      FROM information_schema.TABLES
+      WHERE TABLE_SCHEMA = DATABASE()
+        AND TABLE_NAME = ?
+      LIMIT 1
+    `,
+    [tableName]
+  );
+
+  return rows.length > 0;
+}
+
 async function ensureAffiliateMonetizationTable() {
   if (monetizationTableReady) return;
 
@@ -208,6 +223,180 @@ async function getTrackedTotals(websiteId) {
   };
 }
 
+async function getSponsoredAdRevenueSummary(userId, websiteId) {
+  const ledgerReady = await tableExists('affiliate_ad_revenue_ledger');
+
+  if (!ledgerReady) {
+    return {
+      total_sponsored_gross: 0,
+      total_sponsored_earnings: 0,
+      pending_sponsored_earnings: 0,
+      settled_sponsored_earnings: 0,
+      rejected_sponsored_earnings: 0,
+      total_sponsored_views: 0,
+      total_sponsored_clicks: 0,
+      pending_events: 0,
+      settled_events: 0,
+    };
+  }
+
+  const [[row]] = await pool.query(
+    `
+      SELECT
+        COALESCE(SUM(gross_amount), 0) AS total_sponsored_gross,
+        COALESCE(SUM(publisher_amount), 0) AS total_sponsored_earnings,
+
+        COALESCE(SUM(
+          CASE
+            WHEN settlement_status = 'pending'
+            THEN publisher_amount
+            ELSE 0
+          END
+        ), 0) AS pending_sponsored_earnings,
+
+        COALESCE(SUM(
+          CASE
+            WHEN settlement_status IN ('settled', 'paid', 'approved')
+            THEN publisher_amount
+            ELSE 0
+          END
+        ), 0) AS settled_sponsored_earnings,
+
+        COALESCE(SUM(
+          CASE
+            WHEN settlement_status IN ('rejected', 'cancelled', 'failed')
+            THEN publisher_amount
+            ELSE 0
+          END
+        ), 0) AS rejected_sponsored_earnings,
+
+        COALESCE(SUM(
+          CASE
+            WHEN event_type = 'view'
+            THEN 1
+            ELSE 0
+          END
+        ), 0) AS total_sponsored_views,
+
+        COALESCE(SUM(
+          CASE
+            WHEN event_type = 'click'
+            THEN 1
+            ELSE 0
+          END
+        ), 0) AS total_sponsored_clicks,
+
+        COALESCE(SUM(
+          CASE
+            WHEN settlement_status = 'pending'
+            THEN 1
+            ELSE 0
+          END
+        ), 0) AS pending_events,
+
+        COALESCE(SUM(
+          CASE
+            WHEN settlement_status IN ('settled', 'paid', 'approved')
+            THEN 1
+            ELSE 0
+          END
+        ), 0) AS settled_events
+
+      FROM affiliate_ad_revenue_ledger
+      WHERE publisher_affiliate_id = ?
+        AND (
+          publisher_website_id = ?
+          OR publisher_website_id IS NULL
+        )
+    `,
+    [userId, websiteId]
+  );
+
+  return {
+    total_sponsored_gross: formatCurrencyNumber(row?.total_sponsored_gross || 0),
+    total_sponsored_earnings: formatCurrencyNumber(row?.total_sponsored_earnings || 0),
+    pending_sponsored_earnings: formatCurrencyNumber(row?.pending_sponsored_earnings || 0),
+    settled_sponsored_earnings: formatCurrencyNumber(row?.settled_sponsored_earnings || 0),
+    rejected_sponsored_earnings: formatCurrencyNumber(row?.rejected_sponsored_earnings || 0),
+    total_sponsored_views: Number(row?.total_sponsored_views || 0),
+    total_sponsored_clicks: Number(row?.total_sponsored_clicks || 0),
+    pending_events: Number(row?.pending_events || 0),
+    settled_events: Number(row?.settled_events || 0),
+  };
+}
+
+async function getSponsoredAdDailyRevenue(userId, websiteId, days = 7) {
+  const ledgerReady = await tableExists('affiliate_ad_revenue_ledger');
+
+  if (!ledgerReady) {
+    const points = [];
+
+    for (let offset = days - 1; offset >= 0; offset -= 1) {
+      const d = new Date();
+      d.setUTCDate(d.getUTCDate() - offset);
+      const key = d.toISOString().slice(0, 10);
+
+      points.push({
+        date: key,
+        sponsored_earnings: 0,
+        sponsored_views: 0,
+        sponsored_clicks: 0,
+      });
+    }
+
+    return points;
+  }
+
+  const [rows] = await pool.query(
+    `
+      SELECT
+        DATE(created_at) AS day,
+        COALESCE(SUM(publisher_amount), 0) AS sponsored_earnings,
+        COALESCE(SUM(CASE WHEN event_type = 'view' THEN 1 ELSE 0 END), 0) AS sponsored_views,
+        COALESCE(SUM(CASE WHEN event_type = 'click' THEN 1 ELSE 0 END), 0) AS sponsored_clicks
+      FROM affiliate_ad_revenue_ledger
+      WHERE publisher_affiliate_id = ?
+        AND (
+          publisher_website_id = ?
+          OR publisher_website_id IS NULL
+        )
+        AND created_at >= DATE_SUB(UTC_TIMESTAMP(), INTERVAL ? DAY)
+      GROUP BY DATE(created_at)
+      ORDER BY day ASC
+    `,
+    [userId, websiteId, days]
+  );
+
+  const map = new Map();
+
+  rows.forEach((row) => {
+    const key = new Date(row.day).toISOString().slice(0, 10);
+    map.set(key, {
+      sponsored_earnings: formatCurrencyNumber(row.sponsored_earnings || 0),
+      sponsored_views: Number(row.sponsored_views || 0),
+      sponsored_clicks: Number(row.sponsored_clicks || 0),
+    });
+  });
+
+  const points = [];
+
+  for (let offset = days - 1; offset >= 0; offset -= 1) {
+    const d = new Date();
+    d.setUTCDate(d.getUTCDate() - offset);
+    const key = d.toISOString().slice(0, 10);
+    const item = map.get(key);
+
+    points.push({
+      date: key,
+      sponsored_earnings: item?.sponsored_earnings || 0,
+      sponsored_views: item?.sponsored_views || 0,
+      sponsored_clicks: item?.sponsored_clicks || 0,
+    });
+  }
+
+  return points;
+}
+
 async function getDailyPostViews(websiteId, days = 7) {
   const [rows] = await pool.query(
     `
@@ -308,6 +497,8 @@ async function getAffiliateBlogPulseEarnings(req, res) {
     const blogPulse = await getBlogPulseSettings();
     const totals = await getTrackedTotals(website.id);
     const chart = await getDailyPostViews(website.id, 7);
+    const sponsoredSummary = await getSponsoredAdRevenueSummary(userId, website.id);
+    const sponsoredDaily = await getSponsoredAdDailyRevenue(userId, website.id, 7);
 
     const monetizationMode = monetization?.monetization_mode === 'platform'
       ? 'platform'
@@ -315,8 +506,31 @@ async function getAffiliateBlogPulseEarnings(req, res) {
 
     const ratePerView = Number(blogPulse?.default_rate_per_view || 0);
     const trackedMonetizableViews = totals.total_post_views;
-    const estimatedRevenue = formatCurrencyNumber(trackedMonetizableViews * ratePerView);
+    const platformEstimatedRevenue = formatCurrencyNumber(trackedMonetizableViews * ratePerView);
     const top_posts = await getTopEarningPosts(website.id, ratePerView);
+
+    const mergedChart = chart.map((point) => {
+      const sponsoredPoint = sponsoredDaily.find((item) => item.date === point.date) || {};
+
+      return {
+        ...point,
+        platform_estimated_revenue: formatCurrencyNumber(point.post_views * ratePerView),
+        sponsored_earnings: sponsoredPoint.sponsored_earnings || 0,
+        sponsored_views: sponsoredPoint.sponsored_views || 0,
+        sponsored_clicks: sponsoredPoint.sponsored_clicks || 0,
+        total_estimated_earnings: formatCurrencyNumber(
+          point.post_views * ratePerView + Number(sponsoredPoint.sponsored_earnings || 0)
+        ),
+      };
+    });
+
+    const totalEstimatedRevenue = formatCurrencyNumber(
+      platformEstimatedRevenue + sponsoredSummary.total_sponsored_earnings
+    );
+
+    const availableWalletLikeBalance = formatCurrencyNumber(
+      platformEstimatedRevenue + sponsoredSummary.settled_sponsored_earnings
+    );
 
     return res.status(200).json({
       ok: true,
@@ -340,28 +554,52 @@ async function getAffiliateBlogPulseEarnings(req, res) {
           tracked_product_clicks: totals.total_product_clicks,
           tracked_slider_clicks: totals.total_slider_clicks,
           total_posts: totals.total_posts,
-          estimated_revenue: estimatedRevenue,
+
+          platform_estimated_revenue: platformEstimatedRevenue,
+          sponsored_pending_revenue: sponsoredSummary.pending_sponsored_earnings,
+          sponsored_settled_revenue: sponsoredSummary.settled_sponsored_earnings,
+          sponsored_total_revenue: sponsoredSummary.total_sponsored_earnings,
+
+          estimated_revenue: totalEstimatedRevenue,
+          wallet_available_estimate: availableWalletLikeBalance,
         },
-        chart,
+        sponsored_ads: {
+          total_gross: sponsoredSummary.total_sponsored_gross,
+          total_earnings: sponsoredSummary.total_sponsored_earnings,
+          pending_earnings: sponsoredSummary.pending_sponsored_earnings,
+          settled_earnings: sponsoredSummary.settled_sponsored_earnings,
+          rejected_earnings: sponsoredSummary.rejected_sponsored_earnings,
+          total_views: sponsoredSummary.total_sponsored_views,
+          total_clicks: sponsoredSummary.total_sponsored_clicks,
+          pending_events: sponsoredSummary.pending_events,
+          settled_events: sponsoredSummary.settled_events,
+        },
+        chart: mergedChart,
         top_posts,
         summary_table: {
-          today: chart[chart.length - 1]
+          today: mergedChart[mergedChart.length - 1]
             ? {
                 label: 'Today',
-                tracked_post_views: chart[chart.length - 1].post_views,
-                estimated_revenue: formatCurrencyNumber(
-                  chart[chart.length - 1].post_views * ratePerView
-                ),
+                tracked_post_views: mergedChart[mergedChart.length - 1].post_views,
+                platform_estimated_revenue: mergedChart[mergedChart.length - 1].platform_estimated_revenue,
+                sponsored_earnings: mergedChart[mergedChart.length - 1].sponsored_earnings,
+                estimated_revenue: mergedChart[mergedChart.length - 1].total_estimated_earnings,
               }
             : {
                 label: 'Today',
                 tracked_post_views: 0,
+                platform_estimated_revenue: 0,
+                sponsored_earnings: 0,
                 estimated_revenue: 0,
               },
           last_7_days: {
             label: 'Last 7 Days',
             tracked_post_views: trackedMonetizableViews,
-            estimated_revenue: estimatedRevenue,
+            platform_estimated_revenue: platformEstimatedRevenue,
+            sponsored_earnings: sponsoredSummary.total_sponsored_earnings,
+            pending_sponsored_earnings: sponsoredSummary.pending_sponsored_earnings,
+            settled_sponsored_earnings: sponsoredSummary.settled_sponsored_earnings,
+            estimated_revenue: totalEstimatedRevenue,
           },
         },
       },

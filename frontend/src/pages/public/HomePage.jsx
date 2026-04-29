@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Camera,
@@ -13,6 +13,7 @@ import {
   Globe2,
   Heart,
   Home,
+  Image as ImageIcon,
   Laptop,
   Loader2,
   Menu,
@@ -22,12 +23,15 @@ import {
   Star,
   Tv,
   User,
+  Video,
   WashingMachine,
   X,
 } from 'lucide-react';
 import api from '../../api/axios';
+import { useAuth } from '../../hooks/useAuth';
 import formatCurrency from '../../utils/formatCurrency';
 import './HomePage.css';
+import './BannerHomeSlider.css';
 
 function renderPrice(product) {
   if (product?.pricing_type === 'simple') {
@@ -104,6 +108,21 @@ function resolveStoreUrl(store) {
   return `/${slug}`;
 }
 
+function resolveDashboardUrl(user) {
+  const role = String(user?.role || '').toLowerCase();
+
+  if (role === 'admin') return '/admin/dashboard';
+  if (role === 'affiliate') return '/affiliate/dashboard';
+  if (role === 'customer') return '/customer/dashboard';
+  if (role === 'advertiser') return '/advertiser/dashboard';
+
+  return '/dashboard';
+}
+
+function resolveDisplayName(user) {
+  return user?.name || user?.full_name || user?.email || 'Account';
+}
+
 function formatCompactCount(value) {
   const number = Number(value || 0);
 
@@ -111,12 +130,12 @@ function formatCompactCount(value) {
 
   if (number >= 1000000) {
     const formatted = number / 1000000;
-    return `${formatted % 1 === 0 ? formatted.toFixed(0) : formatted.toFixed(1)}m`;
+    return `${formatted % 1 === 0 ? formatted.toFixed(0) : formatted.toFixed(1)}M`;
   }
 
   if (number >= 1000) {
     const formatted = number / 1000;
-    return `${formatted % 1 === 0 ? formatted.toFixed(0) : formatted.toFixed(1)}k`;
+    return `${formatted % 1 === 0 ? formatted.toFixed(0) : formatted.toFixed(1)}K`;
   }
 
   return `${number}`;
@@ -138,6 +157,31 @@ function resolveVisitCount(product) {
     product?.total_clicks ||
     0
   );
+}
+
+function resolveProductScore(product) {
+  const score = Number(product?.product_score || product?.rating || product?.score || 4.1);
+
+  if (!Number.isFinite(score)) return '4.1';
+
+  const safeScore = Math.min(5, Math.max(1, score));
+  return safeScore.toFixed(1);
+}
+
+function mergeProductVisitStats(product, data) {
+  if (!product || !data) return product;
+
+  return {
+    ...product,
+    visit_count:
+      data.visit_count !== undefined && data.visit_count !== null
+        ? Number(data.visit_count || 0)
+        : product.visit_count,
+    product_score:
+      data.product_score !== undefined && data.product_score !== null
+        ? Number(data.product_score || 4.1)
+        : product.product_score,
+  };
 }
 
 const categoryIconMap = {
@@ -181,6 +225,8 @@ function createDummyProduct(seed, index, overrides = {}) {
     slug: `product-${seed}-${index + 1}`,
     pricing_type: 'simple',
     price: 12000 + index * 3500,
+    visit_count: 0,
+    product_score: 4.1,
     affiliate: {
       name: 'Bloggad',
       website_name: 'Bloggad Store',
@@ -233,54 +279,213 @@ function buildCategoryTree(categories = []) {
     }));
 }
 
-function buildFeaturedWebsites(pageData, products = []) {
-  const directWebsites =
-    pageData?.featured_websites ||
-    pageData?.featuredWebsites ||
-    pageData?.websites ||
-    pageData?.stores ||
-    [];
-
+function buildFeaturedWebsites(pageData) {
+  const directWebsites = pageData?.featured_websites || pageData?.featuredWebsites || [];
   const fromDirect = Array.isArray(directWebsites) ? directWebsites : [];
-
-  const fromProducts = Array.isArray(products)
-    ? products
-        .map((product) => ({
-          id: product?.affiliate?.id || product?.website_id || product?.affiliate_id || product?.id,
-          name:
-            product?.affiliate?.website_name ||
-            product?.affiliate?.name ||
-            product?.website_name ||
-            product?.store_name,
-          slug:
-            product?.website_slug ||
-            product?.affiliate?.website_slug ||
-            product?.affiliate?.website?.slug ||
-            product?.store_slug,
-        }))
-        .filter((store) => resolveStoreName(store) && resolveStoreSlug(store))
-    : [];
-
-  const merged = [...fromDirect, ...fromProducts];
   const seen = new Set();
 
-  return merged
+  return fromDirect
     .filter((store) => {
       const name = resolveStoreName(store);
       const slug = resolveStoreSlug(store);
       const key = slug || name;
 
       if (!key || seen.has(key)) return false;
+
       seen.add(key);
       return true;
     })
     .slice(0, 10);
 }
 
+function resolveAdTitle(ad) {
+  return ad?.target_title || ad?.campaign_title || 'Featured Product';
+}
+
+function resolveAdImage(ad) {
+  return ad?.display_image || ad?.target_image || ad?.campaign_image_url || ad?.campaign_image || '';
+}
+
+function resolveAdProductUrl(ad) {
+  if (ad?.website_slug && ad?.product_slug) {
+    return `/${ad.website_slug}/product/${ad.product_slug}`;
+  }
+
+  if (ad?.website_slug) {
+    return `/${ad.website_slug}`;
+  }
+
+  return '/products';
+}
+
+function FeaturedProductAdsStrip({ ads }) {
+  const safeAds = Array.isArray(ads) ? ads.filter(Boolean).slice(0, 6) : [];
+  const [viewedAds, setViewedAds] = useState({});
+
+  useEffect(() => {
+    if (!safeAds.length) return;
+
+    safeAds.forEach((ad) => {
+      if (!ad?.id || viewedAds[ad.id]) return;
+
+      setViewedAds((prev) => ({
+        ...prev,
+        [ad.id]: true,
+      }));
+
+      api
+        .post(`/api/public/affiliate-ads/${ad.id}/view`, {
+          placement_key: 'homepage_featured_product',
+          page_url: window.location.href,
+          publisher_website_slug: '',
+          publisher_website_id: '',
+          publisher_affiliate_id: '',
+        })
+        .catch(() => {});
+    });
+  }, [safeAds, viewedAds]);
+
+  const handleAdClick = async (event, ad) => {
+    event.preventDefault();
+
+    const targetUrl = resolveAdProductUrl(ad);
+
+    if (ad?.id) {
+      try {
+        await api.post(`/api/public/affiliate-ads/${ad.id}/click`, {
+          placement_key: 'homepage_featured_product',
+          page_url: window.location.href,
+          destination_url: targetUrl,
+          publisher_website_slug: '',
+          publisher_website_id: '',
+          publisher_affiliate_id: '',
+        });
+      } catch (err) {
+        // continue redirect
+      }
+    }
+
+    if (targetUrl && targetUrl !== '#') {
+      window.location.href = targetUrl;
+    }
+  };
+
+  if (!safeAds.length) return null;
+
+  return (
+    <section className="home-product-section featured-product-ad-section">
+      <div className="home-section-title-row">
+        <h2 className="home-section-title">Featured Product</h2>
+
+        <Link to="/products" className="home-section-view-all">
+          View all
+        </Link>
+      </div>
+
+      <div className="home-product-grid-4">
+        {safeAds.map((ad, index) => (
+          <Link
+            key={`${ad.id}-${index}`}
+            to={resolveAdProductUrl(ad)}
+            onClick={(event) => handleAdClick(event, ad)}
+            className="home-product-card featured-product-ad-card"
+          >
+            <span className="featured-product-ad-label">Ads</span>
+
+            <span className="home-product-image-wrap featured-product-ad-image-wrap">
+              <img src={resolveAdImage(ad)} alt={resolveAdTitle(ad)} className="home-product-image" />
+            </span>
+
+            <span className="home-product-content">
+              <span className="home-product-title-button featured-product-ad-title">
+                {resolveAdTitle(ad)}
+              </span>
+
+              <span className="home-product-stats-row">
+                <span className="home-product-rating">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <Star key={i} size={11} fill="#ffb300" strokeWidth={1.5} />
+                  ))}
+                  <span>Ad</span>
+                </span>
+
+                <span className="home-product-visit-stat">
+                  <Eye size={12} />
+                  <span>Sponsored</span>
+                </span>
+              </span>
+
+              <span className="home-product-price">{ad?.campaign_title || 'Featured product'}</span>
+
+              <span className="featured-product-ad-description">
+                {ad?.campaign_description || 'Sponsored product from an active advertiser.'}
+              </span>
+            </span>
+          </Link>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function CategoriesButton({ categoryTree, featuredWebsites }) {
   const [open, setOpen] = useState(false);
+  const [viewedCampaigns, setViewedCampaigns] = useState({});
   const safeCategories = Array.isArray(categoryTree) ? categoryTree : [];
   const safeWebsites = Array.isArray(featuredWebsites) ? featuredWebsites : [];
+
+  useEffect(() => {
+    if (!open || !safeWebsites.length) return;
+
+    safeWebsites.forEach((store) => {
+      const campaignId = store?.campaign_id;
+
+      if (!campaignId || viewedCampaigns[campaignId]) return;
+
+      setViewedCampaigns((prev) => ({
+        ...prev,
+        [campaignId]: true,
+      }));
+
+      api
+        .post(`/api/public/affiliate-ads/${campaignId}/view`, {
+          placement_key: 'homepage_featured_website_drawer',
+          page_url: window.location.href,
+          publisher_website_slug: '',
+          publisher_website_id: '',
+          publisher_affiliate_id: '',
+        })
+        .catch(() => {});
+    });
+  }, [open, safeWebsites, viewedCampaigns]);
+
+  const handleFeaturedWebsiteClick = async (event, store) => {
+    event.preventDefault();
+
+    const campaignId = store?.campaign_id;
+    const targetUrl = resolveStoreUrl(store);
+
+    if (campaignId) {
+      try {
+        await api.post(`/api/public/affiliate-ads/${campaignId}/click`, {
+          placement_key: 'homepage_featured_website_drawer',
+          page_url: window.location.href,
+          destination_url: targetUrl,
+          publisher_website_slug: '',
+          publisher_website_id: '',
+          publisher_affiliate_id: '',
+        });
+      } catch (err) {
+        // continue redirect
+      }
+    }
+
+    setOpen(false);
+
+    if (targetUrl && targetUrl !== '#') {
+      window.location.href = targetUrl;
+    }
+  };
 
   return (
     <>
@@ -356,14 +561,14 @@ function CategoriesButton({ categoryTree, featuredWebsites }) {
               </div>
 
               <div className="amazon-category-group">
-                <div className="amazon-category-group-title">Featured Websites</div>
+                <div className="amazon-category-group-title">Featured Website</div>
 
                 {safeWebsites.length ? (
                   safeWebsites.map((store, index) => (
                     <Link
-                      key={`${resolveStoreName(store)}-${index}`}
+                      key={`${resolveStoreName(store)}-${store?.campaign_id || index}`}
                       to={resolveStoreUrl(store)}
-                      onClick={() => setOpen(false)}
+                      onClick={(event) => handleFeaturedWebsiteClick(event, store)}
                       className="amazon-category-main"
                     >
                       <span>{resolveStoreName(store)}</span>
@@ -371,7 +576,7 @@ function CategoriesButton({ categoryTree, featuredWebsites }) {
                     </Link>
                   ))
                 ) : (
-                  <div className="amazon-category-empty">No featured websites found yet.</div>
+                  <div className="amazon-category-empty">No featured website found yet.</div>
                 )}
               </div>
 
@@ -439,6 +644,43 @@ function AuthLinksPills() {
   );
 }
 
+function HeaderAccountBox({ user, isAuthenticated, logout }) {
+  if (isAuthenticated && user) {
+    return (
+      <div className="ali-user-link ali-user-logged-box">
+        <User size={28} />
+
+        <span>
+          {resolveDisplayName(user)}
+          <br />
+          <strong>{String(user?.role || 'User')}</strong>
+        </span>
+
+        <div className="ali-user-dropdown-card">
+          <Link to={resolveDashboardUrl(user)} className="ali-user-dropdown-link">
+            Go to Dashboard
+          </Link>
+
+          <button type="button" onClick={logout} className="ali-user-dropdown-logout">
+            Sign out
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <Link to="/login" className="ali-user-link">
+      <User size={28} />
+      <span>
+        Welcome
+        <br />
+        <strong>Sign in / Register</strong>
+      </span>
+    </Link>
+  );
+}
+
 function HeaderNav({ categoryTree, featuredWebsites }) {
   const realNavCategories = Array.isArray(categoryTree)
     ? categoryTree.filter((category) => category && category.name).slice(0, 8)
@@ -465,97 +707,84 @@ function HeaderNav({ categoryTree, featuredWebsites }) {
   );
 }
 
+function MirrorMediaLayer({ isVideo, slide, mainImage, position }) {
+  if (isVideo) {
+    return (
+      <span className={`banner-home-mirror-circle banner-home-mirror-circle-${position}`}>
+        <video
+          className="banner-home-mirror-video"
+          src={slide.video_url}
+          poster={slide.poster_url || slide.image_url || ''}
+          muted
+          autoPlay
+          playsInline
+          loop
+        />
+      </span>
+    );
+  }
+
+  if (mainImage) {
+    return (
+      <span className={`banner-home-mirror-circle banner-home-mirror-circle-${position}`}>
+        <img
+          src={mainImage}
+          alt=""
+          aria-hidden="true"
+          className="banner-home-mirror-image"
+        />
+      </span>
+    );
+  }
+
+  return null;
+}
+
 function MainSlider() {
-  const slides = [
+  const fallbackSlides = [
     {
-      id: 'slide-1',
-      eyebrowIcon: <Home size={18} />,
-      eyebrowTextTop: 'Discover curated home collections',
-      eyebrowTextBottom: 'in the modern living category',
+      id: 'fallback-1',
+      source: 'fallback',
+      media_type: 'image',
+      eyebrow_text: 'Discover curated home collections',
       title: 'Sectional fabric sofa by Ramón Esteve',
-      price: '$3620',
-      cta: 'Shop Now',
-      image:
+      subtitle: 'Premium marketplace products selected for modern living.',
+      promo_text: '$3620',
+      cta_label: 'Shop Now',
+      cta_url: '/products',
+      image_url:
         'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=1600&q=80',
-      circleImage:
-        'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=1200&q=80',
-      theme: 'sofa',
-    },
-    {
-      id: 'slide-2',
-      eyebrowIcon: <Laptop size={18} />,
-      eyebrowTextTop: 'Fresh premium gadgets',
-      eyebrowTextBottom: 'for the smart lifestyle category',
-      title: 'Modern tech essentials for your daily space',
-      price: '$1890',
-      cta: 'Shop Now',
-      image:
-        'https://images.unsplash.com/photo-1519389950473-47ba0277781c?auto=format&fit=crop&w=1600&q=80',
-      circleImage:
-        'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=1200&q=80',
-      theme: 'tech',
-    },
-    {
-      id: 'slide-3',
-      eyebrowIcon: <CheckCircle size={18} />,
-      eyebrowTextTop: 'Best reviewed arrivals',
-      eyebrowTextBottom: 'in the fashion picks category',
-      title: 'Elegant fashion pieces designed for every day',
-      price: '$980',
-      cta: 'Shop Now',
-      image:
-        'https://images.unsplash.com/photo-1529139574466-a303027c1d8b?auto=format&fit=crop&w=1600&q=80',
-      circleImage:
-        'https://images.unsplash.com/photo-1496747611176-843222e1e57c?auto=format&fit=crop&w=1200&q=80',
-      theme: 'fashion',
-    },
-    {
-      id: 'slide-4',
-      eyebrowIcon: <Smartphone size={18} />,
-      eyebrowTextTop: 'Discover trending accessories',
-      eyebrowTextBottom: 'in the smart collection category',
-      title: 'Accessories and gadgets that lift your setup',
-      price: '$740',
-      cta: 'Shop Now',
-      image:
-        'https://images.unsplash.com/photo-1511499767150-a48a237f0083?auto=format&fit=crop&w=1600&q=80',
-      circleImage:
-        'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=1200&q=80',
-      theme: 'minimal',
-    },
-    {
-      id: 'slide-5',
-      eyebrowIcon: <Tv size={18} />,
-      eyebrowTextTop: 'Premium lifestyle showcases',
-      eyebrowTextBottom: 'inside the entertainment category',
-      title: 'Create a warm stylish room with standout pieces',
-      price: '$2140',
-      cta: 'Shop Now',
-      image:
-        'https://images.unsplash.com/photo-1484101403633-562f891dc89a?auto=format&fit=crop&w=1600&q=80',
-      circleImage:
-        'https://images.unsplash.com/photo-1493663284031-b7e3aefcae8e?auto=format&fit=crop&w=1200&q=80',
-      theme: 'lifestyle',
-    },
-    {
-      id: 'slide-6',
-      eyebrowIcon: <Camera size={18} />,
-      eyebrowTextTop: 'Creative decor inspiration',
-      eyebrowTextBottom: 'from the interior design category',
-      title: 'Decor ideas and statement products for your home',
-      price: '$1260',
-      cta: 'Shop Now',
-      image:
-        'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=1600&q=80',
-      circleImage:
-        'https://images.unsplash.com/photo-1513694203232-719a280e022f?auto=format&fit=crop&w=1200&q=80',
-      theme: 'decor',
+      poster_url: '',
+      video_url: '',
+      theme_key: 'sofa',
     },
   ];
 
+  const [slides, setSlides] = useState(fallbackSlides);
   const [activeSlide, setActiveSlide] = useState(0);
+  const [trackedViews, setTrackedViews] = useState({});
 
   useEffect(() => {
+    const fetchSlides = async () => {
+      try {
+        const { data } = await api.get('/api/public/banner-home-ads/slides');
+        const realSlides = Array.isArray(data?.slides) ? data.slides.filter(Boolean) : [];
+
+        if (realSlides.length) {
+          setSlides(realSlides);
+          setActiveSlide(0);
+        }
+      } catch (err) {
+        setSlides(fallbackSlides);
+      }
+    };
+
+    fetchSlides();
+  }, []);
+
+  useEffect(() => {
+    if (!slides.length) return undefined;
+
     const timer = setInterval(() => {
       setActiveSlide((prev) => (prev + 1) % slides.length);
     }, 6000);
@@ -563,29 +792,101 @@ function MainSlider() {
     return () => clearInterval(timer);
   }, [slides.length]);
 
-  const slide = slides[activeSlide];
+  useEffect(() => {
+    const slide = slides[activeSlide];
+
+    if (!slide?.is_ad || !slide?.campaign_id || trackedViews[slide.campaign_id]) return;
+
+    setTrackedViews((prev) => ({
+      ...prev,
+      [slide.campaign_id]: true,
+    }));
+
+    api
+      .post(`/api/public/banner-home-ads/ads/${slide.campaign_id}/view`, {
+        placement_key: 'homepage_slider',
+        slide_position: activeSlide + 1,
+        page_url: window.location.href,
+      })
+      .catch(() => {});
+  }, [activeSlide, slides, trackedViews]);
+
+  const slide = slides[activeSlide] || fallbackSlides[0];
+  const mainImage = slide?.image_url || slide?.poster_url || '';
+  const isVideo = slide?.media_type === 'video' && slide?.video_url;
+  const animationKey = `${slide?.id || 'slide'}-${activeSlide}`;
+
+  const handleSlideClick = async (event, targetUrl) => {
+    event.preventDefault();
+
+    const finalUrl = targetUrl || slide?.cta_url || '/products';
+
+    if (slide?.is_ad && slide?.campaign_id) {
+      try {
+        await api.post(`/api/public/banner-home-ads/ads/${slide.campaign_id}/click`, {
+          placement_key: 'homepage_slider',
+          slide_position: activeSlide + 1,
+          page_url: window.location.href,
+          destination_url: finalUrl,
+        });
+      } catch (err) {
+        // continue redirect
+      }
+    }
+
+    if (finalUrl && finalUrl !== '#') {
+      window.location.href = finalUrl;
+    }
+  };
 
   return (
-    <section className="luxury-hero-slider">
-      <div className={`luxury-hero-bg luxury-hero-theme-${slide.theme}`}>
+    <section className="luxury-hero-slider banner-home-dynamic-slider">
+      <div
+        key={animationKey}
+        className={`luxury-hero-bg luxury-hero-theme-${slide?.theme_key || 'sofa'}`}
+      >
+        {slide?.is_ad ? <span className="banner-home-slider-ad-badge">Ads</span> : null}
+
         <div className="luxury-hero-left">
           <div className="luxury-hero-category-badge">
-            <span className="luxury-hero-icon">{slide.eyebrowIcon}</span>
+            <span className="luxury-hero-icon">
+              {isVideo ? <Video size={18} /> : <ImageIcon size={18} />}
+            </span>
 
             <span className="luxury-hero-badge-copy">
-              <span>{slide.eyebrowTextTop}</span>
-              <span>{slide.eyebrowTextBottom}</span>
+              <span>{slide?.eyebrow_text || 'Featured marketplace slide'}</span>
+              <span>
+                {slide?.source === 'ad'
+                  ? 'Sponsored homepage slider'
+                  : 'Admin selected homepage slider'}
+              </span>
             </span>
           </div>
 
-          <h1 className="luxury-hero-title">{slide.title}</h1>
+          <h1 className="luxury-hero-title">{slide?.title || 'Homepage Slider'}</h1>
+
+          {slide?.subtitle ? <p className="banner-home-slider-subtitle">{slide.subtitle}</p> : null}
 
           <div className="luxury-hero-price-row">
-            <Link to="/products" className="luxury-hero-shop-btn">
-              {slide.cta}
-            </Link>
+            <a
+              href={slide?.cta_url || '/products'}
+              onClick={(event) => handleSlideClick(event, slide?.cta_url || '/products')}
+              className="luxury-hero-shop-btn"
+            >
+              {slide?.cta_label || 'Shop Now'}
+            </a>
 
-            <strong>{slide.price}</strong>
+            {slide?.secondary_cta_label && slide?.secondary_cta_url ? (
+              <a
+                href={slide.secondary_cta_url}
+                onClick={(event) => handleSlideClick(event, slide.secondary_cta_url)}
+                className="banner-home-slider-secondary-btn"
+              >
+                {slide.secondary_cta_label}
+              </a>
+            ) : null}
+
+            {slide?.promo_text ? <strong>{slide.promo_text}</strong> : null}
           </div>
         </div>
 
@@ -594,17 +895,36 @@ function MainSlider() {
           <div className="luxury-hero-shape luxury-hero-shape-middle" />
           <div className="luxury-hero-shape luxury-hero-shape-right" />
 
-          <div className="luxury-hero-circle luxury-hero-circle-left">
-            <img src={slide.circleImage} alt={slide.title} />
-          </div>
+          <button
+            type="button"
+            className="banner-home-slider-media-button"
+            onClick={(event) => handleSlideClick(event, slide?.cta_url || '/products')}
+          >
+            {isVideo ? (
+              <video
+                className="banner-home-slider-video"
+                src={slide.video_url}
+                poster={slide.poster_url || slide.image_url || ''}
+                muted
+                autoPlay
+                playsInline
+                loop
+              />
+            ) : mainImage ? (
+              <img
+                src={mainImage}
+                alt={slide?.title || 'Homepage slider'}
+                className="banner-home-slider-main-image"
+              />
+            ) : (
+              <span className="banner-home-slider-empty-media">
+                <ImageIcon size={38} />
+              </span>
+            )}
 
-          <div className="luxury-hero-circle luxury-hero-circle-main">
-            <img src={slide.image} alt={slide.title} />
-          </div>
-
-          <div className="luxury-hero-circle luxury-hero-circle-right">
-            <img src={slide.image} alt={slide.title} />
-          </div>
+            <MirrorMediaLayer isVideo={isVideo} slide={slide} mainImage={mainImage} position="one" />
+            <MirrorMediaLayer isVideo={isVideo} slide={slide} mainImage={mainImage} position="two" />
+          </button>
 
           <div className="luxury-hero-bubbles">
             <span />
@@ -634,7 +954,7 @@ function MainSlider() {
         <div className="luxury-hero-dots">
           {slides.map((item, index) => (
             <button
-              key={item.id}
+              key={item.id || index}
               type="button"
               onClick={() => setActiveSlide(index)}
               className={index === activeSlide ? 'active' : ''}
@@ -726,35 +1046,6 @@ function DealShowcaseSection({ products }) {
   );
 }
 
-function TodayDealsStrip({ products }) {
-  const items = ensureProducts(products, 6, 'today-strip', 'Today Deal');
-
-  return (
-    <section className="today-deals-section">
-      <div className="today-deals-head">
-        <h2>Today’s deals</h2>
-        <Link to="/products">View all</Link>
-      </div>
-
-      <div className="today-deals-grid">
-        {items.map((product, index) => (
-          <Link
-            key={product._renderId || product.id || index}
-            to={resolveReadMoreUrl(product)}
-            className="today-deal-card"
-          >
-            <span className="today-deal-img-wrap">
-              <img src={product?.product_image} alt={product?.title || 'Product'} />
-            </span>
-            <span className="today-deal-title">{product?.title || 'Product'}</span>
-            <span className="today-deal-price">{renderPrice(product)}</span>
-          </Link>
-        ))}
-      </div>
-    </section>
-  );
-}
-
 function WidePromoSection({ products }) {
   const items = ensureProducts(products, 3, 'wide-promo', 'Promo Product');
 
@@ -839,6 +1130,9 @@ function ProductQuickViewModal({
 }) {
   if (!product) return null;
 
+  const safeProductScore = resolveProductScore(product);
+  const visitCount = formatCompactCount(resolveVisitCount(product));
+
   return (
     <>
       <div onClick={onClose} className="home-modal-backdrop" />
@@ -894,7 +1188,8 @@ function ProductQuickViewModal({
               {Array.from({ length: 5 }).map((_, i) => (
                 <Star key={i} size={15} fill="#f59e0b" strokeWidth={1.5} />
               ))}
-              <span>Premium pick</span>
+              <span>{safeProductScore}</span>
+              <span>{visitCount} Visits</span>
             </div>
 
             <div className="home-quick-info-grid">
@@ -951,37 +1246,14 @@ function ProductQuickViewModal({
   );
 }
 
-function ProductCard({ product, onQuickView, onImpression }) {
-  const cardRef = useRef(null);
-
-  useEffect(() => {
-    const node = cardRef.current;
-    if (!node) return undefined;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            onImpression(product);
-            observer.unobserve(entry.target);
-          }
-        });
-      },
-      { threshold: 0.25 }
-    );
-
-    observer.observe(node);
-
-    return () => observer.disconnect();
-  }, [product, onImpression]);
-
+function ProductCard({ product, onQuickView, onTrackedAction }) {
   const readMoreUrl = resolveReadMoreUrl(product);
   const buyNowUrl = resolveBuyNowUrl(product);
-  const ratingNumber = Number(product?.id || 8) % 10;
+  const safeProductScore = resolveProductScore(product);
   const visitCount = formatCompactCount(resolveVisitCount(product));
 
   return (
-    <div ref={cardRef} className="home-product-card">
+    <div className="home-product-card">
       <button
         type="button"
         onClick={() => onQuickView(product)}
@@ -1007,7 +1279,7 @@ function ProductCard({ product, onQuickView, onImpression }) {
             {Array.from({ length: 5 }).map((_, i) => (
               <Star key={i} size={11} fill="#ffb300" strokeWidth={1.5} />
             ))}
-            <span>4.{ratingNumber || 8}</span>
+            <span>{safeProductScore}</span>
           </div>
 
           <div className="home-product-visit-stat" title="Visit count">
@@ -1020,13 +1292,21 @@ function ProductCard({ product, onQuickView, onImpression }) {
         <div className="home-product-price">{renderPrice(product)}</div>
 
         <div className="home-product-actions">
-          <Link to={readMoreUrl} className="home-product-action-btn home-product-learn-btn">
+          <button
+            type="button"
+            onClick={() => onTrackedAction(product, 'read_more', readMoreUrl)}
+            className="home-product-action-btn home-product-learn-btn"
+          >
             {product?.storefront_cta_label || 'Read More'}
-          </Link>
+          </button>
 
-          <a href={buyNowUrl} target="_blank" rel="noreferrer" className="home-product-action-btn home-product-buy-btn">
+          <button
+            type="button"
+            onClick={() => onTrackedAction(product, 'buy_now', buyNowUrl)}
+            className="home-product-action-btn home-product-buy-btn"
+          >
             {product?.homepage_cta_label || 'Buy Now'}
-          </a>
+          </button>
         </div>
       </div>
     </div>
@@ -1117,7 +1397,7 @@ function FeaturedCategoriesCircleSection({ categoryTree }) {
   );
 }
 
-function ProductGridSection({ title, products, onQuickView, onImpression, categoryTree }) {
+function ProductGridSection({ title, products, onQuickView, onTrackedAction, categoryTree }) {
   const firstTwoRows = products.slice(0, 12);
   const nextRowAfterPromo = products.slice(12, 18);
   const remainingProducts = products.slice(18);
@@ -1134,7 +1414,7 @@ function ProductGridSection({ title, products, onQuickView, onImpression, catego
             key={product._renderId || product.id || index}
             product={product}
             onQuickView={onQuickView}
-            onImpression={onImpression}
+            onTrackedAction={onTrackedAction}
           />
         ))}
       </div>
@@ -1147,7 +1427,7 @@ function ProductGridSection({ title, products, onQuickView, onImpression, catego
             key={product._renderId || product.id || `more-love-after-promo-row-${index}`}
             product={product}
             onQuickView={onQuickView}
-            onImpression={onImpression}
+            onTrackedAction={onTrackedAction}
           />
         ))}
       </div>
@@ -1160,7 +1440,7 @@ function ProductGridSection({ title, products, onQuickView, onImpression, catego
             key={product._renderId || product.id || `more-love-after-featured-categories-${index}`}
             product={product}
             onQuickView={onQuickView}
-            onImpression={onImpression}
+            onTrackedAction={onTrackedAction}
           />
         ))}
       </div>
@@ -1169,15 +1449,16 @@ function ProductGridSection({ title, products, onQuickView, onImpression, catego
 }
 
 export default function HomePage() {
+  const { user, isAuthenticated, logout } = useAuth();
+
   const [pageData, setPageData] = useState(null);
+  const [featuredProductAds, setFeaturedProductAds] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [quickViewProduct, setQuickViewProduct] = useState(null);
   const [savedProducts, setSavedProducts] = useState({});
   const [actionLoading, setActionLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const trackedImpressionsRef = useRef(new Set());
-  const trackedQuickViewsRef = useRef(new Set());
 
   useEffect(() => {
     const fetchHome = async () => {
@@ -1196,50 +1477,100 @@ export default function HomePage() {
     fetchHome();
   }, []);
 
+  useEffect(() => {
+    const fetchFeaturedProductAds = async () => {
+      try {
+        const { data } = await api.get('/api/public/affiliate-ads', {
+          params: {
+            ad_type: 'product',
+            placement_key: 'homepage_featured_product',
+            limit: 6,
+          },
+        });
+
+        setFeaturedProductAds(Array.isArray(data?.ads) ? data.ads : []);
+      } catch (err) {
+        setFeaturedProductAds([]);
+      }
+    };
+
+    fetchFeaturedProductAds();
+  }, []);
+
   const categories = pageData?.categories || [];
   const categoryTree = useMemo(() => buildCategoryTree(categories), [categories]);
   const products = pageData?.products || [];
-  const featuredWebsites = useMemo(() => buildFeaturedWebsites(pageData, products), [pageData, products]);
+  const featuredWebsites = useMemo(() => buildFeaturedWebsites(pageData), [pageData]);
 
   const promoProducts = useMemo(() => ensureProducts(products, 8, 'promo', 'Promo Product'), [products]);
   const todayDeals = useMemo(() => ensureProducts(products, 6, 'today', 'Today Deal'), [products]);
   const categoryProducts = useMemo(() => ensureProducts(products, 8, 'category', 'Category Product'), [products]);
   const moreToLoveProducts = useMemo(() => ensureProducts(products, 96, 'more-love', 'More Product'), [products]);
 
-  const trackProductEvent = useCallback(async (product, clickType) => {
-    const endpoint = resolveTrackingEndpoint(product);
-    if (!endpoint) return null;
+  const updateProductStats = useCallback((product, data) => {
+    if (!product?.id || !data) return;
 
-    try {
-      const { data } = await api.post(endpoint, {
-        click_type: clickType,
-      });
-      return data || null;
-    } catch (err) {
-      return null;
-    }
+    setPageData((prev) => {
+      if (!prev) return prev;
+
+      const updatedProducts = Array.isArray(prev.products)
+        ? prev.products.map((item) => (item?.id === product.id ? mergeProductVisitStats(item, data) : item))
+        : prev.products;
+
+      return {
+        ...prev,
+        products: updatedProducts,
+      };
+    });
+
+    setQuickViewProduct((prev) => {
+      if (!prev?.id || prev.id !== product.id) return prev;
+      return mergeProductVisitStats(prev, data);
+    });
   }, []);
 
-  const handleImpression = useCallback(
+  const trackProductEvent = useCallback(
+    async (product, clickType) => {
+      const endpoint = resolveTrackingEndpoint(product);
+      if (!endpoint) return null;
+
+      try {
+        const { data } = await api.post(endpoint, {
+          click_type: clickType,
+        });
+
+        updateProductStats(product, data);
+        return data || null;
+      } catch (err) {
+        return null;
+      }
+    },
+    [updateProductStats]
+  );
+
+  const handleQuickViewOpen = useCallback(
     async (product) => {
-      if (!product?.id || trackedImpressionsRef.current.has(product.id)) return;
-      trackedImpressionsRef.current.add(product.id);
-      await trackProductEvent(product, 'impression');
+      if (!product) return;
+
+      setQuickViewProduct(product);
+      await trackProductEvent(product, 'quick_view');
     },
     [trackProductEvent]
   );
 
-  useEffect(() => {
-    const trackQuickView = async () => {
-      if (!quickViewProduct?.id) return;
-      if (trackedQuickViewsRef.current.has(quickViewProduct.id)) return;
+  const handleTrackedProductAction = useCallback(
+    async (product, clickType, fallbackUrl = '#') => {
+      if (!product) return;
 
-      trackedQuickViewsRef.current.add(quickViewProduct.id);
-      await trackProductEvent(quickViewProduct, 'quick_view');
-    };
+      const data = await trackProductEvent(product, clickType);
+      const targetUrl = data?.redirect_url || fallbackUrl;
 
-    trackQuickView();
-  }, [quickViewProduct, trackProductEvent]);
+      if (targetUrl && targetUrl !== '#') {
+        window.location.href = targetUrl;
+      }
+    },
+    [trackProductEvent]
+  );
 
   const handleTrackedPopupAction = async (clickType) => {
     if (!quickViewProduct) return;
@@ -1265,15 +1596,13 @@ export default function HomePage() {
     }
   };
 
-  const handleToggleSave = async () => {
+  const handleToggleSave = () => {
     if (!quickViewProduct?.id) return;
 
     setSavedProducts((prev) => ({
       ...prev,
       [quickViewProduct.id]: !prev[quickViewProduct.id],
     }));
-
-    await trackProductEvent(quickViewProduct, 'save');
   };
 
   const handleShare = async () => {
@@ -1281,8 +1610,6 @@ export default function HomePage() {
 
     const shareUrl = resolveReadMoreUrl(quickViewProduct);
     const shareTitle = quickViewProduct?.title || 'Product';
-
-    await trackProductEvent(quickViewProduct, 'share');
 
     try {
       if (navigator.share) {
@@ -1352,14 +1679,7 @@ export default function HomePage() {
               <ChevronDown size={14} />
             </button>
 
-            <Link to="/login" className="ali-user-link">
-              <User size={28} />
-              <span>
-                Welcome
-                <br />
-                <strong>Sign in / Register</strong>
-              </span>
-            </Link>
+            <HeaderAccountBox user={user} isAuthenticated={isAuthenticated} logout={logout} />
           </div>
         </div>
 
@@ -1390,8 +1710,22 @@ export default function HomePage() {
           <CategoriesButton categoryTree={categoryTree} featuredWebsites={featuredWebsites} />
 
           <div className="mobile-home-auth-wrap">
-            <div className="mobile-home-auth-title">Join or sign in</div>
-            <AuthLinksPills />
+            {isAuthenticated && user ? (
+              <div className="mobile-logged-auth-box">
+                <Link to={resolveDashboardUrl(user)} className="home-auth-pill home-auth-pill-red">
+                  Go to Dashboard
+                </Link>
+
+                <button type="button" onClick={logout} className="home-auth-pill home-auth-pill-white">
+                  Sign out
+                </button>
+              </div>
+            ) : (
+              <>
+                <div className="mobile-home-auth-title">Join or sign in</div>
+                <AuthLinksPills />
+              </>
+            )}
           </div>
         </div>
 
@@ -1408,15 +1742,15 @@ export default function HomePage() {
 
       <main className="homepage-shell">
         <DealShowcaseSection products={todayDeals} />
-        <TodayDealsStrip products={todayDeals} />
+        <FeaturedProductAdsStrip ads={featuredProductAds} />
         <WidePromoSection products={promoProducts} />
         <ShopByCategory categoryTree={categoryTree} products={categoryProducts} />
 
         <ProductGridSection
           title="More to love"
           products={moreToLoveProducts}
-          onQuickView={setQuickViewProduct}
-          onImpression={handleImpression}
+          onQuickView={handleQuickViewOpen}
+          onTrackedAction={handleTrackedProductAction}
           categoryTree={categoryTree}
         />
       </main>

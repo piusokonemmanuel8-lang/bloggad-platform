@@ -71,6 +71,30 @@ function resolveTrackingEndpoint(product) {
   return `/api/public/products/${websiteSlug}/product/${productSlug}/click`;
 }
 
+function resolveSponsoredProductUrl(ad) {
+  if (ad?.website_slug && ad?.product_slug) {
+    return `/${ad.website_slug}/product/${ad.product_slug}`;
+  }
+
+  if (ad?.product_slug) {
+    return `/product/${ad.product_slug}`;
+  }
+
+  if (ad?.website_slug) {
+    return `/${ad.website_slug}`;
+  }
+
+  return '#';
+}
+
+function resolveSponsoredTitle(ad) {
+  return ad?.target_title || ad?.campaign_title || 'Featured Product';
+}
+
+function resolveSponsoredImage(ad) {
+  return ad?.display_image || ad?.target_image || ad?.campaign_image_url || ad?.campaign_image || '';
+}
+
 function makeDummyProduct(seed, index, categoryName) {
   const images = [
     'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=900&q=80',
@@ -116,6 +140,67 @@ function getDisplayProducts(products, categoryName) {
   }
 
   return realProducts.slice(0, maxProducts);
+}
+
+function SponsoredAdCard({ ad, onView, onClick }) {
+  const cardRef = useRef(null);
+  const image = resolveSponsoredImage(ad);
+  const title = resolveSponsoredTitle(ad);
+  const description = ad?.campaign_description || 'Sponsored product from an active advertiser.';
+
+  useEffect(() => {
+    const node = cardRef.current;
+    if (!node) return undefined;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            onView(ad);
+            observer.unobserve(entry.target);
+          }
+        });
+      },
+      { threshold: 0.35 }
+    );
+
+    observer.observe(node);
+
+    return () => observer.disconnect();
+  }, [ad, onView]);
+
+  return (
+    <article ref={cardRef} className="category-sponsored-product-card">
+      <span className="category-sponsored-ads-badge">Ads</span>
+
+      <button type="button" onClick={() => onClick(ad)} className="category-sponsored-image-button">
+        <span className="category-sponsored-image-wrap">
+          {image ? (
+            <img src={image} alt={title} className="category-sponsored-image" />
+          ) : (
+            <span className="category-sponsored-image-empty">AD</span>
+          )}
+        </span>
+      </button>
+
+      <button type="button" onClick={() => onClick(ad)} className="category-sponsored-content-button">
+        <span className="category-sponsored-category">Sponsored</span>
+
+        <span className="category-sponsored-rating">
+          <span>5.0</span>
+          <Star size={14} fill="#f59e0b" />
+        </span>
+
+        <span className="category-sponsored-title">{title}</span>
+
+        <span className="category-sponsored-price">
+          {ad?.campaign_title || 'Featured product'}
+        </span>
+
+        <span className="category-sponsored-hover-description">{description}</span>
+      </button>
+    </article>
+  );
 }
 
 function ProductQuickViewModal({
@@ -786,6 +871,7 @@ export default function CategoryPage() {
 
   const [categoryData, setCategoryData] = useState(null);
   const [allCategories, setAllCategories] = useState([]);
+  const [sponsoredAds, setSponsoredAds] = useState([]);
   const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -797,6 +883,7 @@ export default function CategoryPage() {
   const [actionLoading, setActionLoading] = useState(false);
   const trackedImpressionsRef = useRef(new Set());
   const trackedQuickViewsRef = useRef(new Set());
+  const trackedSponsoredViewsRef = useRef(new Set());
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -811,6 +898,8 @@ export default function CategoryPage() {
         ]);
 
         const nextCategoryData = categoryRes?.data || null;
+        const nextCategory = nextCategoryData?.category || null;
+
         setCategoryData(nextCategoryData);
         setAllCategories(homeRes?.data?.categories || []);
         setSearchTerm('');
@@ -818,6 +907,25 @@ export default function CategoryPage() {
         setItemsPerPage(20);
         setColumns(4);
         setQuickViewProduct(null);
+        setSponsoredAds([]);
+        trackedSponsoredViewsRef.current = new Set();
+
+        if (nextCategory?.id) {
+          try {
+            const adsRes = await api.get('/api/public/affiliate-ads', {
+              params: {
+                ad_type: 'product',
+                category_id: nextCategory.id,
+                placement_key: 'category_top_products',
+                limit: 4,
+              },
+            });
+
+            setSponsoredAds(Array.isArray(adsRes?.data?.ads) ? adsRes.data.ads : []);
+          } catch (adsError) {
+            setSponsoredAds([]);
+          }
+        }
       } catch (err) {
         setError(err?.response?.data?.message || 'Failed to load category');
       } finally {
@@ -886,6 +994,47 @@ export default function CategoryPage() {
       return data || null;
     } catch (err) {
       return null;
+    }
+  }, []);
+
+  const trackSponsoredView = useCallback(async (ad) => {
+    if (!ad?.id || trackedSponsoredViewsRef.current.has(ad.id)) return;
+
+    trackedSponsoredViewsRef.current.add(ad.id);
+
+    try {
+      await api.post(`/api/public/affiliate-ads/${ad.id}/view`, {
+        placement_key: 'category_top_products',
+        page_url: window.location.href,
+        publisher_website_slug: '',
+        publisher_website_id: '',
+        publisher_affiliate_id: '',
+      });
+    } catch (err) {
+      // ignore ad tracking failure
+    }
+  }, []);
+
+  const trackSponsoredClick = useCallback(async (ad) => {
+    if (!ad?.id) return;
+
+    const targetUrl = resolveSponsoredProductUrl(ad);
+
+    try {
+      await api.post(`/api/public/affiliate-ads/${ad.id}/click`, {
+        placement_key: 'category_top_products',
+        page_url: window.location.href,
+        destination_url: targetUrl,
+        publisher_website_slug: '',
+        publisher_website_id: '',
+        publisher_affiliate_id: '',
+      });
+    } catch (err) {
+      // ignore ad tracking failure
+    }
+
+    if (targetUrl && targetUrl !== '#') {
+      window.location.href = targetUrl;
     }
   }, []);
 
@@ -1040,19 +1189,208 @@ export default function CategoryPage() {
           gap: 20px;
         }
 
+        .category-sponsored-grid {
+          display: grid;
+          grid-template-columns: repeat(var(--category-columns, 4), minmax(0, 1fr));
+          gap: 20px;
+          margin-bottom: 28px;
+        }
+
+        .category-sponsored-product-card {
+          background: #ffffff;
+          border: 1px solid #e5e7eb;
+          border-radius: 18px;
+          overflow: hidden;
+          position: relative;
+          box-shadow: 0 10px 24px rgba(15, 23, 42, 0.04);
+          min-height: 100%;
+          display: block;
+        }
+
+        .category-sponsored-ads-badge {
+          position: absolute;
+          top: 12px;
+          left: 12px;
+          z-index: 3;
+          background: rgba(17, 24, 39, 0.92);
+          color: #ffffff;
+          font-size: 10px;
+          font-weight: 900;
+          letter-spacing: 0.06em;
+          text-transform: uppercase;
+          padding: 6px 10px;
+          border-radius: 999px;
+          box-shadow: 0 10px 22px rgba(15, 23, 42, 0.18);
+        }
+
+        .category-sponsored-image-button,
+        .category-sponsored-content-button {
+          width: 100%;
+          border: 0;
+          padding: 0;
+          background: transparent;
+          cursor: pointer;
+          text-align: left;
+          display: block;
+        }
+
+        .category-sponsored-image-wrap {
+          display: block;
+          background: #f8fafc;
+          padding: 14px;
+          border-bottom: 1px solid #eef2f7;
+          position: relative;
+          overflow: hidden;
+        }
+
+        .category-sponsored-image {
+          width: 100%;
+          height: 240px;
+          object-fit: contain;
+          border-radius: 14px;
+          background: #ffffff;
+          display: block;
+          transform: scale(1);
+          transition: transform 0.25s ease;
+        }
+
+        .category-sponsored-product-card:hover .category-sponsored-image {
+          transform: scale(1.06);
+        }
+
+        .category-sponsored-image-empty {
+          width: 100%;
+          height: 240px;
+          border-radius: 14px;
+          background: #111827;
+          color: #ffffff;
+          display: grid;
+          place-items: center;
+          font-weight: 900;
+          font-size: 24px;
+        }
+
+        .category-sponsored-content-button {
+          padding: 16px;
+          position: relative;
+        }
+
+        .category-sponsored-category {
+          display: block;
+          font-size: 13px;
+          color: #94a3b8;
+          margin-bottom: 8px;
+        }
+
+        .category-sponsored-rating {
+          display: flex;
+          align-items: center;
+          gap: 4px;
+          margin-bottom: 10px;
+          color: #f59e0b;
+        }
+
+        .category-sponsored-rating span {
+          font-size: 14px;
+          color: #64748b;
+          margin-right: 4px;
+        }
+
+        .category-sponsored-title {
+          display: block;
+          font-size: 18px;
+          font-weight: 800;
+          color: #111827;
+          line-height: 1.35;
+          margin-bottom: 10px;
+          min-height: 48px;
+        }
+
+        .category-sponsored-price {
+          display: block;
+          font-size: 24px;
+          font-weight: 900;
+          color: #ff2b05;
+          margin-bottom: 14px;
+          line-height: 1.15;
+        }
+
+        .category-sponsored-hover-description {
+          position: absolute;
+          left: 12px;
+          right: 12px;
+          bottom: 12px;
+          z-index: 4;
+          min-height: 58px;
+          max-height: 88px;
+          overflow: hidden;
+          background: rgba(17, 24, 39, 0.93);
+          color: #ffffff;
+          font-size: 12px;
+          font-weight: 700;
+          line-height: 1.45;
+          border-radius: 16px;
+          padding: 10px 12px;
+          opacity: 0;
+          transform: translateY(12px);
+          transition: all 0.22s ease;
+          pointer-events: none;
+        }
+
+        .category-sponsored-product-card:hover .category-sponsored-hover-description {
+          opacity: 1;
+          transform: translateY(0);
+        }
+
+        .category-sponsored-heading-row {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 14px;
+          flex-wrap: wrap;
+          margin-bottom: 14px;
+        }
+
+        .category-sponsored-heading-row h2 {
+          margin: 0;
+          color: #111827;
+          font-size: 24px;
+          font-weight: 900;
+          letter-spacing: -0.03em;
+        }
+
+        .category-sponsored-heading-row span {
+          display: inline-flex;
+          align-items: center;
+          border-radius: 999px;
+          background: #111827;
+          color: #ffffff;
+          font-size: 11px;
+          font-weight: 900;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+          padding: 7px 11px;
+        }
+
         @media (max-width: 1100px) {
           .category-main-grid {
             grid-template-columns: 1fr;
           }
 
-          .category-product-grid {
+          .category-product-grid,
+          .category-sponsored-grid {
             grid-template-columns: repeat(2, minmax(0, 1fr));
           }
         }
 
         @media (max-width: 720px) {
-          .category-product-grid {
+          .category-product-grid,
+          .category-sponsored-grid {
             grid-template-columns: 1fr;
+          }
+
+          .category-sponsored-hover-description {
+            display: none;
           }
         }
       `}</style>
@@ -1559,6 +1897,29 @@ export default function CategoryPage() {
                 </div>
               </div>
             </div>
+
+            {sponsoredAds.length ? (
+              <section>
+                <div className="category-sponsored-heading-row">
+                  <h2>Featured Product</h2>
+                  <span>Ads</span>
+                </div>
+
+                <div
+                  className="category-sponsored-grid"
+                  style={{ '--category-columns': columns }}
+                >
+                  {sponsoredAds.map((ad) => (
+                    <SponsoredAdCard
+                      key={ad.id}
+                      ad={ad}
+                      onView={trackSponsoredView}
+                      onClick={trackSponsoredClick}
+                    />
+                  ))}
+                </div>
+              </section>
+            ) : null}
 
             <div
               className="category-product-grid"

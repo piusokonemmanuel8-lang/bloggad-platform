@@ -15,6 +15,8 @@ function sanitizeHomepageProduct(row) {
     homepage_cta_label: row.homepage_cta_label,
     storefront_cta_label: row.storefront_cta_label,
     short_description: row.short_description,
+    visit_count: Number(row.visit_count || 0),
+    product_score: row.product_score !== null ? Number(row.product_score) : 4.1,
     status: row.status,
     created_at: row.created_at,
     updated_at: row.updated_at,
@@ -49,6 +51,31 @@ function sanitizeHomepageCategory(row) {
   };
 }
 
+function sanitizeHomepageWebsite(row) {
+  if (!row) return null;
+
+  return {
+    id: row.id,
+    name: row.website_name || row.name || 'Website',
+    website_name: row.website_name || row.name || 'Website',
+    slug: row.slug,
+    website_slug: row.slug,
+    logo: row.logo || null,
+    status: row.status,
+    campaign_id: row.campaign_id || null,
+    campaign_status: row.campaign_status || null,
+    approval_status: row.approval_status || null,
+    remaining_budget:
+      row.remaining_budget !== null && row.remaining_budget !== undefined
+        ? Number(row.remaining_budget)
+        : null,
+    affiliate: {
+      id: row.affiliate_id,
+      name: row.affiliate_name,
+    },
+  };
+}
+
 async function getHomepageProducts(limit = 24) {
   const [rows] = await pool.query(
     `
@@ -64,6 +91,8 @@ async function getHomepageProducts(limit = 24) {
       p.homepage_cta_label,
       p.storefront_cta_label,
       p.short_description,
+      COALESCE(p.visit_count, 0) AS visit_count,
+      COALESCE(p.product_score, 4.1) AS product_score,
       p.status,
       p.created_at,
       p.updated_at,
@@ -131,6 +160,67 @@ async function getHomepageCategories(limit = 20) {
   return rows.map(sanitizeHomepageCategory);
 }
 
+async function getHomepageFeaturedWebsites(limit = 10) {
+  const [rows] = await pool.query(
+    `
+    SELECT
+      aw.id,
+      aw.website_name,
+      aw.slug,
+      aw.logo,
+      aw.status,
+
+      u.id AS affiliate_id,
+      u.name AS affiliate_name,
+
+      MAX(c.id) AS campaign_id,
+      MAX(c.status) AS campaign_status,
+      MAX(c.approval_status) AS approval_status,
+      MAX(c.remaining_budget) AS remaining_budget
+
+    FROM affiliate_ads_campaigns c
+    INNER JOIN affiliate_websites aw
+      ON aw.id = c.target_id
+     AND aw.status = 'active'
+    INNER JOIN users u
+      ON u.id = aw.user_id
+     AND u.role = 'affiliate'
+     AND u.status = 'active'
+    WHERE c.ad_type = 'website'
+      AND c.status = 'active'
+      AND c.approval_status = 'approved'
+      AND COALESCE(c.remaining_budget, 0) > 0
+      AND (
+        c.start_date IS NULL
+        OR c.start_date <= CURDATE()
+      )
+      AND (
+        c.end_date IS NULL
+        OR c.end_date >= CURDATE()
+      )
+      AND (
+        c.daily_budget_cap IS NULL
+        OR c.today_spent_date IS NULL
+        OR c.today_spent_date <> CURDATE()
+        OR COALESCE(c.today_spent, 0) < COALESCE(c.daily_budget_cap, 0)
+      )
+    GROUP BY
+      aw.id,
+      aw.website_name,
+      aw.slug,
+      aw.logo,
+      aw.status,
+      u.id,
+      u.name
+    ORDER BY MAX(c.id) DESC
+    LIMIT ?
+    `,
+    [limit]
+  );
+
+  return rows.map(sanitizeHomepageWebsite);
+}
+
 async function getHomepageStats() {
   const [[productRow]] = await pool.query(
     `
@@ -156,6 +246,38 @@ async function getHomepageStats() {
      AND u.role = 'affiliate'
      AND u.status = 'active'
     WHERE aw.status = 'active'
+    `
+  );
+
+  const [[featuredWebsiteRow]] = await pool.query(
+    `
+    SELECT COUNT(DISTINCT aw.id) AS total_featured_websites
+    FROM affiliate_ads_campaigns c
+    INNER JOIN affiliate_websites aw
+      ON aw.id = c.target_id
+     AND aw.status = 'active'
+    INNER JOIN users u
+      ON u.id = aw.user_id
+     AND u.role = 'affiliate'
+     AND u.status = 'active'
+    WHERE c.ad_type = 'website'
+      AND c.status = 'active'
+      AND c.approval_status = 'approved'
+      AND COALESCE(c.remaining_budget, 0) > 0
+      AND (
+        c.start_date IS NULL
+        OR c.start_date <= CURDATE()
+      )
+      AND (
+        c.end_date IS NULL
+        OR c.end_date >= CURDATE()
+      )
+      AND (
+        c.daily_budget_cap IS NULL
+        OR c.today_spent_date IS NULL
+        OR c.today_spent_date <> CURDATE()
+        OR COALESCE(c.today_spent, 0) < COALESCE(c.daily_budget_cap, 0)
+      )
     `
   );
 
@@ -185,6 +307,7 @@ async function getHomepageStats() {
   return {
     total_products: Number(productRow?.total_products || 0),
     total_websites: Number(websiteRow?.total_websites || 0),
+    total_featured_websites: Number(featuredWebsiteRow?.total_featured_websites || 0),
     total_categories: Number(categoryRow?.total_categories || 0),
     total_posts: Number(postRow?.total_posts || 0),
   };
@@ -194,6 +317,7 @@ async function getHomepage(req, res) {
   try {
     const products = await getHomepageProducts();
     const categories = await getHomepageCategories();
+    const featured_websites = await getHomepageFeaturedWebsites();
     const stats = await getHomepageStats();
 
     return res.status(200).json({
@@ -204,6 +328,7 @@ async function getHomepage(req, res) {
       },
       stats,
       categories,
+      featured_websites,
       products,
     });
   } catch (error) {

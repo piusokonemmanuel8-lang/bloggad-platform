@@ -22,6 +22,21 @@ const initialSettings = {
   allow_network_js_code: 1,
 };
 
+const initialEligibilitySettings = {
+  paid_subscription_required: 1,
+  active_storefront_required: 1,
+  required_pages_count: 4,
+  minimum_published_posts: 15,
+  minimum_valid_page_views: 1000,
+  content_quality_review_required: 1,
+  local_ads_enabled: 1,
+  affiliate_ads_enabled: 1,
+  global_ads_enabled: 1,
+  personal_ad_id_enabled: 1,
+  publisher_max_revenue_percent: 60,
+  status: 'active',
+};
+
 const initialFilters = {
   monetization_mode: 'all',
   approval_status: 'all',
@@ -46,51 +61,40 @@ function toFormSettings(settings = {}) {
     ...settings,
     is_enabled: Number(settings?.is_enabled ?? initialSettings.is_enabled),
     premium_only: Number(settings?.premium_only ?? initialSettings.premium_only),
-    minimum_view_seconds: Number(
-      settings?.minimum_view_seconds ?? initialSettings.minimum_view_seconds
-    ),
-    minimum_scroll_percent: Number(
-      settings?.minimum_scroll_percent ?? initialSettings.minimum_scroll_percent
-    ),
-    ip_repeat_window_hours: Number(
-      settings?.ip_repeat_window_hours ?? initialSettings.ip_repeat_window_hours
-    ),
-    fingerprint_repeat_window_hours: Number(
-      settings?.fingerprint_repeat_window_hours ??
-        initialSettings.fingerprint_repeat_window_hours
-    ),
+    minimum_view_seconds: Number(settings?.minimum_view_seconds ?? initialSettings.minimum_view_seconds),
+    minimum_scroll_percent: Number(settings?.minimum_scroll_percent ?? initialSettings.minimum_scroll_percent),
+    ip_repeat_window_hours: Number(settings?.ip_repeat_window_hours ?? initialSettings.ip_repeat_window_hours),
+    fingerprint_repeat_window_hours: Number(settings?.fingerprint_repeat_window_hours ?? initialSettings.fingerprint_repeat_window_hours),
     daily_ip_view_cap: Number(settings?.daily_ip_view_cap ?? initialSettings.daily_ip_view_cap),
-    count_only_if_ad_loaded: Number(
-      settings?.count_only_if_ad_loaded ?? initialSettings.count_only_if_ad_loaded
-    ),
-    block_vpn_proxy_traffic: Number(
-      settings?.block_vpn_proxy_traffic ?? initialSettings.block_vpn_proxy_traffic
-    ),
-    block_suspicious_user_agents: Number(
-      settings?.block_suspicious_user_agents ?? initialSettings.block_suspicious_user_agents
-    ),
-    allow_individual_monetization: Number(
-      settings?.allow_individual_monetization ?? initialSettings.allow_individual_monetization
-    ),
-    individual_requires_admin_approval: Number(
-      settings?.individual_requires_admin_approval ??
-        initialSettings.individual_requires_admin_approval
-    ),
-    individual_premium_only: Number(
-      settings?.individual_premium_only ?? initialSettings.individual_premium_only
-    ),
-    allow_custom_html_ad_code: Number(
-      settings?.allow_custom_html_ad_code ?? initialSettings.allow_custom_html_ad_code
-    ),
-    allow_network_js_code: Number(
-      settings?.allow_network_js_code ?? initialSettings.allow_network_js_code
-    ),
-    default_rate_per_view: String(
-      settings?.default_rate_per_view ?? initialSettings.default_rate_per_view
-    ),
-    withdrawal_threshold: String(
-      settings?.withdrawal_threshold ?? initialSettings.withdrawal_threshold
-    ),
+    count_only_if_ad_loaded: Number(settings?.count_only_if_ad_loaded ?? initialSettings.count_only_if_ad_loaded),
+    block_vpn_proxy_traffic: Number(settings?.block_vpn_proxy_traffic ?? initialSettings.block_vpn_proxy_traffic),
+    block_suspicious_user_agents: Number(settings?.block_suspicious_user_agents ?? initialSettings.block_suspicious_user_agents),
+    allow_individual_monetization: Number(settings?.allow_individual_monetization ?? initialSettings.allow_individual_monetization),
+    individual_requires_admin_approval: Number(settings?.individual_requires_admin_approval ?? initialSettings.individual_requires_admin_approval),
+    individual_premium_only: Number(settings?.individual_premium_only ?? initialSettings.individual_premium_only),
+    allow_custom_html_ad_code: Number(settings?.allow_custom_html_ad_code ?? initialSettings.allow_custom_html_ad_code),
+    allow_network_js_code: Number(settings?.allow_network_js_code ?? initialSettings.allow_network_js_code),
+    default_rate_per_view: String(settings?.default_rate_per_view ?? initialSettings.default_rate_per_view),
+    withdrawal_threshold: String(settings?.withdrawal_threshold ?? initialSettings.withdrawal_threshold),
+  };
+}
+
+function toEligibilityForm(settings = {}) {
+  return {
+    ...initialEligibilitySettings,
+    ...settings,
+    paid_subscription_required: Number(settings?.paid_subscription_required ?? initialEligibilitySettings.paid_subscription_required),
+    active_storefront_required: Number(settings?.active_storefront_required ?? initialEligibilitySettings.active_storefront_required),
+    required_pages_count: Number(settings?.required_pages_count ?? initialEligibilitySettings.required_pages_count),
+    minimum_published_posts: Number(settings?.minimum_published_posts ?? initialEligibilitySettings.minimum_published_posts),
+    minimum_valid_page_views: Number(settings?.minimum_valid_page_views ?? initialEligibilitySettings.minimum_valid_page_views),
+    content_quality_review_required: Number(settings?.content_quality_review_required ?? initialEligibilitySettings.content_quality_review_required),
+    local_ads_enabled: Number(settings?.local_ads_enabled ?? initialEligibilitySettings.local_ads_enabled),
+    affiliate_ads_enabled: Number(settings?.affiliate_ads_enabled ?? initialEligibilitySettings.affiliate_ads_enabled),
+    global_ads_enabled: Number(settings?.global_ads_enabled ?? initialEligibilitySettings.global_ads_enabled),
+    personal_ad_id_enabled: Number(settings?.personal_ad_id_enabled ?? initialEligibilitySettings.personal_ad_id_enabled),
+    publisher_max_revenue_percent: Number(settings?.publisher_max_revenue_percent ?? initialEligibilitySettings.publisher_max_revenue_percent),
+    status: settings?.status || initialEligibilitySettings.status,
   };
 }
 
@@ -99,7 +103,7 @@ function parseNumber(value, fallback = 0) {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
-function buildSettingsPayload(form) {
+function buildSettingsPayload(form, eligibilityForm) {
   return {
     is_enabled: Number(form.is_enabled),
     premium_only: Number(form.premium_only),
@@ -118,6 +122,20 @@ function buildSettingsPayload(form) {
     individual_premium_only: Number(form.individual_premium_only),
     allow_custom_html_ad_code: Number(form.allow_custom_html_ad_code),
     allow_network_js_code: Number(form.allow_network_js_code),
+    eligibility_settings: {
+      paid_subscription_required: Number(eligibilityForm.paid_subscription_required),
+      active_storefront_required: Number(eligibilityForm.active_storefront_required),
+      required_pages_count: parseNumber(eligibilityForm.required_pages_count, 0),
+      minimum_published_posts: parseNumber(eligibilityForm.minimum_published_posts, 0),
+      minimum_valid_page_views: parseNumber(eligibilityForm.minimum_valid_page_views, 0),
+      content_quality_review_required: Number(eligibilityForm.content_quality_review_required),
+      local_ads_enabled: Number(eligibilityForm.local_ads_enabled),
+      affiliate_ads_enabled: Number(eligibilityForm.affiliate_ads_enabled),
+      global_ads_enabled: Number(eligibilityForm.global_ads_enabled),
+      personal_ad_id_enabled: Number(eligibilityForm.personal_ad_id_enabled),
+      publisher_max_revenue_percent: parseNumber(eligibilityForm.publisher_max_revenue_percent, 60),
+      status: eligibilityForm.status || 'active',
+    },
   };
 }
 
@@ -293,6 +311,7 @@ export default function AdminBlogPulsePage() {
   const { token, bootstrapping } = useAuth();
 
   const [settingsForm, setSettingsForm] = useState(initialSettings);
+  const [eligibilityForm, setEligibilityForm] = useState(initialEligibilitySettings);
   const [policy, setPolicy] = useState(null);
   const [loading, setLoading] = useState(true);
   const [savingSettings, setSavingSettings] = useState(false);
@@ -313,6 +332,14 @@ export default function AdminBlogPulsePage() {
   const [reviewMessage, setReviewMessage] = useState('');
   const [reviewError, setReviewError] = useState('');
   const [reviewingAction, setReviewingAction] = useState('');
+
+  const [contentReviews, setContentReviews] = useState([]);
+  const [contentReviewsLoading, setContentReviewsLoading] = useState(false);
+  const [contentReviewsError, setContentReviewsError] = useState('');
+  const [contentReviewNotes, setContentReviewNotes] = useState({});
+  const [activeContentReviewUserId, setActiveContentReviewUserId] = useState(null);
+  const [contentReviewMessage, setContentReviewMessage] = useState('');
+  const [contentReviewError, setContentReviewError] = useState('');
 
   useEffect(() => {
     let ignore = false;
@@ -340,6 +367,7 @@ export default function AdminBlogPulsePage() {
 
         if (!ignore) {
           setSettingsForm(toFormSettings(data.settings || {}));
+          setEligibilityForm(toEligibilityForm(data.eligibility_settings || {}));
           setPolicy(data.policy || null);
         }
       } catch (error) {
@@ -402,9 +430,44 @@ export default function AdminBlogPulsePage() {
     }
   }
 
+  async function loadContentReviews() {
+    if (!token) return;
+
+    setContentReviewsLoading(true);
+    setContentReviewsError('');
+    setContentReviewMessage('');
+    setContentReviewError('');
+
+    try {
+      const { data } = await api.get('/api/admin/blogpulse/content-quality');
+
+      if (!data?.ok) {
+        throw new Error(data?.message || 'Failed to load content quality reviews.');
+      }
+
+      const nextReviews = Array.isArray(data.reviews) ? data.reviews : [];
+      setContentReviews(nextReviews);
+
+      const nextNotes = {};
+      nextReviews.forEach((item) => {
+        nextNotes[item.user_id] = item.content_quality_note || '';
+      });
+      setContentReviewNotes(nextNotes);
+    } catch (error) {
+      setContentReviewsError(
+        error?.response?.data?.message ||
+          error.message ||
+          'Failed to load content quality reviews.'
+      );
+    } finally {
+      setContentReviewsLoading(false);
+    }
+  }
+
   useEffect(() => {
     if (bootstrapping || !token) return;
     loadSubmissions();
+    loadContentReviews();
   }, [bootstrapping, token]);
 
   async function handleSaveSettings(event) {
@@ -422,7 +485,7 @@ export default function AdminBlogPulsePage() {
     try {
       const { data } = await api.put(
         '/api/admin/blogpulse/settings',
-        buildSettingsPayload(settingsForm)
+        buildSettingsPayload(settingsForm, eligibilityForm)
       );
 
       if (!data?.ok) {
@@ -430,6 +493,7 @@ export default function AdminBlogPulsePage() {
       }
 
       setSettingsForm(toFormSettings(data.settings || {}));
+      setEligibilityForm(toEligibilityForm(data.eligibility_settings || {}));
       setPolicy(data.policy || null);
       setSettingsMessage(data?.message || 'BlogPulse settings updated successfully.');
     } catch (error) {
@@ -495,6 +559,34 @@ export default function AdminBlogPulsePage() {
     }
   }
 
+  async function handleContentQualityReview(userId, status) {
+    setActiveContentReviewUserId(userId);
+    setContentReviewMessage('');
+    setContentReviewError('');
+
+    try {
+      const { data } = await api.patch(`/api/admin/blogpulse/content-quality/${userId}/review`, {
+        content_quality_status: status,
+        content_quality_note: contentReviewNotes[userId] || '',
+      });
+
+      if (!data?.ok) {
+        throw new Error(data?.message || 'Failed to update content quality review.');
+      }
+
+      setContentReviewMessage(data.message || 'Content quality review updated successfully.');
+      await loadContentReviews();
+    } catch (error) {
+      setContentReviewError(
+        error?.response?.data?.message ||
+          error.message ||
+          'Failed to update content quality review.'
+      );
+    } finally {
+      setActiveContentReviewUserId(null);
+    }
+  }
+
   async function handleReviewSubmission(submissionId, reviewStatus) {
     setReviewMessage('');
     setReviewError('');
@@ -533,6 +625,13 @@ export default function AdminBlogPulsePage() {
     }));
   }
 
+  function updateEligibility(field, value) {
+    setEligibilityForm((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+  }
+
   function updateFilter(field, value) {
     setCodeBoxMessage('');
     setCodeBoxError('');
@@ -558,12 +657,24 @@ export default function AdminBlogPulsePage() {
     }));
   }
 
+  function updateContentReviewNote(userId, value) {
+    setContentReviewNotes((prev) => ({
+      ...prev,
+      [userId]: value,
+    }));
+  }
+
   const eligibilityItems = policy?.minimum_requirements || [];
   const notes = policy?.notes || [];
 
   const pendingCount = useMemo(
     () => submissions.filter((item) => item.review_status === 'pending').length,
     [submissions]
+  );
+
+  const pendingContentCount = useMemo(
+    () => contentReviews.filter((item) => item.content_quality_status === 'pending').length,
+    [contentReviews]
   );
 
   return (
@@ -614,7 +725,7 @@ export default function AdminBlogPulsePage() {
                 margin: '0 0 10px',
               }}
             >
-              Manage platform ads, individual ad code, payout rules, and filtering in one page
+              Manage marketplace monetization, eligibility, publisher ads, and reviews
             </h1>
 
             <p
@@ -626,8 +737,9 @@ export default function AdminBlogPulsePage() {
                 maxWidth: 760,
               }}
             >
-              Use this page to control BlogPulse Earnings, set platform payout rules, allow or
-              restrict individual monetization, manage ad code boxes, and review affiliate submissions.
+              Control BlogPulse Earnings, marketplace ad eligibility, local ads, affiliate ads,
+              global ads, personal ad ID ads, payout rules, content quality reviews, and affiliate
+              monetization approvals.
             </p>
           </div>
 
@@ -646,16 +758,18 @@ export default function AdminBlogPulsePage() {
             </div>
 
             <div style={{ ...cardStyle(), padding: 16 }}>
-              <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 8 }}>Platform Mode</div>
+              <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 8 }}>Eligibility</div>
               <div style={{ fontSize: 22, fontWeight: 800, color: '#111827' }}>
-                {Number(settingsForm.is_enabled) ? 'Enabled' : 'Disabled'}
+                {eligibilityForm.status === 'active' ? 'Active' : 'Disabled'}
               </div>
             </div>
 
             <div style={{ ...cardStyle(), padding: 16 }}>
-              <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 8 }}>Base Rate</div>
+              <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 8 }}>
+                Content Pending
+              </div>
               <div style={{ fontSize: 22, fontWeight: 800, color: '#111827' }}>
-                {settingsForm.default_rate_per_view}
+                {pendingContentCount}
               </div>
             </div>
 
@@ -671,279 +785,380 @@ export default function AdminBlogPulsePage() {
         </div>
       </section>
 
-      <section
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'minmax(0, 1.2fr) minmax(320px, 0.8fr)',
-          gap: 22,
-        }}
-      >
-        <form onSubmit={handleSaveSettings} style={{ display: 'grid', gap: 22 }}>
-          <div style={cardStyle()}>
-            <h2 style={sectionTitleStyle()}>Platform Monetization Settings</h2>
-            <p style={sectionHintStyle()}>
-              Control the BlogPulse payout engine, valid view rules, fraud protection, and payout
-              threshold for platform-managed monetization.
-            </p>
+      <form onSubmit={handleSaveSettings} style={{ display: 'grid', gap: 22 }}>
+        <section
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'minmax(0, 1.2fr) minmax(320px, 0.8fr)',
+            gap: 22,
+          }}
+        >
+          <div style={{ display: 'grid', gap: 22 }}>
+            <div style={cardStyle()}>
+              <h2 style={sectionTitleStyle()}>Marketplace Monetization Eligibility</h2>
+              <p style={sectionHintStyle()}>
+                Set the rules affiliates must meet before BlogPulse, sponsored publisher ads, local
+                ads, affiliate ads, global ads, and personal ad ID monetization can become active.
+              </p>
 
-            <div style={{ marginTop: 8 }}>
-              {toggleRow(
-                'Enable BlogPulse platform monetization',
-                Number(settingsForm.is_enabled),
-                (value) => updateSetting('is_enabled', value),
-                'When enabled, approved premium blogs can earn BlogPulse credits from valid traffic.'
-              )}
-
-              {toggleRow(
-                'Paid subscription only',
-                Number(settingsForm.premium_only),
-                (value) => updateSetting('premium_only', value),
-                'Only affiliates on an active paid subscription can qualify for platform monetization.'
-              )}
-
-              {toggleRow(
-                'Count only if ad loads',
-                Number(settingsForm.count_only_if_ad_loaded),
-                (value) => updateSetting('count_only_if_ad_loaded', value),
-                'Requires the ad placement to load before a valid view can be credited.'
-              )}
-
-              {toggleRow(
-                'Block VPN / proxy traffic',
-                Number(settingsForm.block_vpn_proxy_traffic),
-                (value) => updateSetting('block_vpn_proxy_traffic', value),
-                'Use this when you want stricter protection against suspicious traffic sources.'
-              )}
-
-              <div style={{ borderBottom: '1px solid #eef0f3' }}>
+              <div style={{ marginTop: 8 }}>
                 {toggleRow(
-                  'Block suspicious user agents',
-                  Number(settingsForm.block_suspicious_user_agents),
-                  (value) => updateSetting('block_suspicious_user_agents', value),
-                  'Filters obvious bot-like or unusual traffic signatures before crediting views.'
+                  'Enable eligibility rules',
+                  eligibilityForm.status === 'active' ? 1 : 0,
+                  (value) => updateEligibility('status', value ? 'active' : 'disabled'),
+                  'When disabled, eligibility rules are not active for marketplace monetization.'
                 )}
-              </div>
-            </div>
 
-            <div
-              style={{
-                marginTop: 18,
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-                gap: 16,
-              }}
-            >
-              <div>
-                <label style={labelStyle()}>Rate per valid view</label>
-                <input
-                  style={inputStyle()}
-                  value={settingsForm.default_rate_per_view}
-                  onChange={(e) => updateSetting('default_rate_per_view', e.target.value)}
-                  placeholder="0.00010000"
-                />
-              </div>
+                {toggleRow(
+                  'Paid subscription required',
+                  Number(eligibilityForm.paid_subscription_required),
+                  (value) => updateEligibility('paid_subscription_required', value),
+                  'Require affiliates to have an active paid subscription before monetization approval.'
+                )}
 
-              <div>
-                <label style={labelStyle()}>Withdrawal threshold</label>
-                <input
-                  style={inputStyle()}
-                  value={settingsForm.withdrawal_threshold}
-                  onChange={(e) => updateSetting('withdrawal_threshold', e.target.value)}
-                  placeholder="10.00"
-                />
+                {toggleRow(
+                  'Active storefront required',
+                  Number(eligibilityForm.active_storefront_required),
+                  (value) => updateEligibility('active_storefront_required', value),
+                  'Require the affiliate website/storefront to be active before approval.'
+                )}
+
+                <div style={{ borderBottom: '1px solid #eef0f3' }}>
+                  {toggleRow(
+                    'Content quality review required',
+                    Number(eligibilityForm.content_quality_review_required),
+                    (value) => updateEligibility('content_quality_review_required', value),
+                    'Require admin content quality approval before earnings become active.'
+                  )}
+                </div>
               </div>
 
-              <div>
-                <label style={labelStyle()}>Minimum view seconds</label>
-                <input
-                  type="number"
-                  style={inputStyle()}
-                  value={settingsForm.minimum_view_seconds}
-                  onChange={(e) => updateSetting('minimum_view_seconds', e.target.value)}
-                />
-              </div>
-
-              <div>
-                <label style={labelStyle()}>Minimum scroll percent</label>
-                <input
-                  type="number"
-                  style={inputStyle()}
-                  value={settingsForm.minimum_scroll_percent}
-                  onChange={(e) => updateSetting('minimum_scroll_percent', e.target.value)}
-                />
-              </div>
-
-              <div>
-                <label style={labelStyle()}>IP repeat window (hours)</label>
-                <input
-                  type="number"
-                  style={inputStyle()}
-                  value={settingsForm.ip_repeat_window_hours}
-                  onChange={(e) => updateSetting('ip_repeat_window_hours', e.target.value)}
-                />
-              </div>
-
-              <div>
-                <label style={labelStyle()}>Fingerprint repeat window (hours)</label>
-                <input
-                  type="number"
-                  style={inputStyle()}
-                  value={settingsForm.fingerprint_repeat_window_hours}
-                  onChange={(e) =>
-                    updateSetting('fingerprint_repeat_window_hours', e.target.value)
-                  }
-                />
-              </div>
-
-              <div>
-                <label style={labelStyle()}>Daily IP view cap</label>
-                <input
-                  type="number"
-                  style={inputStyle()}
-                  value={settingsForm.daily_ip_view_cap}
-                  onChange={(e) => updateSetting('daily_ip_view_cap', e.target.value)}
-                />
-              </div>
-            </div>
-
-            <div
-              style={{
-                marginTop: 18,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 12,
-                flexWrap: 'wrap',
-              }}
-            >
-              <button
-                type="submit"
-                disabled={savingSettings}
+              <div
                 style={{
-                  minWidth: 180,
-                  height: 46,
-                  borderRadius: 12,
-                  border: 0,
-                  background: savingSettings ? '#93c5fd' : '#2563eb',
-                  color: '#ffffff',
-                  fontSize: 14,
-                  fontWeight: 800,
-                  cursor: savingSettings ? 'not-allowed' : 'pointer',
+                  marginTop: 18,
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+                  gap: 16,
                 }}
               >
-                {savingSettings ? 'Saving...' : 'Save BlogPulse Settings'}
-              </button>
-
-              {settingsMessage ? (
-                <div style={{ fontSize: 14, color: '#15803d', fontWeight: 700 }}>
-                  {settingsMessage}
+                <div>
+                  <label style={labelStyle()}>Required pages count</label>
+                  <input
+                    type="number"
+                    style={inputStyle()}
+                    value={eligibilityForm.required_pages_count}
+                    onChange={(e) => updateEligibility('required_pages_count', e.target.value)}
+                  />
                 </div>
-              ) : null}
 
-              {settingsError ? (
-                <div style={{ fontSize: 14, color: '#b91c1c', fontWeight: 700 }}>
-                  {settingsError}
+                <div>
+                  <label style={labelStyle()}>Minimum published posts</label>
+                  <input
+                    type="number"
+                    style={inputStyle()}
+                    value={eligibilityForm.minimum_published_posts}
+                    onChange={(e) => updateEligibility('minimum_published_posts', e.target.value)}
+                  />
                 </div>
-              ) : null}
+
+                <div>
+                  <label style={labelStyle()}>Minimum valid page views</label>
+                  <input
+                    type="number"
+                    style={inputStyle()}
+                    value={eligibilityForm.minimum_valid_page_views}
+                    onChange={(e) => updateEligibility('minimum_valid_page_views', e.target.value)}
+                  />
+                </div>
+
+                <div>
+                  <label style={labelStyle()}>Publisher max revenue percent</label>
+                  <input
+                    type="number"
+                    style={inputStyle()}
+                    value={eligibilityForm.publisher_max_revenue_percent}
+                    onChange={(e) => updateEligibility('publisher_max_revenue_percent', e.target.value)}
+                  />
+                </div>
+              </div>
             </div>
-          </div>
 
-          <div style={cardStyle()}>
-            <h2 style={sectionTitleStyle()}>Individual Monetization Policy</h2>
-            <p style={sectionHintStyle()}>
-              Control when affiliates can use their own ad provider code on their own storefronts
-              and post pages.
-            </p>
+            <div style={cardStyle()}>
+              <h2 style={sectionTitleStyle()}>Marketplace Ad Program Access</h2>
+              <p style={sectionHintStyle()}>
+                Control which monetization programs are available across the marketplace.
+              </p>
 
-            <div style={{ marginTop: 8 }}>
-              {toggleRow(
-                'Allow individual monetization',
-                Number(settingsForm.allow_individual_monetization),
-                (value) => updateSetting('allow_individual_monetization', value),
-                'Lets affiliates submit and use their own approved ad provider code.'
-              )}
-
-              {toggleRow(
-                'Require admin approval',
-                Number(settingsForm.individual_requires_admin_approval),
-                (value) => updateSetting('individual_requires_admin_approval', value),
-                'Affiliate ad code stays pending until you approve it.'
-              )}
-
-              {toggleRow(
-                'Paid subscription only',
-                Number(settingsForm.individual_premium_only),
-                (value) => updateSetting('individual_premium_only', value),
-                'Only affiliates on active paid plans can use individual monetization.'
-              )}
-
-              {toggleRow(
-                'Allow custom HTML ad code',
-                Number(settingsForm.allow_custom_html_ad_code),
-                (value) => updateSetting('allow_custom_html_ad_code', value),
-                'Lets admins or affiliates paste approved non-network HTML ad blocks where allowed.'
-              )}
-
-              <div style={{ borderBottom: '1px solid #eef0f3' }}>
+              <div style={{ marginTop: 8 }}>
                 {toggleRow(
-                  'Allow network JavaScript code',
-                  Number(settingsForm.allow_network_js_code),
-                  (value) => updateSetting('allow_network_js_code', value),
-                  'Lets the system accept provider JavaScript snippets such as approved ad network tags.'
+                  'Local ads enabled',
+                  Number(eligibilityForm.local_ads_enabled),
+                  (value) => updateEligibility('local_ads_enabled', value),
+                  'Allow platform-managed local/direct ads to participate in BlogPulse monetization.'
                 )}
+
+                {toggleRow(
+                  'Affiliate ads enabled',
+                  Number(eligibilityForm.affiliate_ads_enabled),
+                  (value) => updateEligibility('affiliate_ads_enabled', value),
+                  'Allow affiliate promoted posts, products, and websites to run through eligible publisher placements.'
+                )}
+
+                {toggleRow(
+                  'Global ads enabled',
+                  Number(eligibilityForm.global_ads_enabled),
+                  (value) => updateEligibility('global_ads_enabled', value),
+                  'Allow global marketplace ads to run through eligible publisher placements.'
+                )}
+
+                <div style={{ borderBottom: '1px solid #eef0f3' }}>
+                  {toggleRow(
+                    'Personal ad ID ads enabled',
+                    Number(eligibilityForm.personal_ad_id_enabled),
+                    (value) => updateEligibility('personal_ad_id_enabled', value),
+                    'Allow eligible affiliates to use their own approved ad provider or ad ID setup.'
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div style={cardStyle()}>
+              <h2 style={sectionTitleStyle()}>Platform Monetization Settings</h2>
+              <p style={sectionHintStyle()}>
+                Control the BlogPulse payout engine, valid view rules, fraud protection, and payout
+                threshold for platform-managed monetization.
+              </p>
+
+              <div style={{ marginTop: 8 }}>
+                {toggleRow(
+                  'Enable BlogPulse platform monetization',
+                  Number(settingsForm.is_enabled),
+                  (value) => updateSetting('is_enabled', value),
+                  'When enabled, approved premium blogs can earn BlogPulse credits from valid traffic.'
+                )}
+
+                {toggleRow(
+                  'Paid subscription only',
+                  Number(settingsForm.premium_only),
+                  (value) => updateSetting('premium_only', value),
+                  'Only affiliates on an active paid subscription can qualify for platform monetization.'
+                )}
+
+                {toggleRow(
+                  'Count only if ad loads',
+                  Number(settingsForm.count_only_if_ad_loaded),
+                  (value) => updateSetting('count_only_if_ad_loaded', value),
+                  'Requires the ad placement to load before a valid view can be credited.'
+                )}
+
+                {toggleRow(
+                  'Block VPN / proxy traffic',
+                  Number(settingsForm.block_vpn_proxy_traffic),
+                  (value) => updateSetting('block_vpn_proxy_traffic', value),
+                  'Use this when you want stricter protection against suspicious traffic sources.'
+                )}
+
+                <div style={{ borderBottom: '1px solid #eef0f3' }}>
+                  {toggleRow(
+                    'Block suspicious user agents',
+                    Number(settingsForm.block_suspicious_user_agents),
+                    (value) => updateSetting('block_suspicious_user_agents', value),
+                    'Filters obvious bot-like or unusual traffic signatures before crediting views.'
+                  )}
+                </div>
+              </div>
+
+              <div
+                style={{
+                  marginTop: 18,
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+                  gap: 16,
+                }}
+              >
+                <div>
+                  <label style={labelStyle()}>Rate per valid view</label>
+                  <input
+                    style={inputStyle()}
+                    value={settingsForm.default_rate_per_view}
+                    onChange={(e) => updateSetting('default_rate_per_view', e.target.value)}
+                    placeholder="0.00010000"
+                  />
+                </div>
+
+                <div>
+                  <label style={labelStyle()}>Withdrawal threshold</label>
+                  <input
+                    style={inputStyle()}
+                    value={settingsForm.withdrawal_threshold}
+                    onChange={(e) => updateSetting('withdrawal_threshold', e.target.value)}
+                    placeholder="10.00"
+                  />
+                </div>
+
+                <div>
+                  <label style={labelStyle()}>Minimum view seconds</label>
+                  <input
+                    type="number"
+                    style={inputStyle()}
+                    value={settingsForm.minimum_view_seconds}
+                    onChange={(e) => updateSetting('minimum_view_seconds', e.target.value)}
+                  />
+                </div>
+
+                <div>
+                  <label style={labelStyle()}>Minimum scroll percent</label>
+                  <input
+                    type="number"
+                    style={inputStyle()}
+                    value={settingsForm.minimum_scroll_percent}
+                    onChange={(e) => updateSetting('minimum_scroll_percent', e.target.value)}
+                  />
+                </div>
+
+                <div>
+                  <label style={labelStyle()}>IP repeat window (hours)</label>
+                  <input
+                    type="number"
+                    style={inputStyle()}
+                    value={settingsForm.ip_repeat_window_hours}
+                    onChange={(e) => updateSetting('ip_repeat_window_hours', e.target.value)}
+                  />
+                </div>
+
+                <div>
+                  <label style={labelStyle()}>Fingerprint repeat window (hours)</label>
+                  <input
+                    type="number"
+                    style={inputStyle()}
+                    value={settingsForm.fingerprint_repeat_window_hours}
+                    onChange={(e) => updateSetting('fingerprint_repeat_window_hours', e.target.value)}
+                  />
+                </div>
+
+                <div>
+                  <label style={labelStyle()}>Daily IP view cap</label>
+                  <input
+                    type="number"
+                    style={inputStyle()}
+                    value={settingsForm.daily_ip_view_cap}
+                    onChange={(e) => updateSetting('daily_ip_view_cap', e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div
+                style={{
+                  marginTop: 18,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 12,
+                  flexWrap: 'wrap',
+                }}
+              >
+                <button
+                  type="submit"
+                  disabled={savingSettings}
+                  style={{
+                    minWidth: 220,
+                    height: 46,
+                    borderRadius: 12,
+                    border: 0,
+                    background: savingSettings ? '#93c5fd' : '#2563eb',
+                    color: '#ffffff',
+                    fontSize: 14,
+                    fontWeight: 800,
+                    cursor: savingSettings ? 'not-allowed' : 'pointer',
+                  }}
+                >
+                  {savingSettings ? 'Saving...' : 'Save BlogPulse Settings'}
+                </button>
+
+                {settingsMessage ? (
+                  <div style={{ fontSize: 14, color: '#15803d', fontWeight: 700 }}>
+                    {settingsMessage}
+                  </div>
+                ) : null}
+
+                {settingsError ? (
+                  <div style={{ fontSize: 14, color: '#b91c1c', fontWeight: 700 }}>
+                    {settingsError}
+                  </div>
+                ) : null}
+              </div>
+            </div>
+
+            <div style={cardStyle()}>
+              <h2 style={sectionTitleStyle()}>Individual Monetization Policy</h2>
+              <p style={sectionHintStyle()}>
+                Control when affiliates can use their own ad provider code on their own storefronts
+                and post pages.
+              </p>
+
+              <div style={{ marginTop: 8 }}>
+                {toggleRow(
+                  'Allow individual monetization',
+                  Number(settingsForm.allow_individual_monetization),
+                  (value) => updateSetting('allow_individual_monetization', value),
+                  'Lets affiliates submit and use their own approved ad provider code.'
+                )}
+
+                {toggleRow(
+                  'Require admin approval',
+                  Number(settingsForm.individual_requires_admin_approval),
+                  (value) => updateSetting('individual_requires_admin_approval', value),
+                  'Affiliate ad code stays pending until you approve it.'
+                )}
+
+                {toggleRow(
+                  'Paid subscription only',
+                  Number(settingsForm.individual_premium_only),
+                  (value) => updateSetting('individual_premium_only', value),
+                  'Only affiliates on active paid plans can use individual monetization.'
+                )}
+
+                {toggleRow(
+                  'Allow custom HTML ad code',
+                  Number(settingsForm.allow_custom_html_ad_code),
+                  (value) => updateSetting('allow_custom_html_ad_code', value),
+                  'Lets admins or affiliates paste approved non-network HTML ad blocks where allowed.'
+                )}
+
+                <div style={{ borderBottom: '1px solid #eef0f3' }}>
+                  {toggleRow(
+                    'Allow network JavaScript code',
+                    Number(settingsForm.allow_network_js_code),
+                    (value) => updateSetting('allow_network_js_code', value),
+                    'Lets the system accept provider JavaScript snippets such as approved ad network tags.'
+                  )}
+                </div>
               </div>
             </div>
           </div>
-        </form>
 
-        <div style={{ display: 'grid', gap: 22 }}>
-          <div style={cardStyle()}>
-            <h2 style={sectionTitleStyle()}>Purpose & Policy</h2>
-            <p style={sectionHintStyle()}>
-              This section explains what it takes to qualify for BlogPulse and what each mode does.
-            </p>
+          <div style={{ display: 'grid', gap: 22, alignSelf: 'start' }}>
+            <div style={cardStyle()}>
+              <h2 style={sectionTitleStyle()}>Current Eligibility Policy</h2>
+              <p style={sectionHintStyle()}>
+                This is what affiliates will see on their BlogPulse eligibility page.
+              </p>
 
-            {loading ? (
-              <div style={{ marginTop: 18, color: '#6b7280' }}>Loading policy...</div>
-            ) : null}
+              {loading ? (
+                <div style={{ marginTop: 18, color: '#6b7280' }}>Loading policy...</div>
+              ) : null}
 
-            {!!eligibilityItems.length && !loading ? (
-              <div style={{ marginTop: 16, display: 'grid', gap: 10 }}>
-                {eligibilityItems.map((item, index) => (
-                  <div
-                    key={`${item}-${index}`}
-                    style={{
-                      padding: 14,
-                      borderRadius: 12,
-                      background: '#f9fafb',
-                      border: '1px solid #e5e7eb',
-                      fontSize: 14,
-                      color: '#374151',
-                      lineHeight: 1.55,
-                    }}
-                  >
-                    {item}
-                  </div>
-                ))}
-              </div>
-            ) : null}
-
-            {!!notes.length ? (
-              <div style={{ marginTop: 18 }}>
-                <div style={{ fontSize: 13, fontWeight: 800, color: '#111827', marginBottom: 10 }}>
-                  Notes
-                </div>
-
-                <div style={{ display: 'grid', gap: 10 }}>
-                  {notes.map((item, index) => (
+              {!!eligibilityItems.length && !loading ? (
+                <div style={{ marginTop: 16, display: 'grid', gap: 10 }}>
+                  {eligibilityItems.map((item, index) => (
                     <div
                       key={`${item}-${index}`}
                       style={{
                         padding: 14,
                         borderRadius: 12,
-                        background: '#eff6ff',
-                        border: '1px solid #bfdbfe',
+                        background: '#f9fafb',
+                        border: '1px solid #e5e7eb',
                         fontSize: 14,
-                        color: '#1e3a8a',
+                        color: '#374151',
                         lineHeight: 1.55,
                       }}
                     >
@@ -951,145 +1166,421 @@ export default function AdminBlogPulsePage() {
                     </div>
                   ))}
                 </div>
-              </div>
-            ) : null}
-          </div>
+              ) : null}
 
-          <div style={cardStyle()}>
-            <h2 style={sectionTitleStyle()}>Affiliate Monetization Filters</h2>
+              {!!notes.length ? (
+                <div style={{ marginTop: 18 }}>
+                  <div style={{ fontSize: 13, fontWeight: 800, color: '#111827', marginBottom: 10 }}>
+                    Notes
+                  </div>
+
+                  <div style={{ display: 'grid', gap: 10 }}>
+                    {notes.map((item, index) => (
+                      <div
+                        key={`${item}-${index}`}
+                        style={{
+                          padding: 14,
+                          borderRadius: 12,
+                          background: '#eff6ff',
+                          border: '1px solid #bfdbfe',
+                          fontSize: 14,
+                          color: '#1e3a8a',
+                          lineHeight: 1.55,
+                        }}
+                      >
+                        {item}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+            </div>
+
+            <div style={cardStyle()}>
+              <h2 style={sectionTitleStyle()}>Affiliate Monetization Filters</h2>
+              <p style={sectionHintStyle()}>
+                Filter platform users, individual ad users, pending approvals, and provider types from
+                one place.
+              </p>
+
+              <div
+                style={{
+                  marginTop: 18,
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+                  gap: 14,
+                }}
+              >
+                <div>
+                  <label style={labelStyle()}>Mode</label>
+                  <select
+                    style={selectStyle()}
+                    value={filters.monetization_mode}
+                    onChange={(e) => updateFilter('monetization_mode', e.target.value)}
+                  >
+                    <option value="all">All modes</option>
+                    <option value="platform">Platform</option>
+                    <option value="individual">Individual</option>
+                    <option value="none">Not monetized</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label style={labelStyle()}>Approval</label>
+                  <select
+                    style={selectStyle()}
+                    value={filters.approval_status}
+                    onChange={(e) => updateFilter('approval_status', e.target.value)}
+                  >
+                    <option value="all">All statuses</option>
+                    <option value="approved">Approved</option>
+                    <option value="pending">Pending</option>
+                    <option value="rejected">Rejected</option>
+                    <option value="paused">Paused</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label style={labelStyle()}>Provider Type</label>
+                  <select
+                    style={selectStyle()}
+                    value={filters.provider_type}
+                    onChange={(e) => updateFilter('provider_type', e.target.value)}
+                  >
+                    <option value="all">All providers</option>
+                    <option value="adsense">AdSense</option>
+                    <option value="generic">Generic</option>
+                    <option value="manual">Manual</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label style={labelStyle()}>Website Status</label>
+                  <select
+                    style={selectStyle()}
+                    value={filters.website_status}
+                    onChange={(e) => updateFilter('website_status', e.target.value)}
+                  >
+                    <option value="all">All websites</option>
+                    <option value="active">Active</option>
+                    <option value="paused">Paused</option>
+                    <option value="suspended">Suspended</option>
+                  </select>
+                </div>
+
+                <div style={{ gridColumn: '1 / -1' }}>
+                  <label style={labelStyle()}>Search affiliate / website / provider</label>
+                  <input
+                    style={inputStyle()}
+                    value={filters.search}
+                    onChange={(e) => updateFilter('search', e.target.value)}
+                    placeholder="Search by affiliate, website slug, provider name..."
+                  />
+                </div>
+              </div>
+
+              <div
+                style={{
+                  marginTop: 18,
+                  display: 'flex',
+                  gap: 12,
+                  flexWrap: 'wrap',
+                  alignItems: 'center',
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={loadSubmissions}
+                  disabled={submissionsLoading}
+                  style={{
+                    minWidth: 170,
+                    height: 44,
+                    borderRadius: 12,
+                    border: 0,
+                    background: submissionsLoading ? '#93c5fd' : '#2563eb',
+                    color: '#ffffff',
+                    fontSize: 14,
+                    fontWeight: 800,
+                    cursor: submissionsLoading ? 'not-allowed' : 'pointer',
+                  }}
+                >
+                  {submissionsLoading ? 'Loading...' : 'Apply Filters'}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFilters(initialFilters);
+                    setTimeout(() => loadSubmissions(), 0);
+                  }}
+                  style={{
+                    minWidth: 140,
+                    height: 44,
+                    borderRadius: 12,
+                    border: '1px solid #d1d5db',
+                    background: '#ffffff',
+                    color: '#111827',
+                    fontSize: 14,
+                    fontWeight: 800,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Reset
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+      </form>
+
+      <div style={cardStyle()}>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'flex-start',
+            gap: 16,
+            flexWrap: 'wrap',
+            marginBottom: 18,
+          }}
+        >
+          <div>
+            <h2 style={sectionTitleStyle()}>Original Content Quality Reviews</h2>
             <p style={sectionHintStyle()}>
-              Filter platform users, individual ad users, pending approvals, and provider types from
-              one place.
+              Approve or reject affiliate content quality before they apply for full BlogPulse monetization.
             </p>
-
-            <div
-              style={{
-                marginTop: 18,
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-                gap: 14,
-              }}
-            >
-              <div>
-                <label style={labelStyle()}>Mode</label>
-                <select
-                  style={selectStyle()}
-                  value={filters.monetization_mode}
-                  onChange={(e) => updateFilter('monetization_mode', e.target.value)}
-                >
-                  <option value="all">All modes</option>
-                  <option value="platform">Platform</option>
-                  <option value="individual">Individual</option>
-                  <option value="none">Not monetized</option>
-                </select>
-              </div>
-
-              <div>
-                <label style={labelStyle()}>Approval</label>
-                <select
-                  style={selectStyle()}
-                  value={filters.approval_status}
-                  onChange={(e) => updateFilter('approval_status', e.target.value)}
-                >
-                  <option value="all">All statuses</option>
-                  <option value="approved">Approved</option>
-                  <option value="pending">Pending</option>
-                  <option value="rejected">Rejected</option>
-                  <option value="paused">Paused</option>
-                </select>
-              </div>
-
-              <div>
-                <label style={labelStyle()}>Provider Type</label>
-                <select
-                  style={selectStyle()}
-                  value={filters.provider_type}
-                  onChange={(e) => updateFilter('provider_type', e.target.value)}
-                >
-                  <option value="all">All providers</option>
-                  <option value="adsense">AdSense</option>
-                  <option value="generic">Generic</option>
-                  <option value="manual">Manual</option>
-                </select>
-              </div>
-
-              <div>
-                <label style={labelStyle()}>Website Status</label>
-                <select
-                  style={selectStyle()}
-                  value={filters.website_status}
-                  onChange={(e) => updateFilter('website_status', e.target.value)}
-                >
-                  <option value="all">All websites</option>
-                  <option value="active">Active</option>
-                  <option value="paused">Paused</option>
-                  <option value="suspended">Suspended</option>
-                </select>
-              </div>
-
-              <div style={{ gridColumn: '1 / -1' }}>
-                <label style={labelStyle()}>Search affiliate / website / provider</label>
-                <input
-                  style={inputStyle()}
-                  value={filters.search}
-                  onChange={(e) => updateFilter('search', e.target.value)}
-                  placeholder="Search by affiliate, website slug, provider name..."
-                />
-              </div>
-            </div>
-
-            <div
-              style={{
-                marginTop: 18,
-                display: 'flex',
-                gap: 12,
-                flexWrap: 'wrap',
-                alignItems: 'center',
-              }}
-            >
-              <button
-                type="button"
-                onClick={loadSubmissions}
-                disabled={submissionsLoading}
-                style={{
-                  minWidth: 170,
-                  height: 44,
-                  borderRadius: 12,
-                  border: 0,
-                  background: submissionsLoading ? '#93c5fd' : '#2563eb',
-                  color: '#ffffff',
-                  fontSize: 14,
-                  fontWeight: 800,
-                  cursor: submissionsLoading ? 'not-allowed' : 'pointer',
-                }}
-              >
-                {submissionsLoading ? 'Loading...' : 'Apply Filters'}
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  setFilters(initialFilters);
-                  setTimeout(() => loadSubmissions(), 0);
-                }}
-                style={{
-                  minWidth: 140,
-                  height: 44,
-                  borderRadius: 12,
-                  border: '1px solid #d1d5db',
-                  background: '#ffffff',
-                  color: '#111827',
-                  fontSize: 14,
-                  fontWeight: 800,
-                  cursor: 'pointer',
-                }}
-              >
-                Reset
-              </button>
-            </div>
           </div>
+
+          <button
+            type="button"
+            onClick={loadContentReviews}
+            disabled={contentReviewsLoading}
+            style={{
+              minWidth: 150,
+              height: 42,
+              borderRadius: 12,
+              border: 0,
+              background: contentReviewsLoading ? '#93c5fd' : '#2563eb',
+              color: '#ffffff',
+              fontSize: 14,
+              fontWeight: 800,
+              cursor: contentReviewsLoading ? 'not-allowed' : 'pointer',
+            }}
+          >
+            {contentReviewsLoading ? 'Loading...' : 'Refresh'}
+          </button>
         </div>
-      </section>
+
+        {contentReviewMessage ? (
+          <div
+            style={{
+              marginBottom: 16,
+              padding: 12,
+              borderRadius: 12,
+              background: '#ecfdf3',
+              border: '1px solid #abefc6',
+              color: '#027a48',
+              fontSize: 14,
+              fontWeight: 700,
+            }}
+          >
+            {contentReviewMessage}
+          </div>
+        ) : null}
+
+        {contentReviewError || contentReviewsError ? (
+          <div
+            style={{
+              marginBottom: 16,
+              padding: 12,
+              borderRadius: 12,
+              background: '#fef3f2',
+              border: '1px solid #fecdca',
+              color: '#b42318',
+              fontSize: 14,
+              fontWeight: 700,
+            }}
+          >
+            {contentReviewError || contentReviewsError}
+          </div>
+        ) : null}
+
+        {contentReviewsLoading ? (
+          <div
+            style={{
+              padding: 14,
+              borderRadius: 12,
+              background: '#f9fafb',
+              border: '1px solid #e5e7eb',
+              color: '#6b7280',
+              fontSize: 14,
+              fontWeight: 700,
+            }}
+          >
+            Loading content quality reviews...
+          </div>
+        ) : null}
+
+        {!contentReviewsLoading && !contentReviews.length ? (
+          <div
+            style={{
+              padding: 14,
+              borderRadius: 12,
+              background: '#f9fafb',
+              border: '1px solid #e5e7eb',
+              color: '#6b7280',
+              fontSize: 14,
+              fontWeight: 700,
+            }}
+          >
+            No content quality reviews found.
+          </div>
+        ) : null}
+
+        {!contentReviewsLoading && contentReviews.length ? (
+          <div style={{ display: 'grid', gap: 16 }}>
+            {contentReviews.map((item) => {
+              const isBusy = activeContentReviewUserId === item.user_id;
+              const noteValue = contentReviewNotes[item.user_id] || '';
+
+              return (
+                <div
+                  key={item.user_id}
+                  style={{
+                    border: '1px solid #e5e7eb',
+                    borderRadius: 16,
+                    padding: 18,
+                    background: '#ffffff',
+                    display: 'grid',
+                    gridTemplateColumns: 'minmax(0, 1.2fr) minmax(280px, 0.8fr)',
+                    gap: 18,
+                  }}
+                >
+                  <div>
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 10,
+                        flexWrap: 'wrap',
+                        marginBottom: 10,
+                      }}
+                    >
+                      <div style={badgeStyle(submissionStatusTone(item.content_quality_status))}>
+                        Content: {item.content_quality_status || 'pending'}
+                      </div>
+
+                      <div style={badgeStyle('info')}>
+                        {item.total_posts || 0} Posts
+                      </div>
+
+                      <div style={badgeStyle(submissionStatusTone(item.review_status))}>
+                        Monetization: {item.review_status || 'draft'}
+                      </div>
+                    </div>
+
+                    <h3
+                      style={{
+                        margin: '0 0 8px',
+                        fontSize: 20,
+                        fontWeight: 800,
+                        color: '#111827',
+                      }}
+                    >
+                      {item.affiliate?.name || 'Affiliate'}
+                    </h3>
+
+                    <div style={{ fontSize: 14, color: '#4b5563', lineHeight: 1.65 }}>
+                      <div><strong>Email:</strong> {item.affiliate?.email || '-'}</div>
+                      <div>
+                        <strong>Website:</strong>{' '}
+                        {item.website?.website_name || '-'}
+                        {item.website?.slug ? ` (${item.website.slug})` : ''}
+                      </div>
+                      <div><strong>Website Status:</strong> {item.website?.status || '-'}</div>
+                      <div><strong>Reviewed:</strong> {formatDateTime(item.content_quality_reviewed_at)}</div>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'grid', gap: 12 }}>
+                    <div>
+                      <label style={labelStyle()}>Content Review Note</label>
+                      <textarea
+                        value={noteValue}
+                        onChange={(e) => updateContentReviewNote(item.user_id, e.target.value)}
+                        placeholder="Write note about originality, quality, policy safety, or correction needed..."
+                        style={{ ...textareaStyle(), minHeight: 110 }}
+                      />
+                    </div>
+
+                    <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                      <button
+                        type="button"
+                        disabled={isBusy}
+                        onClick={() => handleContentQualityReview(item.user_id, 'approved')}
+                        style={{
+                          minWidth: 120,
+                          height: 42,
+                          borderRadius: 12,
+                          border: 0,
+                          background: '#16a34a',
+                          color: '#ffffff',
+                          fontSize: 14,
+                          fontWeight: 800,
+                          cursor: isBusy ? 'not-allowed' : 'pointer',
+                          opacity: isBusy ? 0.7 : 1,
+                        }}
+                      >
+                        Approve
+                      </button>
+
+                      <button
+                        type="button"
+                        disabled={isBusy}
+                        onClick={() => handleContentQualityReview(item.user_id, 'rejected')}
+                        style={{
+                          minWidth: 120,
+                          height: 42,
+                          borderRadius: 12,
+                          border: 0,
+                          background: '#dc2626',
+                          color: '#ffffff',
+                          fontSize: 14,
+                          fontWeight: 800,
+                          cursor: isBusy ? 'not-allowed' : 'pointer',
+                          opacity: isBusy ? 0.7 : 1,
+                        }}
+                      >
+                        Reject
+                      </button>
+
+                      <button
+                        type="button"
+                        disabled={isBusy}
+                        onClick={() => handleContentQualityReview(item.user_id, 'pending')}
+                        style={{
+                          minWidth: 120,
+                          height: 42,
+                          borderRadius: 12,
+                          border: '1px solid #d1d5db',
+                          background: '#ffffff',
+                          color: '#111827',
+                          fontSize: 14,
+                          fontWeight: 800,
+                          cursor: isBusy ? 'not-allowed' : 'pointer',
+                          opacity: isBusy ? 0.7 : 1,
+                        }}
+                      >
+                        Reset
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : null}
+      </div>
 
       <div style={cardStyle()}>
         <div

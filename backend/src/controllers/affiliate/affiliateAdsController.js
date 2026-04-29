@@ -17,6 +17,12 @@ function normalizeAmount(value) {
   return Number(amount.toFixed(4));
 }
 
+function normalizeDate(value) {
+  const date = cleanText(value);
+  if (!date) return null;
+  return /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : null;
+}
+
 async function getAffiliateAdsSettingsRow() {
   await ensureAffiliateAdsSettings();
 
@@ -57,6 +63,22 @@ function getRatesFromSettings(settings, adType) {
   return {
     cost_per_view: normalizeAmount(settings.website_cost_per_view),
     cost_per_click: normalizeAmount(settings.website_cost_per_click),
+  };
+}
+
+function resolveAffiliateBids(settings, adType, body = {}) {
+  const baseRates = getRatesFromSettings(settings, adType);
+
+  const bidView = normalizeAmount(body.bid_cost_per_view || body.cost_per_view);
+  const bidClick = normalizeAmount(body.bid_cost_per_click || body.cost_per_click);
+
+  return {
+    base_cost_per_view: baseRates.cost_per_view,
+    base_cost_per_click: baseRates.cost_per_click,
+    bid_cost_per_view:
+      bidView > 0 ? Math.max(bidView, baseRates.cost_per_view) : baseRates.cost_per_view,
+    bid_cost_per_click:
+      bidClick > 0 ? Math.max(bidClick, baseRates.cost_per_click) : baseRates.cost_per_click,
   };
 }
 
@@ -249,11 +271,19 @@ async function getAffiliateAds(req, res, next) {
           currency,
           total_budget,
           remaining_budget,
+          daily_budget_cap,
+          today_spent,
+          today_spent_date,
           total_spent,
           cost_per_view,
+          bid_cost_per_view,
           cost_per_click,
+          bid_cost_per_click,
           total_views,
           total_clicks,
+          start_date,
+          end_date,
+          ended_at,
           status,
           approval_status,
           payment_status,
@@ -307,6 +337,9 @@ async function createAffiliateAd(req, res, next) {
     );
     const campaignImage = cleanText(req.body.campaign_image || req.body.image);
     const budgetAmount = normalizeAmount(req.body.total_budget || req.body.budget_amount);
+    const dailyBudgetCap = normalizeAmount(req.body.daily_budget_cap);
+    const startDate = normalizeDate(req.body.start_date);
+    const endDate = normalizeDate(req.body.end_date);
     const currency = cleanText(req.body.currency || settings.currency) || 'USD';
 
     if (!['product', 'post', 'website'].includes(adType)) {
@@ -337,6 +370,20 @@ async function createAffiliateAd(req, res, next) {
       });
     }
 
+    if (dailyBudgetCap > 0 && dailyBudgetCap > budgetAmount) {
+      return res.status(400).json({
+        ok: false,
+        message: 'Daily spend cap cannot be higher than total campaign budget.',
+      });
+    }
+
+    if (startDate && endDate && new Date(startDate) > new Date(endDate)) {
+      return res.status(400).json({
+        ok: false,
+        message: 'Start date cannot be after end date.',
+      });
+    }
+
     const validation = await validateAffiliateTarget(affiliateId, adType, targetId);
 
     if (!validation.ok) {
@@ -350,7 +397,7 @@ async function createAffiliateAd(req, res, next) {
       websiteId = validation.website_id;
     }
 
-    const rates = getRatesFromSettings(settings, adType);
+    const bids = resolveAffiliateBids(settings, adType, req.body);
 
     const [result] = await pool.query(
       `
@@ -366,18 +413,25 @@ async function createAffiliateAd(req, res, next) {
             currency,
             total_budget,
             remaining_budget,
+            daily_budget_cap,
+            today_spent,
+            today_spent_date,
             total_spent,
             cost_per_view,
+            bid_cost_per_view,
             cost_per_click,
+            bid_cost_per_click,
             total_views,
             total_clicks,
+            start_date,
+            end_date,
             status,
             approval_status,
             payment_status,
             last_funded_at
           )
         VALUES
-          (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0.0000, ?, ?, 0, 0, 'pending', 'pending', 'paid', NOW())
+          (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0.0000, CURDATE(), 0.0000, ?, ?, ?, ?, 0, 0, ?, ?, 'pending', 'pending', 'paid', NOW())
       `,
       [
         affiliateId,
@@ -390,8 +444,13 @@ async function createAffiliateAd(req, res, next) {
         currency,
         budgetAmount,
         budgetAmount,
-        rates.cost_per_view,
-        rates.cost_per_click,
+        dailyBudgetCap > 0 ? dailyBudgetCap : null,
+        bids.base_cost_per_view,
+        bids.bid_cost_per_view,
+        bids.base_cost_per_click,
+        bids.bid_cost_per_click,
+        startDate,
+        endDate,
       ]
     );
 
@@ -462,16 +521,40 @@ async function updateAffiliateAd(req, res, next) {
       });
     }
 
+    const existing = existingRows[0];
+    const settings = await getAffiliateAdsSettingsRow();
+
     const campaignTitle = cleanText(req.body.campaign_title || req.body.title);
     const campaignDescription = cleanText(
       req.body.campaign_description || req.body.description
     );
     const campaignImage = cleanText(req.body.campaign_image || req.body.image);
+    const dailyBudgetCap = normalizeAmount(req.body.daily_budget_cap);
+    const startDate = normalizeDate(req.body.start_date);
+    const endDate = normalizeDate(req.body.end_date);
+    const bids = resolveAffiliateBids(settings, existing.ad_type, req.body);
 
     if (!campaignTitle) {
       return res.status(400).json({
         ok: false,
         message: 'Campaign title is required.',
+      });
+    }
+
+    if (
+      dailyBudgetCap > 0 &&
+      dailyBudgetCap > normalizeAmount(existing.total_budget || 0)
+    ) {
+      return res.status(400).json({
+        ok: false,
+        message: 'Daily spend cap cannot be higher than total campaign budget.',
+      });
+    }
+
+    if (startDate && endDate && new Date(startDate) > new Date(endDate)) {
+      return res.status(400).json({
+        ok: false,
+        message: 'Start date cannot be after end date.',
       });
     }
 
@@ -482,6 +565,14 @@ async function updateAffiliateAd(req, res, next) {
           campaign_title = ?,
           campaign_description = ?,
           campaign_image = ?,
+          daily_budget_cap = ?,
+          start_date = ?,
+          end_date = ?,
+          ended_at = NULL,
+          cost_per_view = ?,
+          bid_cost_per_view = ?,
+          cost_per_click = ?,
+          bid_cost_per_click = ?,
           status = 'pending',
           approval_status = 'pending',
           admin_note = NULL,
@@ -497,6 +588,13 @@ async function updateAffiliateAd(req, res, next) {
         campaignTitle,
         campaignDescription || null,
         campaignImage || null,
+        dailyBudgetCap > 0 ? dailyBudgetCap : null,
+        startDate,
+        endDate,
+        bids.base_cost_per_view,
+        bids.bid_cost_per_view,
+        bids.base_cost_per_click,
+        bids.bid_cost_per_click,
         campaignId,
         affiliateId,
       ]
@@ -592,6 +690,7 @@ async function topUpAffiliateAd(req, res, next) {
           payment_status = 'paid',
           status = ?,
           exhausted_at = NULL,
+          ended_at = NULL,
           last_funded_at = NOW()
         WHERE id = ?
           AND affiliate_id = ?
@@ -678,6 +777,7 @@ async function resumeAffiliateAd(req, res, next) {
     }
 
     const campaign = rows[0];
+    const today = new Date().toISOString().slice(0, 10);
 
     if (campaign.approval_status !== 'approved') {
       return res.status(400).json({
@@ -690,6 +790,23 @@ async function resumeAffiliateAd(req, res, next) {
       return res.status(400).json({
         ok: false,
         message: 'Please top up this ad before resuming it.',
+      });
+    }
+
+    if (campaign.end_date && campaign.end_date < today) {
+      await pool.query(
+        `
+          UPDATE affiliate_ads_campaigns
+          SET status = 'ended', ended_at = NOW()
+          WHERE id = ?
+            AND affiliate_id = ?
+        `,
+        [campaignId, affiliateId]
+      );
+
+      return res.status(400).json({
+        ok: false,
+        message: 'This campaign has ended. Extend the end date before resuming.',
       });
     }
 

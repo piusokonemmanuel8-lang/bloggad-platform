@@ -173,6 +173,7 @@ export default function GenericPostTemplate({
   emailCaptureFooter,
   onOpenPopup,
   emailCapture,
+  sponsoredRelatedPostsSlot,
 }) {
   return (
     <div
@@ -707,6 +708,12 @@ export default function GenericPostTemplate({
             </div>
           </aside>
         </div>
+
+        {sponsoredRelatedPostsSlot ? (
+          <section style={{ marginBottom: 28 }}>
+            {sponsoredRelatedPostsSlot}
+          </section>
+        ) : null}
 
         <section>
           <div
