@@ -357,7 +357,7 @@ function createApp() {
   ]);
 
   // frontend production build
-  const frontendDistPath = path.join(__dirname, '..', '..', 'frontend', 'dist');
+  const frontendDistPath = path.join(__dirname, '..', 'dist');
 
   if (fs.existsSync(frontendDistPath)) {
     app.use(
