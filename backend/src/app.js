@@ -52,6 +52,7 @@ function createApp() {
   app.use(
     helmet({
       crossOriginResourcePolicy: false,
+      contentSecurityPolicy: false,
     })
   );
 
@@ -354,6 +355,27 @@ function createApp() {
   mount(app, '/api/affiliate-admin-chats', 'affiliateAdminChatRoutes', [
     './routes/affiliateAdminChatRoutes',
   ]);
+
+  // frontend production build
+  const frontendDistPath = path.join(__dirname, '..', '..', 'frontend', 'dist');
+
+  if (fs.existsSync(frontendDistPath)) {
+    app.use(
+      express.static(frontendDistPath, {
+        maxAge: '1d',
+      })
+    );
+
+    app.get('*', (req, res, next) => {
+      if (req.path.startsWith('/api')) return next();
+
+      return res.sendFile(path.join(frontendDistPath, 'index.html'));
+    });
+
+    console.log(`[app] Serving frontend from ${frontendDistPath}`);
+  } else {
+    console.warn(`[app] Frontend build not found at ${frontendDistPath}`);
+  }
 
   app.use(notFound);
   app.use(errorHandler);
