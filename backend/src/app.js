@@ -357,24 +357,30 @@ function createApp() {
   ]);
 
   // frontend production build
-  const frontendDistPath = path.join(__dirname, '..', 'dist');
+  const frontendDistCandidates = [
+    path.join(__dirname, '..', 'dist'),
+    path.join(process.cwd(), 'dist'),
+    path.join(__dirname, '..', '..', 'frontend', 'dist'),
+  ];
 
-  if (fs.existsSync(frontendDistPath)) {
+  const frontendDistPath = frontendDistCandidates.find((dir) =>
+    fs.existsSync(path.join(dir, 'index.html'))
+  );
+
+  if (frontendDistPath) {
     app.use(
       express.static(frontendDistPath, {
         maxAge: '1d',
       })
     );
 
-    app.get('*', (req, res, next) => {
-      if (req.path.startsWith('/api')) return next();
-
+    app.get(/^\/(?!api).*/, (req, res) => {
       return res.sendFile(path.join(frontendDistPath, 'index.html'));
     });
 
     console.log(`[app] Serving frontend from ${frontendDistPath}`);
   } else {
-    console.warn(`[app] Frontend build not found at ${frontendDistPath}`);
+    console.warn(`[app] Frontend build not found. Checked: ${frontendDistCandidates.join(' | ')}`);
   }
 
   app.use(notFound);
