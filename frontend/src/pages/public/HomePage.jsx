@@ -1,9 +1,8 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Camera,
   CheckCircle2,
-  CheckCircle,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
@@ -29,18 +28,24 @@ import {
 } from 'lucide-react';
 import api from '../../api/axios';
 import { useAuth } from '../../hooks/useAuth';
-import formatCurrency from '../../utils/formatCurrency';
+import LocalizedPrice from '../../components/common/LocalizedPrice';
+import CurrencySwitcher from '../../components/common/CurrencySwitcher';
+import '../../components/common/CurrencySwitcher.css';
 import './HomePage.css';
 import './BannerHomeSlider.css';
 
 function renderPrice(product) {
   if (product?.pricing_type === 'simple') {
-    return product?.price !== null && product?.price !== undefined
-      ? formatCurrency(product.price)
-      : '$0.00';
+    return <LocalizedPrice product={product} />;
   }
 
-  return `${formatCurrency(product?.min_price || 0)} - ${formatCurrency(product?.max_price || 0)}`;
+  return (
+    <>
+      <LocalizedPrice amount={product?.min_price || 0} />
+      {' - '}
+      <LocalizedPrice amount={product?.max_price || 0} />
+    </>
+  );
 }
 
 function resolveProductWebsiteSlug(product) {
@@ -316,6 +321,131 @@ function resolveAdProductUrl(ad) {
   }
 
   return '/products';
+}
+
+function isDirectVideoFile(url = '') {
+  const value = String(url || '').trim().toLowerCase();
+
+  return (
+    value.includes('/uploads/') ||
+    value.includes('.mp4') ||
+    value.includes('.webm') ||
+    value.includes('.ogg') ||
+    value.includes('.mov') ||
+    value.includes('.m4v')
+  );
+}
+
+function getYouTubeVideoId(url = '') {
+  const value = String(url || '').trim();
+
+  if (!value) return '';
+
+  try {
+    const parsed = new URL(value);
+    const host = parsed.hostname.replace(/^www\./, '').toLowerCase();
+
+    if (host === 'youtu.be') {
+      return parsed.pathname.replace('/', '').split('?')[0] || '';
+    }
+
+    if (host === 'youtube.com' || host === 'm.youtube.com') {
+      if (parsed.pathname.startsWith('/watch')) return parsed.searchParams.get('v') || '';
+      if (parsed.pathname.startsWith('/embed/')) return parsed.pathname.split('/embed/')[1]?.split('/')[0] || '';
+      if (parsed.pathname.startsWith('/shorts/')) return parsed.pathname.split('/shorts/')[1]?.split('/')[0] || '';
+    }
+  } catch (err) {
+    return '';
+  }
+
+  return '';
+}
+
+function isVideoGadWatchUrl(url = '') {
+  const value = String(url || '').trim();
+
+  if (!value) return false;
+
+  try {
+    const parsed = new URL(value);
+    const host = parsed.hostname.replace(/^www\./, '').toLowerCase();
+
+    return host === 'videogad.com' && parsed.pathname.startsWith('/watch');
+  } catch (err) {
+    return false;
+  }
+}
+
+function resolveVideoRenderMode(url = '') {
+  const value = String(url || '').trim();
+
+  if (!value) {
+    return {
+      type: 'none',
+      src: '',
+    };
+  }
+
+  if (isDirectVideoFile(value)) {
+    return {
+      type: 'direct',
+      src: value,
+    };
+  }
+
+  const youtubeId = getYouTubeVideoId(value);
+
+  if (youtubeId) {
+    return {
+      type: 'iframe',
+      src: `https://www.youtube.com/embed/${youtubeId}?autoplay=1&mute=1&loop=1&playlist=${youtubeId}&playsinline=1&rel=0&modestbranding=1`,
+    };
+  }
+
+  if (isVideoGadWatchUrl(value)) {
+    return {
+      type: 'iframe',
+      src: value,
+    };
+  }
+
+  return {
+    type: 'iframe',
+    src: value,
+  };
+}
+
+function playBannerVideo(event) {
+  const video = event?.currentTarget;
+
+  if (!video) return;
+
+  video.play().catch(() => {});
+}
+
+function pauseSingleBannerVideo(video, reset = true) {
+  if (!video || video.tagName !== 'VIDEO') return;
+
+  video.pause();
+  video.muted = true;
+  video.defaultMuted = true;
+  video.loop = true;
+
+  if (reset) {
+    try {
+      video.currentTime = 0;
+    } catch (err) {
+      // ignore browser timing error
+    }
+  }
+}
+
+function pauseAllMainBannerVideos(reset = true) {
+  const videos = document.querySelectorAll('.banner-home-slider-video');
+
+  videos.forEach((video) => {
+    pauseSingleBannerVideo(video, reset);
+  });
 }
 
 function FeaturedProductAdsStrip({ ads }) {
@@ -600,6 +730,14 @@ function CategoriesButton({ categoryTree, featuredWebsites }) {
               </div>
 
               <div className="amazon-category-group">
+                <div className="amazon-category-group-title">Currency</div>
+
+                <div className="amazon-category-currency-box">
+                  <CurrencySwitcher />
+                </div>
+              </div>
+
+              <div className="amazon-category-group">
                 <div className="amazon-category-group-title">Account Center</div>
 
                 <Link to="/login" onClick={() => setOpen(false)} className="amazon-category-main">
@@ -707,11 +845,12 @@ function HeaderNav({ categoryTree, featuredWebsites }) {
   );
 }
 
-function MirrorMediaLayer({ isVideo, slide, mainImage, position }) {
-  if (isVideo) {
+function MirrorMediaLayer({ isDirectVideo, slide, mainImage, position }) {
+  if (isDirectVideo) {
     return (
       <span className={`banner-home-mirror-circle banner-home-mirror-circle-${position}`}>
         <video
+          key={slide.video_url}
           className="banner-home-mirror-video"
           src={slide.video_url}
           poster={slide.poster_url || slide.image_url || ''}
@@ -719,6 +858,8 @@ function MirrorMediaLayer({ isVideo, slide, mainImage, position }) {
           autoPlay
           playsInline
           loop
+          preload="auto"
+          onCanPlay={playBannerVideo}
         />
       </span>
     );
@@ -760,9 +901,11 @@ function MainSlider() {
     },
   ];
 
+  const activeVideoRef = useRef(null);
   const [slides, setSlides] = useState(fallbackSlides);
   const [activeSlide, setActiveSlide] = useState(0);
   const [trackedViews, setTrackedViews] = useState({});
+  const [soundUnlocked, setSoundUnlocked] = useState(false);
 
   useEffect(() => {
     const fetchSlides = async () => {
@@ -771,50 +914,117 @@ function MainSlider() {
         const realSlides = Array.isArray(data?.slides) ? data.slides.filter(Boolean) : [];
 
         if (realSlides.length) {
+          pauseAllMainBannerVideos(true);
+          setSoundUnlocked(false);
           setSlides(realSlides);
           setActiveSlide(0);
         }
       } catch (err) {
+        pauseAllMainBannerVideos(true);
+        setSoundUnlocked(false);
         setSlides(fallbackSlides);
       }
     };
 
     fetchSlides();
+
+    return () => {
+      pauseAllMainBannerVideos(true);
+    };
   }, []);
 
+  const slide = slides[activeSlide] || fallbackSlides[0];
+  const mainImage = slide?.image_url || slide?.poster_url || '';
+  const videoMode = slide?.media_type === 'video' ? resolveVideoRenderMode(slide?.video_url) : { type: 'none', src: '' };
+  const isVideo = slide?.media_type === 'video' && !!videoMode.src;
+  const isDirectVideo = isVideo && videoMode.type === 'direct';
+  const isIframeVideo = isVideo && videoMode.type === 'iframe';
+  const animationKey = `${slide?.id || 'slide'}-${activeSlide}`;
+
+  const playActiveVideoMuted = useCallback(() => {
+    const video = activeVideoRef.current;
+
+    if (!video || video.tagName !== 'VIDEO') return;
+
+    if (!soundUnlocked) {
+      video.muted = true;
+      video.defaultMuted = true;
+      video.loop = true;
+    }
+
+    video.play().catch(() => {});
+  }, [soundUnlocked]);
+
+  const goToSlide = useCallback(
+    (nextIndex) => {
+      if (!slides.length) return;
+
+      pauseAllMainBannerVideos(true);
+      setSoundUnlocked(false);
+      setActiveSlide(nextIndex);
+    },
+    [slides.length]
+  );
+
+  const goToNextSlide = useCallback(() => {
+    if (!slides.length) return;
+
+    pauseAllMainBannerVideos(true);
+    setSoundUnlocked(false);
+    setActiveSlide((prev) => (prev + 1) % slides.length);
+  }, [slides.length]);
+
+  const goToPrevSlide = useCallback(() => {
+    if (!slides.length) return;
+
+    pauseAllMainBannerVideos(true);
+    setSoundUnlocked(false);
+    setActiveSlide((prev) => (prev - 1 + slides.length) % slides.length);
+  }, [slides.length]);
+
   useEffect(() => {
-    if (!slides.length) return undefined;
+    if (!slides.length || slides.length <= 1) return undefined;
+
+    if (isDirectVideo && soundUnlocked) {
+      return undefined;
+    }
 
     const timer = setInterval(() => {
+      pauseAllMainBannerVideos(true);
+      setSoundUnlocked(false);
       setActiveSlide((prev) => (prev + 1) % slides.length);
     }, 6000);
 
     return () => clearInterval(timer);
-  }, [slides.length]);
+  }, [slides.length, isDirectVideo, soundUnlocked]);
 
   useEffect(() => {
-    const slide = slides[activeSlide];
+    if (!isDirectVideo) {
+      activeVideoRef.current = null;
+      return;
+    }
 
-    if (!slide?.is_ad || !slide?.campaign_id || trackedViews[slide.campaign_id]) return;
+    playActiveVideoMuted();
+  }, [activeSlide, isDirectVideo, playActiveVideoMuted]);
+
+  useEffect(() => {
+    const currentSlide = slides[activeSlide];
+
+    if (!currentSlide?.is_ad || !currentSlide?.campaign_id || trackedViews[currentSlide.campaign_id]) return;
 
     setTrackedViews((prev) => ({
       ...prev,
-      [slide.campaign_id]: true,
+      [currentSlide.campaign_id]: true,
     }));
 
     api
-      .post(`/api/public/banner-home-ads/ads/${slide.campaign_id}/view`, {
+      .post(`/api/public/banner-home-ads/ads/${currentSlide.campaign_id}/view`, {
         placement_key: 'homepage_slider',
         slide_position: activeSlide + 1,
         page_url: window.location.href,
       })
       .catch(() => {});
   }, [activeSlide, slides, trackedViews]);
-
-  const slide = slides[activeSlide] || fallbackSlides[0];
-  const mainImage = slide?.image_url || slide?.poster_url || '';
-  const isVideo = slide?.media_type === 'video' && slide?.video_url;
-  const animationKey = `${slide?.id || 'slide'}-${activeSlide}`;
 
   const handleSlideClick = async (event, targetUrl) => {
     event.preventDefault();
@@ -839,6 +1049,90 @@ function MainSlider() {
     }
   };
 
+  const handleTapForSound = (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+
+    const video = activeVideoRef.current;
+
+    if (!video || video.tagName !== 'VIDEO') return;
+
+    document.querySelectorAll('.banner-home-slider-video').forEach((item) => {
+      if (!item || item === video || item.tagName !== 'VIDEO') return;
+      pauseSingleBannerVideo(item, true);
+    });
+
+    video.muted = false;
+    video.defaultMuted = false;
+    video.volume = 1;
+    video.loop = false;
+    video.play().catch(() => {});
+
+    setSoundUnlocked(true);
+  };
+
+  const handleActiveVideoEnded = () => {
+    setSoundUnlocked(false);
+    pauseAllMainBannerVideos(true);
+
+    if (slides.length > 1) {
+      setActiveSlide((prev) => (prev + 1) % slides.length);
+    }
+  };
+
+  const renderSliderMedia = () => {
+    if (isDirectVideo) {
+      return (
+        <video
+          key={`${videoMode.src}-${activeSlide}`}
+          ref={activeVideoRef}
+          className="banner-home-slider-video"
+          src={videoMode.src}
+          poster={slide.poster_url || slide.image_url || ''}
+          muted={!soundUnlocked}
+          autoPlay
+          playsInline
+          loop={!soundUnlocked}
+          controls
+          preload="auto"
+          onCanPlay={playActiveVideoMuted}
+          onLoadedMetadata={playActiveVideoMuted}
+          onEnded={handleActiveVideoEnded}
+          onClick={handleTapForSound}
+        />
+      );
+    }
+
+    if (isIframeVideo) {
+      return (
+        <iframe
+          className="banner-home-slider-video banner-home-slider-iframe"
+          src={videoMode.src}
+          title={slide?.title || 'Homepage slider video'}
+          allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
+          allowFullScreen
+          loading="lazy"
+        />
+      );
+    }
+
+    if (mainImage) {
+      return (
+        <img
+          src={mainImage}
+          alt={slide?.title || 'Homepage slider'}
+          className="banner-home-slider-main-image"
+        />
+      );
+    }
+
+    return (
+      <span className="banner-home-slider-empty-media">
+        <ImageIcon size={38} />
+      </span>
+    );
+  };
+
   return (
     <section className="luxury-hero-slider banner-home-dynamic-slider">
       <div
@@ -855,11 +1149,6 @@ function MainSlider() {
 
             <span className="luxury-hero-badge-copy">
               <span>{slide?.eyebrow_text || 'Featured marketplace slide'}</span>
-              <span>
-                {slide?.source === 'ad'
-                  ? 'Sponsored homepage slider'
-                  : 'Admin selected homepage slider'}
-              </span>
             </span>
           </div>
 
@@ -895,36 +1184,37 @@ function MainSlider() {
           <div className="luxury-hero-shape luxury-hero-shape-middle" />
           <div className="luxury-hero-shape luxury-hero-shape-right" />
 
-          <button
-            type="button"
-            className="banner-home-slider-media-button"
-            onClick={(event) => handleSlideClick(event, slide?.cta_url || '/products')}
-          >
-            {isVideo ? (
-              <video
-                className="banner-home-slider-video"
-                src={slide.video_url}
-                poster={slide.poster_url || slide.image_url || ''}
-                muted
-                autoPlay
-                playsInline
-                loop
-              />
-            ) : mainImage ? (
-              <img
-                src={mainImage}
-                alt={slide?.title || 'Homepage slider'}
-                className="banner-home-slider-main-image"
-              />
-            ) : (
-              <span className="banner-home-slider-empty-media">
-                <ImageIcon size={38} />
-              </span>
-            )}
+          <div
+            className={isIframeVideo ? 'banner-home-slider-media-button has-iframe-video' : 'banner-home-slider-media-button'}
+            role="button"
+            tabIndex={0}
+            onClick={(event) => {
+              if (isIframeVideo || isDirectVideo) return;
+              handleSlideClick(event, slide?.cta_url || '/products');
+            }}
+            onKeyDown={(event) => {
+              if (isIframeVideo || isDirectVideo) return;
 
-            <MirrorMediaLayer isVideo={isVideo} slide={slide} mainImage={mainImage} position="one" />
-            <MirrorMediaLayer isVideo={isVideo} slide={slide} mainImage={mainImage} position="two" />
-          </button>
+              if (event.key === 'Enter') {
+                handleSlideClick(event, slide?.cta_url || '/products');
+              }
+            }}
+          >
+            {renderSliderMedia()}
+
+            {isDirectVideo && !soundUnlocked ? (
+              <button
+                type="button"
+                className="banner-home-sound-unlock-btn"
+                onClick={handleTapForSound}
+              >
+                Tap for Sound
+              </button>
+            ) : null}
+
+            <MirrorMediaLayer isDirectVideo={isDirectVideo} slide={slide} mainImage={mainImage} position="one" />
+            <MirrorMediaLayer isDirectVideo={isDirectVideo} slide={slide} mainImage={mainImage} position="two" />
+          </div>
 
           <div className="luxury-hero-bubbles">
             <span />
@@ -938,7 +1228,7 @@ function MainSlider() {
         <button
           type="button"
           className="luxury-hero-arrow luxury-hero-arrow-left"
-          onClick={() => setActiveSlide((prev) => (prev - 1 + slides.length) % slides.length)}
+          onClick={goToPrevSlide}
         >
           <ChevronLeft size={28} />
         </button>
@@ -946,7 +1236,7 @@ function MainSlider() {
         <button
           type="button"
           className="luxury-hero-arrow luxury-hero-arrow-right"
-          onClick={() => setActiveSlide((prev) => (prev + 1) % slides.length)}
+          onClick={goToNextSlide}
         >
           <ChevronRight size={28} />
         </button>
@@ -956,7 +1246,7 @@ function MainSlider() {
             <button
               key={item.id || index}
               type="button"
-              onClick={() => setActiveSlide(index)}
+              onClick={() => goToSlide(index)}
               className={index === activeSlide ? 'active' : ''}
             />
           ))}
@@ -980,7 +1270,11 @@ function DealShowcaseMiniProduct({ product, badge }) {
 
       <span className="deal-showcase-price-row">
         <strong>{renderPrice(product)}</strong>
-        {oldPrice ? <del>{formatCurrency(oldPrice)}</del> : null}
+        {oldPrice ? (
+          <del>
+            <LocalizedPrice amount={oldPrice} />
+          </del>
+        ) : null}
       </span>
 
       {badge ? <span className="deal-showcase-badge">{badge}</span> : null}
@@ -1004,7 +1298,7 @@ function DealShowcaseSection({ products }) {
 
             <Link to="/products" className="deal-showcase-pill deal-showcase-pill-yellow">
               <span className="deal-showcase-bag-icon">▣</span>
-              3 from $1.99
+              3 from <LocalizedPrice amount={1.99} />
               <ChevronRight size={20} />
             </Link>
           </div>
@@ -1673,11 +1967,11 @@ export default function HomePage() {
           </div>
 
           <div className="ali-header-actions">
-            <button type="button" className="ali-language-btn">
+            <div className="ali-language-btn ali-currency-switcher-wrap">
               <Globe2 size={23} />
-              <span>EN/USD</span>
+              <CurrencySwitcher />
               <ChevronDown size={14} />
-            </button>
+            </div>
 
             <HeaderAccountBox user={user} isAuthenticated={isAuthenticated} logout={logout} />
           </div>

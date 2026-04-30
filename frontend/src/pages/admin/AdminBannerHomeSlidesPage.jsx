@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertCircle,
   CheckCircle2,
@@ -8,6 +8,7 @@ import {
   Save,
   Settings,
   Trash2,
+  UploadCloud,
   Video,
 } from 'lucide-react';
 import api from '../../api/axios';
@@ -55,7 +56,30 @@ function money(value) {
   return `$${Number(value || 0).toFixed(2)}`;
 }
 
+function resolveUploadedUrl(data) {
+  return (
+    data?.url ||
+    data?.file_url ||
+    data?.fileUrl ||
+    data?.image_url ||
+    data?.video_url ||
+    data?.secure_url ||
+    data?.location ||
+    data?.path ||
+    data?.file?.url ||
+    data?.file?.file_url ||
+    data?.file?.path ||
+    data?.data?.url ||
+    data?.data?.file_url ||
+    ''
+  );
+}
+
 export default function AdminBannerHomeSlidesPage() {
+  const imageInputRef = useRef(null);
+  const videoInputRef = useRef(null);
+  const posterInputRef = useRef(null);
+
   const [slides, setSlides] = useState([]);
   const [settings, setSettings] = useState(defaultSettings());
   const [selectedSlideId, setSelectedSlideId] = useState('');
@@ -65,6 +89,7 @@ export default function AdminBannerHomeSlidesPage() {
   const [savingSlide, setSavingSlide] = useState(false);
   const [savingSettings, setSavingSettings] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [uploadingField, setUploadingField] = useState('');
 
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -162,6 +187,47 @@ export default function AdminBannerHomeSlidesPage() {
       ...prev,
       [name]: value,
     }));
+  };
+
+  const handleLocalUpload = async (event, targetField) => {
+    const file = event.target.files?.[0];
+
+    if (!file) return;
+
+    try {
+      setUploadingField(targetField);
+      setError('');
+      setSuccess('');
+
+      const uploadForm = new FormData();
+      uploadForm.append('file', file);
+      uploadForm.append('type', targetField);
+      uploadForm.append('folder', 'admin-homepage-slides');
+
+      const { data } = await api.post('/api/uploads', uploadForm, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
+      const uploadedUrl = resolveUploadedUrl(data);
+
+      if (!uploadedUrl) {
+        throw new Error('Upload completed, but no file URL was returned by the server.');
+      }
+
+      setSlideForm((prev) => ({
+        ...prev,
+        [targetField]: uploadedUrl,
+      }));
+
+      setSuccess('File uploaded successfully.');
+    } catch (err) {
+      setError(err?.response?.data?.message || err.message || 'Failed to upload file');
+    } finally {
+      setUploadingField('');
+      event.target.value = '';
+    }
   };
 
   const saveSettings = async () => {
@@ -292,6 +358,30 @@ export default function AdminBannerHomeSlidesPage() {
   return (
     <div className="bhs-page">
       <style>{styles}</style>
+
+      <input
+        ref={imageInputRef}
+        type="file"
+        accept="image/*"
+        className="bhs-hidden-file"
+        onChange={(event) => handleLocalUpload(event, 'image_url')}
+      />
+
+      <input
+        ref={videoInputRef}
+        type="file"
+        accept="video/*,audio/*"
+        className="bhs-hidden-file"
+        onChange={(event) => handleLocalUpload(event, 'video_url')}
+      />
+
+      <input
+        ref={posterInputRef}
+        type="file"
+        accept="image/*"
+        className="bhs-hidden-file"
+        onChange={(event) => handleLocalUpload(event, 'poster_url')}
+      />
 
       <section className="bhs-hero">
         <div>
@@ -608,40 +698,85 @@ export default function AdminBannerHomeSlidesPage() {
               </label>
 
               {slideForm.media_type === 'image' ? (
-                <label className="full">
+                <div className="bhs-field full">
                   <span>
-                    <ImageIcon size={15} /> Image URL
+                    <ImageIcon size={15} /> Image Upload
                   </span>
-                  <input
-                    name="image_url"
-                    value={slideForm.image_url}
-                    onChange={handleSlideChange}
-                    placeholder="https://..."
-                  />
-                </label>
+
+                  <div className="bhs-upload-row">
+                    <input
+                      name="image_url"
+                      value={slideForm.image_url}
+                      onChange={handleSlideChange}
+                      placeholder="Image URL or upload from device"
+                    />
+
+                    <button
+                      type="button"
+                      className="bhs-upload-btn"
+                      onClick={() => imageInputRef.current?.click()}
+                      disabled={uploadingField === 'image_url'}
+                    >
+                      <UploadCloud size={16} />
+                      {uploadingField === 'image_url' ? 'Uploading...' : 'Pick Image'}
+                    </button>
+                  </div>
+
+                  <small>Upload from mobile or computer, or paste an image URL manually.</small>
+                </div>
               ) : (
                 <>
-                  <label className="full">
+                  <div className="bhs-field full">
                     <span>
-                      <Video size={15} /> Video URL
+                      <Video size={15} /> Video Upload
                     </span>
-                    <input
-                      name="video_url"
-                      value={slideForm.video_url}
-                      onChange={handleSlideChange}
-                      placeholder="https://..."
-                    />
-                  </label>
 
-                  <label className="full">
-                    <span>Poster Image URL</span>
-                    <input
-                      name="poster_url"
-                      value={slideForm.poster_url}
-                      onChange={handleSlideChange}
-                      placeholder="https://..."
-                    />
-                  </label>
+                    <div className="bhs-upload-row">
+                      <input
+                        name="video_url"
+                        value={slideForm.video_url}
+                        onChange={handleSlideChange}
+                        placeholder="YouTube, VideoGad, direct video/audio URL, or upload from device"
+                      />
+
+                      <button
+                        type="button"
+                        className="bhs-upload-btn"
+                        onClick={() => videoInputRef.current?.click()}
+                        disabled={uploadingField === 'video_url'}
+                      >
+                        <UploadCloud size={16} />
+                        {uploadingField === 'video_url' ? 'Uploading...' : 'Pick Video'}
+                      </button>
+                    </div>
+
+                    <small>Upload MP4/WebM/audio from device, or paste YouTube/VideoGad/direct video URL.</small>
+                  </div>
+
+                  <div className="bhs-field full">
+                    <span>Poster Image Upload</span>
+
+                    <div className="bhs-upload-row">
+                      <input
+                        name="poster_url"
+                        value={slideForm.poster_url}
+                        onChange={handleSlideChange}
+                        placeholder="Poster image URL or upload from device"
+                      />
+
+                      <button
+                        type="button"
+                        className="bhs-upload-btn"
+                        onClick={() => posterInputRef.current?.click()}
+                        disabled={uploadingField === 'poster_url'}
+                      >
+                        <UploadCloud size={16} />
+                        {uploadingField === 'poster_url' ? 'Uploading...' : 'Pick Poster'}
+                      </button>
+                    </div>
+
+                    <small>This image shows before the video loads and inside the preview.</small>
+                  </div>
                 </>
               )}
 
@@ -687,7 +822,7 @@ export default function AdminBannerHomeSlidesPage() {
             </div>
 
             <div className="bhs-action-row">
-              <button type="submit" className="bhs-btn primary" disabled={savingSlide}>
+              <button type="submit" className="bhs-btn primary" disabled={savingSlide || !!uploadingField}>
                 <Save size={16} />
                 {savingSlide ? 'Saving...' : 'Save Slide'}
               </button>
@@ -761,6 +896,10 @@ const styles = `
   .bhs-page {
     display: grid;
     gap: 18px;
+  }
+
+  .bhs-hidden-file {
+    display: none;
   }
 
   .bhs-loading,
@@ -842,7 +981,8 @@ const styles = `
     flex-wrap: wrap;
   }
 
-  .bhs-btn {
+  .bhs-btn,
+  .bhs-upload-btn {
     min-height: 44px;
     border-radius: 14px;
     border: 1px solid #dbe2ea;
@@ -857,6 +997,7 @@ const styles = `
     padding: 0 15px;
     cursor: pointer;
     text-decoration: none;
+    white-space: nowrap;
   }
 
   .bhs-btn.primary {
@@ -874,6 +1015,19 @@ const styles = `
     background: #fff1f2;
     color: #be123c;
     border-color: #fecdd3;
+  }
+
+  .bhs-upload-btn {
+    background: #111827;
+    color: #ffffff;
+    border-color: #111827;
+    min-width: 150px;
+  }
+
+  .bhs-btn:disabled,
+  .bhs-upload-btn:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
   }
 
   .bhs-alert {
@@ -981,13 +1135,15 @@ const styles = `
   }
 
   .bhs-settings-form label,
-  .bhs-form label {
+  .bhs-form label,
+  .bhs-field {
     display: grid;
     gap: 8px;
   }
 
   .bhs-settings-form label span,
-  .bhs-form label span {
+  .bhs-form label span,
+  .bhs-field > span {
     display: inline-flex;
     align-items: center;
     gap: 7px;
@@ -996,7 +1152,8 @@ const styles = `
     font-weight: 900;
   }
 
-  .bhs-form label.full {
+  .bhs-form label.full,
+  .bhs-field.full {
     grid-column: span 2;
   }
 
@@ -1004,7 +1161,8 @@ const styles = `
   .bhs-settings-form select,
   .bhs-form input,
   .bhs-form select,
-  .bhs-form textarea {
+  .bhs-form textarea,
+  .bhs-field input {
     width: 100%;
     min-height: 46px;
     border-radius: 14px;
@@ -1019,6 +1177,19 @@ const styles = `
   .bhs-form textarea {
     padding: 13px;
     resize: vertical;
+  }
+
+  .bhs-upload-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px;
+    align-items: center;
+  }
+
+  .bhs-field small {
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 700;
   }
 
   .bhs-toggle-grid {
@@ -1346,12 +1517,18 @@ const styles = `
     }
 
     .bhs-toggle-grid,
-    .bhs-form label.full {
+    .bhs-form label.full,
+    .bhs-field.full {
       grid-column: span 1;
     }
 
-    .bhs-btn {
+    .bhs-btn,
+    .bhs-upload-btn {
       width: 100%;
+    }
+
+    .bhs-upload-row {
+      grid-template-columns: 1fr;
     }
 
     .bhs-footer-preview-copy h3 {

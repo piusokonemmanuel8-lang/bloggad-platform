@@ -4,6 +4,7 @@ const http = require('http');
 const pool = require('./config/db');
 const createApp = require('./app');
 const { syncBuiltInBlogTemplates } = require('./utils/syncBuiltInBlogTemplates');
+const { startLeaderboardDailyJob, stopLeaderboardDailyJob } = require('./jobs/leaderboardDailyJob');
 
 const app = createApp();
 
@@ -38,6 +39,7 @@ async function startServer() {
       console.log('Affiliate design base route: /api/affiliate/design');
       console.log('Affiliate analytics base route: /api/affiliate/analytics');
       console.log('Affiliate media base route: /api/affiliate/media');
+      console.log('Affiliate leaderboard base route: /api/affiliate/leaderboard');
 
       console.log('Admin dashboard base route: /api/admin/dashboard');
       console.log('Admin category base route: /api/admin/categories');
@@ -62,6 +64,8 @@ async function startServer() {
       console.log('Customer-affiliate chat base route: /api/customer-affiliate-chats');
       console.log('Customer-admin chat base route: /api/customer-admin-chats');
       console.log('Affiliate-admin chat base route: /api/affiliate-admin-chats');
+
+      startLeaderboardDailyJob();
     });
   } catch (error) {
     console.error('Failed to start Bloggad backend:', error.message);
@@ -73,6 +77,8 @@ async function shutdown(signal) {
   console.log(`${signal} received. Shutting down gracefully...`);
 
   try {
+    stopLeaderboardDailyJob();
+
     if (server) {
       await new Promise((resolve, reject) => {
         server.close((err) => {

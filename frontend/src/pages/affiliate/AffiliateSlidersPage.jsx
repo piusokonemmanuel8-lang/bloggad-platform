@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertCircle,
   CheckCircle2,
@@ -11,6 +11,7 @@ import {
   Save,
   Settings,
   Trash2,
+  UploadCloud,
   Video,
   Wallet,
 } from 'lucide-react';
@@ -47,6 +48,11 @@ function formatMoney(value) {
   return `$${number.toFixed(2)}`;
 }
 
+function formatNumber(value) {
+  const number = Number(value || 0);
+  return number.toLocaleString();
+}
+
 function getStatusClass(status = '') {
   const value = String(status).toLowerCase();
 
@@ -69,9 +75,38 @@ function getApprovalClass(status = '') {
   return 'bha-approval neutral';
 }
 
+function resolveUploadedUrl(data) {
+  return (
+    data?.url ||
+    data?.file_url ||
+    data?.fileUrl ||
+    data?.image_url ||
+    data?.video_url ||
+    data?.secure_url ||
+    data?.location ||
+    data?.path ||
+    data?.file?.url ||
+    data?.file?.file_url ||
+    data?.file?.path ||
+    data?.data?.url ||
+    data?.data?.file_url ||
+    ''
+  );
+}
+
 export default function AffiliateSlidersPage() {
+  const imageInputRef = useRef(null);
+  const videoInputRef = useRef(null);
+  const posterInputRef = useRef(null);
+
   const [campaigns, setCampaigns] = useState([]);
   const [settings, setSettings] = useState(null);
+  const [wallet, setWallet] = useState(null);
+  const [analytics, setAnalytics] = useState(null);
+  const [walletTransactions, setWalletTransactions] = useState([]);
+  const [canCreate, setCanCreate] = useState(false);
+  const [minimumRequired, setMinimumRequired] = useState(200);
+
   const [selectedCampaignId, setSelectedCampaignId] = useState('');
   const [form, setForm] = useState(emptyCampaign());
 
@@ -80,7 +115,10 @@ export default function AffiliateSlidersPage() {
   const [saving, setSaving] = useState(false);
   const [statusSaving, setStatusSaving] = useState(false);
   const [topUpSaving, setTopUpSaving] = useState(false);
+  const [fundingWallet, setFundingWallet] = useState(false);
+  const [uploadingField, setUploadingField] = useState('');
   const [topUpAmount, setTopUpAmount] = useState('');
+  const [walletFundAmount, setWalletFundAmount] = useState('');
 
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -90,8 +128,35 @@ export default function AffiliateSlidersPage() {
     [campaigns, selectedCampaignId]
   );
 
-  const minimumBudget = Number(settings?.minimum_budget || 200);
+  const minimumBudget = Number(settings?.minimum_budget || minimumRequired || 200);
   const minimumDailyCap = Number(settings?.minimum_daily_cap || 20);
+  const walletBalance = Number(wallet?.available_balance || 0);
+  const createLocked = !selectedCampaignId && walletBalance < minimumBudget;
+
+  const applyPageData = (data, keepSelection = true) => {
+    const list = Array.isArray(data?.campaigns) ? data.campaigns : [];
+
+    setCampaigns(list);
+    setSettings(data?.settings || null);
+    setWallet(data?.wallet || null);
+    setAnalytics(data?.analytics || null);
+    setWalletTransactions(Array.isArray(data?.wallet_transactions) ? data.wallet_transactions : []);
+    setCanCreate(!!data?.can_create);
+    setMinimumRequired(Number(data?.minimum_required || data?.settings?.minimum_budget || 200));
+
+    if (keepSelection && selectedCampaignId) {
+      const found = list.find((item) => String(item.id) === String(selectedCampaignId));
+
+      if (found) {
+        loadCampaignIntoForm(found);
+        return;
+      }
+    }
+
+    if (!selectedCampaignId && list.length) {
+      loadCampaignIntoForm(list[0]);
+    }
+  };
 
   const fetchData = async (isRefresh = false) => {
     try {
@@ -105,14 +170,7 @@ export default function AffiliateSlidersPage() {
 
       const { data } = await api.get('/api/affiliate/banner-home-ads');
 
-      const list = Array.isArray(data?.campaigns) ? data.campaigns : [];
-
-      setCampaigns(list);
-      setSettings(data?.settings || null);
-
-      if (!selectedCampaignId && list.length) {
-        loadCampaignIntoForm(list[0]);
-      }
+      applyPageData(data);
     } catch (err) {
       setError(err?.response?.data?.message || 'Failed to load homepage slider ads');
     } finally {
@@ -156,7 +214,10 @@ export default function AffiliateSlidersPage() {
 
   const resetForNew = () => {
     setSelectedCampaignId('');
-    setForm(emptyCampaign());
+    setForm({
+      ...emptyCampaign(),
+      total_budget: minimumBudget,
+    });
     setTopUpAmount('');
     setError('');
     setSuccess('');
@@ -171,12 +232,58 @@ export default function AffiliateSlidersPage() {
     }));
   };
 
+  const handleLocalUpload = async (event, targetField) => {
+    const file = event.target.files?.[0];
+
+    if (!file) return;
+
+    try {
+      setUploadingField(targetField);
+      setError('');
+      setSuccess('');
+
+      const uploadForm = new FormData();
+      uploadForm.append('file', file);
+      uploadForm.append('type', targetField);
+      uploadForm.append('folder', 'banner-home-ads');
+
+      const { data } = await api.post('/api/uploads', uploadForm, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
+      const uploadedUrl = resolveUploadedUrl(data);
+
+      if (!uploadedUrl) {
+        throw new Error('Upload completed, but no file URL was returned by the server.');
+      }
+
+      setForm((prev) => ({
+        ...prev,
+        [targetField]: uploadedUrl,
+      }));
+
+      setSuccess('File uploaded successfully.');
+    } catch (err) {
+      setError(err?.response?.data?.message || err.message || 'Failed to upload file');
+    } finally {
+      setUploadingField('');
+      event.target.value = '';
+    }
+  };
+
   const refreshCampaigns = async (targetId = null) => {
     const { data } = await api.get('/api/affiliate/banner-home-ads');
     const list = Array.isArray(data?.campaigns) ? data.campaigns : [];
 
     setCampaigns(list);
     setSettings(data?.settings || null);
+    setWallet(data?.wallet || null);
+    setAnalytics(data?.analytics || null);
+    setWalletTransactions(Array.isArray(data?.wallet_transactions) ? data.wallet_transactions : []);
+    setCanCreate(!!data?.can_create);
+    setMinimumRequired(Number(data?.minimum_required || data?.settings?.minimum_budget || 200));
 
     const found = list.find((item) => String(item.id) === String(targetId || selectedCampaignId));
 
@@ -184,6 +291,37 @@ export default function AffiliateSlidersPage() {
       loadCampaignIntoForm(found);
     } else if (!list.length) {
       resetForNew();
+    }
+  };
+
+  const handleFundWallet = async () => {
+    const amount = Number(walletFundAmount || 0);
+
+    if (!amount || amount <= 0) {
+      setError('Enter a valid wallet funding amount');
+      return;
+    }
+
+    try {
+      setFundingWallet(true);
+      setError('');
+      setSuccess('');
+
+      const { data } = await api.post('/api/affiliate/banner-home-ads/wallet/fund', {
+        amount,
+        note: 'Affiliate funded homepage slider ads wallet',
+      });
+
+      setWallet(data?.wallet || null);
+      setWalletTransactions(Array.isArray(data?.wallet_transactions) ? data.wallet_transactions : []);
+      setWalletFundAmount('');
+      setSuccess(data?.message || 'Wallet funded successfully');
+
+      await refreshCampaigns(selectedCampaignId);
+    } catch (err) {
+      setError(err?.response?.data?.message || 'Failed to fund homepage slider ads wallet');
+    } finally {
+      setFundingWallet(false);
     }
   };
 
@@ -230,8 +368,16 @@ export default function AffiliateSlidersPage() {
       throw new Error('Video URL is required for video slider ads');
     }
 
+    if (!selectedCampaignId && walletBalance < minimumBudget) {
+      throw new Error(`Fund your Banner Home Ads Wallet with at least ${formatMoney(minimumBudget)} before creating a slider ad`);
+    }
+
     if (!selectedCampaignId && Number(form.total_budget || 0) < minimumBudget) {
-      throw new Error(`Minimum homepage slider ad budget is ${formatMoney(minimumBudget)}`);
+      throw new Error(`Minimum homepage slider ad campaign budget is ${formatMoney(minimumBudget)}`);
+    }
+
+    if (!selectedCampaignId && Number(form.total_budget || 0) > walletBalance) {
+      throw new Error(`Campaign budget cannot be higher than your wallet balance of ${formatMoney(walletBalance)}`);
     }
 
     if (form.daily_budget_cap && Number(form.daily_budget_cap || 0) < minimumDailyCap) {
@@ -244,7 +390,7 @@ export default function AffiliateSlidersPage() {
     campaign_description: form.campaign_description,
     internal_note: form.internal_note,
     media_type: form.media_type,
-    image_url: form.media_type === 'image' ? form.image_url : form.image_url,
+    image_url: form.image_url,
     video_url: form.media_type === 'video' ? form.video_url : '',
     poster_url: form.poster_url,
     eyebrow_text: form.eyebrow_text,
@@ -255,7 +401,7 @@ export default function AffiliateSlidersPage() {
     cta_url: form.cta_url,
     secondary_cta_label: form.secondary_cta_label,
     secondary_cta_url: form.secondary_cta_url,
-    total_budget: Number(form.total_budget || 0),
+    total_budget: Number(form.total_budget || minimumBudget),
     daily_budget_cap: form.daily_budget_cap === '' ? null : Number(form.daily_budget_cap || 0),
     start_date: form.start_date || null,
     end_date: form.end_date || null,
@@ -283,6 +429,12 @@ export default function AffiliateSlidersPage() {
 
       const savedCampaign = response?.data?.campaign;
 
+      if (response?.data?.wallet) setWallet(response.data.wallet);
+      if (response?.data?.analytics) setAnalytics(response.data.analytics);
+      if (Array.isArray(response?.data?.wallet_transactions)) {
+        setWalletTransactions(response.data.wallet_transactions);
+      }
+
       if (savedCampaign?.id) {
         await refreshCampaigns(savedCampaign.id);
       }
@@ -307,6 +459,9 @@ export default function AffiliateSlidersPage() {
         action,
       });
 
+      if (data?.wallet) setWallet(data.wallet);
+      if (data?.analytics) setAnalytics(data.analytics);
+
       await refreshCampaigns(selectedCampaignId);
       setSuccess(data?.message || 'Homepage slider ad status updated');
     } catch (err) {
@@ -326,6 +481,11 @@ export default function AffiliateSlidersPage() {
       return;
     }
 
+    if (amount > walletBalance) {
+      setError(`Top-up amount cannot be higher than your wallet balance of ${formatMoney(walletBalance)}`);
+      return;
+    }
+
     try {
       setTopUpSaving(true);
       setError('');
@@ -333,8 +493,12 @@ export default function AffiliateSlidersPage() {
 
       const { data } = await api.post(`/api/affiliate/banner-home-ads/${selectedCampaignId}/top-up`, {
         amount,
-        note: 'Affiliate homepage slider ad top-up',
+        note: 'Affiliate homepage slider ad top-up from wallet',
       });
+
+      if (data?.wallet) setWallet(data.wallet);
+      if (data?.analytics) setAnalytics(data.analytics);
+      if (Array.isArray(data?.wallet_transactions)) setWalletTransactions(data.wallet_transactions);
 
       await refreshCampaigns(selectedCampaignId);
       setTopUpAmount('');
@@ -355,6 +519,9 @@ export default function AffiliateSlidersPage() {
       setSuccess('');
 
       const { data } = await api.delete(`/api/affiliate/banner-home-ads/${selectedCampaignId}`);
+
+      if (data?.wallet) setWallet(data.wallet);
+      if (data?.analytics) setAnalytics(data.analytics);
 
       await refreshCampaigns();
       setSuccess(data?.message || 'Homepage slider ad deleted successfully');
@@ -384,12 +551,37 @@ export default function AffiliateSlidersPage() {
     <div className="bha-page">
       <style>{styles}</style>
 
+      <input
+        ref={imageInputRef}
+        type="file"
+        accept="image/*"
+        className="bha-hidden-file"
+        onChange={(event) => handleLocalUpload(event, 'image_url')}
+      />
+
+      <input
+        ref={videoInputRef}
+        type="file"
+        accept="video/*"
+        className="bha-hidden-file"
+        onChange={(event) => handleLocalUpload(event, 'video_url')}
+      />
+
+      <input
+        ref={posterInputRef}
+        type="file"
+        accept="image/*"
+        className="bha-hidden-file"
+        onChange={(event) => handleLocalUpload(event, 'poster_url')}
+      />
+
       <section className="bha-hero">
         <div>
           <div className="bha-badge">Homepage Slider Ads</div>
           <h1 className="bha-title">Banner Home Ads</h1>
           <p className="bha-subtitle">
-            Create paid image or video ads for the homepage hero slider. Once approved by admin, your ad can appear inside the main homepage slider.
+            Fund your Banner Home Ads Wallet, create image or video homepage slider ads, and track views,
+            clicks, budget, and spend from one page.
           </p>
         </div>
 
@@ -407,6 +599,45 @@ export default function AffiliateSlidersPage() {
           <button type="button" className="bha-btn primary" onClick={resetForNew}>
             <Plus size={16} />
             New Slider Ad
+          </button>
+        </div>
+      </section>
+
+      <section className="bha-wallet-grid">
+        <div className="bha-wallet-card">
+          <div className="bha-wallet-icon">
+            <Wallet size={26} />
+          </div>
+
+          <div>
+            <span>Banner Home Ads Wallet</span>
+            <strong>{formatMoney(wallet?.available_balance)}</strong>
+            <p>
+              Minimum required to create: <b>{formatMoney(minimumBudget)}</b>
+            </p>
+          </div>
+
+          <div className={walletBalance >= minimumBudget ? 'bha-wallet-ready' : 'bha-wallet-locked'}>
+            {walletBalance >= minimumBudget ? 'Ready to create' : 'Fund wallet to create'}
+          </div>
+        </div>
+
+        <div className="bha-wallet-fund-card">
+          <label>
+            <span>Fund Wallet</span>
+            <input
+              type="number"
+              min="1"
+              step="0.01"
+              value={walletFundAmount}
+              onChange={(event) => setWalletFundAmount(event.target.value)}
+              placeholder="Enter amount, e.g. 500 or 1000"
+            />
+          </label>
+
+          <button type="button" className="bha-btn primary" onClick={handleFundWallet} disabled={fundingWallet}>
+            <Wallet size={16} />
+            {fundingWallet ? 'Funding...' : 'Fund Wallet'}
           </button>
         </div>
       </section>
@@ -436,6 +667,52 @@ export default function AffiliateSlidersPage() {
           <strong>Slot {settings?.ad_insert_position || 5}</strong>
         </div>
       </section>
+
+      <section className="bha-analytics-strip">
+        <div className="bha-analytics-card">
+          <span>Total Funded</span>
+          <strong>{formatMoney(wallet?.total_funded)}</strong>
+        </div>
+
+        <div className="bha-analytics-card">
+          <span>Total Spent</span>
+          <strong>{formatMoney(analytics?.total_spent || wallet?.total_spent)}</strong>
+        </div>
+
+        <div className="bha-analytics-card">
+          <span>Total Views</span>
+          <strong>{formatNumber(analytics?.total_views)}</strong>
+        </div>
+
+        <div className="bha-analytics-card">
+          <span>Total Clicks</span>
+          <strong>{formatNumber(analytics?.total_clicks)}</strong>
+        </div>
+
+        <div className="bha-analytics-card">
+          <span>Active Ads</span>
+          <strong>{formatNumber(analytics?.active_campaigns)}</strong>
+        </div>
+
+        <div className="bha-analytics-card">
+          <span>Pending Ads</span>
+          <strong>{formatNumber(analytics?.pending_campaigns)}</strong>
+        </div>
+      </section>
+
+      {error ? (
+        <div className="bha-alert error bha-page-alert">
+          <AlertCircle size={18} />
+          <span>{error}</span>
+        </div>
+      ) : null}
+
+      {success ? (
+        <div className="bha-alert success bha-page-alert">
+          <CheckCircle2 size={18} />
+          <span>{success}</span>
+        </div>
+      ) : null}
 
       <section className="bha-grid">
         <aside className="bha-panel">
@@ -489,6 +766,25 @@ export default function AffiliateSlidersPage() {
               <span>Create your first slider ad.</span>
             </div>
           )}
+
+          {walletTransactions.length ? (
+            <div className="bha-wallet-history">
+              <h3>Wallet History</h3>
+
+              <div className="bha-wallet-history-list">
+                {walletTransactions.slice(0, 8).map((item) => (
+                  <div key={item.id} className="bha-wallet-history-item">
+                    <div>
+                      <strong>{String(item.transaction_type || '').replace(/_/g, ' ')}</strong>
+                      <span>{item.note || 'Wallet transaction'}</span>
+                    </div>
+
+                    <em>{formatMoney(item.amount)}</em>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
         </aside>
 
         <main className="bha-main-stack">
@@ -499,6 +795,16 @@ export default function AffiliateSlidersPage() {
                 <h2>{selectedCampaignId ? 'Edit Slider Ad' : 'Create Slider Ad'}</h2>
               </div>
             </div>
+
+            {createLocked ? (
+              <div className="bha-create-lock">
+                <AlertCircle size={18} />
+                <span>
+                  Your wallet balance is {formatMoney(walletBalance)}. Fund at least {formatMoney(minimumBudget)}
+                  before creating a homepage slider ad.
+                </span>
+              </div>
+            ) : null}
 
             <form className="bha-form" onSubmit={handleSubmit}>
               <div className="bha-form-grid">
@@ -573,42 +879,87 @@ export default function AffiliateSlidersPage() {
                 </label>
 
                 {form.media_type === 'image' ? (
-                  <label className="bha-field bha-field-full">
+                  <div className="bha-field bha-field-full">
                     <span>
                       <ImageIcon size={15} />
-                      Image URL
+                      Image Upload
                     </span>
-                    <input
-                      name="image_url"
-                      value={form.image_url}
-                      onChange={handleChange}
-                      placeholder="https://..."
-                    />
-                  </label>
+
+                    <div className="bha-upload-row">
+                      <input
+                        name="image_url"
+                        value={form.image_url}
+                        onChange={handleChange}
+                        placeholder="Image URL or upload from device"
+                      />
+
+                      <button
+                        type="button"
+                        className="bha-upload-btn"
+                        onClick={() => imageInputRef.current?.click()}
+                        disabled={uploadingField === 'image_url'}
+                      >
+                        <UploadCloud size={16} />
+                        {uploadingField === 'image_url' ? 'Uploading...' : 'Pick Image'}
+                      </button>
+                    </div>
+
+                    <small>Upload from mobile or computer, or paste an image URL manually.</small>
+                  </div>
                 ) : (
                   <>
-                    <label className="bha-field bha-field-full">
+                    <div className="bha-field bha-field-full">
                       <span>
                         <Video size={15} />
-                        Video URL
+                        Video Upload
                       </span>
-                      <input
-                        name="video_url"
-                        value={form.video_url}
-                        onChange={handleChange}
-                        placeholder="YouTube, VideoGad, or supported video URL"
-                      />
-                    </label>
 
-                    <label className="bha-field bha-field-full">
-                      <span>Poster Image URL</span>
-                      <input
-                        name="poster_url"
-                        value={form.poster_url}
-                        onChange={handleChange}
-                        placeholder="Image to show before video loads"
-                      />
-                    </label>
+                      <div className="bha-upload-row">
+                        <input
+                          name="video_url"
+                          value={form.video_url}
+                          onChange={handleChange}
+                          placeholder="YouTube, VideoGad, direct video URL, or upload from device"
+                        />
+
+                        <button
+                          type="button"
+                          className="bha-upload-btn"
+                          onClick={() => videoInputRef.current?.click()}
+                          disabled={uploadingField === 'video_url'}
+                        >
+                          <UploadCloud size={16} />
+                          {uploadingField === 'video_url' ? 'Uploading...' : 'Pick Video'}
+                        </button>
+                      </div>
+
+                      <small>Upload MP4/WebM from device, or paste YouTube/VideoGad/direct video URL.</small>
+                    </div>
+
+                    <div className="bha-field bha-field-full">
+                      <span>Poster Image Upload</span>
+
+                      <div className="bha-upload-row">
+                        <input
+                          name="poster_url"
+                          value={form.poster_url}
+                          onChange={handleChange}
+                          placeholder="Poster image URL or upload from device"
+                        />
+
+                        <button
+                          type="button"
+                          className="bha-upload-btn"
+                          onClick={() => posterInputRef.current?.click()}
+                          disabled={uploadingField === 'poster_url'}
+                        >
+                          <UploadCloud size={16} />
+                          {uploadingField === 'poster_url' ? 'Uploading...' : 'Pick Poster'}
+                        </button>
+                      </div>
+
+                      <small>This image shows before the video loads and inside the preview.</small>
+                    </div>
                   </>
                 )}
 
@@ -654,16 +1005,18 @@ export default function AffiliateSlidersPage() {
 
                 {!selectedCampaignId ? (
                   <label className="bha-field">
-                    <span>Total Budget</span>
+                    <span>Campaign Budget From Wallet</span>
                     <input
                       type="number"
                       min={minimumBudget}
+                      max={walletBalance}
                       step="0.01"
                       name="total_budget"
                       value={form.total_budget}
                       onChange={handleChange}
                       placeholder={String(minimumBudget)}
                     />
+                    <small>Available wallet balance: {formatMoney(walletBalance)}</small>
                   </label>
                 ) : null}
 
@@ -713,22 +1066,12 @@ export default function AffiliateSlidersPage() {
                 ) : null}
               </div>
 
-              {error ? (
-                <div className="bha-alert error">
-                  <AlertCircle size={18} />
-                  <span>{error}</span>
-                </div>
-              ) : null}
-
-              {success ? (
-                <div className="bha-alert success">
-                  <CheckCircle2 size={18} />
-                  <span>{success}</span>
-                </div>
-              ) : null}
-
               <div className="bha-actions">
-                <button type="submit" className="bha-btn primary" disabled={saving}>
+                <button
+                  type="submit"
+                  className="bha-btn primary"
+                  disabled={saving || !!uploadingField || createLocked}
+                >
                   <Save size={16} />
                   {saving ? 'Saving...' : selectedCampaignId ? 'Update Ad' : 'Submit For Approval'}
                 </button>
@@ -777,7 +1120,7 @@ export default function AffiliateSlidersPage() {
               <div className="bha-panel-head">
                 <div>
                   <p>Funding</p>
-                  <h2>Top Up Campaign</h2>
+                  <h2>Top Up Campaign From Wallet</h2>
                 </div>
               </div>
 
@@ -786,9 +1129,10 @@ export default function AffiliateSlidersPage() {
                   type="number"
                   step="0.01"
                   min="1"
+                  max={walletBalance}
                   value={topUpAmount}
                   onChange={(event) => setTopUpAmount(event.target.value)}
-                  placeholder="Top-up amount"
+                  placeholder={`Top-up amount, wallet balance ${formatMoney(walletBalance)}`}
                 />
 
                 <button type="button" className="bha-btn primary" onClick={handleTopUp} disabled={topUpSaving}>
@@ -859,6 +1203,10 @@ const styles = `
 
   .bha-page {
     width: 100%;
+  }
+
+  .bha-hidden-file {
+    display: none;
   }
 
   .bha-loading-wrap {
@@ -948,14 +1296,124 @@ const styles = `
     flex-wrap: wrap;
   }
 
-  .bha-settings-strip {
+  .bha-wallet-grid {
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.65fr);
+    gap: 16px;
+    margin-bottom: 20px;
+  }
+
+  .bha-wallet-card,
+  .bha-wallet-fund-card {
+    background: #111827;
+    color: #ffffff;
+    border-radius: 26px;
+    padding: 22px;
+    box-shadow: 0 20px 45px rgba(17, 24, 39, 0.18);
+  }
+
+  .bha-wallet-card {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 18px;
+  }
+
+  .bha-wallet-icon {
+    width: 58px;
+    height: 58px;
+    border-radius: 20px;
+    display: grid;
+    place-items: center;
+    background: rgba(255,255,255,0.12);
+  }
+
+  .bha-wallet-card span,
+  .bha-wallet-fund-card span {
+    display: block;
+    font-size: 13px;
+    font-weight: 800;
+    color: rgba(255,255,255,0.72);
+    margin-bottom: 6px;
+  }
+
+  .bha-wallet-card strong {
+    display: block;
+    font-size: clamp(30px, 4vw, 46px);
+    line-height: 1;
+    font-weight: 950;
+  }
+
+  .bha-wallet-card p {
+    margin: 8px 0 0;
+    color: rgba(255,255,255,0.72);
+    font-weight: 700;
+  }
+
+  .bha-wallet-ready,
+  .bha-wallet-locked {
+    border-radius: 999px;
+    padding: 10px 14px;
+    font-size: 12px;
+    font-weight: 900;
+    white-space: nowrap;
+  }
+
+  .bha-wallet-ready {
+    background: #ecfdf3;
+    color: #027a48;
+  }
+
+  .bha-wallet-locked {
+    background: #fff7ed;
+    color: #b54708;
+  }
+
+  .bha-wallet-fund-card {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 12px;
+    align-items: end;
+  }
+
+  .bha-wallet-fund-card label {
+    display: grid;
+    gap: 8px;
+  }
+
+  .bha-wallet-fund-card input {
+    width: 100%;
+    min-height: 48px;
+    border-radius: 16px;
+    border: 1px solid rgba(255,255,255,0.18);
+    background: rgba(255,255,255,0.1);
+    color: #ffffff;
+    padding: 0 14px;
+    outline: none;
+    font-weight: 800;
+  }
+
+  .bha-wallet-fund-card input::placeholder {
+    color: rgba(255,255,255,0.55);
+  }
+
+  .bha-settings-strip,
+  .bha-analytics-strip {
+    display: grid;
     gap: 14px;
     margin-bottom: 20px;
   }
 
-  .bha-setting-card {
+  .bha-settings-strip {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .bha-analytics-strip {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+
+  .bha-setting-card,
+  .bha-analytics-card {
     background: #ffffff;
     border: 1px solid #e5e7eb;
     border-radius: 20px;
@@ -970,15 +1428,21 @@ const styles = `
     color: #ff2b05;
   }
 
-  .bha-setting-card span {
+  .bha-setting-card span,
+  .bha-analytics-card span {
     color: #6b7280;
     font-size: 13px;
     font-weight: 700;
   }
 
-  .bha-setting-card strong {
+  .bha-setting-card strong,
+  .bha-analytics-card strong {
     font-size: 22px;
     font-weight: 900;
+  }
+
+  .bha-page-alert {
+    margin-bottom: 16px;
   }
 
   .bha-grid {
@@ -1028,7 +1492,8 @@ const styles = `
     color: #111827;
   }
 
-  .bha-btn {
+  .bha-btn,
+  .bha-upload-btn {
     height: 46px;
     padding: 0 16px;
     border-radius: 14px;
@@ -1043,6 +1508,7 @@ const styles = `
     gap: 8px;
     cursor: pointer;
     transition: 0.2s ease;
+    white-space: nowrap;
   }
 
   .bha-btn.primary {
@@ -1062,9 +1528,44 @@ const styles = `
     border-color: #fecdd3;
   }
 
-  .bha-btn:disabled {
-    opacity: 0.7;
+  .bha-btn:disabled,
+  .bha-upload-btn:disabled {
+    opacity: 0.55;
     cursor: not-allowed;
+  }
+
+  .bha-upload-btn {
+    background: #111827;
+    border-color: #111827;
+    color: #ffffff;
+    min-width: 150px;
+  }
+
+  .bha-upload-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px;
+    align-items: center;
+  }
+
+  .bha-field small {
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  .bha-create-lock {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    background: #fff7ed;
+    color: #9a3412;
+    border: 1px solid #fed7aa;
+    border-radius: 18px;
+    padding: 14px 16px;
+    margin-bottom: 18px;
+    font-weight: 800;
+    line-height: 1.5;
   }
 
   .bha-campaign-list {
@@ -1179,6 +1680,56 @@ const styles = `
     background: #eef2f7;
     color: #344054;
     border-color: #dbe2ea;
+  }
+
+  .bha-wallet-history {
+    margin-top: 22px;
+    padding-top: 18px;
+    border-top: 1px solid #edf2f7;
+  }
+
+  .bha-wallet-history h3 {
+    margin: 0 0 12px;
+    color: #111827;
+    font-size: 16px;
+    font-weight: 900;
+  }
+
+  .bha-wallet-history-list {
+    display: grid;
+    gap: 10px;
+  }
+
+  .bha-wallet-history-item {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    background: #f8fafc;
+    border: 1px solid #edf2f7;
+    border-radius: 14px;
+    padding: 12px;
+  }
+
+  .bha-wallet-history-item strong {
+    display: block;
+    color: #111827;
+    font-size: 13px;
+    text-transform: capitalize;
+  }
+
+  .bha-wallet-history-item span {
+    display: block;
+    color: #64748b;
+    font-size: 12px;
+    margin-top: 3px;
+    line-height: 1.4;
+  }
+
+  .bha-wallet-history-item em {
+    font-style: normal;
+    color: #111827;
+    font-weight: 900;
+    white-space: nowrap;
   }
 
   .bha-form {
@@ -1441,12 +1992,17 @@ const styles = `
   }
 
   @media (max-width: 1280px) {
-    .bha-grid {
+    .bha-grid,
+    .bha-wallet-grid {
       grid-template-columns: 1fr;
     }
 
     .bha-settings-strip {
       grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .bha-analytics-strip {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
     }
   }
 
@@ -1481,19 +2037,28 @@ const styles = `
     }
 
     .bha-settings-strip,
-    .bha-form-grid {
+    .bha-analytics-strip,
+    .bha-form-grid,
+    .bha-wallet-card,
+    .bha-wallet-fund-card {
       grid-template-columns: 1fr;
+    }
+
+    .bha-wallet-card {
+      align-items: start;
     }
 
     .bha-field-full {
       grid-column: span 1;
     }
 
-    .bha-topup-row {
+    .bha-topup-row,
+    .bha-upload-row {
       grid-template-columns: 1fr;
     }
 
-    .bha-btn {
+    .bha-btn,
+    .bha-upload-btn {
       width: 100%;
     }
 

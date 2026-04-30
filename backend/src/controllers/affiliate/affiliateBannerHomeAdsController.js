@@ -44,9 +44,11 @@ function sanitizeCampaign(row) {
     secondary_cta_label: row.secondary_cta_label,
     secondary_cta_url: row.secondary_cta_url,
 
-    currency: row.currency,
+    currency: row.currency || 'USD',
     total_budget: Number(row.total_budget || 0),
     remaining_budget: Number(row.remaining_budget || 0),
+    wallet_reserved_amount: Number(row.wallet_reserved_amount || 0),
+    wallet_spent_amount: Number(row.wallet_spent_amount || 0),
     daily_budget_cap:
       row.daily_budget_cap !== null && row.daily_budget_cap !== undefined
         ? Number(row.daily_budget_cap || 0)
@@ -93,11 +95,14 @@ function sanitizeSettings(row) {
       cost_per_view: 0.05,
       cost_per_click: 1,
       ad_insert_position: 5,
+      max_admin_slides: 4,
+      max_active_ads: 1,
       allow_image: true,
       allow_video: true,
       video_autoplay: true,
       approval_required: true,
       status: 'active',
+      currency: 'USD',
     };
   }
 
@@ -114,6 +119,51 @@ function sanitizeSettings(row) {
     video_autoplay: Number(row.video_autoplay || 0) === 1,
     approval_required: Number(row.approval_required || 0) === 1,
     status: row.status || 'active',
+    currency: row.currency || 'USD',
+  };
+}
+
+function sanitizeWallet(row) {
+  if (!row) {
+    return {
+      available_balance: 0,
+      total_funded: 0,
+      total_spent: 0,
+      total_refunded: 0,
+      currency: 'USD',
+      status: 'active',
+    };
+  }
+
+  return {
+    id: row.id,
+    affiliate_id: row.affiliate_id,
+    available_balance: Number(row.available_balance || 0),
+    total_funded: Number(row.total_funded || 0),
+    total_spent: Number(row.total_spent || 0),
+    total_refunded: Number(row.total_refunded || 0),
+    currency: row.currency || 'USD',
+    status: row.status || 'active',
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+  };
+}
+
+function sanitizeAnalytics(row) {
+  return {
+    total_campaigns: Number(row?.total_campaigns || 0),
+    pending_campaigns: Number(row?.pending_campaigns || 0),
+    active_campaigns: Number(row?.active_campaigns || 0),
+    paused_campaigns: Number(row?.paused_campaigns || 0),
+    exhausted_campaigns: Number(row?.exhausted_campaigns || 0),
+    rejected_campaigns: Number(row?.rejected_campaigns || 0),
+    total_budget: Number(row?.total_budget || 0),
+    remaining_budget: Number(row?.remaining_budget || 0),
+    total_spent: Number(row?.total_spent || 0),
+    total_views: Number(row?.total_views || 0),
+    total_clicks: Number(row?.total_clicks || 0),
+    wallet_reserved_amount: Number(row?.wallet_reserved_amount || 0),
+    wallet_spent_amount: Number(row?.wallet_spent_amount || 0),
   };
 }
 
@@ -144,8 +194,8 @@ async function getSettings() {
   return sanitizeSettings(rows[0]);
 }
 
-async function getCampaignById(campaignId, affiliateId) {
-  const [rows] = await pool.query(
+async function getCampaignById(campaignId, affiliateId, connection = pool) {
+  const [rows] = await connection.query(
     `
     SELECT *
     FROM banner_home_ads_campaigns
@@ -160,73 +210,85 @@ async function getCampaignById(campaignId, affiliateId) {
   return rows[0] || null;
 }
 
-async function getMyBannerHomeAds(req, res) {
-  try {
-    const [rows] = await pool.query(
-      `
-      SELECT *
-      FROM banner_home_ads_campaigns
-      WHERE affiliate_id = ?
-        AND owner_type = 'affiliate'
-      ORDER BY id DESC
-      `,
-      [req.user.id]
-    );
+async function getOrCreateWallet(affiliateId, connection = pool, lock = false) {
+  await connection.query(
+    `
+    INSERT IGNORE INTO banner_home_ads_wallets
+      (affiliate_id, available_balance, total_funded, total_spent, total_refunded, currency, status, created_at, updated_at)
+    VALUES
+      (?, 0.0000, 0.0000, 0.0000, 0.0000, 'USD', 'active', NOW(), NOW())
+    `,
+    [affiliateId]
+  );
 
-    const settings = await getSettings();
+  const [rows] = await connection.query(
+    `
+    SELECT *
+    FROM banner_home_ads_wallets
+    WHERE affiliate_id = ?
+    LIMIT 1
+    ${lock ? 'FOR UPDATE' : ''}
+    `,
+    [affiliateId]
+  );
 
-    return res.status(200).json({
-      ok: true,
-      settings,
-      campaigns: rows.map(sanitizeCampaign),
-    });
-  } catch (error) {
-    console.error('getMyBannerHomeAds error:', error);
-
-    return res.status(500).json({
-      ok: false,
-      message: 'Failed to fetch homepage slider ads',
-      error: error.message,
-    });
-  }
+  return rows[0] || null;
 }
 
-async function getMyBannerHomeAdById(req, res) {
-  try {
-    const campaignId = Number(req.params.id);
+async function getWalletTransactions(affiliateId) {
+  const [rows] = await pool.query(
+    `
+    SELECT *
+    FROM banner_home_ads_wallet_transactions
+    WHERE affiliate_id = ?
+    ORDER BY id DESC
+    LIMIT 20
+    `,
+    [affiliateId]
+  );
 
-    if (!Number.isInteger(campaignId) || campaignId <= 0) {
-      return res.status(400).json({
-        ok: false,
-        message: 'Invalid campaign id',
-      });
-    }
+  return rows.map((row) => ({
+    id: row.id,
+    wallet_id: row.wallet_id,
+    affiliate_id: row.affiliate_id,
+    campaign_id: row.campaign_id,
+    transaction_type: row.transaction_type,
+    amount: Number(row.amount || 0),
+    balance_before: Number(row.balance_before || 0),
+    balance_after: Number(row.balance_after || 0),
+    currency: row.currency || 'USD',
+    payment_reference: row.payment_reference,
+    payment_status: row.payment_status,
+    note: row.note,
+    created_at: row.created_at,
+  }));
+}
 
-    const campaign = await getCampaignById(campaignId, req.user.id);
+async function getAnalytics(affiliateId) {
+  const [rows] = await pool.query(
+    `
+    SELECT
+      COUNT(*) AS total_campaigns,
+      SUM(CASE WHEN approval_status = 'pending' THEN 1 ELSE 0 END) AS pending_campaigns,
+      SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) AS active_campaigns,
+      SUM(CASE WHEN status = 'paused' THEN 1 ELSE 0 END) AS paused_campaigns,
+      SUM(CASE WHEN status = 'exhausted' THEN 1 ELSE 0 END) AS exhausted_campaigns,
+      SUM(CASE WHEN approval_status = 'rejected' THEN 1 ELSE 0 END) AS rejected_campaigns,
+      COALESCE(SUM(total_budget), 0) AS total_budget,
+      COALESCE(SUM(remaining_budget), 0) AS remaining_budget,
+      COALESCE(SUM(total_spent), 0) AS total_spent,
+      COALESCE(SUM(total_views), 0) AS total_views,
+      COALESCE(SUM(total_clicks), 0) AS total_clicks,
+      COALESCE(SUM(wallet_reserved_amount), 0) AS wallet_reserved_amount,
+      COALESCE(SUM(wallet_spent_amount), 0) AS wallet_spent_amount
+    FROM banner_home_ads_campaigns
+    WHERE affiliate_id = ?
+      AND owner_type = 'affiliate'
+    `,
+    [affiliateId]
+  );
 
-    if (!campaign) {
-      return res.status(404).json({
-        ok: false,
-        message: 'Homepage slider ad not found',
-      });
-    }
-
-    const settings = await getSettings();
-
-    return res.status(200).json({
-      ok: true,
-      settings,
-      campaign: sanitizeCampaign(campaign),
-    });
-  } catch (error) {
-    console.error('getMyBannerHomeAdById error:', error);
-
-    return res.status(500).json({
-      ok: false,
-      message: 'Failed to fetch homepage slider ad',
-      error: error.message,
-    });
-  }
+  return sanitizeAnalytics(rows[0]);
 }
 
 async function validateDestinationUrl({ value, userId, websiteId, campaignId = null }) {
@@ -309,7 +371,192 @@ function validateMediaAndText(body, settings) {
   };
 }
 
+async function getMyBannerHomeAds(req, res) {
+  try {
+    const [rows] = await pool.query(
+      `
+      SELECT *
+      FROM banner_home_ads_campaigns
+      WHERE affiliate_id = ?
+        AND owner_type = 'affiliate'
+      ORDER BY id DESC
+      `,
+      [req.user.id]
+    );
+
+    const settings = await getSettings();
+    const wallet = await getOrCreateWallet(req.user.id);
+    const analytics = await getAnalytics(req.user.id);
+    const wallet_transactions = await getWalletTransactions(req.user.id);
+
+    return res.status(200).json({
+      ok: true,
+      settings,
+      wallet: sanitizeWallet(wallet),
+      analytics,
+      wallet_transactions,
+      can_create: Number(wallet?.available_balance || 0) >= settings.minimum_budget,
+      minimum_required: settings.minimum_budget,
+      campaigns: rows.map(sanitizeCampaign),
+    });
+  } catch (error) {
+    console.error('getMyBannerHomeAds error:', error);
+
+    return res.status(500).json({
+      ok: false,
+      message: 'Failed to fetch homepage slider ads',
+      error: error.message,
+    });
+  }
+}
+
+async function getMyBannerHomeAdById(req, res) {
+  try {
+    const campaignId = Number(req.params.id);
+
+    if (!Number.isInteger(campaignId) || campaignId <= 0) {
+      return res.status(400).json({
+        ok: false,
+        message: 'Invalid campaign id',
+      });
+    }
+
+    const campaign = await getCampaignById(campaignId, req.user.id);
+
+    if (!campaign) {
+      return res.status(404).json({
+        ok: false,
+        message: 'Homepage slider ad not found',
+      });
+    }
+
+    const settings = await getSettings();
+    const wallet = await getOrCreateWallet(req.user.id);
+    const analytics = await getAnalytics(req.user.id);
+
+    return res.status(200).json({
+      ok: true,
+      settings,
+      wallet: sanitizeWallet(wallet),
+      analytics,
+      campaign: sanitizeCampaign(campaign),
+    });
+  } catch (error) {
+    console.error('getMyBannerHomeAdById error:', error);
+
+    return res.status(500).json({
+      ok: false,
+      message: 'Failed to fetch homepage slider ad',
+      error: error.message,
+    });
+  }
+}
+
+async function fundBannerHomeAdsWallet(req, res) {
+  const connection = await pool.getConnection();
+
+  try {
+    const amount = toMoney(req.body.amount, 0);
+
+    if (amount <= 0) {
+      return res.status(400).json({
+        ok: false,
+        message: 'Funding amount is required',
+      });
+    }
+
+    await connection.beginTransaction();
+
+    const wallet = await getOrCreateWallet(req.user.id, connection, true);
+
+    if (!wallet) {
+      throw new Error('Unable to create wallet');
+    }
+
+    if (wallet.status !== 'active') {
+      await connection.rollback();
+
+      return res.status(400).json({
+        ok: false,
+        message: 'Your homepage slider ads wallet is not active',
+      });
+    }
+
+    const balanceBefore = Number(wallet.available_balance || 0);
+    const balanceAfter = Number((balanceBefore + amount).toFixed(4));
+
+    await connection.query(
+      `
+      UPDATE banner_home_ads_wallets
+      SET
+        available_balance = ?,
+        total_funded = total_funded + ?,
+        updated_at = NOW()
+      WHERE id = ?
+      `,
+      [balanceAfter, amount, wallet.id]
+    );
+
+    await connection.query(
+      `
+      INSERT INTO banner_home_ads_wallet_transactions
+        (
+          wallet_id,
+          affiliate_id,
+          campaign_id,
+          transaction_type,
+          amount,
+          balance_before,
+          balance_after,
+          currency,
+          payment_reference,
+          payment_status,
+          note,
+          created_at
+        )
+      VALUES
+        (?, ?, NULL, 'fund', ?, ?, ?, 'USD', ?, 'paid', ?, NOW())
+      `,
+      [
+        wallet.id,
+        req.user.id,
+        amount,
+        balanceBefore,
+        balanceAfter,
+        normalizeNullable(req.body.payment_reference),
+        normalizeNullable(req.body.note) || 'Homepage slider ads wallet funding',
+      ]
+    );
+
+    await connection.commit();
+
+    const updatedWallet = await getOrCreateWallet(req.user.id);
+    const wallet_transactions = await getWalletTransactions(req.user.id);
+
+    return res.status(200).json({
+      ok: true,
+      message: 'Homepage slider ads wallet funded successfully',
+      wallet: sanitizeWallet(updatedWallet),
+      wallet_transactions,
+    });
+  } catch (error) {
+    await connection.rollback();
+
+    console.error('fundBannerHomeAdsWallet error:', error);
+
+    return res.status(500).json({
+      ok: false,
+      message: 'Failed to fund homepage slider ads wallet',
+      error: error.message,
+    });
+  } finally {
+    connection.release();
+  }
+}
+
 async function createBannerHomeAd(req, res) {
+  const connection = await pool.getConnection();
+
   try {
     const website = await getAffiliateWebsite(req.user.id);
 
@@ -338,7 +585,7 @@ async function createBannerHomeAd(req, res) {
       });
     }
 
-    const totalBudget = toMoney(req.body.total_budget, 0);
+    const totalBudget = toMoney(req.body.total_budget || settings.minimum_budget, settings.minimum_budget);
     const dailyBudgetCap =
       req.body.daily_budget_cap === null ||
       req.body.daily_budget_cap === undefined ||
@@ -384,10 +631,51 @@ async function createBannerHomeAd(req, res) {
       cleanSecondaryCtaUrl = validated.submitted_link;
     }
 
+    await connection.beginTransaction();
+
+    const wallet = await getOrCreateWallet(req.user.id, connection, true);
+
+    if (!wallet) {
+      throw new Error('Unable to load homepage slider ads wallet');
+    }
+
+    if (wallet.status !== 'active') {
+      await connection.rollback();
+
+      return res.status(400).json({
+        ok: false,
+        message: 'Your homepage slider ads wallet is not active',
+      });
+    }
+
+    const walletBalance = Number(wallet.available_balance || 0);
+
+    if (walletBalance < settings.minimum_budget) {
+      await connection.rollback();
+
+      return res.status(400).json({
+        ok: false,
+        message: `Fund your homepage slider ads wallet with at least ${settings.currency || 'USD'} ${settings.minimum_budget} before creating a slider ad`,
+        wallet: sanitizeWallet(wallet),
+      });
+    }
+
+    if (walletBalance < totalBudget) {
+      await connection.rollback();
+
+      return res.status(400).json({
+        ok: false,
+        message: `Insufficient homepage slider ads wallet balance. Available: ${settings.currency || 'USD'} ${walletBalance.toFixed(2)}`,
+        wallet: sanitizeWallet(wallet),
+      });
+    }
+
     const approvalStatus = settings.approval_required ? 'pending' : 'approved';
     const status = settings.approval_required ? 'pending' : 'active';
+    const balanceBefore = walletBalance;
+    const balanceAfter = Number((balanceBefore - totalBudget).toFixed(4));
 
-    const [result] = await pool.query(
+    const [result] = await connection.query(
       `
       INSERT INTO banner_home_ads_campaigns
         (
@@ -413,6 +701,8 @@ async function createBannerHomeAd(req, res) {
           currency,
           total_budget,
           remaining_budget,
+          wallet_reserved_amount,
+          wallet_spent_amount,
           daily_budget_cap,
           cost_per_view,
           cost_per_click,
@@ -434,8 +724,8 @@ async function createBannerHomeAd(req, res) {
           ?, ?, ?, ?,
           ?, ?, ?, ?,
           'USD',
+          ?, ?, ?, 0.0000,
           ?, ?, ?,
-          ?, ?,
           ?, ?,
           ?, ?,
           'paid',
@@ -465,6 +755,7 @@ async function createBannerHomeAd(req, res) {
         cleanSecondaryCtaUrl,
         totalBudget,
         totalBudget,
+        totalBudget,
         dailyBudgetCap,
         settings.cost_per_view,
         settings.cost_per_click,
@@ -475,7 +766,50 @@ async function createBannerHomeAd(req, res) {
       ]
     );
 
-    await pool.query(
+    await connection.query(
+      `
+      UPDATE banner_home_ads_wallets
+      SET
+        available_balance = ?,
+        updated_at = NOW()
+      WHERE id = ?
+      `,
+      [balanceAfter, wallet.id]
+    );
+
+    await connection.query(
+      `
+      INSERT INTO banner_home_ads_wallet_transactions
+        (
+          wallet_id,
+          affiliate_id,
+          campaign_id,
+          transaction_type,
+          amount,
+          balance_before,
+          balance_after,
+          currency,
+          payment_reference,
+          payment_status,
+          note,
+          created_at
+        )
+      VALUES
+        (?, ?, ?, 'campaign_reserve', ?, ?, ?, 'USD', ?, 'paid', ?, NOW())
+      `,
+      [
+        wallet.id,
+        req.user.id,
+        result.insertId,
+        totalBudget,
+        balanceBefore,
+        balanceAfter,
+        normalizeNullable(req.body.payment_reference),
+        'Reserved from wallet for homepage slider ad campaign',
+      ]
+    );
+
+    await connection.query(
       `
       INSERT INTO banner_home_ads_funding_logs
         (
@@ -492,7 +826,7 @@ async function createBannerHomeAd(req, res) {
           created_at
         )
       VALUES
-        (?, ?, ?, ?, 'USD', 0.0000, ?, 'initial', ?, ?, NOW())
+        (?, ?, ?, ?, 'USD', 0.0000, ?, 'wallet_reserve', ?, ?, NOW())
       `,
       [
         result.insertId,
@@ -501,11 +835,16 @@ async function createBannerHomeAd(req, res) {
         totalBudget,
         totalBudget,
         normalizeNullable(req.body.payment_reference),
-        'Initial homepage slider ad funding',
+        'Initial homepage slider ad funding from central wallet',
       ]
     );
 
+    await connection.commit();
+
     const campaign = await getCampaignById(result.insertId, req.user.id);
+    const updatedWallet = await getOrCreateWallet(req.user.id);
+    const analytics = await getAnalytics(req.user.id);
+    const wallet_transactions = await getWalletTransactions(req.user.id);
 
     return res.status(201).json({
       ok: true,
@@ -513,9 +852,14 @@ async function createBannerHomeAd(req, res) {
         ? 'Homepage slider ad submitted for admin approval'
         : 'Homepage slider ad created successfully',
       settings,
+      wallet: sanitizeWallet(updatedWallet),
+      analytics,
+      wallet_transactions,
       campaign: sanitizeCampaign(campaign),
     });
   } catch (error) {
+    await connection.rollback();
+
     console.error('createBannerHomeAd error:', error);
 
     return res.status(error.status || 500).json({
@@ -523,6 +867,8 @@ async function createBannerHomeAd(req, res) {
       message: error.message || 'Failed to create homepage slider ad',
       error: error.status ? undefined : error.message,
     });
+  } finally {
+    connection.release();
   }
 }
 
@@ -660,6 +1006,8 @@ async function updateBannerHomeAd(req, res) {
     );
 
     const campaign = await getCampaignById(campaignId, req.user.id);
+    const wallet = await getOrCreateWallet(req.user.id);
+    const analytics = await getAnalytics(req.user.id);
 
     return res.status(200).json({
       ok: true,
@@ -667,6 +1015,8 @@ async function updateBannerHomeAd(req, res) {
         ? 'Homepage slider ad updated and resubmitted for approval'
         : 'Homepage slider ad updated successfully',
       settings,
+      wallet: sanitizeWallet(wallet),
+      analytics,
       campaign: sanitizeCampaign(campaign),
     });
   } catch (error) {
@@ -769,10 +1119,14 @@ async function updateBannerHomeAdStatus(req, res) {
     }
 
     const updated = await getCampaignById(campaignId, req.user.id);
+    const wallet = await getOrCreateWallet(req.user.id);
+    const analytics = await getAnalytics(req.user.id);
 
     return res.status(200).json({
       ok: true,
       message: action === 'pause' ? 'Homepage slider ad paused' : 'Homepage slider ad resumed',
+      wallet: sanitizeWallet(wallet),
+      analytics,
       campaign: sanitizeCampaign(updated),
     });
   } catch (error) {
@@ -787,6 +1141,8 @@ async function updateBannerHomeAdStatus(req, res) {
 }
 
 async function topUpBannerHomeAd(req, res) {
+  const connection = await pool.getConnection();
+
   try {
     const campaignId = Number(req.params.id);
     const amount = toMoney(req.body.amount, 0);
@@ -805,24 +1161,64 @@ async function topUpBannerHomeAd(req, res) {
       });
     }
 
-    const campaign = await getCampaignById(campaignId, req.user.id);
+    await connection.beginTransaction();
+
+    const campaign = await getCampaignById(campaignId, req.user.id, connection);
 
     if (!campaign) {
+      await connection.rollback();
+
       return res.status(404).json({
         ok: false,
         message: 'Homepage slider ad not found',
       });
     }
 
-    const balanceBefore = Number(campaign.remaining_budget || 0);
-    const balanceAfter = Number((balanceBefore + amount).toFixed(4));
+    const wallet = await getOrCreateWallet(req.user.id, connection, true);
 
-    await pool.query(
+    if (!wallet || wallet.status !== 'active') {
+      await connection.rollback();
+
+      return res.status(400).json({
+        ok: false,
+        message: 'Your homepage slider ads wallet is not active',
+      });
+    }
+
+    const walletBalance = Number(wallet.available_balance || 0);
+
+    if (walletBalance < amount) {
+      await connection.rollback();
+
+      return res.status(400).json({
+        ok: false,
+        message: `Insufficient homepage slider ads wallet balance. Available: USD ${walletBalance.toFixed(2)}`,
+        wallet: sanitizeWallet(wallet),
+      });
+    }
+
+    const campaignBalanceBefore = Number(campaign.remaining_budget || 0);
+    const campaignBalanceAfter = Number((campaignBalanceBefore + amount).toFixed(4));
+    const walletBalanceAfter = Number((walletBalance - amount).toFixed(4));
+
+    await connection.query(
+      `
+      UPDATE banner_home_ads_wallets
+      SET
+        available_balance = ?,
+        updated_at = NOW()
+      WHERE id = ?
+      `,
+      [walletBalanceAfter, wallet.id]
+    );
+
+    await connection.query(
       `
       UPDATE banner_home_ads_campaigns
       SET
         total_budget = total_budget + ?,
         remaining_budget = remaining_budget + ?,
+        wallet_reserved_amount = wallet_reserved_amount + ?,
         status = CASE
           WHEN status = 'exhausted' AND approval_status = 'approved' THEN 'active'
           ELSE status
@@ -837,10 +1233,42 @@ async function topUpBannerHomeAd(req, res) {
         AND affiliate_id = ?
         AND owner_type = 'affiliate'
       `,
-      [amount, amount, campaignId, req.user.id]
+      [amount, amount, amount, campaignId, req.user.id]
     );
 
-    await pool.query(
+    await connection.query(
+      `
+      INSERT INTO banner_home_ads_wallet_transactions
+        (
+          wallet_id,
+          affiliate_id,
+          campaign_id,
+          transaction_type,
+          amount,
+          balance_before,
+          balance_after,
+          currency,
+          payment_reference,
+          payment_status,
+          note,
+          created_at
+        )
+      VALUES
+        (?, ?, ?, 'campaign_reserve', ?, ?, ?, 'USD', ?, 'paid', ?, NOW())
+      `,
+      [
+        wallet.id,
+        req.user.id,
+        campaignId,
+        amount,
+        walletBalance,
+        walletBalanceAfter,
+        normalizeNullable(req.body.payment_reference),
+        normalizeNullable(req.body.note) || 'Reserved wallet balance for homepage slider ad top-up',
+      ]
+    );
+
+    await connection.query(
       `
       INSERT INTO banner_home_ads_funding_logs
         (
@@ -857,28 +1285,38 @@ async function topUpBannerHomeAd(req, res) {
           created_at
         )
       VALUES
-        (?, ?, ?, ?, 'USD', ?, ?, 'topup', ?, ?, NOW())
+        (?, ?, ?, ?, 'USD', ?, ?, 'wallet_topup', ?, ?, NOW())
       `,
       [
         campaignId,
         req.user.id,
         req.user.id,
         amount,
-        balanceBefore,
-        balanceAfter,
+        campaignBalanceBefore,
+        campaignBalanceAfter,
         normalizeNullable(req.body.payment_reference),
-        normalizeNullable(req.body.note) || 'Homepage slider ad top-up',
+        normalizeNullable(req.body.note) || 'Homepage slider ad top-up from central wallet',
       ]
     );
 
+    await connection.commit();
+
     const updated = await getCampaignById(campaignId, req.user.id);
+    const updatedWallet = await getOrCreateWallet(req.user.id);
+    const analytics = await getAnalytics(req.user.id);
+    const wallet_transactions = await getWalletTransactions(req.user.id);
 
     return res.status(200).json({
       ok: true,
       message: 'Homepage slider ad topped up successfully',
+      wallet: sanitizeWallet(updatedWallet),
+      analytics,
+      wallet_transactions,
       campaign: sanitizeCampaign(updated),
     });
   } catch (error) {
+    await connection.rollback();
+
     console.error('topUpBannerHomeAd error:', error);
 
     return res.status(500).json({
@@ -886,6 +1324,8 @@ async function topUpBannerHomeAd(req, res) {
       message: 'Failed to top up homepage slider ad',
       error: error.message,
     });
+  } finally {
+    connection.release();
   }
 }
 
@@ -926,9 +1366,14 @@ async function deleteBannerHomeAd(req, res) {
       [campaignId, req.user.id]
     );
 
+    const wallet = await getOrCreateWallet(req.user.id);
+    const analytics = await getAnalytics(req.user.id);
+
     return res.status(200).json({
       ok: true,
       message: 'Homepage slider ad deleted successfully',
+      wallet: sanitizeWallet(wallet),
+      analytics,
     });
   } catch (error) {
     console.error('deleteBannerHomeAd error:', error);
@@ -944,6 +1389,7 @@ async function deleteBannerHomeAd(req, res) {
 module.exports = {
   getMyBannerHomeAds,
   getMyBannerHomeAdById,
+  fundBannerHomeAdsWallet,
   createBannerHomeAd,
   updateBannerHomeAd,
   updateBannerHomeAdStatus,

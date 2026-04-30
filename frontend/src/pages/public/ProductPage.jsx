@@ -1,18 +1,26 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import api from '../../api/axios';
-import formatCurrency from '../../utils/formatCurrency';
+import LocalizedPrice from '../../components/common/LocalizedPrice';
 
 function renderPrice(product) {
   if (!product) return '-';
 
   if (product.pricing_type === 'simple') {
-    return product.price !== null && product.price !== undefined
-      ? formatCurrency(product.price)
-      : '-';
+    return product.price !== null && product.price !== undefined ? (
+      <LocalizedPrice product={product} />
+    ) : (
+      '-'
+    );
   }
 
-  return `${formatCurrency(product.min_price || 0)} - ${formatCurrency(product.max_price || 0)}`;
+  return (
+    <>
+      <LocalizedPrice amount={product.min_price || 0} />
+      {' - '}
+      <LocalizedPrice amount={product.max_price || 0} />
+    </>
+  );
 }
 
 export default function ProductPage() {

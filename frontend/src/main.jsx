@@ -44,6 +44,7 @@ import AffiliateAdPlacementPage from './pages/affiliate/AffiliateAdPlacementPage
 import AffiliateMonetizationAnalyticsOverviewPage from './pages/affiliate/AffiliateMonetizationAnalyticsOverviewPage';
 import AffiliateNotificationsPage from './pages/affiliate/AffiliateNotificationsPage';
 import AffiliateAdsPage from './pages/affiliate/AffiliateAdsPage';
+import AffiliateLeaderboardPage from './pages/affiliate/AffiliateLeaderboardPage';
 
 import AdminDashboardPage from './pages/admin/AdminDashboardPage';
 import AdminCategoriesPage from './pages/admin/AdminCategoriesPage';
@@ -66,6 +67,8 @@ import AdminAffiliateAdsPage from './pages/admin/AdminAffiliateAdsPage';
 import AdminAffiliateAdsSettingsPage from './pages/admin/AdminAffiliateAdsSettingsPage';
 import AdminBannerHomeSlidesPage from './pages/admin/AdminBannerHomeSlidesPage';
 import AdminBannerHomeAdCampaignsPage from './pages/admin/AdminBannerHomeAdCampaignsPage';
+import AdminLeaderboardPage from './pages/admin/AdminLeaderboardPage';
+import AdminCurrenciesPage from './pages/admin/AdminCurrenciesPage';
 
 import HomePage from './pages/public/HomePage';
 import WebsiteStorefrontPage from './pages/public/WebsiteStorefrontPage';
@@ -168,6 +171,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
             <Route path="/affiliate/subscription" element={<AffiliateSubscriptionPage />} />
             <Route path="/affiliate/notifications" element={<AffiliateNotificationsPage />} />
             <Route path="/affiliate/ads" element={<AffiliateAdsPage />} />
+            <Route path="/affiliate/leaderboard" element={<AffiliateLeaderboardPage />} />
             <Route path="/affiliate/settings" element={<AffiliateSettingsPage />} />
 
             <Route
@@ -198,6 +202,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
 
           <Route element={<AdminLayout />}>
             <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
+            <Route path="/admin/leaderboard" element={<AdminLeaderboardPage />} />
             <Route path="/admin/categories" element={<AdminCategoriesPage />} />
             <Route path="/admin/templates" element={<AdminTemplatesPage />} />
             <Route path="/admin/plans" element={<AdminPlansPage />} />
@@ -219,6 +224,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
               path="/admin/banner-home-ad-campaigns"
               element={<AdminBannerHomeAdCampaignsPage />}
             />
+            <Route path="/admin/currencies" element={<AdminCurrenciesPage />} />
             <Route path="/admin/link-validation" element={<AdminLinkValidationPage />} />
             <Route path="/admin/campaign-moderation" element={<AdminCampaignModerationPage />} />
             <Route

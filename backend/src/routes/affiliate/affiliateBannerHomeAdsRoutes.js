@@ -2,6 +2,7 @@ const express = require('express');
 const {
   getMyBannerHomeAds,
   getMyBannerHomeAdById,
+  fundBannerHomeAdsWallet,
   createBannerHomeAd,
   updateBannerHomeAd,
   updateBannerHomeAdStatus,
@@ -20,6 +21,9 @@ router.get('/health', (req, res) => {
 });
 
 router.get('/', protect, affiliateOnly, getMyBannerHomeAds);
+
+router.post('/wallet/fund', protect, affiliateOnly, fundBannerHomeAdsWallet);
+
 router.get('/:id', protect, affiliateOnly, getMyBannerHomeAdById);
 
 router.post('/', protect, affiliateOnly, createBannerHomeAd);

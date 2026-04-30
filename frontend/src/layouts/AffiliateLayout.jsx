@@ -27,6 +27,7 @@ import {
   ChartNoAxesCombined,
   Bell,
   Megaphone,
+  Trophy,
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 
@@ -65,13 +66,14 @@ export default function AffiliateLayout() {
   const navItems = [
     { label: 'Dashboard', to: '/affiliate/dashboard', icon: LayoutDashboard },
     { label: 'Notifications', to: '/affiliate/notifications', icon: Bell },
+    { label: 'Leaderboard', to: '/affiliate/leaderboard', icon: Trophy },
     { label: 'Ads Account', to: '/affiliate/ads', icon: Megaphone },
     { label: 'Website', to: '/affiliate/website', icon: Globe },
     { label: 'Products', to: '/affiliate/products', icon: ShoppingBag },
     { label: 'Posts', to: '/affiliate/posts/create', icon: FileText },
     { label: 'Templates', to: '/affiliate/templates/choose', icon: LayoutTemplate },
     { label: 'Menus', to: '/affiliate/menus', icon: MenuSquare },
-    { label: 'Sliders', to: '/affiliate/sliders', icon: SlidersHorizontal },
+    { label: 'Home Sliders Ads', to: '/affiliate/sliders', icon: SlidersHorizontal },
     { label: 'Media Library', to: '/affiliate/media', icon: ImageIcon },
     { label: 'Design', to: '/affiliate/design', icon: Palette },
 
@@ -181,7 +183,7 @@ export default function AffiliateLayout() {
               <p>
                 Manage your website, products, posts, design, ads account,
                 monetization, analytics, customers, email lists, chats, notifications,
-                and settings from one place.
+                leaderboard, and settings from one place.
               </p>
             </div>
           </div>

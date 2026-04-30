@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Loader2, AlertCircle } from 'lucide-react';
 import { useParams } from 'react-router-dom';
 import api from '../../api/axios';
-import formatCurrency from '../../utils/formatCurrency';
+import LocalizedPrice from '../../components/common/LocalizedPrice';
 import TemplatePremiumBrand from './templates/TemplatePremiumBrand';
 import TemplateFreeSimple from './templates/TemplateFreeSimple';
 import TemplateSupplementTheme from './templates/TemplateSupplementTheme';
@@ -11,6 +11,10 @@ import TemplateGroceryTheme from './templates/TemplateGroceryTheme';
 import TemplateMultiProduct from './templates/TemplateMultiProduct';
 import TemplateMextro from './templates/TemplateMextro';
 import TemplateXxam from './templates/TemplateXxam';
+
+function formatCurrency(amount) {
+  return <LocalizedPrice amount={amount || 0} />;
+}
 
 function resolveWebsiteSlug(product, fallbackWebsiteSlug = '') {
   return (

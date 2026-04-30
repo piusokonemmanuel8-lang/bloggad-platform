@@ -67,13 +67,39 @@ function createApp() {
   app.use(cookieParser());
   app.use(morgan('dev'));
 
-  app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
+  const uploadStaticDirs = [
+    path.join(process.cwd(), 'uploads'),
+    path.join(__dirname, 'uploads'),
+    path.join(__dirname, '..', 'uploads'),
+  ];
+
+  uploadStaticDirs.forEach((dir) => {
+    if (fs.existsSync(dir)) {
+      app.use(
+        '/uploads',
+        express.static(dir, {
+          acceptRanges: true,
+          maxAge: '1d',
+          setHeaders: (res) => {
+            res.setHeader('Access-Control-Allow-Origin', '*');
+            res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+          },
+        })
+      );
+
+      console.log(`[app] Serving uploads from ${dir}`);
+    }
+  });
 
   const apiLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: 1000,
+    max: process.env.NODE_ENV === 'production' ? 1000 : 10000,
     standardHeaders: true,
     legacyHeaders: false,
+    message: {
+      ok: false,
+      message: 'Too many requests, please try again later.',
+    },
   });
 
   app.use('/api', apiLimiter);
@@ -145,6 +171,10 @@ function createApp() {
     './routes/affiliate/affiliateBlogPulseEarningsRoutes',
   ]);
 
+  mount(app, '/api/affiliate/leaderboard', 'affiliateLeaderboardRoutes', [
+    './routes/affiliate/affiliateLeaderboardRoutes',
+  ]);
+
   mount(app, '/api/affiliate/monetization', 'affiliateMonetizationRoutes', [
     './routes/affiliate/affiliateMonetizationRoutes',
   ]);
@@ -170,6 +200,10 @@ function createApp() {
   // admin core
   mount(app, '/api/admin/dashboard', 'adminDashboardRoutes', [
     './routes/admin/adminDashboardRoutes',
+  ]);
+
+  mount(app, '/api/admin/leaderboard', 'adminLeaderboardRoutes', [
+    './routes/admin/adminLeaderboardRoutes',
   ]);
 
   mount(app, '/api/admin/notifications', 'adminNotificationRoutes', [
@@ -214,7 +248,6 @@ function createApp() {
 
   mount(app, '/api/admin/products', 'adminProductsRoutes', [
     './routes/admin/adminProductsRoutes',
-    './routes/admin/adminProductRoutes',
   ]);
 
   mount(app, '/api/admin/posts', 'adminPostsRoutes', [
@@ -236,6 +269,10 @@ function createApp() {
 
   mount(app, '/api/admin/advertiser-payments', 'adminAdvertiserPaymentRoutes', [
     './routes/admin/adminAdvertiserPaymentRoutes',
+  ]);
+
+  mount(app, '/api/admin/currencies', 'adminCurrencyRoutes', [
+    './routes/admin/adminCurrencyRoutes',
   ]);
 
   // public
@@ -273,6 +310,10 @@ function createApp() {
 
   mount(app, '/api/public/banner-home-ads', 'publicBannerHomeAdsRoutes', [
     './routes/public/publicBannerHomeAdsRoutes',
+  ]);
+
+  mount(app, '/api/public/currency', 'publicCurrencyRoutes', [
+    './routes/public/publicCurrencyRoutes',
   ]);
 
   mount(app, '/api/public', 'publicTemplateRoutes', [
