@@ -30,6 +30,7 @@ import api from '../../api/axios';
 import { useAuth } from '../../hooks/useAuth';
 import LocalizedPrice from '../../components/common/LocalizedPrice';
 import CurrencySwitcher from '../../components/common/CurrencySwitcher';
+import LegalFooter from '../../components/common/LegalFooter';
 import '../../components/common/CurrencySwitcher.css';
 import './HomePage.css';
 import './BannerHomeSlider.css';
@@ -2048,6 +2049,8 @@ export default function HomePage() {
           categoryTree={categoryTree}
         />
       </main>
+
+      <LegalFooter />
 
       <ProductQuickViewModal
         product={quickViewProduct}

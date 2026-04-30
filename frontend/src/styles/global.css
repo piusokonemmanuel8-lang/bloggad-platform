@@ -497,3 +497,75 @@ img {
 .admin-wp-shell .admin-chat-meta-user * {
   color: rgba(29, 35, 39, 0.72) !important;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+.bloggad-legal-footer {
+  background: #0f172a !important;
+  color: #ffffff !important;
+  padding: 34px 16px !important;
+  margin-top: 40px !important;
+}
+
+.bloggad-legal-footer * {
+  color: inherit;
+}
+
+.bloggad-legal-footer-shell {
+  width: min(1180px, 100%);
+  margin: 0 auto;
+  display: grid;
+  gap: 22px;
+}
+
+.bloggad-legal-footer strong {
+  display: block;
+  font-size: 22px;
+  font-weight: 950;
+  color: #ffffff !important;
+}
+
+.bloggad-legal-footer p {
+  margin: 8px 0 0;
+  max-width: 620px;
+  color: rgba(255, 255, 255, 0.72) !important;
+  line-height: 1.6;
+  font-size: 14px;
+}
+
+.bloggad-legal-footer nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 18px;
+}
+
+.bloggad-legal-footer a {
+  color: rgba(255, 255, 255, 0.86) !important;
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.bloggad-legal-footer a:hover {
+  color: #f97316 !important;
+}
+
+@media (max-width: 640px) {
+  .bloggad-legal-footer nav {
+    display: grid;
+    gap: 12px;
+  }
+}

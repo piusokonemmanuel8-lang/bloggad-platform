@@ -78,6 +78,7 @@ import PostPage from './pages/public/PostPage';
 import WebsitePostsPage from './pages/public/WebsitePostsPage';
 import WebsiteCategoryPage from './pages/public/WebsiteCategoryPage';
 import WebsitePostCategoryPage from './pages/public/WebsitePostCategoryPage';
+import LegalPage from './pages/public/legal/LegalPage';
 
 import CustomerDashboardPage from './pages/customer/CustomerDashboardPage';
 import CustomerAdvertiserDashboardPage from './pages/customer/CustomerAdvertiserDashboardPage';
@@ -129,6 +130,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
           <Route element={<PublicLayout />}>
             <Route path="/" element={<App />}>
               <Route index element={<HomePage />} />
+              <Route path="legal/:slug" element={<LegalPage />} />
               <Route path="category/:slug" element={<CategoryPage />} />
               <Route path=":websiteSlug" element={<WebsiteStorefrontPage />} />
               <Route path=":websiteSlug/posts" element={<WebsitePostsPage />} />
