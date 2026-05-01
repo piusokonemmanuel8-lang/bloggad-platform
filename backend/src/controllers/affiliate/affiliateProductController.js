@@ -1,6 +1,81 @@
+const fs = require('fs');
+const path = require('path');
+const crypto = require('crypto');
 const slugify = require('slugify');
 const pool = require('../../config/db');
 const { assertAndLogSupgadUrl } = require('../../services/linkValidationService');
+
+const PRODUCT_UPLOAD_DIR = path.join(__dirname, '../../../uploads/products');
+
+function ensureProductUploadDir() {
+  if (!fs.existsSync(PRODUCT_UPLOAD_DIR)) {
+    fs.mkdirSync(PRODUCT_UPLOAD_DIR, { recursive: true });
+  }
+}
+
+function getBase64ImageInfo(value) {
+  const raw = String(value || '').trim();
+
+  const match = raw.match(/^data:image\/(png|jpe?g|webp|gif);base64,(.+)$/i);
+
+  if (!match) return null;
+
+  const mimeExt = match[1].toLowerCase();
+  const base64Data = match[2];
+
+  const ext = mimeExt === 'jpeg' || mimeExt === 'jpg' ? 'jpg' : mimeExt;
+
+  return {
+    ext,
+    base64Data,
+  };
+}
+
+function normalizeImageUrl(value) {
+  const raw = String(value || '').trim();
+
+  if (!raw) return null;
+
+  if (raw.startsWith('/uploads/')) return raw;
+
+  if (raw.startsWith('http://') || raw.startsWith('https://')) return raw;
+
+  return raw;
+}
+
+async function saveProductImage(value, userId) {
+  const raw = String(value || '').trim();
+
+  if (!raw) return null;
+
+  const base64Info = getBase64ImageInfo(raw);
+
+  if (!base64Info) {
+    return normalizeImageUrl(raw);
+  }
+
+  ensureProductUploadDir();
+
+  const imageBuffer = Buffer.from(base64Info.base64Data, 'base64');
+
+  const maxSize = 10 * 1024 * 1024;
+
+  if (imageBuffer.length > maxSize) {
+    const error = new Error('Product image is too large. Please upload an image below 10MB.');
+    error.status = 400;
+    throw error;
+  }
+
+  const filename = `product-${userId}-${Date.now()}-${crypto.randomBytes(8).toString('hex')}.${
+    base64Info.ext
+  }`;
+
+  const filePath = path.join(PRODUCT_UPLOAD_DIR, filename);
+
+  await fs.promises.writeFile(filePath, imageBuffer);
+
+  return `/uploads/products/${filename}`;
+}
 
 function sanitizeProduct(row) {
   if (!row) return null;
@@ -311,7 +386,7 @@ async function createProduct(req, res) {
     }
 
     const cleanTitle = String(title).trim();
-    const cleanProductImage = String(product_image).trim();
+    const cleanProductImage = await saveProductImage(product_image, userId);
     const cleanHomepageCtaLabel = normalizeNullable(homepage_cta_label) || 'Buy Now';
     const cleanStorefrontCtaLabel = normalizeNullable(storefront_cta_label) || 'Read More';
     const cleanShortDescription = normalizeNullable(short_description);
@@ -506,7 +581,9 @@ async function updateProduct(req, res) {
     }
 
     const cleanProductImage =
-      product_image !== undefined ? String(product_image).trim() : existingProduct.product_image;
+      product_image !== undefined
+        ? await saveProductImage(product_image, userId)
+        : existingProduct.product_image;
 
     if (!cleanProductImage) {
       return res.status(400).json({
