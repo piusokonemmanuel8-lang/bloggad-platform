@@ -1,5 +1,16 @@
 const pool = require('../../config/db');
 
+function safeImageUrl(value) {
+  const raw = String(value || '').trim();
+
+  if (!raw) return null;
+
+  // Do not send huge base64 images to homepage. It makes homepage slow/fail.
+  if (raw.startsWith('data:image')) return null;
+
+  return raw;
+}
+
 function sanitizeHomepageProduct(row) {
   if (!row) return null;
 
@@ -7,7 +18,7 @@ function sanitizeHomepageProduct(row) {
     id: row.id,
     title: row.title,
     slug: row.slug,
-    product_image: row.product_image,
+    product_image: safeImageUrl(row.product_image),
     pricing_type: row.pricing_type,
     price: row.price !== null ? Number(row.price) : null,
     min_price: row.min_price !== null ? Number(row.min_price) : null,
@@ -60,7 +71,7 @@ function sanitizeHomepageWebsite(row) {
     website_name: row.website_name || row.name || 'Website',
     slug: row.slug,
     website_slug: row.slug,
-    logo: row.logo || null,
+    logo: safeImageUrl(row.logo),
     status: row.status,
     campaign_id: row.campaign_id || null,
     campaign_status: row.campaign_status || null,
@@ -77,6 +88,8 @@ function sanitizeHomepageWebsite(row) {
 }
 
 async function getHomepageProducts(limit = 24) {
+  const safeLimit = Number.isInteger(Number(limit)) && Number(limit) > 0 ? Number(limit) : 24;
+
   const [rows] = await pool.query(
     `
     SELECT
@@ -122,13 +135,15 @@ async function getHomepageProducts(limit = 24) {
     ORDER BY p.id DESC
     LIMIT ?
     `,
-    [limit]
+    [safeLimit]
   );
 
   return rows.map(sanitizeHomepageProduct);
 }
 
 async function getHomepageCategories(limit = 20) {
+  const safeLimit = Number.isInteger(Number(limit)) && Number(limit) > 0 ? Number(limit) : 20;
+
   const [rows] = await pool.query(
     `
     SELECT
@@ -154,13 +169,15 @@ async function getHomepageCategories(limit = 20) {
     ORDER BY c.sort_order ASC, c.name ASC
     LIMIT ?
     `,
-    [limit]
+    [safeLimit]
   );
 
   return rows.map(sanitizeHomepageCategory);
 }
 
 async function getHomepageFeaturedWebsites(limit = 10) {
+  const safeLimit = Number.isInteger(Number(limit)) && Number(limit) > 0 ? Number(limit) : 10;
+
   const [rows] = await pool.query(
     `
     SELECT
@@ -215,7 +232,7 @@ async function getHomepageFeaturedWebsites(limit = 10) {
     ORDER BY MAX(c.id) DESC
     LIMIT ?
     `,
-    [limit]
+    [safeLimit]
   );
 
   return rows.map(sanitizeHomepageWebsite);
