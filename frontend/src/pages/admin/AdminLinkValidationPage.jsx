@@ -108,6 +108,18 @@ export default function AdminLinkValidationPage() {
   const [selectedLog, setSelectedLog] = useState(null);
   const [filter, setFilter] = useState('all');
   const [search, setSearch] = useState('');
+  const [domainRules, setDomainRules] = useState([]);
+  const [editingRuleId, setEditingRuleId] = useState('');
+  const [domainRuleSaving, setDomainRuleSaving] = useState(false);
+  const [domainRuleDeletingId, setDomainRuleDeletingId] = useState('');
+  const [domainRuleForm, setDomainRuleForm] = useState({
+    domain: '',
+    rule_status: 'review',
+    category: '',
+    reason: '',
+    applies_to_subdomains: true,
+    is_active: true,
+  });
 
   const [loading, setLoading] = useState(true);
   const [detailsLoading, setDetailsLoading] = useState(false);
@@ -137,6 +149,100 @@ export default function AdminLinkValidationPage() {
     setSummary(data?.summary || null);
   };
 
+  const fetchDomainRules = async () => {
+    const { data } = await api.get('/api/admin/link-validation/domains');
+    setDomainRules(data?.rules || []);
+  };
+
+  const resetDomainRuleForm = () => {
+    setEditingRuleId('');
+    setDomainRuleForm({
+      domain: '',
+      rule_status: 'review',
+      category: '',
+      reason: '',
+      applies_to_subdomains: true,
+      is_active: true,
+    });
+  };
+
+  const handleDomainRuleField = (field, value) => {
+    setDomainRuleForm((current) => ({ ...current, [field]: value }));
+  };
+
+  const handleEditDomainRule = (rule) => {
+    setEditingRuleId(String(rule.id));
+    setDomainRuleForm({
+      domain: rule.domain || '',
+      rule_status: rule.rule_status || 'review',
+      category: rule.category || '',
+      reason: rule.reason || '',
+      applies_to_subdomains: Boolean(rule.applies_to_subdomains),
+      is_active: Boolean(rule.is_active),
+    });
+    setError('');
+    setSuccess('');
+  };
+
+  const handleSaveDomainRule = async (event) => {
+    event.preventDefault();
+
+    if (!domainRuleForm.domain.trim()) {
+      setError('Domain is required');
+      return;
+    }
+
+    try {
+      setDomainRuleSaving(true);
+      setError('');
+      setSuccess('');
+
+      const payload = {
+        domain: domainRuleForm.domain.trim(),
+        rule_status: domainRuleForm.rule_status,
+        category: domainRuleForm.category.trim() || null,
+        reason: domainRuleForm.reason.trim() || null,
+        applies_to_subdomains: Boolean(domainRuleForm.applies_to_subdomains),
+        is_active: Boolean(domainRuleForm.is_active),
+      };
+
+      if (editingRuleId) {
+        await api.put(`/api/admin/link-validation/domains/${editingRuleId}`, payload);
+      } else {
+        await api.post('/api/admin/link-validation/domains', payload);
+      }
+
+      await fetchDomainRules();
+      setSuccess(editingRuleId ? 'Domain rule updated successfully' : 'Domain rule created successfully');
+      resetDomainRuleForm();
+    } catch (err) {
+      setError(err?.response?.data?.message || 'Failed to save domain rule');
+    } finally {
+      setDomainRuleSaving(false);
+    }
+  };
+
+  const handleDeleteDomainRule = async (rule) => {
+    const confirmed = window.confirm(`Delete domain rule for ${rule.domain}?`);
+    if (!confirmed) return;
+
+    try {
+      setDomainRuleDeletingId(String(rule.id));
+      setError('');
+      setSuccess('');
+      await api.delete(`/api/admin/link-validation/domains/${rule.id}`);
+      await fetchDomainRules();
+      if (String(editingRuleId) === String(rule.id)) {
+        resetDomainRuleForm();
+      }
+      setSuccess('Domain rule deleted successfully');
+    } catch (err) {
+      setError(err?.response?.data?.message || 'Failed to delete domain rule');
+    } finally {
+      setDomainRuleDeletingId('');
+    }
+  };
+
   const fetchSingleLog = async (logId) => {
     const { data } = await api.get(`/api/admin/link-validation/${logId}`);
     setSelectedLog(data?.log || null);
@@ -147,7 +253,7 @@ export default function AdminLinkValidationPage() {
       try {
         setLoading(true);
         setError('');
-        await Promise.all([fetchLogs('all'), fetchSummary()]);
+        await Promise.all([fetchLogs('all'), fetchSummary(), fetchDomainRules()]);
       } catch (err) {
         setError(err?.response?.data?.message || 'Failed to load link validation logs');
       } finally {
@@ -239,7 +345,7 @@ export default function AdminLinkValidationPage() {
       setRefreshing(true);
       setError('');
       setSuccess('');
-      await Promise.all([fetchLogs(filter), fetchSummary()]);
+      await Promise.all([fetchLogs(filter), fetchSummary(), fetchDomainRules()]);
       if (selectedLogId) {
         await fetchSingleLog(selectedLogId);
       }
@@ -309,6 +415,16 @@ export default function AdminLinkValidationPage() {
           grid-template-columns: repeat(2, minmax(0, 1fr));
           gap: 16px;
         }
+        .admin-link-domain-grid {
+          display: grid;
+          grid-template-columns: minmax(320px, 0.85fr) minmax(0, 1.15fr);
+          gap: 20px;
+        }
+        .admin-link-domain-form-grid {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 12px;
+        }
         .spin-soft {
           animation: spinSoft 0.9s linear infinite;
         }
@@ -320,7 +436,9 @@ export default function AdminLinkValidationPage() {
           .admin-link-grid-4,
           .admin-link-grid-2,
           .admin-link-main-grid,
-          .admin-link-detail-grid {
+          .admin-link-detail-grid,
+          .admin-link-domain-grid,
+          .admin-link-domain-form-grid {
             grid-template-columns: 1fr;
           }
         }
@@ -429,8 +547,221 @@ export default function AdminLinkValidationPage() {
       ) : null}
 
       <div style={{ ...cardStyle({ padding: 16, marginBottom: 20, borderLeft: '4px solid #72aee6' }) }}>
-        This page tracks allowed and blocked links so you can enforce the supgad.com-only rule.
+        This page tracks allowed and blocked outbound links so Bloggad can review destination domains and enforce link safety policy.
       </div>
+
+      <section style={{ ...cardStyle(), marginBottom: 20 }}>
+        <div style={{ padding: '16px 18px', borderBottom: '1px solid #dcdcde' }}>
+          <div style={{ fontSize: 18, fontWeight: 700, color: '#1d2327', marginBottom: 6 }}>
+            Domain Rules
+          </div>
+          <div style={{ fontSize: 13, color: '#646970' }}>
+            Control destination domains without restricting legitimate external links for Writers.
+          </div>
+        </div>
+
+        <div className="admin-link-domain-grid" style={{ padding: 18 }}>
+          <form onSubmit={handleSaveDomainRule} style={cardStyle({ padding: 16, background: '#f6f7f7' })}>
+            <div style={{ fontSize: 16, fontWeight: 600, color: '#1d2327', marginBottom: 14 }}>
+              {editingRuleId ? 'Edit Domain Rule' : 'Add Domain Rule'}
+            </div>
+
+            <div className="admin-link-domain-form-grid">
+              <label style={{ display: 'grid', gap: 6, gridColumn: '1 / -1' }}>
+                <span style={{ fontSize: 13, fontWeight: 600, color: '#1d2327' }}>Domain</span>
+                <input
+                  type="text"
+                  value={domainRuleForm.domain}
+                  onChange={(event) => handleDomainRuleField('domain', event.target.value)}
+                  placeholder="example.com"
+                  required
+                  style={{ padding: '11px 12px', border: '1px solid #8c8f94', background: '#fff' }}
+                />
+              </label>
+
+              <label style={{ display: 'grid', gap: 6 }}>
+                <span style={{ fontSize: 13, fontWeight: 600, color: '#1d2327' }}>Rule</span>
+                <select
+                  value={domainRuleForm.rule_status}
+                  onChange={(event) => handleDomainRuleField('rule_status', event.target.value)}
+                  style={{ padding: '11px 12px', border: '1px solid #8c8f94', background: '#fff' }}
+                >
+                  <option value="allow">Allow</option>
+                  <option value="block">Block</option>
+                  <option value="review">Review</option>
+                </select>
+              </label>
+
+              <label style={{ display: 'grid', gap: 6 }}>
+                <span style={{ fontSize: 13, fontWeight: 600, color: '#1d2327' }}>Category</span>
+                <input
+                  type="text"
+                  value={domainRuleForm.category}
+                  onChange={(event) => handleDomainRuleField('category', event.target.value)}
+                  placeholder="e.g. gambling, adult, phishing"
+                  style={{ padding: '11px 12px', border: '1px solid #8c8f94', background: '#fff' }}
+                />
+              </label>
+
+              <label style={{ display: 'grid', gap: 6, gridColumn: '1 / -1' }}>
+                <span style={{ fontSize: 13, fontWeight: 600, color: '#1d2327' }}>Reason</span>
+                <textarea
+                  value={domainRuleForm.reason}
+                  onChange={(event) => handleDomainRuleField('reason', event.target.value)}
+                  placeholder="Why should Bloggad allow, block, or review this domain?"
+                  rows={3}
+                  style={{ padding: '11px 12px', border: '1px solid #8c8f94', background: '#fff', resize: 'vertical' }}
+                />
+              </label>
+            </div>
+
+            <div style={{ display: 'grid', gap: 10, marginTop: 14 }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#1d2327' }}>
+                <input
+                  type="checkbox"
+                  checked={domainRuleForm.applies_to_subdomains}
+                  onChange={(event) => handleDomainRuleField('applies_to_subdomains', event.target.checked)}
+                />
+                Apply this rule to subdomains
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#1d2327' }}>
+                <input
+                  type="checkbox"
+                  checked={domainRuleForm.is_active}
+                  onChange={(event) => handleDomainRuleField('is_active', event.target.checked)}
+                />
+                Rule is active
+              </label>
+            </div>
+
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 16 }}>
+              <button
+                type="submit"
+                disabled={domainRuleSaving}
+                style={{
+                  border: '1px solid #2271b1',
+                  background: '#2271b1',
+                  color: '#fff',
+                  padding: '10px 16px',
+                  fontWeight: 600,
+                  cursor: domainRuleSaving ? 'not-allowed' : 'pointer',
+                }}
+              >
+                {domainRuleSaving ? 'Saving...' : editingRuleId ? 'Update Rule' : 'Add Rule'}
+              </button>
+              {editingRuleId ? (
+                <button
+                  type="button"
+                  onClick={resetDomainRuleForm}
+                  disabled={domainRuleSaving}
+                  style={{
+                    border: '1px solid #8c8f94',
+                    background: '#fff',
+                    color: '#1d2327',
+                    padding: '10px 16px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Cancel Edit
+                </button>
+              ) : null}
+            </div>
+          </form>
+
+          <div style={cardStyle()}>
+            <div style={{ padding: '14px 16px', borderBottom: '1px solid #dcdcde' }}>
+              <div style={{ fontSize: 16, fontWeight: 600, color: '#1d2327' }}>
+                Current Rules ({domainRules.length})
+              </div>
+            </div>
+            <div style={{ padding: 16, maxHeight: 560, overflowY: 'auto' }}>
+              {domainRules.length ? (
+                domainRules.map((rule) => {
+                  const tone =
+                    rule.rule_status === 'allow'
+                      ? { background: '#ecfdf3', color: '#166534', border: '1px solid #b7e4c7' }
+                      : rule.rule_status === 'block'
+                      ? { background: '#fff1f2', color: '#b42318', border: '1px solid #f1b5b8' }
+                      : { background: '#fff8e5', color: '#8a4b08', border: '1px solid #f0c36d' };
+
+                  return (
+                    <div key={rule.id} style={{ ...cardStyle({ padding: 14 }), marginBottom: 12 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ fontWeight: 700, color: '#1d2327', wordBreak: 'break-word' }}>
+                            {rule.domain}
+                          </div>
+                          <div style={{ fontSize: 12, color: '#646970', marginTop: 5 }}>
+                            {rule.category || 'Uncategorized'}
+                            {rule.applies_to_subdomains ? ' - includes subdomains' : ' - exact domain only'}
+                          </div>
+                        </div>
+                        <span
+                          style={{
+                            ...tone,
+                            padding: '5px 9px',
+                            fontSize: 12,
+                            fontWeight: 700,
+                            textTransform: 'uppercase',
+                            alignSelf: 'flex-start',
+                          }}
+                        >
+                          {rule.rule_status}
+                        </span>
+                      </div>
+
+                      <div style={{ fontSize: 13, color: '#646970', marginTop: 10, wordBreak: 'break-word' }}>
+                        {rule.reason || 'No reason recorded.'}
+                      </div>
+
+                      <div style={{ fontSize: 12, color: rule.is_active ? '#166534' : '#646970', marginTop: 8 }}>
+                        {rule.is_active ? 'Active' : 'Inactive'}
+                      </div>
+
+                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12 }}>
+                        <button
+                          type="button"
+                          onClick={() => handleEditDomainRule(rule)}
+                          style={{
+                            border: '1px solid #2271b1',
+                            background: '#fff',
+                            color: '#2271b1',
+                            padding: '7px 11px',
+                            fontWeight: 600,
+                            cursor: 'pointer',
+                          }}
+                        >
+                          Edit
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteDomainRule(rule)}
+                          disabled={String(domainRuleDeletingId) === String(rule.id)}
+                          style={{
+                            border: '1px solid #d63638',
+                            background: '#fff',
+                            color: '#d63638',
+                            padding: '7px 11px',
+                            fontWeight: 600,
+                            cursor: 'pointer',
+                          }}
+                        >
+                          {String(domainRuleDeletingId) === String(rule.id) ? 'Deleting...' : 'Delete'}
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })
+              ) : (
+                <div style={{ color: '#646970', fontSize: 13 }}>
+                  No domain rules yet. Valid outbound links remain allowed unless another safety rule blocks them.
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </section>
 
       <div className="admin-link-grid-4" style={{ marginBottom: 20 }}>
         <StatCard label="Total Logs" value={summary?.total_logs || 0} icon={Globe} tone="primary" />

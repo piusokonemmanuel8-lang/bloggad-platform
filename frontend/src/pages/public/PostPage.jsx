@@ -14,6 +14,7 @@ import {
 import { useParams } from 'react-router-dom';
 import api from '../../api/axios';
 import { resolvePostTemplateComponent } from './templates/posts';
+import PublicWriterReaderActions from '../../components/writerReader/PublicWriterReaderActions';
 
 function getEmailCaptureCooldownKey(websiteId) {
   return `bloggad_email_capture_cooldown_${websiteId}`;
@@ -1316,6 +1317,21 @@ export default function PostPage() {
         emailCaptureFooter={emailCaptureFooter}
         sponsoredRelatedPostsSlot={sponsoredRelatedPostsSlot}
         onOpenPopup={() => setPopupOpen(true)}
+      />
+
+      <PublicWriterReaderActions
+        post={post}
+        websiteSlug={websiteSlug}
+        access={postData?.access || null}
+        templateFields={postData?.template_fields || []}
+        onUnlocked={(readerAccess) => {
+          setPostData((prev) => ({
+            ...(prev || {}),
+            template_fields: readerAccess?.template_fields || [],
+            cta_buttons: readerAccess?.cta_buttons || [],
+            access: readerAccess?.access || prev?.access || null,
+          }));
+        }}
       />
 
       <EmailCapturePopup

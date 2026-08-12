@@ -10,6 +10,7 @@ import {
   ShieldCheck,
 } from 'lucide-react';
 import api from '../../api/axios';
+import './AffiliateChooseTemplateApproved.css';
 
 function getStatusClass(status = '') {
   const value = String(status).toLowerCase();

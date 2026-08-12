@@ -28,6 +28,15 @@ const BUILT_IN_BLOG_TEMPLATES = [
     is_premium: 1,
     status: 'active',
   },
+  {
+    name: 'Simple Writer',
+    slug: 'simple-writer',
+    template_code_key: 'simple_writer_template_v1',
+    description:
+      'Free flexible Writer template for stories, articles, books, novels, lessons, and other long-form writing with ordered text and inline image blocks.',
+    is_premium: 0,
+    status: 'active',
+  },
 ];
 
 async function syncBuiltInBlogTemplates() {

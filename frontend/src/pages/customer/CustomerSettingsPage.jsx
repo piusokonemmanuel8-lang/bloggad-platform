@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import CustomerPageShell from '../../components/customer/CustomerPageShell';
+import ReaderUnifiedShell from '../../components/reader/ReaderUnifiedShell';
+import './CustomerSettingsApproved.css';
 
 const API_BASE =
   import.meta.env.VITE_API_BASE_URL ||
@@ -64,7 +65,7 @@ export default function CustomerSettingsPage() {
         const data = await safeJson(response);
 
         if (!response.ok || !data?.ok) {
-          throw new Error(data?.message || 'Failed to fetch customer settings.');
+          throw new Error(data?.message || 'Failed to fetch Reader settings.');
         }
 
         const profile = data?.settings?.profile || {};
@@ -79,7 +80,7 @@ export default function CustomerSettingsPage() {
         });
       } catch (err) {
         if (!active) return;
-        setError(err.message || 'Failed to fetch customer settings.');
+        setError(err.message || 'Failed to fetch Reader settings.');
       } finally {
         if (active) setLoading(false);
       }
@@ -123,7 +124,7 @@ export default function CustomerSettingsPage() {
       const data = await safeJson(response);
 
       if (!response.ok || !data?.ok) {
-        throw new Error(data?.message || 'Failed to save customer settings.');
+        throw new Error(data?.message || 'Failed to save Reader settings.');
       }
 
       const customer = data?.customer || null;
@@ -140,208 +141,123 @@ export default function CustomerSettingsPage() {
         }));
       }
 
-      setSuccess(data?.message || 'Customer settings saved successfully.');
+      setSuccess(data?.message || 'Reader settings saved successfully.');
     } catch (err) {
-      setError(err.message || 'Failed to save customer settings.');
+      setError(err.message || 'Failed to save Reader settings.');
     } finally {
       setSaving(false);
     }
   }
 
+  const displayRole =
+    String(form.role || 'customer').toLowerCase() === 'customer'
+      ? 'Reader'
+      : form.role || 'Reader';
+
+  const displayStatus = form.status
+    ? `${String(form.status).charAt(0).toUpperCase()}${String(form.status).slice(1)}`
+    : '-';
+
   return (
-    <CustomerPageShell
-      currentPath="/customer/settings"
-      badge="Profile Settings"
-      title="Manage your account"
-      subtitle="Update your customer name here. Email, role, and status are shown for reference."
-    >
-      {error ? (
-        <div
-          style={{
-            borderRadius: 20,
-            border: '1px solid #fecaca',
-            background: '#fff1f2',
-            padding: '16px 18px',
-            fontSize: 14,
-            color: '#be123c',
-          }}
-        >
-          {error}
+    <ReaderUnifiedShell title="Settings" subtitle="Reader account">
+      <div className="reader-settings-approved">
+        <h1 className="reader-settings-mobile-title">Settings</h1>
+
+        <div className="reader-settings-desktop-note" role="note">
+          <span className="reader-settings-info-mark" aria-hidden="true">i</span>
+          <span>
+            Your Reader profile is simple: update your name here. Email, role, and status remain account reference details.
+          </span>
         </div>
-      ) : null}
 
-      {success ? (
-        <div
-          style={{
-            borderRadius: 20,
-            border: '1px solid #bbf7d0',
-            background: '#ecfdf5',
-            padding: '16px 18px',
-            fontSize: 14,
-            color: '#166534',
-          }}
-        >
-          {success}
-        </div>
-      ) : null}
+        <div className="reader-settings-grid">
+          <section className="reader-settings-card reader-settings-profile-card">
+            <h2>Account profile</h2>
+            <p className="reader-settings-card-copy">
+              Update the name shown on your Reader account.
+            </p>
 
-      <section
-        style={{
-          borderRadius: 24,
-          border: '1px solid #e5e7eb',
-          background: '#ffffff',
-          padding: 20,
-          boxShadow: '0 18px 45px rgba(15, 23, 42, 0.05)',
-        }}
-      >
-        {loading ? (
-          <div
-            style={{
-              fontSize: 14,
-              color: '#6b7280',
-            }}
-          >
-            Loading settings...
-          </div>
-        ) : (
-          <form
-            onSubmit={handleSubmit}
-            style={{
-              display: 'grid',
-              gap: 20,
-              gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-            }}
-          >
-            <div style={{ gridColumn: '1 / -1' }}>
-              <label
-                style={{
-                  display: 'block',
-                  marginBottom: 8,
-                  fontSize: 14,
-                  fontWeight: 700,
-                  color: '#111827',
-                }}
-              >
-                Full Name
+            <form onSubmit={handleSubmit} className="reader-settings-form">
+              <label className="reader-settings-field">
+                <span>Name</span>
+                <input
+                  type="text"
+                  name="name"
+                  value={form.name}
+                  onChange={handleChange}
+                  autoComplete="name"
+                  required
+                  disabled={loading || saving}
+                  placeholder={loading ? 'Loading...' : 'Reader name'}
+                />
               </label>
-              <input
-                type="text"
-                name="name"
-                value={form.name}
-                onChange={handleChange}
-                placeholder="Enter your full name"
-                required
-                style={inputStyle}
-              />
-            </div>
 
-            <div>
-              <label
-                style={{
-                  display: 'block',
-                  marginBottom: 8,
-                  fontSize: 14,
-                  fontWeight: 700,
-                  color: '#111827',
-                }}
-              >
-                Email
-              </label>
-              <input
-                type="email"
-                value={form.email}
-                readOnly
-                style={readOnlyInputStyle}
-              />
-            </div>
+              <p className="reader-settings-helper">
+                Name is required. Saving updates only this profile field.
+              </p>
 
-            <div>
-              <label
-                style={{
-                  display: 'block',
-                  marginBottom: 8,
-                  fontSize: 14,
-                  fontWeight: 700,
-                  color: '#111827',
-                }}
-              >
-                Role
-              </label>
-              <input
-                type="text"
-                value={form.role}
-                readOnly
-                style={readOnlyInputStyle}
-              />
-            </div>
-
-            <div style={{ gridColumn: '1 / -1' }}>
-              <label
-                style={{
-                  display: 'block',
-                  marginBottom: 8,
-                  fontSize: 14,
-                  fontWeight: 700,
-                  color: '#111827',
-                }}
-              >
-                Status
-              </label>
-              <input
-                type="text"
-                value={form.status}
-                readOnly
-                style={readOnlyInputStyle}
-              />
-            </div>
-
-            <div style={{ gridColumn: '1 / -1' }}>
               <button
                 type="submit"
-                disabled={saving}
-                style={{
-                  minHeight: 48,
-                  padding: '0 18px',
-                  borderRadius: 16,
-                  border: '1px solid #111827',
-                  background: '#111827',
-                  color: '#ffffff',
-                  fontSize: 14,
-                  fontWeight: 700,
-                  cursor: saving ? 'not-allowed' : 'pointer',
-                  opacity: saving ? 0.65 : 1,
-                }}
+                className="reader-settings-save"
+                disabled={loading || saving}
               >
-                {saving ? 'Saving...' : 'Save Settings'}
+                {saving ? 'Saving...' : 'Save changes'}
               </button>
+            </form>
+          </section>
+
+          <section className="reader-settings-card reader-settings-details-card">
+            <h2>Account details</h2>
+            <p className="reader-settings-card-copy">
+              Reference information from your Reader account.
+            </p>
+
+            <div className="reader-settings-reference-list">
+              <div className="reader-settings-field">
+                <span>Email</span>
+                <div className="reader-settings-readonly">
+                  {loading ? 'Loading...' : form.email || '-'}
+                </div>
+              </div>
+
+              <div className="reader-settings-field">
+                <span>Role</span>
+                <div className="reader-settings-readonly">
+                  {loading ? 'Loading...' : displayRole}
+                </div>
+              </div>
+
+              <div className="reader-settings-field">
+                <span>Status</span>
+                <div className="reader-settings-readonly">
+                  {loading ? 'Loading...' : displayStatus}
+                </div>
+              </div>
             </div>
-          </form>
-        )}
-      </section>
-    </CustomerPageShell>
+
+            <div className="reader-settings-readonly-note">
+              Email, role, and status are read-only here.
+            </div>
+          </section>
+        </div>
+
+        {error ? (
+          <div className="reader-settings-alert error" role="alert">
+            {error}
+          </div>
+        ) : null}
+
+        {success ? (
+          <div className="reader-settings-alert success" role="status">
+            {success}
+          </div>
+        ) : null}
+
+        <div className="reader-settings-mobile-note" role="note">
+          <span className="reader-settings-info-mark" aria-hidden="true">i</span>
+          <span>Only the name is editable on this settings page.</span>
+        </div>
+      </div>
+    </ReaderUnifiedShell>
   );
 }
-
-const inputStyle = {
-  width: '100%',
-  minHeight: 48,
-  borderRadius: 16,
-  border: '1px solid #d1d5db',
-  background: '#ffffff',
-  padding: '0 16px',
-  fontSize: 14,
-  color: '#111827',
-  outline: 'none',
-};
-
-const readOnlyInputStyle = {
-  width: '100%',
-  minHeight: 48,
-  borderRadius: 16,
-  border: '1px solid #e5e7eb',
-  background: '#f8fafc',
-  padding: '0 16px',
-  fontSize: 14,
-  color: '#6b7280',
-  outline: 'none',
-};

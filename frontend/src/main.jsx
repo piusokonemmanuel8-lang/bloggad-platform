@@ -1,6 +1,17 @@
+import WriterPagesPage from './pages/writer/WriterPagesPage';
+import PublicWriterPage from './pages/public/PublicWriterPage';
+import WriterPagePostPage from './pages/public/WriterPagePostPage';
+import PublicTopicsPage from './pages/public/PublicTopicsPage';
+import PublicCategoriesPage from './pages/public/PublicCategoriesPage';
+import PublicTopicPage from './pages/public/PublicTopicPage';
+import AdminReadingCorePage from './pages/admin/AdminReadingCorePage';
+import ReaderFeedPage from './pages/reader/ReaderFeedPage';
+import ReaderInterestsPage from './pages/reader/ReaderInterestsPage';
+import ReaderReadingControlsPage from './pages/reader/ReaderReadingControlsPage';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+import BloggadGlobalLoader from './components/shared/BloggadGlobalLoader';
 import App from './App';
 import './styles/global.css';
 
@@ -44,6 +55,7 @@ import AffiliateAdPlacementPage from './pages/affiliate/AffiliateAdPlacementPage
 import AffiliateMonetizationAnalyticsOverviewPage from './pages/affiliate/AffiliateMonetizationAnalyticsOverviewPage';
 import AffiliateNotificationsPage from './pages/affiliate/AffiliateNotificationsPage';
 import AffiliateAdsPage from './pages/affiliate/AffiliateAdsPage';
+import WriterAdsPage from './pages/writer/WriterAdsPage';
 import AffiliateLeaderboardPage from './pages/affiliate/AffiliateLeaderboardPage';
 
 import AdminDashboardPage from './pages/admin/AdminDashboardPage';
@@ -62,6 +74,7 @@ import AdminCampaignModerationPage from './pages/admin/AdminCampaignModerationPa
 import AdminCampaignModerationDetailsPage from './pages/admin/AdminCampaignModerationDetailsPage';
 import AdminPaymentModerationPage from './pages/admin/AdminPaymentModerationPage';
 import AdminPaymentModerationDetailsPage from './pages/admin/AdminPaymentModerationDetailsPage';
+import AdminPaymentGatewaysPage from './pages/admin/AdminPaymentGatewaysPage';
 import AdminNotificationsPage from './pages/admin/AdminNotificationsPage';
 import AdminAffiliateAdsPage from './pages/admin/AdminAffiliateAdsPage';
 import AdminAffiliateAdsSettingsPage from './pages/admin/AdminAffiliateAdsSettingsPage';
@@ -75,6 +88,7 @@ import WebsiteStorefrontPage from './pages/public/WebsiteStorefrontPage';
 import CategoryPage from './pages/public/CategoryPage';
 import ProductPage from './pages/public/ProductPage';
 import PostPage from './pages/public/PostPage';
+import WriterProfilePage from './pages/public/WriterProfilePage';
 import WebsitePostsPage from './pages/public/WebsitePostsPage';
 import WebsiteCategoryPage from './pages/public/WebsiteCategoryPage';
 import WebsitePostCategoryPage from './pages/public/WebsitePostCategoryPage';
@@ -92,6 +106,20 @@ import CustomerSavedPostsPage from './pages/customer/CustomerSavedPostsPage';
 import CustomerSavedProductsPage from './pages/customer/CustomerSavedProductsPage';
 import CustomerMessagesPage from './pages/customer/CustomerMessagesPage';
 import CustomerSettingsPage from './pages/customer/CustomerSettingsPage';
+
+import WriterSeriesPage from './pages/writer/WriterSeriesPage';
+import WriterCoursesPage from './pages/writer/WriterCoursesPage';
+import WriterCommunityPage from './pages/writer/WriterCommunityPage';
+import WriterWalletPage from './pages/writer/WriterWalletPage';
+import WriterMembershipsPage from './pages/writer/WriterMembershipsPage';
+import WriterSocialNotificationsPage from './pages/writer/WriterSocialNotificationsPage';
+
+import ReaderFollowingPage from './pages/reader/ReaderFollowingPage';
+import ReaderNotificationsPage from './pages/reader/ReaderNotificationsPage';
+import ReaderCreditsPage from './pages/reader/ReaderCreditsPage';
+import ReaderPremiumPage from './pages/reader/ReaderPremiumPage';
+import ReaderCoursesPage from './pages/reader/ReaderCoursesPage';
+import ReaderAppreciationsPage from './pages/reader/ReaderAppreciationsPage';
 
 function CustomerProtectedRoute({ children }) {
   const token =
@@ -126,12 +154,18 @@ ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <AuthProvider>
       <BrowserRouter>
+                <BloggadGlobalLoader />
         <Routes>
           <Route element={<PublicLayout />}>
             <Route path="/" element={<App />}>
               <Route index element={<HomePage />} />
               <Route path="legal/:slug" element={<LegalPage />} />
               <Route path="category/:slug" element={<CategoryPage />} />
+              <Route path="topics" element={<PublicTopicsPage />} />
+              <Route path="categories" element={<PublicCategoriesPage />} />
+              <Route path="topic/:slug" element={<PublicTopicPage />} />
+              <Route path="page/:pageSlug" element={<PublicWriterPage />} />
+              <Route path="page/:pageSlug/post/:postSlug" element={<WriterPagePostPage />} />
               <Route path=":websiteSlug" element={<WebsiteStorefrontPage />} />
               <Route path=":websiteSlug/posts" element={<WebsitePostsPage />} />
               <Route
@@ -141,6 +175,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
               <Route path=":websiteSlug/category/:slug" element={<WebsiteCategoryPage />} />
               <Route path=":websiteSlug/product/:slug" element={<ProductPage />} />
               <Route path=":websiteSlug/post/:slug" element={<PostPage />} />
+              <Route path=":websiteSlug/writer/:writerId" element={<WriterProfilePage />} />
             </Route>
           </Route>
 
@@ -149,9 +184,49 @@ ReactDOM.createRoot(document.getElementById('root')).render(
             <Route path="/register" element={<RegisterPage />} />
             <Route path="/customer/login" element={<CustomerLoginPage />} />
             <Route path="/customer/register" element={<CustomerRegisterPage />} />
+            <Route path="/reader/login" element={<CustomerLoginPage />} />
+            <Route path="/reader/register" element={<CustomerRegisterPage />} />
+            <Route path="/writer/login" element={<LoginPage />} />
+            <Route path="/writer/register" element={<RegisterPage />} />
           </Route>
 
           <Route element={<AffiliateLayout />}>
+            <Route path="/writer/dashboard" element={<AffiliateDashboardPage />} />
+            <Route path="/writer/pages" element={<WriterPagesPage />} />
+            <Route path="/writer/website" element={<AffiliateWebsitePage />} />
+            <Route path="/writer/products" element={<AffiliateProductsPage />} />
+            <Route path="/writer/products/create" element={<AffiliateCreateProductPage />} />
+            <Route path="/writer/products/:id/edit" element={<AffiliateEditProductPage />} />
+            <Route path="/writer/products/:id/posts" element={<AffiliateProductPostsPage />} />
+            <Route path="/writer/posts" element={<AffiliatePostsPage />} />
+            <Route path="/writer/posts/create" element={<AffiliateCreatePostPage />} />
+            <Route path="/writer/posts/:id/edit" element={<AffiliateEditPostPage />} />
+            <Route path="/writer/templates/choose" element={<AffiliateChooseTemplatePage />} />
+            <Route path="/writer/menus" element={<AffiliateMenusPage />} />
+            <Route path="/writer/sliders" element={<AffiliateSlidersPage />} />
+            <Route path="/writer/design" element={<AffiliateDesignPage />} />
+            <Route path="/writer/analytics" element={<AffiliateAnalyticsPage />} />
+            <Route path="/writer/media" element={<AffiliateMediaLibraryPage />} />
+            <Route path="/writer/readers" element={<AffiliateCustomersPage />} />
+            <Route path="/writer/email-lists" element={<AffiliateEmailListsPage />} />
+            <Route path="/writer/messages" element={<AffiliateChatsPage />} />
+            <Route path="/writer/plan" element={<AffiliateSubscriptionPage />} />
+            <Route path="/writer/settings" element={<AffiliateSettingsPage />} />
+            <Route path="/writer/series" element={<WriterSeriesPage />} />
+            <Route path="/writer/courses" element={<WriterCoursesPage />} />
+            <Route path="/writer/community" element={<WriterCommunityPage />} />
+            <Route path="/writer/wallet" element={<WriterWalletPage />} />
+            <Route path="/writer/memberships" element={<WriterMembershipsPage />} />
+            <Route path="/writer/notifications" element={<WriterSocialNotificationsPage />} />
+            <Route path="/writer/leaderboard" element={<AffiliateLeaderboardPage />} />
+            <Route path="/writer/ads" element={<WriterAdsPage />} />
+            <Route path="/writer/monetization" element={<Navigate to="/writer/monetization/eligibility" replace />} />
+            <Route path="/writer/monetization/eligibility" element={<AffiliateMonetizationEligibilityPage />} />
+            <Route path="/writer/monetization/analytics" element={<AffiliateMonetizationAnalyticsOverviewPage />} />
+            <Route path="/writer/monetization/blogpulse-analytics" element={<AffiliateBlogPulseAnalyticsPage />} />
+            <Route path="/writer/monetization/my-ads" element={<AffiliateMyAdsPage />} />
+            <Route path="/writer/monetization/ad-placement" element={<AffiliateAdPlacementPage />} />
+
             <Route path="/affiliate/dashboard" element={<AffiliateDashboardPage />} />
             <Route path="/affiliate/website" element={<AffiliateWebsitePage />} />
             <Route path="/affiliate/products" element={<AffiliateProductsPage />} />
@@ -206,6 +281,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
             <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
             <Route path="/admin/leaderboard" element={<AdminLeaderboardPage />} />
             <Route path="/admin/categories" element={<AdminCategoriesPage />} />
+            <Route path="/admin/reading-core" element={<AdminReadingCorePage />} />
             <Route path="/admin/templates" element={<AdminTemplatesPage />} />
             <Route path="/admin/plans" element={<AdminPlansPage />} />
             <Route path="/admin/blogpulse" element={<AdminBlogPulsePage />} />
@@ -238,6 +314,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
               path="/admin/payment-moderation/:paymentId"
               element={<AdminPaymentModerationDetailsPage />}
             />
+            <Route path="/admin/payment-gateways" element={<AdminPaymentGatewaysPage />} />
           </Route>
 
           <Route
@@ -335,6 +412,68 @@ ReactDOM.createRoot(document.getElementById('root')).render(
                 <CustomerSettingsPage />
               </CustomerProtectedRoute>
             }
+          />
+
+          <Route
+            path="/reader/dashboard"
+            element={<CustomerProtectedRoute><CustomerDashboardPage /></CustomerProtectedRoute>}
+          />
+          <Route
+            path="/reader/saved-posts"
+            element={<CustomerProtectedRoute><CustomerSavedPostsPage /></CustomerProtectedRoute>}
+          />
+          <Route
+            path="/reader/saved-products"
+            element={<CustomerProtectedRoute><CustomerSavedProductsPage /></CustomerProtectedRoute>}
+          />
+          <Route
+            path="/reader/messages"
+            element={<CustomerProtectedRoute><CustomerMessagesPage /></CustomerProtectedRoute>}
+          />
+          <Route
+            path="/reader/settings"
+            element={<CustomerProtectedRoute><CustomerSettingsPage /></CustomerProtectedRoute>}
+          />
+          <Route
+            path="/reader/following"
+            element={<CustomerProtectedRoute><ReaderFollowingPage /></CustomerProtectedRoute>}
+          />
+          <Route
+            path="/reader/notifications"
+            element={<CustomerProtectedRoute><ReaderNotificationsPage /></CustomerProtectedRoute>}
+          />
+          <Route
+            path="/reader/credits"
+            element={<CustomerProtectedRoute><ReaderCreditsPage /></CustomerProtectedRoute>}
+          />
+          <Route
+            path="/reader/premium"
+            element={<CustomerProtectedRoute><ReaderPremiumPage /></CustomerProtectedRoute>}
+          />
+          <Route
+            path="/reader/courses"
+            element={<CustomerProtectedRoute><ReaderCoursesPage /></CustomerProtectedRoute>}
+          />
+          <Route
+            path="/reader/appreciations"
+            element={<CustomerProtectedRoute><ReaderAppreciationsPage /></CustomerProtectedRoute>}
+          />
+
+          <Route
+            path="/reader/feed"
+            element={<CustomerProtectedRoute><ReaderFeedPage /></CustomerProtectedRoute>}
+          />
+          <Route
+            path="/reader/interests"
+            element={<CustomerProtectedRoute><ReaderInterestsPage /></CustomerProtectedRoute>}
+          />
+          <Route
+            path="/reader/onboarding"
+            element={<CustomerProtectedRoute><ReaderInterestsPage /></CustomerProtectedRoute>}
+          />
+          <Route
+            path="/reader/reading-controls"
+            element={<CustomerProtectedRoute><ReaderReadingControlsPage /></CustomerProtectedRoute>}
           />
 
           <Route path="*" element={<Navigate to="/" replace />} />

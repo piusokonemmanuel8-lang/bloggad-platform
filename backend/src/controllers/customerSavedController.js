@@ -374,11 +374,11 @@ async function getSavedProducts(req, res) {
         csp.affiliate_id,
         csp.website_id,
 
-        p.name,
+        p.title AS name,
         p.slug,
-        p.featured_image,
-        p.price,
-        p.sale_price,
+        p.product_image AS featured_image,
+        COALESCE(p.price, p.min_price) AS price,
+        NULL AS sale_price,
         p.created_at AS product_created_at,
 
         u.name AS affiliate_name,

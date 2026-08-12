@@ -1,14 +1,40 @@
+const { resolveWriterPostPlacement,replacePostPagePlacements } = require('../../services/writerPageService');
+const {
+  getPublishRuleForContentType,
+  normalizeTopicSelection,
+  replacePostTopics,
+  getPostTopics,
+} = require('../../services/readingCoreService');
 const slugify = require('slugify');
 const pool = require('../../config/db');
 const {
   assertAndLogSupgadUrl,
   getLatestUserPlanLinkPermission,
 } = require('../../services/linkValidationService');
+const {
+  publishPostAndNotifyFollowersOnce,
+} = require('../../services/writerPostReleaseNotificationService');
 
 const QUALITY_START_WORD_THRESHOLD = 100;
 const FIELD_PASS_SCORE = 60;
 const OVERALL_PASS_SCORE = 75;
 const HIGH_SIMILARITY_LIMIT = 85;
+
+const WRITER_CONTENT_TYPES = new Set([
+  'article',
+  'story',
+  'tutorial',
+  'course_lesson',
+  'review',
+  'news',
+  'opinion',
+  'product_post',
+]);
+
+function normalizeContentType(value, fallback = 'article') {
+  const normalized = String(value || fallback).trim().toLowerCase();
+  return WRITER_CONTENT_TYPES.has(normalized) ? normalized : null;
+}
 
 const GENERIC_PHRASES = [
   'in today\'s world',
@@ -28,12 +54,20 @@ const GENERIC_PHRASES = [
   'without further ado',
 ];
 
+function normalizeScheduledAt(value) {
+  if (value === undefined || value === null || String(value).trim() === '') return null;
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return null;
+  return parsed;
+}
+
 function sanitizePost(row) {
   if (!row) return null;
 
   return {
     id: row.id,
     product_id: row.product_id,
+    content_type: row.content_type || (row.product_id ? 'product_post' : 'article'),
     user_id: row.user_id,
     website_id: row.website_id,
     category_id: row.category_id,
@@ -58,6 +92,7 @@ function sanitizePost(row) {
     admin_review_notes: row.admin_review_notes,
     writer_revision_required: !!row.writer_revision_required,
     published_at: row.published_at,
+    scheduled_at: row.scheduled_at || null,
     created_at: row.created_at,
     updated_at: row.updated_at,
     product_title: row.product_title,
@@ -533,13 +568,16 @@ async function canUserUseBlogTemplate({ userId, templateId }) {
     };
   }
 
-  if (String(latestPlan.blog_templates_mode || 'unlimited').toLowerCase() === 'specific') {
+  if (
+    template.is_premium &&
+    String(latestPlan.blog_templates_mode || 'unlimited').toLowerCase() === 'specific'
+  ) {
     const allowedTemplateIds = await getAllowedBlogTemplateIdsByPlanId(latestPlan.plan_id);
 
     if (!allowedTemplateIds.includes(Number(templateId))) {
       return {
         ok: false,
-        message: 'This blog template is not included in your current plan',
+        message: 'This premium blog template is not included in your current plan',
       };
     }
   }
@@ -551,16 +589,16 @@ async function canUserUseBlogTemplate({ userId, templateId }) {
   };
 }
 
-async function ensureUniquePostSlug(baseSlug, websiteId, currentPostId = null) {
+async function ensureUniquePostSlug(baseSlug, userId, currentPostId = null) {
   let candidate = baseSlug;
   let counter = 1;
 
   while (true) {
-    const params = [websiteId, candidate];
+    const params = [userId, candidate];
     let sql = `
       SELECT id
       FROM product_posts
-      WHERE website_id = ?
+      WHERE user_id = ?
         AND slug = ?
     `;
 
@@ -588,6 +626,7 @@ async function getOwnedPostById(postId, userId) {
     SELECT
       pp.id,
       pp.product_id,
+      pp.content_type,
       pp.user_id,
       pp.website_id,
       pp.category_id,
@@ -612,6 +651,8 @@ async function getOwnedPostById(postId, userId) {
       pp.admin_review_notes,
       pp.writer_revision_required,
       pp.published_at,
+
+      pp.scheduled_at,
       pp.created_at,
       pp.updated_at,
       p.title AS product_title,
@@ -623,8 +664,8 @@ async function getOwnedPostById(postId, userId) {
       bt.name AS template_name,
       bt.slug AS template_slug
     FROM product_posts pp
-    INNER JOIN products p ON p.id = pp.product_id
-    INNER JOIN affiliate_websites w ON w.id = pp.website_id
+    LEFT JOIN products p ON p.id = pp.product_id
+    LEFT JOIN affiliate_websites w ON w.id = pp.website_id
     LEFT JOIN categories c ON c.id = pp.category_id
     INNER JOIN blog_templates bt ON bt.id = pp.template_id
     WHERE pp.id = ?
@@ -979,7 +1020,7 @@ async function runPostQualityReview({
   const fields = await getTemplateFields(postId);
   const textFields = fields.filter((field) => {
     const type = String(field.field_type || '').toLowerCase();
-    return type === 'text' || type === 'textarea';
+    return ['text', 'textarea', 'heading', 'quote'].includes(type);
   });
 
   const totalWords = textFields.reduce((total, field) => {
@@ -1018,7 +1059,7 @@ async function runPostQualityReview({
     let comparedPostId = null;
     let comparedFieldKey = null;
 
-    if (qualityChecksStarted && ['text', 'textarea'].includes(String(field.field_type || '').toLowerCase())) {
+    if (qualityChecksStarted && ['text', 'textarea', 'heading', 'quote'].includes(String(field.field_type || '').toLowerCase())) {
       const previousFieldCandidates = await getPreviousPostFieldCandidates(userId, postId, field.field_key);
 
       previousFieldCandidates.forEach((candidate) => {
@@ -1340,6 +1381,35 @@ async function enforcePublishGate({ postId, userId, productTitle }) {
     productTitle,
   });
 
+  const post = await getOwnedPostById(postId, userId);
+  const publishRule = await getPublishRuleForContentType(post?.content_type);
+
+  quality.publish_min_words = Number(publishRule?.min_words || 0);
+  quality.publish_word_rule_active = !!publishRule?.is_active;
+  quality.publish_word_rule_passed =
+    !publishRule?.is_active ||
+    Number(quality.total_words || 0) >= Number(publishRule.min_words || 0);
+
+  if (!quality.publish_word_rule_passed) {
+    await pool.query(
+      `
+      UPDATE product_posts
+      SET
+        status = 'draft',
+        published_at = NULL,
+        updated_at = NOW()
+      WHERE id = ?
+      `,
+      [postId]
+    );
+
+    return {
+      ok: false,
+      quality,
+      message: `This ${post?.content_type || 'post'} needs at least ${publishRule.min_words} words before publishing. Current count: ${Number(quality.total_words || 0)}.`,
+    };
+  }
+
   if (quality.blocked) {
     await pool.query(
       `
@@ -1360,24 +1430,16 @@ async function enforcePublishGate({ postId, userId, productTitle }) {
     };
   }
 
-  await pool.query(
-    `
-    UPDATE product_posts
-    SET
-      status = 'published',
-      published_at = COALESCE(published_at, NOW()),
-      updated_at = NOW()
-    WHERE id = ?
-    `,
-    [postId]
-  );
+  await publishPostAndNotifyFollowersOnce({
+    postId,
+    writerUserId: userId,
+  });
 
   return {
     ok: true,
     quality,
   };
 }
-
 async function buildFullPostResponse(postId, userId) {
   const post = await getOwnedPostById(postId, userId);
 
@@ -1387,11 +1449,13 @@ async function buildFullPostResponse(postId, userId) {
   const ctaButtons = await getPostCtaButtons(postId);
   const fieldScores = await getQualityFieldScores(postId);
   const qualityWarnings = await getQualityWarnings(postId);
+  const topics = await getPostTopics(postId);
 
   return {
     ...sanitizePost(post),
     template_fields: fields,
     cta_buttons: ctaButtons,
+    topics,
     quality_review: {
       review_status: post.review_status || 'not_checked',
       quality_score: Number(post.quality_score || 0),
@@ -1416,6 +1480,7 @@ async function getMyPosts(req, res) {
       SELECT
         pp.id,
         pp.product_id,
+        pp.content_type,
         pp.user_id,
         pp.website_id,
         pp.category_id,
@@ -1440,6 +1505,8 @@ async function getMyPosts(req, res) {
         pp.admin_review_notes,
         pp.writer_revision_required,
         pp.published_at,
+
+        pp.scheduled_at,
         pp.created_at,
         pp.updated_at,
         p.title AS product_title,
@@ -1451,8 +1518,8 @@ async function getMyPosts(req, res) {
         bt.name AS template_name,
         bt.slug AS template_slug
       FROM product_posts pp
-      INNER JOIN products p ON p.id = pp.product_id
-      INNER JOIN affiliate_websites w ON w.id = pp.website_id
+      LEFT JOIN products p ON p.id = pp.product_id
+      LEFT JOIN affiliate_websites w ON w.id = pp.website_id
       LEFT JOIN categories c ON c.id = pp.category_id
       INNER JOIN blog_templates bt ON bt.id = pp.template_id
       WHERE pp.user_id = ?
@@ -1502,6 +1569,7 @@ async function getMyPostsByProductId(req, res) {
       SELECT
         pp.id,
         pp.product_id,
+        pp.content_type,
         pp.user_id,
         pp.website_id,
         pp.category_id,
@@ -1526,6 +1594,8 @@ async function getMyPostsByProductId(req, res) {
         pp.admin_review_notes,
         pp.writer_revision_required,
         pp.published_at,
+
+        pp.scheduled_at,
         pp.created_at,
         pp.updated_at,
         p.title AS product_title,
@@ -1538,7 +1608,7 @@ async function getMyPostsByProductId(req, res) {
         bt.slug AS template_slug
       FROM product_posts pp
       INNER JOIN products p ON p.id = pp.product_id
-      INNER JOIN affiliate_websites w ON w.id = pp.website_id
+      LEFT JOIN affiliate_websites w ON w.id = pp.website_id
       LEFT JOIN categories c ON c.id = pp.category_id
       INNER JOIN blog_templates bt ON bt.id = pp.template_id
       WHERE pp.user_id = ?
@@ -1614,16 +1684,15 @@ async function createPost(req, res) {
     const userId = req.user.id;
     const website = await getAffiliateWebsite(userId);
 
-    if (!website) {
-      return res.status(400).json({
-        ok: false,
-        message: 'Create your website first before adding posts',
-      });
-    }
+
 
     const {
       product_id,
+      content_type,
       category_id,
+      topic_ids = [],
+      page_ids = [],
+      show_on_storefront,
       template_id,
       title,
       slug,
@@ -1633,17 +1702,22 @@ async function createPost(req, res) {
       featured_image,
       media_id,
       status,
+      scheduled_at,
       template_fields = [],
       cta_buttons = [],
     } = req.body;
 
-    const productId = Number(product_id);
+    const hasProduct =
+      product_id !== undefined &&
+      product_id !== null &&
+      String(product_id).trim() !== '';
+    const productId = hasProduct ? Number(product_id) : null;
     const templateId = Number(template_id);
 
-    if (!Number.isInteger(productId) || productId <= 0) {
+    if (hasProduct && (!Number.isInteger(productId) || productId <= 0)) {
       return res.status(400).json({
         ok: false,
-        message: 'Valid product id is required',
+        message: 'Invalid product id',
       });
     }
 
@@ -1661,14 +1735,46 @@ async function createPost(req, res) {
       });
     }
 
-    const product = await getOwnedProduct(productId, userId);
+    let product = null;
 
-    if (!product) {
-      return res.status(404).json({
+    if (productId) {
+      product = await getOwnedProduct(productId, userId);
+
+      if (!product) {
+        return res.status(404).json({
+          ok: false,
+          message: 'Product not found',
+        });
+      }
+    }
+
+    const cleanContentType = normalizeContentType(
+      content_type,
+      productId ? 'product_post' : 'article'
+    );
+
+    if (!cleanContentType) {
+      return res.status(400).json({
         ok: false,
-        message: 'Product not found',
+        message: 'Invalid content type',
       });
     }
+
+    if (cleanContentType === 'product_post' && !productId) {
+      return res.status(400).json({
+        ok: false,
+        message: 'Product Post requires a product',
+      });
+    }
+
+    const placement = await resolveWriterPostPlacement({
+      writerUserId: userId,
+      pageIds: page_ids,
+      showOnStorefront: show_on_storefront,
+      contentType: cleanContentType,
+      isCreate: true,
+    });
+    const postWebsiteId = placement.website_id;
 
     const templateAccess = await canUserUseBlogTemplate({
       userId,
@@ -1684,7 +1790,7 @@ async function createPost(req, res) {
 
     const linkPermission = await resolveUserLinkPermission(userId);
 
-    let cleanCategoryId = product.category_id || null;
+    let cleanCategoryId = product?.category_id || null;
     if (category_id !== undefined && category_id !== null && category_id !== '') {
       cleanCategoryId = Number(category_id);
 
@@ -1705,6 +1811,11 @@ async function createPost(req, res) {
       }
     }
 
+    const cleanTopicIds = await normalizeTopicSelection({
+      primaryCategoryId: cleanCategoryId,
+      topicIds: topic_ids,
+    });
+
     const cleanTitle = String(title).trim();
     const desiredSlug = normalizeNullable(slug) || cleanTitle;
     const baseSlug = makeSlug(desiredSlug);
@@ -1716,24 +1827,43 @@ async function createPost(req, res) {
       });
     }
 
-    const uniqueSlug = await ensureUniquePostSlug(baseSlug, website.id);
+    const uniqueSlug = await ensureUniquePostSlug(baseSlug, userId);
+    const qualityContextTitle = product?.title || cleanTitle;
     const requestedStatus = ['draft', 'published', 'inactive'].includes(status) ? status : 'draft';
+    const cleanScheduledAt = normalizeScheduledAt(scheduled_at);
+
+    if (scheduled_at && !cleanScheduledAt) {
+      return res.status(400).json({
+        ok: false,
+        message: 'Scheduled release date is invalid',
+      });
+    }
+
+    if (cleanScheduledAt && cleanScheduledAt.getTime() <= Date.now()) {
+      return res.status(400).json({
+        ok: false,
+        message: 'Scheduled release date must be in the future',
+      });
+    }
+
+    const shouldSchedule = !!cleanScheduledAt;
 
     const normalizedTemplateFields = await normalizeTemplateFieldsWithValidatedLinks({
       fields: Array.isArray(template_fields) ? template_fields : [],
       userId,
-      websiteId: website.id,
+      websiteId: postWebsiteId,
       postId: null,
       allowExternalLinks: !!linkPermission.allow_external_links,
     });
 
-    const initialStatus = requestedStatus === 'published' ? 'draft' : requestedStatus;
+    const initialStatus = shouldSchedule ? 'draft' : requestedStatus === 'published' ? 'draft' : requestedStatus;
 
     const [result] = await pool.query(
       `
       INSERT INTO product_posts
       (
         product_id,
+        content_type,
         user_id,
         website_id,
         category_id,
@@ -1747,16 +1877,18 @@ async function createPost(req, res) {
         media_id,
         status,
         review_status,
+        scheduled_at,
         published_at,
         created_at,
         updated_at
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'not_checked', ?, NOW(), NOW())
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'not_checked', ?, ?, NOW(), NOW())
       `,
       [
         productId,
+        cleanContentType,
         userId,
-        website.id,
+        postWebsiteId,
         cleanCategoryId,
         templateId,
         cleanTitle,
@@ -1767,28 +1899,42 @@ async function createPost(req, res) {
         normalizeNullable(featured_image),
         media_id || null,
         initialStatus,
+        cleanScheduledAt,
         initialStatus === 'published' ? new Date() : null,
       ]
     );
 
     const postId = result.insertId;
 
+    await pool.query(
+      `UPDATE product_posts SET show_on_storefront=?,updated_at=NOW() WHERE id=? AND user_id=?`,
+      [placement.show_on_storefront ? 1 : 0,postId,userId]
+    );
+    await replacePostPagePlacements({postId,writerUserId:userId,pageIds:placement.page_ids});
+
     await replaceTemplateFields(postId, normalizedTemplateFields);
     await replacePostCtaButtons({
       postId,
       buttons: Array.isArray(cta_buttons) ? cta_buttons : [],
       userId,
-      websiteId: website.id,
+      websiteId: postWebsiteId,
       allowExternalLinks: !!linkPermission.allow_external_links,
+    });
+
+    await replacePostTopics({
+      postId,
+      writerUserId: userId,
+      primaryCategoryId: cleanCategoryId,
+      categoryIds: cleanTopicIds,
     });
 
     let quality = null;
 
-    if (requestedStatus === 'published') {
+    if (requestedStatus === 'published' && !shouldSchedule) {
       const publishGate = await enforcePublishGate({
         postId,
         userId,
-        productTitle: product.title,
+        productTitle: qualityContextTitle,
       });
 
       quality = publishGate.quality;
@@ -1810,7 +1956,7 @@ async function createPost(req, res) {
       quality = await runPostQualityReview({
         postId,
         userId,
-        productTitle: product.title,
+        productTitle: qualityContextTitle,
       });
     }
 
@@ -1818,7 +1964,7 @@ async function createPost(req, res) {
 
     return res.status(201).json({
       ok: true,
-      message: requestedStatus === 'published' ? 'Post published successfully' : 'Post created successfully',
+      message: shouldSchedule ? 'Post scheduled successfully' : requestedStatus === 'published' ? 'Post published successfully' : 'Post created successfully',
       post: fullPost,
       quality_review: quality,
       link_permissions: {
@@ -1859,7 +2005,11 @@ async function updatePost(req, res) {
 
     const {
       product_id,
+      content_type,
       category_id,
+      topic_ids,
+      page_ids,
+      show_on_storefront,
       template_id,
       title,
       slug,
@@ -1869,6 +2019,7 @@ async function updatePost(req, res) {
       featured_image,
       media_id,
       status,
+      scheduled_at,
       template_fields,
       cta_buttons,
     } = req.body;
@@ -1877,25 +2028,49 @@ async function updatePost(req, res) {
     let productTitle = existingPost.product_title;
 
     if (product_id !== undefined) {
-      productId = Number(product_id);
+      if (product_id === null || String(product_id).trim() === '') {
+        productId = null;
+        productTitle = null;
+      } else {
+        productId = Number(product_id);
 
-      if (!Number.isInteger(productId) || productId <= 0) {
-        return res.status(400).json({
-          ok: false,
-          message: 'Invalid product id',
-        });
+        if (!Number.isInteger(productId) || productId <= 0) {
+          return res.status(400).json({
+            ok: false,
+            message: 'Invalid product id',
+          });
+        }
+
+        const product = await getOwnedProduct(productId, userId);
+
+        if (!product) {
+          return res.status(404).json({
+            ok: false,
+            message: 'Product not found',
+          });
+        }
+
+        productTitle = product.title;
       }
+    }
 
-      const product = await getOwnedProduct(productId, userId);
+    const cleanContentType = normalizeContentType(
+      content_type,
+      existingPost.content_type || (productId ? 'product_post' : 'article')
+    );
 
-      if (!product) {
-        return res.status(404).json({
-          ok: false,
-          message: 'Product not found',
-        });
-      }
+    if (!cleanContentType) {
+      return res.status(400).json({
+        ok: false,
+        message: 'Invalid content type',
+      });
+    }
 
-      productTitle = product.title;
+    if (cleanContentType === 'product_post' && !productId) {
+      return res.status(400).json({
+        ok: false,
+        message: 'Product Post requires a product',
+      });
     }
 
     let templateId = existingPost.template_id;
@@ -1909,7 +2084,17 @@ async function updatePost(req, res) {
         });
       }
 
-      const templateAccess = await canUserUseBlogTemplate({
+      const placement = await resolveWriterPostPlacement({
+      writerUserId: userId,
+      pageIds: page_ids,
+      showOnStorefront: show_on_storefront,
+      currentPostId: existingPost.id,
+      contentType: cleanContentType,
+      isCreate: false,
+    });
+    const postWebsiteId = placement.website_id;
+
+    const templateAccess = await canUserUseBlogTemplate({
         userId,
         templateId,
       });
@@ -1949,6 +2134,21 @@ async function updatePost(req, res) {
       }
     }
 
+    let cleanTopicIds = null;
+
+    if (Array.isArray(topic_ids)) {
+      cleanTopicIds = await normalizeTopicSelection({
+        primaryCategoryId: cleanCategoryId,
+        topicIds: topic_ids,
+      });
+    } else if (category_id !== undefined) {
+      const currentTopics = await getPostTopics(existingPost.id);
+      cleanTopicIds = await normalizeTopicSelection({
+        primaryCategoryId: cleanCategoryId,
+        topicIds: currentTopics.map((item) => Number(item.id)),
+      });
+    }
+
     const cleanTitle = title !== undefined ? String(title).trim() : existingPost.title;
 
     if (!cleanTitle) {
@@ -1968,17 +2168,45 @@ async function updatePost(req, res) {
       });
     }
 
-    const uniqueSlug = await ensureUniquePostSlug(baseSlug, existingPost.website_id, existingPost.id);
+    const uniqueSlug = await ensureUniquePostSlug(baseSlug, userId, existingPost.id);
+    const qualityContextTitle = productTitle || cleanTitle;
     const requestedStatus = ['draft', 'published', 'inactive'].includes(status)
       ? status
       : existingPost.status;
-    const safeStatus = requestedStatus === 'published' ? existingPost.status : requestedStatus;
+
+    let cleanScheduledAt = existingPost.scheduled_at ? new Date(existingPost.scheduled_at) : null;
+
+    if (scheduled_at !== undefined) {
+      cleanScheduledAt = normalizeScheduledAt(scheduled_at);
+
+      if (scheduled_at && !cleanScheduledAt) {
+        return res.status(400).json({
+          ok: false,
+          message: 'Scheduled release date is invalid',
+        });
+      }
+
+      if (cleanScheduledAt && cleanScheduledAt.getTime() <= Date.now()) {
+        return res.status(400).json({
+          ok: false,
+          message: 'Scheduled release date must be in the future',
+        });
+      }
+    }
+
+    const shouldSchedule = !!cleanScheduledAt;
+    const safeStatus = shouldSchedule
+      ? 'draft'
+      : requestedStatus === 'published'
+      ? existingPost.status
+      : requestedStatus;
 
     await pool.query(
       `
       UPDATE product_posts
       SET
         product_id = ?,
+        content_type = ?,
         category_id = ?,
         template_id = ?,
         title = ?,
@@ -1988,6 +2216,7 @@ async function updatePost(req, res) {
         seo_description = ?,
         featured_image = ?,
         media_id = ?,
+        scheduled_at = ?,
         status = ?,
         updated_at = NOW()
       WHERE id = ?
@@ -1995,6 +2224,7 @@ async function updatePost(req, res) {
       `,
       [
         productId,
+        cleanContentType,
         cleanCategoryId,
         templateId,
         cleanTitle,
@@ -2004,17 +2234,24 @@ async function updatePost(req, res) {
         seo_description !== undefined ? normalizeNullable(seo_description) : existingPost.seo_description,
         featured_image !== undefined ? normalizeNullable(featured_image) : existingPost.featured_image,
         media_id !== undefined ? media_id || null : existingPost.media_id,
+        cleanScheduledAt,
         safeStatus,
         existingPost.id,
         userId,
       ]
     );
 
+    await pool.query(
+      `UPDATE product_posts SET website_id=?,show_on_storefront=?,updated_at=NOW() WHERE id=? AND user_id=?`,
+      [postWebsiteId,placement.show_on_storefront ? 1 : 0,existingPost.id,userId]
+    );
+    await replacePostPagePlacements({postId:existingPost.id,writerUserId:userId,pageIds:placement.page_ids});
+
     if (Array.isArray(template_fields)) {
       const normalizedTemplateFields = await normalizeTemplateFieldsWithValidatedLinks({
         fields: template_fields,
         userId,
-        websiteId: existingPost.website_id,
+        websiteId: postWebsiteId,
         postId: existingPost.id,
         allowExternalLinks: !!linkPermission.allow_external_links,
       });
@@ -2027,18 +2264,27 @@ async function updatePost(req, res) {
         postId: existingPost.id,
         buttons: cta_buttons,
         userId,
-        websiteId: existingPost.website_id,
+        websiteId: postWebsiteId,
         allowExternalLinks: !!linkPermission.allow_external_links,
+      });
+    }
+
+    if (cleanTopicIds) {
+      await replacePostTopics({
+        postId: existingPost.id,
+        writerUserId: userId,
+        primaryCategoryId: cleanCategoryId,
+        categoryIds: cleanTopicIds,
       });
     }
 
     let quality = null;
 
-    if (requestedStatus === 'published') {
+    if (requestedStatus === 'published' && !shouldSchedule) {
       const publishGate = await enforcePublishGate({
         postId: existingPost.id,
         userId,
-        productTitle,
+        productTitle: qualityContextTitle,
       });
 
       quality = publishGate.quality;
@@ -2060,7 +2306,7 @@ async function updatePost(req, res) {
       quality = await runPostQualityReview({
         postId: existingPost.id,
         userId,
-        productTitle,
+        productTitle: qualityContextTitle,
       });
     }
 
@@ -2068,7 +2314,7 @@ async function updatePost(req, res) {
 
     return res.status(200).json({
       ok: true,
-      message: requestedStatus === 'published' ? 'Post updated and published successfully' : 'Post updated successfully',
+      message: shouldSchedule ? 'Post scheduled successfully' : requestedStatus === 'published' ? 'Post updated and published successfully' : 'Post updated successfully',
       post: fullPost,
       quality_review: quality,
       link_permissions: {
@@ -2084,6 +2330,63 @@ async function updatePost(req, res) {
       error: error.status ? undefined : error.message,
     });
   }
+}
+
+async function publishDueScheduledPosts(limit = 25) {
+  const safeLimit = Math.max(1, Math.min(100, Number(limit) || 25));
+  const [rows] = await pool.query(
+    `
+    SELECT id, user_id
+    FROM product_posts
+    WHERE status = 'draft'
+      AND scheduled_at IS NOT NULL
+      AND scheduled_at <= NOW()
+    ORDER BY scheduled_at ASC, id ASC
+    LIMIT ${safeLimit}
+    `
+  );
+
+  const summary = {
+    checked: rows.length,
+    published: 0,
+    blocked: 0,
+    failed: 0,
+  };
+
+  for (const row of rows) {
+    try {
+      const post = await getOwnedPostById(row.id, row.user_id);
+      if (!post) {
+        summary.failed += 1;
+        continue;
+      }
+
+      const publishGate = await enforcePublishGate({
+        postId: post.id,
+        userId: row.user_id,
+        productTitle: post.product_title || post.title,
+      });
+
+      if (publishGate.ok) {
+        summary.published += 1;
+      } else {
+        summary.blocked += 1;
+        await pool.query(
+          `
+          UPDATE product_posts
+          SET scheduled_at = NULL, updated_at = NOW()
+          WHERE id = ?
+          `,
+          [post.id]
+        );
+      }
+    } catch (error) {
+      summary.failed += 1;
+      console.error('[writer-schedule] failed post', row.id, error.message);
+    }
+  }
+
+  return summary;
 }
 
 async function updatePostStatus(req, res) {
@@ -2119,7 +2422,7 @@ async function updatePostStatus(req, res) {
       const publishGate = await enforcePublishGate({
         postId,
         userId,
-        productTitle: existingPost.product_title,
+        productTitle: existingPost.product_title || existingPost.title,
       });
 
       if (!publishGate.ok) {
@@ -2164,7 +2467,7 @@ async function updatePostStatus(req, res) {
     const quality = await runPostQualityReview({
       postId,
       userId,
-      productTitle: existingPost.product_title,
+      productTitle: existingPost.product_title || existingPost.title,
     });
 
     const fullPost = await buildFullPostResponse(postId, userId);
@@ -2238,5 +2541,6 @@ module.exports = {
   createPost,
   updatePost,
   updatePostStatus,
+  publishDueScheduledPosts,
   deletePost,
 };

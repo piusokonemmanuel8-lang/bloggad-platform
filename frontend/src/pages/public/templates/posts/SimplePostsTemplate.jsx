@@ -1,3 +1,4 @@
+import PostVideoEmbed from '../../../../components/writer/PostVideoEmbed';
 import { useMemo, useState } from 'react';
 import {
   Bell,
@@ -1213,6 +1214,8 @@ export default function SimplePostsTemplate({
           }
         }
       `}</style>
+
+      <PostVideoEmbed url={fieldMap.bloggad_video_url} />
 
       <div className="sp-shell">
         {(fieldMap.top_notice_text || fieldMap.top_notice_link_label) && (

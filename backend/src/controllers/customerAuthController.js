@@ -288,6 +288,7 @@ async function registerCustomer(req, res) {
       message: 'Customer account created successfully.',
       token,
       user: sanitizeUser(user),
+      reader_onboarding_required: true,
     });
   } catch (error) {
     try {
@@ -378,12 +379,22 @@ async function loginCustomer(req, res) {
 
     const freshUser = await findUserById(user.id);
     const token = signToken(freshUser);
+    const [[interestCountRow]] = await pool.query(
+      `
+      SELECT COUNT(*) AS total
+      FROM reader_category_interests
+      WHERE reader_user_id = ?
+      `,
+      [freshUser.id]
+    );
+    const readerOnboardingRequired = Number(interestCountRow?.total || 0) < 3;
 
     return res.status(200).json({
       ok: true,
       message: 'Customer login successful.',
       token,
       user: sanitizeUser(freshUser),
+      reader_onboarding_required: readerOnboardingRequired,
       login_context: loginStorefront
         ? {
             website_id: loginStorefront.id,

@@ -1,3 +1,6 @@
+import WriterTopicSelector from '../../components/writer/WriterTopicSelector';
+import WriterPlacementSelector from '../../components/writer/WriterPlacementSelector';
+import SimpleWriterWorkroom, { buildInitialSimpleWriterBlocks } from '../../components/writer/SimpleWriterWorkroom';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -45,7 +48,7 @@ function countWords(value) {
 function getFieldWordRuleLabel(rule) {
   if (!rule) return '';
   if (rule.mode === 'exact') return `${rule.exact_words} words exact`;
-  return `min ${rule.min_words} words · suggested max ${rule.max_words}`;
+  return `min ${rule.min_words} words - suggested max ${rule.max_words}`;
 }
 
 function validateWordRule(value, rule) {
@@ -86,6 +89,20 @@ function validateWordRule(value, rule) {
         ? `${rule.label} is above suggested max ${maxWords} words`
         : '',
   };
+}
+
+const SIMPLE_WRITER_TEMPLATE_KEY = 'simple_writer_template_v1';
+
+function isSimpleWriterTemplate(template) {
+  return String(template?.template_code_key || '').toLowerCase() === SIMPLE_WRITER_TEMPLATE_KEY;
+}
+
+function toDateTimeLocalValue(value) {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+  return local.toISOString().slice(0, 16);
 }
 
 function buildGenericDefaultFields() {
@@ -363,7 +380,7 @@ function getSpecificitySignals(value, productTitle = '') {
   if (!text) return 0;
 
   if (/\d/.test(text)) score += 1;
-  if (/%|\$|₦|£|€/.test(text)) score += 1;
+  if (/%|\$|\u2026|\u00A3|\u20AC/.test(text)) score += 1;
   if (/\bfor example\b|\bfor instance\b|\bsuch as\b|\bespecially\b/i.test(text)) score += 1;
   if (text.includes(':')) score += 1;
 
@@ -525,8 +542,12 @@ export default function AffiliateEditPostPage() {
   const [categories, setCategories] = useState([]);
 
   const [form, setForm] = useState({
+    content_type: 'article',
     product_id: '',
     category_id: '',
+    topic_ids: [],
+    page_ids: [],
+    show_on_storefront: false,
     template_id: '',
     title: '',
     slug: '',
@@ -535,6 +556,7 @@ export default function AffiliateEditPostPage() {
     seo_description: '',
     featured_image: '',
     status: 'draft',
+    scheduled_at: '',
     template_fields: [],
     cta_buttons: [],
   });
@@ -666,8 +688,9 @@ export default function AffiliateEditPostPage() {
                 label: field.field_key || `Field ${idx + 1}`,
                 section: 'Generic fields',
                 helper_text: 'Generic field',
-                required: true,
+                required: !['image', 'divider'].includes(String(field.field_type || '').toLowerCase()),
                 word_rule: null,
+                simple_writer: isSimpleWriterTemplate(matchedTemplate),
                 placeholder: 'Enter value',
                 locked: false,
               },
@@ -690,8 +713,12 @@ export default function AffiliateEditPostPage() {
             })) || [];
 
           setForm({
+            content_type: post.content_type || (post.product_id ? 'product_post' : 'article'),
             product_id: post.product_id || '',
             category_id: post.category_id || '',
+        topic_ids: Array.isArray(post.topics)
+          ? post.topics.map((item) => Number(item.id))
+          : [],
             template_id: post.template_id || '',
             title: post.title || '',
             slug: post.slug || '',
@@ -700,10 +727,13 @@ export default function AffiliateEditPostPage() {
             seo_description: post.seo_description || '',
             featured_image: post.featured_image || '',
             status: post.status || 'draft',
+            scheduled_at: toDateTimeLocalValue(post.scheduled_at),
             template_fields: preset
               ? mergePresetFields(preset.fields, post.template_fields || [])
               : genericFields,
-            cta_buttons: preset
+            cta_buttons: isSimpleWriterTemplate(matchedTemplate)
+              ? []
+              : preset
               ? mergePresetButtons(preset.ctaButtons, post.cta_buttons || [])
               : genericButtons,
           });
@@ -726,8 +756,18 @@ export default function AffiliateEditPostPage() {
     if (!selectedTemplate) return;
 
     const preset = resolveBlogTemplatePreset(selectedTemplate);
+    const simpleWriter = isSimpleWriterTemplate(selectedTemplate);
 
     setForm((prev) => {
+      if (simpleWriter) {
+        const hasSimpleWriterBlocks = prev.template_fields.some((field) => field?.meta?.simple_writer);
+
+        return {
+          ...prev,
+          template_fields: hasSimpleWriterBlocks ? prev.template_fields : buildInitialSimpleWriterBlocks(),
+          cta_buttons: [],
+        };
+      }
       if (!preset) {
         const areCurrentFieldsPreset = prev.template_fields.some((field) => field?.meta?.locked);
         const areCurrentButtonsPreset = prev.cta_buttons.some((button) => button?.meta?.locked);
@@ -862,8 +902,8 @@ export default function AffiliateEditPostPage() {
   };
 
   const validateBeforeSubmit = () => {
-    if (!form.product_id) {
-      throw new Error('Product is required');
+    if (form.content_type === 'product_post' && !form.product_id) {
+      throw new Error('Product Post requires a product');
     }
 
     if (!form.template_id) {
@@ -953,8 +993,12 @@ export default function AffiliateEditPostPage() {
       validateBeforeSubmit();
 
       const payload = {
-        product_id: Number(form.product_id),
+        content_type: form.content_type,
+        product_id: form.product_id ? Number(form.product_id) : null,
         category_id: form.category_id || null,
+        topic_ids: form.topic_ids,
+      page_ids: form.page_ids || [],
+      show_on_storefront: !!form.show_on_storefront,
         template_id: Number(form.template_id),
         title: form.title,
         slug: form.slug,
@@ -963,6 +1007,7 @@ export default function AffiliateEditPostPage() {
         seo_description: form.seo_description,
         featured_image: form.featured_image,
         status: form.status,
+        scheduled_at: form.scheduled_at || null,
         template_fields: form.template_fields.map((field, idx) => ({
           field_key: field.field_key,
           field_type: field.field_type,
@@ -1049,8 +1094,30 @@ export default function AffiliateEditPostPage() {
             <div className="affiliate-edit-post-form-grid">
               <label className="affiliate-edit-post-field">
                 <span className="affiliate-edit-post-label">
+                  <FileText size={16} />
+                  Content type
+                </span>
+                <select
+                  className="affiliate-edit-post-input"
+                  name="content_type"
+                  value={form.content_type}
+                  onChange={handleChange}
+                >
+                  <option value="article">Article</option>
+                  <option value="story">Story</option>
+                  <option value="tutorial">Tutorial</option>
+                  <option value="course_lesson">Course Lesson</option>
+                  <option value="review">Review</option>
+                  <option value="news">News</option>
+                  <option value="opinion">Opinion</option>
+                  <option value="product_post">Product Post</option>
+                </select>
+              </label>
+
+              <label className="affiliate-edit-post-field">
+                <span className="affiliate-edit-post-label">
                   <Package size={16} />
-                  Product
+                  Product (optional)
                 </span>
                 <select
                   className="affiliate-edit-post-input"
@@ -1058,7 +1125,7 @@ export default function AffiliateEditPostPage() {
                   value={form.product_id}
                   onChange={handleChange}
                 >
-                  <option value="">Select product</option>
+                  <option value="">No product</option>
                   {products.map((product) => (
                     <option key={product.id} value={product.id}>
                       {product.title}
@@ -1086,6 +1153,26 @@ export default function AffiliateEditPostPage() {
                   ))}
                 </select>
               </label>
+
+              <WriterTopicSelector
+                value={form.topic_ids}
+                primaryCategoryId={form.category_id}
+                postId={id}
+                onChange={(topic_ids) =>
+                  setForm((prev) => ({ ...prev, topic_ids }))
+                }
+                disabled={saving}
+              />
+
+            <WriterPlacementSelector
+              postId={id}
+              pageIds={form.page_ids || []}
+              showOnStorefront={!!form.show_on_storefront}
+              contentType={form.content_type}
+              onChange={({ page_ids, show_on_storefront }) =>
+                setForm((prev) => ({ ...prev, page_ids, show_on_storefront }))
+              }
+            />
 
               <label className="affiliate-edit-post-field">
                 <span className="affiliate-edit-post-label">
@@ -1193,6 +1280,17 @@ export default function AffiliateEditPostPage() {
                 </select>
               </label>
 
+              <label className="affiliate-edit-post-field">
+                <span className="affiliate-edit-post-label">Schedule release</span>
+                <input
+                  className="affiliate-edit-post-input"
+                  type="datetime-local"
+                  name="scheduled_at"
+                  value={form.scheduled_at}
+                  onChange={handleChange}
+                />
+              </label>
+
               <label className="affiliate-edit-post-field affiliate-edit-post-field-full">
                 <span className="affiliate-edit-post-label">SEO description</span>
                 <textarea
@@ -1232,6 +1330,17 @@ export default function AffiliateEditPostPage() {
                 </div>
               ) : null}
 
+              {isSimpleWriterTemplate(selectedTemplate) ? (
+                <SimpleWriterWorkroom
+                  blocks={form.template_fields}
+                  onChange={(nextBlocks) => {
+                    setQualityReview(null);
+                    setForm((prev) => ({ ...prev, template_fields: nextBlocks }));
+                  }}
+                  uploadImage={uploadImageFile}
+                  disabled={saving}
+                />
+              ) : (
               <div className="affiliate-edit-post-stack">
                 {Object.entries(groupedTemplateFields).map(([section, fields]) => (
                   <div key={section} className="affiliate-edit-post-section-group">
@@ -1348,6 +1457,7 @@ export default function AffiliateEditPostPage() {
                   </div>
                 ))}
               </div>
+              )}
             </div>
 
             <div className="affiliate-edit-post-block">
@@ -1430,11 +1540,7 @@ export default function AffiliateEditPostPage() {
 
                     <div className="affiliate-edit-post-field-meta">
                       <div>
-                        {linkPermission.loaded
-                          ? linkPermission.allow_external_links
-                            ? 'Your current premium permission allows external links.'
-                            : 'Your current plan uses Supgad-only link protection.'
-                          : button?.meta?.helper_text || 'Required CTA button'}
+                        {'External links are allowed. Bloggad checks and records outbound destinations when you save.'}
                       </div>
                       <div className="affiliate-edit-post-required-tag">Required</div>
                     </div>
@@ -1511,7 +1617,7 @@ export default function AffiliateEditPostPage() {
 
               <div className="affiliate-edit-post-summary-row">
                 <span>Mode</span>
-                <strong>{activePreset ? 'Locked template editor' : 'Generic field editor'}</strong>
+                <strong>{isSimpleWriterTemplate(selectedTemplate) ? 'Simple Writer workroom' : activePreset ? 'Locked template editor' : 'Generic field editor'}</strong>
               </div>
 
               <div className="affiliate-edit-post-summary-row">
@@ -1572,16 +1678,12 @@ export default function AffiliateEditPostPage() {
             <div className="affiliate-edit-post-panel-head">
               <div>
                 <p className="affiliate-edit-post-panel-kicker">Link policy</p>
-                <h2 className="affiliate-edit-post-panel-title">Permission</h2>
+                <h2 className="affiliate-edit-post-panel-title">Outbound links</h2>
               </div>
             </div>
 
             <div className="affiliate-edit-post-plan-note">
-              {linkPermission.loaded
-                ? linkPermission.allow_external_links
-                  ? 'Premium external-link permission is active on your account.'
-                  : 'Default Supgad-only link protection is active on your account.'
-                : 'Your final link permission is checked by the backend when you save or publish.'}
+              {'Free and paid Writers can use legitimate external links. Prohibited destinations may be blocked or reviewed.'}
             </div>
           </div>
 

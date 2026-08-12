@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import api from '../../services/api';
 
 function cardStyle() {
@@ -206,6 +207,8 @@ function buildDefaultRequirements() {
 }
 
 export default function AffiliateMonetizationEligibilityPage() {
+  const location = useLocation();
+  const writerRouteMode = location.pathname === '/writer/monetization/eligibility';
   const [settings, setSettings] = useState(null);
   const [website, setWebsite] = useState(null);
   const [eligibilityProgress, setEligibilityProgress] = useState(null);
@@ -222,6 +225,7 @@ export default function AffiliateMonetizationEligibilityPage() {
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState('');
   const [error, setError] = useState('');
+  const [publisherSettingsOpen, setPublisherSettingsOpen] = useState(false);
 
   const requirements = useMemo(() => {
     return eligibilityProgress?.requirements?.length
@@ -383,6 +387,1114 @@ export default function AffiliateMonetizationEligibilityPage() {
     return (
       <div style={{ ...cardStyle(), color: '#111827', fontWeight: 900 }}>
         Loading monetization settings...
+      </div>
+    );
+  }
+
+  if (writerRouteMode) {
+    const publisherShare = Number(templateAds.revenue_share_percent || 60);
+    const platformShare = Number(templateAds.platform_share_percent || 40);
+    const applicationLabel = applicationStatus === 'not_applied' ? 'Not applied' : appBadge.label;
+    const websiteName = website?.website_name || 'No website found';
+    const websiteSlug = website?.slug || '-';
+    const websiteState = website ? 'Active' : 'Not connected';
+
+    return (
+      <div className="writer-eligibility-page">
+        <style>{`
+          .writer-eligibility-page {
+            color: #1d2025;
+            font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+          }
+
+          .writer-eligibility-page * {
+            box-sizing: border-box;
+          }
+
+          .writer-eligibility-kicker {
+            margin: 0 0 7px;
+            color: #939ba5;
+            font-size: 10px;
+            font-weight: 800;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+          }
+
+          .writer-eligibility-heading {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 20px;
+            margin-bottom: 24px;
+          }
+
+          .writer-eligibility-heading h2 {
+            margin: 0;
+            font-size: 22px;
+            line-height: 1.2;
+            font-weight: 800;
+            letter-spacing: -.02em;
+          }
+
+          .writer-eligibility-heading p {
+            margin: 7px 0 0;
+            max-width: 700px;
+            color: #7a828d;
+            font-size: 14px;
+            line-height: 1.55;
+          }
+
+          .writer-eligibility-btn {
+            min-height: 38px;
+            padding: 0 16px;
+            border: 1px solid #dfe3e6;
+            border-radius: 8px;
+            background: #fff;
+            color: #1d2025;
+            font: inherit;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+          }
+
+          .writer-eligibility-btn.primary {
+            border-color: #1c1f24;
+            background: #1c1f24;
+            color: #fff;
+          }
+
+          .writer-eligibility-btn:disabled {
+            cursor: not-allowed;
+            opacity: .58;
+          }
+
+          .writer-eligibility-alert {
+            margin-bottom: 14px;
+            padding: 12px 14px;
+            border: 1px solid #dfe3e6;
+            border-radius: 9px;
+            background: #fff;
+            font-size: 11px;
+            font-weight: 600;
+            line-height: 1.45;
+          }
+
+          .writer-eligibility-alert.error {
+            border-color: #f3c7c4;
+            background: #fff5f4;
+            color: #9f2d25;
+          }
+
+          .writer-eligibility-alert.success {
+            border-color: #bfe3cc;
+            background: #f1fbf5;
+            color: #237447;
+          }
+
+          .writer-eligibility-metrics {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 12px;
+            margin-bottom: 16px;
+          }
+
+          .writer-eligibility-metric,
+          .writer-eligibility-panel,
+          .writer-eligibility-side-card {
+            border: 1px solid #dfe3e6;
+            background: #fff;
+          }
+
+          .writer-eligibility-metric {
+            min-height: 84px;
+            padding: 15px 16px;
+            border-radius: 9px;
+          }
+
+          .writer-eligibility-metric span {
+            display: block;
+            margin-bottom: 6px;
+            color: #7a828d;
+            font-size: 12px;
+            font-weight: 500;
+          }
+
+          .writer-eligibility-metric strong {
+            display: block;
+            color: #1d2025;
+            font-size: 21px;
+            line-height: 1.15;
+            font-weight: 800;
+            letter-spacing: -.02em;
+            overflow-wrap: anywhere;
+          }
+
+          .writer-eligibility-metric small {
+            display: block;
+            margin-top: 5px;
+            color: #7a828d;
+            font-size: 11px;
+            line-height: 1.45;
+          }
+
+          .writer-eligibility-metric small.good {
+            color: #237447;
+          }
+
+          .writer-eligibility-metric small.warn {
+            color: #a26c00;
+          }
+
+          .writer-eligibility-grid {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 365px;
+            gap: 16px;
+            align-items: start;
+          }
+
+          .writer-eligibility-main,
+          .writer-eligibility-side {
+            display: grid;
+            gap: 16px;
+          }
+
+          .writer-eligibility-panel,
+          .writer-eligibility-side-card {
+            border-radius: 10px;
+          }
+
+          .writer-eligibility-panel {
+            padding: 18px;
+          }
+
+          .writer-eligibility-panel-head {
+            margin-bottom: 14px;
+          }
+
+          .writer-eligibility-panel-head h3,
+          .writer-eligibility-side-card h3 {
+            margin: 0;
+            color: #1d2025;
+            font-size: 16px;
+            font-weight: 800;
+          }
+
+          .writer-eligibility-panel-head p,
+          .writer-eligibility-side-card > p {
+            margin: 5px 0 0;
+            color: #7a828d;
+            font-size: 12px;
+            line-height: 1.55;
+          }
+
+          .writer-eligibility-requirements {
+            display: grid;
+            gap: 10px;
+          }
+
+          .writer-eligibility-requirement {
+            padding: 12px 14px;
+            border: 1px solid #dfe3e6;
+            border-radius: 8px;
+            background: #fff;
+          }
+
+          .writer-eligibility-requirement-top {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            gap: 12px;
+            align-items: start;
+          }
+
+          .writer-eligibility-requirement h4 {
+            margin: 0;
+            color: #1d2025;
+            font-size: 14px;
+            font-weight: 700;
+          }
+
+          .writer-eligibility-requirement p {
+            margin: 6px 0 0;
+            color: #7a828d;
+            font-size: 12px;
+            line-height: 1.5;
+          }
+
+          .writer-eligibility-requirement-meta {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+          }
+
+          .writer-eligibility-chip {
+            display: inline-flex;
+            min-width: 92px;
+            min-height: 28px;
+            padding: 0 12px;
+            align-items: center;
+            justify-content: center;
+            border-radius: 999px;
+            background: #f0f1f3;
+            color: #707782;
+            font-size: 11px;
+            font-weight: 700;
+            white-space: nowrap;
+          }
+
+          .writer-eligibility-chip.passed {
+            background: #eaf7ef;
+            color: #237447;
+          }
+
+          .writer-eligibility-chip.progress,
+          .writer-eligibility-chip.pending {
+            background: #fff7e6;
+            color: #9a6700;
+          }
+
+          .writer-eligibility-chip.failed {
+            background: #fff0ef;
+            color: #a23932;
+          }
+
+          .writer-eligibility-progress {
+            height: 5px;
+            margin-top: 12px;
+            border-radius: 999px;
+            background: #eef1f3;
+            overflow: hidden;
+          }
+
+          .writer-eligibility-progress > span {
+            display: block;
+            height: 100%;
+            border-radius: inherit;
+            background: #a87400;
+          }
+
+          .writer-eligibility-progress > span.passed {
+            background: #237447;
+          }
+
+          .writer-eligibility-progress > span.failed {
+            background: #a23932;
+          }
+
+          .writer-eligibility-count {
+            margin-top: 7px;
+            text-align: right;
+            color: #1d2025;
+            font-size: 11px;
+            font-weight: 700;
+          }
+
+          .writer-eligibility-side-card {
+            padding: 17px;
+          }
+
+          .writer-eligibility-side-title-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+          }
+
+          .writer-eligibility-readiness {
+            display: grid;
+            grid-template-columns: 92px minmax(0, 1fr);
+            gap: 15px;
+            align-items: center;
+            margin: 15px 0;
+          }
+
+          .writer-eligibility-ring {
+            width: 92px;
+            height: 92px;
+            border-radius: 50%;
+            display: grid;
+            place-items: center;
+            background: conic-gradient(#a87400 var(--readiness), #eef1f3 0);
+          }
+
+          .writer-eligibility-ring > div {
+            width: 76px;
+            height: 76px;
+            border-radius: 50%;
+            display: grid;
+            place-items: center;
+            background: #fff;
+            box-shadow: inset 0 0 0 1px #edf0f2;
+            color: #1d2025;
+            font-size: 22px;
+            font-weight: 800;
+          }
+
+          .writer-eligibility-readiness-copy strong {
+            display: block;
+            font-size: 14px;
+          }
+
+          .writer-eligibility-readiness-copy p {
+            margin: 7px 0 0;
+            color: #7a828d;
+            font-size: 11px;
+            line-height: 1.5;
+          }
+
+          .writer-eligibility-side-card .writer-eligibility-btn {
+            width: 100%;
+          }
+
+          .writer-eligibility-ad-lines {
+            display: grid;
+            gap: 10px;
+            margin: 14px 0 12px;
+          }
+
+          .writer-eligibility-ad-line {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            gap: 12px;
+            align-items: center;
+            color: #1d2025;
+            font-size: 12px;
+          }
+
+          .writer-eligibility-mini-toggle,
+          .writer-eligibility-toggle {
+            position: relative;
+            border: 0;
+            border-radius: 999px;
+            background: #d7dde4;
+          }
+
+          .writer-eligibility-mini-toggle {
+            width: 40px;
+            height: 22px;
+          }
+
+          .writer-eligibility-toggle {
+            width: 46px;
+            height: 26px;
+            cursor: pointer;
+          }
+
+          .writer-eligibility-mini-toggle::after,
+          .writer-eligibility-toggle::after {
+            content: '';
+            position: absolute;
+            top: 3px;
+            left: 3px;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #fff;
+            box-shadow: 0 1px 3px rgba(15,23,42,.18);
+            transition: transform .18s ease;
+          }
+
+          .writer-eligibility-toggle::after {
+            width: 20px;
+            height: 20px;
+          }
+
+          .writer-eligibility-mini-toggle.on,
+          .writer-eligibility-toggle.on {
+            background: #1c1f24;
+          }
+
+          .writer-eligibility-mini-toggle.on::after {
+            transform: translateX(18px);
+          }
+
+          .writer-eligibility-toggle.on::after {
+            transform: translateX(20px);
+          }
+
+          .writer-eligibility-website-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-top: 15px;
+          }
+
+          .writer-eligibility-website-grid span {
+            display: block;
+            color: #7a828d;
+            font-size: 11px;
+            margin-bottom: 5px;
+          }
+
+          .writer-eligibility-website-grid strong {
+            display: block;
+            color: #1d2025;
+            font-size: 12px;
+            overflow-wrap: anywhere;
+          }
+
+          .writer-eligibility-revenue {
+            border: 1px solid #1c1f24;
+            border-radius: 10px;
+            padding: 18px;
+            background: #1c1f24;
+            color: #fff;
+          }
+
+          .writer-eligibility-revenue span {
+            display: block;
+            color: #b9bec5;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+          }
+
+          .writer-eligibility-revenue strong {
+            display: block;
+            margin-top: 9px;
+            font-size: 21px;
+            font-weight: 800;
+          }
+
+          .writer-eligibility-revenue p {
+            margin: 7px 0 0;
+            color: #c8ccd2;
+            font-size: 11px;
+            line-height: 1.55;
+          }
+
+          .writer-eligibility-steps {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 12px;
+            margin-top: 15px;
+          }
+
+          .writer-eligibility-step {
+            display: grid;
+            grid-template-columns: 28px minmax(0, 1fr);
+            gap: 9px;
+            align-items: start;
+            color: #7a828d;
+            font-size: 11px;
+            line-height: 1.45;
+          }
+
+          .writer-eligibility-step b {
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            display: grid;
+            place-items: center;
+            background: #eef1f3;
+            color: #7a828d;
+            font-size: 9px;
+          }
+
+          .writer-eligibility-step:first-child b {
+            background: #1c1f24;
+            color: #fff;
+          }
+
+          .writer-eligibility-backdrop {
+            position: fixed;
+            top: 72px;
+            right: 0;
+            bottom: 0;
+            left: 248px;
+            z-index: 470;
+            background: rgba(28,31,36,.28);
+          }
+
+          .writer-eligibility-drawer {
+            position: fixed;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            z-index: 480;
+            width: min(460px, calc(100vw - 248px));
+            padding: 30px 28px;
+            border-left: 1px solid #dfe3e6;
+            background: #fff;
+            overflow-y: auto;
+          }
+
+          .writer-eligibility-drawer-head {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 14px;
+            margin-bottom: 22px;
+          }
+
+          .writer-eligibility-drawer-head h3 {
+            margin: 0;
+            font-size: 20px;
+            font-weight: 800;
+          }
+
+          .writer-eligibility-drawer-head p {
+            margin: 7px 0 0;
+            color: #7a828d;
+            font-size: 12px;
+            line-height: 1.5;
+          }
+
+          .writer-eligibility-close {
+            width: 32px;
+            height: 32px;
+            border: 0;
+            background: transparent;
+            color: #707782;
+            font-size: 16px;
+            cursor: pointer;
+          }
+
+          .writer-eligibility-split {
+            display: grid;
+            grid-template-columns: 1fr 1fr auto;
+            gap: 14px;
+            align-items: center;
+            padding: 16px;
+            border: 1px solid #dfe3e6;
+            border-radius: 9px;
+            background: #f8f9fa;
+          }
+
+          .writer-eligibility-split span {
+            display: block;
+            color: #7a828d;
+            font-size: 11px;
+            margin-bottom: 5px;
+          }
+
+          .writer-eligibility-split strong {
+            font-size: 20px;
+          }
+
+          .writer-eligibility-drawer-list {
+            display: grid;
+            gap: 12px;
+            margin-top: 16px;
+          }
+
+          .writer-eligibility-drawer-row {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            gap: 14px;
+            align-items: center;
+            min-height: 86px;
+            padding: 15px;
+            border: 1px solid #dfe3e6;
+            border-radius: 9px;
+          }
+
+          .writer-eligibility-drawer-row strong {
+            display: block;
+            font-size: 14px;
+          }
+
+          .writer-eligibility-drawer-row p {
+            margin: 6px 0 0;
+            color: #7a828d;
+            font-size: 12px;
+            line-height: 1.5;
+          }
+
+          .writer-eligibility-drawer-warning {
+            margin-top: 16px;
+            padding: 14px;
+            border-radius: 8px;
+            background: #fff7e6;
+            color: #9a6700;
+            font-size: 11px;
+            line-height: 1.55;
+          }
+
+          .writer-eligibility-drawer .writer-eligibility-btn.primary {
+            width: 100%;
+            margin-top: 16px;
+            min-height: 40px;
+          }
+
+          @media (max-width: 1100px) {
+            .writer-eligibility-grid {
+              grid-template-columns: minmax(0, 1fr) 330px;
+            }
+          }
+
+          @media (max-width: 991px) {
+            .writer-eligibility-page {
+              margin-left: -9px;
+              margin-right: -9px;
+            }
+
+            .writer-eligibility-heading {
+              align-items: center;
+              margin-bottom: 16px;
+              padding: 0 6px;
+            }
+
+            .writer-eligibility-kicker,
+            .writer-eligibility-heading p {
+              display: none;
+            }
+
+            .writer-eligibility-heading h2 {
+              font-size: 20px;
+            }
+
+            .writer-eligibility-heading .writer-eligibility-btn {
+              min-height: 38px;
+              padding: 0 13px;
+              font-size: 12px;
+            }
+
+            .writer-eligibility-alert {
+              margin: 0 0 8px;
+            }
+
+            .writer-eligibility-metrics {
+              grid-template-columns: repeat(2, minmax(0, 1fr));
+              gap: 8px;
+              margin-bottom: 8px;
+            }
+
+            .writer-eligibility-metric {
+              min-height: 76px;
+              padding: 12px;
+            }
+
+            .writer-eligibility-metric strong {
+              font-size: 20px;
+            }
+
+            .writer-eligibility-grid {
+              display: contents;
+            }
+
+            .writer-eligibility-main,
+            .writer-eligibility-side {
+              display: contents;
+            }
+
+            .writer-eligibility-panel,
+            .writer-eligibility-side-card,
+            .writer-eligibility-revenue {
+              margin-bottom: 8px;
+              border-radius: 8px;
+            }
+
+            .writer-eligibility-requirements-panel {
+              order: 1;
+            }
+
+            .writer-eligibility-summary-card {
+              order: 2;
+            }
+
+            .writer-eligibility-ads-card {
+              order: 3;
+            }
+
+            .writer-eligibility-revenue {
+              order: 4;
+            }
+
+            .writer-eligibility-website-card,
+            .writer-eligibility-steps-panel {
+              display: none;
+            }
+
+            .writer-eligibility-panel {
+              padding: 12px 8px;
+            }
+
+            .writer-eligibility-panel-head {
+              margin-bottom: 10px;
+            }
+
+            .writer-eligibility-requirements {
+              gap: 9px;
+            }
+
+            .writer-eligibility-requirement {
+              padding: 13px 10px;
+            }
+
+            .writer-eligibility-requirement h4 {
+              font-size: 14px;
+              line-height: 1.35;
+            }
+
+            .writer-eligibility-requirement p {
+              font-size: 12px;
+              line-height: 1.5;
+            }
+
+            .writer-eligibility-requirement-meta {
+              gap: 6px;
+            }
+
+            .writer-eligibility-chip {
+              min-width: 78px;
+              min-height: 26px;
+              padding: 0 9px;
+              font-size: 10px;
+            }
+
+            .writer-eligibility-progress {
+              margin-top: 9px;
+            }
+
+            .writer-eligibility-count {
+              font-size: 10px;
+            }
+
+            .writer-eligibility-side-card {
+              padding: 14px 10px;
+            }
+
+            .writer-eligibility-readiness {
+              grid-template-columns: 1fr;
+              margin: 10px 0;
+            }
+
+            .writer-eligibility-ring {
+              display: none;
+            }
+
+            .writer-eligibility-readiness-copy strong {
+              font-size: 24px;
+            }
+
+            .writer-eligibility-readiness-copy p {
+              margin-top: 5px;
+              font-size: 12px;
+            }
+
+            .writer-eligibility-revenue {
+              padding: 13px 9px;
+              min-height: 98px;
+            }
+
+            .writer-eligibility-revenue strong {
+              font-size: 20px;
+            }
+
+            .writer-eligibility-backdrop {
+              top: 60px;
+              left: 0;
+            }
+
+            .writer-eligibility-drawer {
+              top: 60px;
+              width: 100%;
+              padding: 18px 8px 28px;
+              border-left: 0;
+            }
+
+            .writer-eligibility-drawer-head {
+              margin-bottom: 18px;
+              padding: 0 8px;
+            }
+
+            .writer-eligibility-drawer-head h3 {
+              font-size: 20px;
+            }
+
+            .writer-eligibility-split {
+              grid-template-columns: 1fr 1fr;
+              padding: 14px;
+            }
+
+            .writer-eligibility-split .writer-eligibility-chip {
+              grid-column: 1 / -1;
+              width: max-content;
+              min-width: 118px;
+            }
+
+            .writer-eligibility-drawer-row {
+              min-height: 112px;
+              padding: 14px;
+            }
+
+            .writer-eligibility-drawer-warning {
+              padding: 14px;
+            }
+          }
+        `}</style>
+
+        <div className="writer-eligibility-heading">
+          <div>
+            <div className="writer-eligibility-kicker">Monetization</div>
+            <h2>Eligibility &amp; readiness</h2>
+            <p>Complete the marketplace requirements, choose where publisher ads may appear, then apply for review.</p>
+          </div>
+          <button
+            type="button"
+            className="writer-eligibility-btn"
+            onClick={() => setPublisherSettingsOpen(true)}
+          >
+            Publisher ad settings
+          </button>
+        </div>
+
+        {(notice || error) ? (
+          <div className={`writer-eligibility-alert ${error ? 'error' : 'success'}`}>
+            {error || notice}
+          </div>
+        ) : null}
+
+        <section className="writer-eligibility-metrics" aria-label="Monetization summary">
+          <div className="writer-eligibility-metric">
+            <span>Readiness</span>
+            <strong>{summary.percent}%</strong>
+            <small className={summary.isEligible ? 'good' : 'warn'}>{summary.passed} of {summary.total} requirements complete</small>
+          </div>
+          <div className="writer-eligibility-metric">
+            <span>Application</span>
+            <strong>{applicationLabel}</strong>
+            <small>{summary.isEligible ? 'Ready to submit for review' : 'Submit when readiness reaches 100%'}</small>
+          </div>
+          <div className="writer-eligibility-metric">
+            <span>Publisher share</span>
+            <strong>Up to {publisherShare}%</strong>
+            <small className="good">On eligible sponsored activity</small>
+          </div>
+          <div className="writer-eligibility-metric">
+            <span>Website</span>
+            <strong>{websiteState}</strong>
+            <small>{websiteName}</small>
+          </div>
+        </section>
+
+        <section className="writer-eligibility-grid">
+          <div className="writer-eligibility-main">
+            <section className="writer-eligibility-panel writer-eligibility-requirements-panel">
+              <div className="writer-eligibility-panel-head">
+                <h3>Eligibility requirements</h3>
+                <p>Marketplace-controlled targets update automatically.</p>
+              </div>
+
+              <div className="writer-eligibility-requirements">
+                {requirements.map((item) => {
+                  const percent = item.percent !== undefined
+                    ? Number(item.percent || 0)
+                    : Number(item.required || 0) > 0
+                      ? Math.round((Number(item.current || 0) / Number(item.required || 1)) * 100)
+                      : 100;
+                  const safePercent = Math.max(0, Math.min(percent, 100));
+                  const badge = getStatusBadge(item.status);
+                  const statusClass = item.status === 'passed'
+                    ? 'passed'
+                    : item.status === 'failed'
+                      ? 'failed'
+                      : item.status === 'pending'
+                        ? 'pending'
+                        : 'progress';
+
+                  return (
+                    <article className="writer-eligibility-requirement" key={item.key}>
+                      <div className="writer-eligibility-requirement-top">
+                        <div>
+                          <h4>{item.title}</h4>
+                          <p>{item.description}</p>
+                        </div>
+                        <div className="writer-eligibility-requirement-meta">
+                          <span className={`writer-eligibility-chip ${statusClass}`}>{badge.label}</span>
+                        </div>
+                      </div>
+                      <div className="writer-eligibility-progress">
+                        <span className={statusClass} style={{ width: `${safePercent}%` }} />
+                      </div>
+                      <div className="writer-eligibility-count">
+                        {Number(item.current || 0).toLocaleString()} / {Number(item.required || 0).toLocaleString()}
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            </section>
+
+            <section className="writer-eligibility-panel writer-eligibility-steps-panel">
+              <div className="writer-eligibility-panel-head">
+                <h3>How approval works</h3>
+              </div>
+              <div className="writer-eligibility-steps">
+                {[
+                  'Complete current marketplace requirements',
+                  'Apply when readiness reaches 100%',
+                  'Admin reviews account, traffic and content',
+                  'Approved sponsored activity can earn revenue',
+                ].map((text, index) => (
+                  <div className="writer-eligibility-step" key={text}>
+                    <b>{index + 1}</b>
+                    <span>{text}</span>
+                  </div>
+                ))}
+              </div>
+            </section>
+          </div>
+
+          <aside className="writer-eligibility-side">
+            <section className="writer-eligibility-side-card writer-eligibility-summary-card">
+              <div className="writer-eligibility-side-title-row">
+                <h3>Readiness summary</h3>
+                <span className={`writer-eligibility-chip ${summary.isEligible ? 'passed' : 'progress'}`}>
+                  {summary.isEligible ? 'Ready' : 'Not ready'}
+                </span>
+              </div>
+              <div className="writer-eligibility-readiness">
+                <div className="writer-eligibility-ring" style={{ '--readiness': `${Math.max(0, Math.min(Number(summary.percent || 0), 100))}%` }}>
+                  <div>{summary.percent}%</div>
+                </div>
+                <div className="writer-eligibility-readiness-copy">
+                  <strong>{summary.passed} / {summary.total} complete</strong>
+                  <p>{summary.isEligible ? 'All current requirements are complete.' : 'Finish the remaining targets before applying.'}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="writer-eligibility-btn"
+                disabled={!summary.isEligible || saving}
+                onClick={submitForReview}
+              >
+                {saving ? 'Please wait...' : 'Apply for Monetization'}
+              </button>
+            </section>
+
+            <section className="writer-eligibility-side-card writer-eligibility-ads-card">
+              <div className="writer-eligibility-side-title-row">
+                <h3>Publisher ads</h3>
+                <span className={`writer-eligibility-chip ${isApproved ? 'passed' : 'progress'}`}>
+                  {isApproved ? 'Approved' : 'Approval required'}
+                </span>
+              </div>
+              <p>Choose where sponsored placements may appear. Preferences can be saved before approval.</p>
+              <div className="writer-eligibility-ad-lines">
+                <div className="writer-eligibility-ad-line">
+                  <span>Post template ads</span>
+                  <span className={`writer-eligibility-mini-toggle ${toBool(templateAds.post_template_ads_enabled) ? 'on' : ''}`} />
+                </div>
+                <div className="writer-eligibility-ad-line">
+                  <span>Website ads</span>
+                  <span className={`writer-eligibility-mini-toggle ${toBool(templateAds.website_ads_enabled) ? 'on' : ''}`} />
+                </div>
+                <div className="writer-eligibility-ad-line">
+                  <span>Product ads</span>
+                  <span className={`writer-eligibility-mini-toggle ${toBool(templateAds.product_ads_enabled) ? 'on' : ''}`} />
+                </div>
+              </div>
+              <button
+                type="button"
+                className="writer-eligibility-btn"
+                onClick={() => setPublisherSettingsOpen(true)}
+              >
+                Manage ad settings
+              </button>
+            </section>
+
+            <section className="writer-eligibility-side-card writer-eligibility-website-card">
+              <div className="writer-eligibility-side-title-row">
+                <h3>Website connected</h3>
+                <span className={`writer-eligibility-chip ${website ? 'passed' : ''}`}>{websiteState}</span>
+              </div>
+              <div className="writer-eligibility-website-grid">
+                <div>
+                  <span>Website</span>
+                  <strong>{websiteName}</strong>
+                </div>
+                <div>
+                  <span>Slug</span>
+                  <strong>{websiteSlug}</strong>
+                </div>
+              </div>
+            </section>
+
+            <section className="writer-eligibility-revenue">
+              <span>Revenue opportunity</span>
+              <strong>Up to {publisherShare}%</strong>
+              <p>{revenueMessage}</p>
+            </section>
+          </aside>
+        </section>
+
+        {publisherSettingsOpen ? (
+          <>
+            <div className="writer-eligibility-backdrop" onClick={() => setPublisherSettingsOpen(false)} />
+            <aside className="writer-eligibility-drawer" aria-label="Publisher ad settings">
+              <div className="writer-eligibility-drawer-head">
+                <div>
+                  <div className="writer-eligibility-kicker">Monetization</div>
+                  <h3>Publisher ad settings</h3>
+                  <p>Choose where sponsored placements may appear. These preferences can be saved before approval.</p>
+                </div>
+                <button
+                  type="button"
+                  className="writer-eligibility-close"
+                  aria-label="Close publisher ad settings"
+                  onClick={() => setPublisherSettingsOpen(false)}
+                >
+                  X
+                </button>
+              </div>
+
+              <div className="writer-eligibility-split">
+                <div>
+                  <span>Publisher</span>
+                  <strong>{publisherShare}%</strong>
+                </div>
+                <div>
+                  <span>Platform</span>
+                  <strong>{platformShare}%</strong>
+                </div>
+                <span className={`writer-eligibility-chip ${isApproved ? 'passed' : 'progress'}`}>
+                  {isApproved ? 'Approved' : 'Approval required'}
+                </span>
+              </div>
+
+              <div className="writer-eligibility-drawer-list">
+                {[
+                  ['post_template_ads_enabled', 'Post template ads', 'Show sponsored placements inside eligible blog post templates.'],
+                  ['website_ads_enabled', 'Website ads', 'Allow sponsored placements across approved storefront areas.'],
+                  ['product_ads_enabled', 'Product ads', 'Enable sponsored product placements in eligible product sections.'],
+                ].map(([key, title, description]) => {
+                  const checked = toBool(templateAds[key]);
+                  return (
+                    <div className="writer-eligibility-drawer-row" key={key}>
+                      <div>
+                        <strong>{title}</strong>
+                        <p>{description}</p>
+                      </div>
+                      <button
+                        type="button"
+                        className={`writer-eligibility-toggle ${checked ? 'on' : ''}`}
+                        aria-pressed={checked}
+                        aria-label={`${checked ? 'Disable' : 'Enable'} ${title}`}
+                        disabled={saving}
+                        onClick={() => updateTemplateAd(key, !checked)}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="writer-eligibility-drawer-warning">
+                <strong>Preferences do not activate earnings</strong>
+                <div style={{ marginTop: 6 }}>Sponsored earnings become active only after your monetization application is approved.</div>
+              </div>
+
+              <button
+                type="button"
+                className="writer-eligibility-btn primary"
+                disabled={saving}
+                onClick={saveTemplateAds}
+              >
+                {saving ? 'Saving...' : 'Save Publisher Ad Settings'}
+              </button>
+            </aside>
+          </>
+        ) : null}
       </div>
     );
   }

@@ -1,0 +1,423 @@
+/* BLOGGAD_READER_UNIFIED_SHELL_V1 */
+
+.reader-unified-app,
+.reader-unified-app * {
+  box-sizing: border-box;
+}
+
+.reader-unified-app {
+  height: 100vh;
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 236px minmax(0, 1fr);
+  background: #f7f8fa;
+  color: #111827;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  overflow: hidden;
+}
+
+.reader-unified-sidebar {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 236px;
+  height: 100vh;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  padding: 24px 18px 18px;
+  background: #ffffff;
+  border-right: 1px solid #e3e7ed;
+  overflow-y: auto;
+  z-index: 30;
+}
+
+.reader-unified-brand,
+.reader-unified-mobile-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.reader-unified-brand-mark {
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  background: #111827;
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.reader-unified-brand-copy {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.reader-unified-brand-copy strong {
+  font-size: 14px;
+  line-height: 1.2;
+  color: #111827;
+}
+
+.reader-unified-brand-copy small {
+  font-size: 10px;
+  line-height: 1.2;
+  color: #6b7280;
+}
+
+.reader-unified-nav {
+  margin-top: 28px;
+  display: grid;
+  gap: 24px;
+}
+
+.reader-unified-nav-group {
+  display: grid;
+  gap: 7px;
+}
+
+.reader-unified-nav-label {
+  padding: 0 1px;
+  color: #8a96a8;
+  font-size: 10px;
+  line-height: 1.2;
+  font-weight: 800;
+  letter-spacing: 0.035em;
+  text-transform: uppercase;
+}
+
+.reader-unified-nav-list {
+  display: grid;
+  gap: 4px;
+}
+
+.reader-unified-nav-item {
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 14px;
+  border-radius: 9px;
+  color: #1f2937;
+  font-size: 13px;
+  line-height: 1.25;
+  font-weight: 550;
+  text-decoration: none;
+  transition: background 0.16s ease, color 0.16s ease;
+}
+
+.reader-unified-nav-item:hover {
+  background: #f3f5f7;
+}
+
+.reader-unified-nav-item.active {
+  background: #111827;
+  color: #ffffff;
+  font-weight: 700;
+}
+
+.reader-unified-nav-icon {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+  display: grid;
+  place-items: center;
+  color: #738095;
+}
+
+.reader-unified-nav-item.active .reader-unified-nav-icon {
+  color: #ffffff;
+}
+
+.reader-unified-account-card {
+  margin-top: auto;
+  min-height: 54px;
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr) 28px;
+  align-items: center;
+  gap: 9px;
+  padding: 9px 10px;
+  border-radius: 12px;
+  background: #f3f4f6;
+}
+
+.reader-unified-account-avatar,
+.reader-unified-mobile-avatar {
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: #111827;
+  color: #ffffff;
+  font-weight: 800;
+}
+
+.reader-unified-account-avatar {
+  width: 32px;
+  height: 32px;
+  font-size: 11px;
+}
+
+.reader-unified-account-copy {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.reader-unified-account-copy strong,
+.reader-unified-account-copy small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reader-unified-account-copy strong {
+  font-size: 11px;
+  color: #111827;
+}
+
+.reader-unified-account-copy small {
+  font-size: 9px;
+  color: #788396;
+}
+
+.reader-unified-logout {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #6b7280;
+  cursor: pointer;
+}
+
+.reader-unified-logout:hover {
+  background: #ffffff;
+  color: #b42318;
+}
+
+.reader-unified-main {
+  grid-column: 2;
+  height: 100vh;
+  min-width: 0;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.reader-unified-content {
+  min-width: 0;
+}
+
+.reader-unified-page-pad {
+  width: 100%;
+  max-width: 1220px;
+  margin: 0 auto;
+  padding: 32px;
+}
+
+.reader-unified-desktop-bar {
+  height: 72px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 0 32px;
+  border-bottom: 1px solid #e3e7ed;
+  background: rgba(255, 255, 255, 0.96);
+}
+
+.reader-unified-desktop-bar h1 {
+  margin: 0;
+  font-size: 18px;
+  line-height: 1.2;
+  font-weight: 750;
+  letter-spacing: -0.02em;
+}
+
+.reader-unified-desktop-bar span {
+  color: #667085;
+  font-size: 12px;
+}
+
+.reader-unified-mobile-bar {
+  display: none;
+}
+
+.reader-unified-backdrop,
+.reader-unified-mobile-drawer {
+  display: none;
+}
+
+@media (max-width: 767px) {
+  .reader-unified-app {
+    height: auto;
+    min-height: 100vh;
+    display: block;
+    min-width: 0;
+    overflow-x: hidden;
+    overflow-y: visible;
+  }
+
+  .reader-unified-sidebar,
+  .reader-unified-desktop-bar {
+    display: none;
+  }
+
+  .reader-unified-main {
+    grid-column: auto;
+    width: 100%;
+    height: auto;
+    min-width: 0;
+    min-height: 0;
+    overflow: visible;
+  }
+
+  .reader-unified-mobile-bar {
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    height: 60px;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 11px;
+    padding: 0 8px;
+    border-bottom: 1px solid #e3e7ed;
+    background: rgba(255, 255, 255, 0.98);
+  }
+
+  .reader-unified-mobile-menu {
+    min-height: 34px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 11px;
+    border: 1px solid #dce2ea;
+    border-radius: 9px;
+    background: #ffffff;
+    color: #273244;
+    font-size: 12px;
+    font-weight: 650;
+    cursor: pointer;
+  }
+
+  .reader-unified-mobile-brand {
+    justify-self: start;
+  }
+
+  .reader-unified-mobile-avatar {
+    width: 34px;
+    height: 34px;
+    font-size: 11px;
+  }
+
+  .reader-unified-content {
+    width: 100%;
+    min-width: 0;
+    overflow-x: hidden;
+  }
+
+  .reader-unified-page-pad {
+    max-width: none;
+    padding: 20px 8px 28px;
+  }
+
+  .reader-unified-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 70;
+    display: block;
+    border: 0;
+    background: rgba(15, 23, 42, 0.38);
+  }
+
+  .reader-unified-mobile-drawer {
+    position: fixed;
+    inset: 0 auto 0 0;
+    z-index: 71;
+    width: min(286px, calc(100vw - 40px));
+    display: flex;
+    flex-direction: column;
+    padding: 16px;
+    background: #ffffff;
+    box-shadow: 18px 0 48px rgba(15, 23, 42, 0.18);
+    overflow-y: auto;
+  }
+
+  .reader-unified-mobile-drawer-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 18px;
+    color: #111827;
+    font-size: 13px;
+    font-weight: 750;
+  }
+
+  .reader-unified-mobile-drawer-head button {
+    width: 34px;
+    height: 34px;
+    display: grid;
+    place-items: center;
+    border: 1px solid #dce2ea;
+    border-radius: 9px;
+    background: #ffffff;
+    color: #111827;
+    cursor: pointer;
+  }
+
+  .reader-unified-mobile-drawer > .reader-unified-brand {
+    margin-bottom: 2px;
+  }
+
+  .reader-unified-mobile-drawer .reader-unified-nav {
+    margin-top: 22px;
+  }
+
+  .reader-unified-mobile-drawer .reader-unified-account-card {
+    margin-top: 24px;
+  }
+}
+
+
+/* BLOGGAD_READER_SUBSCRIPTION_TIER_BADGE_V1 */
+.reader-unified-account-copy small {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.reader-unified-tier-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 18px;
+  border-radius: 999px;
+  padding: 0 6px;
+  font-size: 8px;
+  font-weight: 850;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.reader-unified-tier-badge.basic {
+  border: 1px solid #d7dee8;
+  background: #f5f7fa;
+  color: #475569;
+}
+
+.reader-unified-tier-badge.premium {
+  border: 1px solid #111827;
+  background: #111827;
+  color: #ffffff;
+}

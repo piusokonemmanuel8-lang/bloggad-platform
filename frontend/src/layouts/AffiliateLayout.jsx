@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Navigate, NavLink, Outlet } from 'react-router-dom';
+import { Navigate, NavLink, Outlet, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard,
   Globe,
@@ -32,7 +32,7 @@ import {
 import { useAuth } from '../hooks/useAuth';
 
 function extractFirstName(user) {
-  if (!user) return 'Affiliate';
+  if (!user) return 'Writer';
 
   const possibleName =
     user?.name ||
@@ -43,9 +43,9 @@ function extractFirstName(user) {
     user?.firstName ||
     '';
 
-  if (!possibleName || typeof possibleName !== 'string') return 'Affiliate';
+  if (!possibleName || typeof possibleName !== 'string') return 'Writer';
 
-  return possibleName.trim().split(' ')[0] || 'Affiliate';
+  return possibleName.trim().split(' ')[0] || 'Writer';
 }
 
 function getGreeting(name = '') {
@@ -56,41 +56,235 @@ function getGreeting(name = '') {
   return `Good evening, ${name}`;
 }
 
+const navItems = [
+  { label: 'Dashboard', to: '/writer/dashboard', icon: LayoutDashboard, group: 'Overview' },
+  { label: 'Notifications', to: '/writer/notifications', icon: Bell, group: 'Overview' },
+
+  { label: 'Posts', to: '/writer/posts', icon: FileText, group: 'Publish' },
+  { label: 'Write', to: '/writer/posts/create', icon: SquarePen, group: 'Publish' },
+  { label: 'Pages', to: '/writer/pages', icon: FileText, group: 'Publish' },
+  { label: 'Series and Books', to: '/writer/series', icon: FileText, group: 'Publish' },
+  { label: 'Courses', to: '/writer/courses', icon: LayoutTemplate, group: 'Publish' },
+  { label: 'Community', to: '/writer/community', icon: Users, group: 'Publish' },
+
+  { label: 'Messages', to: '/writer/messages', icon: MessageSquare, group: 'Audience' },
+  { label: 'Readers', to: '/writer/readers', icon: Users, group: 'Audience' },
+  { label: 'Email Lists', to: '/writer/email-lists', icon: Mail, group: 'Audience' },
+  { label: 'Memberships', to: '/writer/memberships', icon: CreditCard, group: 'Audience' },
+
+  { label: 'Storefront', to: '/writer/website', icon: Globe, group: 'Store' },
+  { label: 'Products', to: '/writer/products', icon: ShoppingBag, group: 'Store' },
+  { label: 'Templates', to: '/writer/templates/choose', icon: LayoutTemplate, group: 'Store' },
+  { label: 'Menus', to: '/writer/menus', icon: MenuSquare, group: 'Store' },
+  { label: 'Sliders', to: '/writer/sliders', icon: SlidersHorizontal, group: 'Store' },
+  { label: 'Design', to: '/writer/design', icon: Palette, group: 'Store' },
+
+  { label: 'Analytics', to: '/writer/analytics', icon: BarChart3, group: 'Insights' },
+  {
+    label: 'Monetization Eligibility',
+    to: '/writer/monetization/eligibility',
+    icon: BadgeDollarSign,
+    group: 'Insights',
+  },
+  {
+    label: 'Monetization Analytics',
+    to: '/writer/monetization/analytics',
+    icon: ChartNoAxesCombined,
+    group: 'Insights',
+  },
+  {
+    label: 'BlogPulse Earnings',
+    to: '/writer/monetization/blogpulse-analytics',
+    icon: LineChart,
+    group: 'Insights',
+  },
+  { label: 'My Ads', to: '/writer/monetization/my-ads', icon: SquarePen, group: 'Insights' },
+  {
+    label: 'Ad Placement',
+    to: '/writer/monetization/ad-placement',
+    icon: PanelsTopLeft,
+    group: 'Insights',
+  },
+  { label: 'Ads Account', to: '/writer/ads', icon: Megaphone, group: 'Insights' },
+  { label: 'Leaderboard', to: '/writer/leaderboard', icon: Trophy, group: 'Insights' },
+
+  { label: 'Writer Wallet', to: '/writer/wallet', icon: Wallet, group: 'Account' },
+  { label: 'Writer Plan', to: '/writer/plan', icon: CreditCard, group: 'Account' },
+  { label: 'Settings', to: '/writer/settings', icon: Settings, group: 'Account' },
+];
+
+const dashboardGroups = ['Overview', 'Publish', 'Audience', 'Store', 'Insights', 'Account'];
+
+function StandardNavigation({ onNavigate }) {
+  return (
+    <div className="affiliate-layout-sidebar-menu">
+      <div className="affiliate-layout-menu-label">Main Menu</div>
+
+      <nav className="affiliate-layout-nav">
+        {navItems.map((item) => {
+          const Icon = item.icon;
+
+          return (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              className={({ isActive }) =>
+                `affiliate-layout-nav-item${isActive ? ' active' : ''}`
+              }
+              onClick={onNavigate}
+            >
+              <div className="affiliate-layout-nav-left">
+                <Icon size={19} />
+                <span>{item.label}</span>
+              </div>
+
+              <ChevronRight size={16} />
+            </NavLink>
+          );
+        })}
+      </nav>
+    </div>
+  );
+}
+
+function DashboardNavigation({ onNavigate }) {
+  return (
+    <div className="dashboard-nav-scroll">
+      {dashboardGroups.map((group) => {
+        const items = navItems.filter((item) => item.group === group);
+
+        return (
+          <div className="dashboard-nav-group" key={group}>
+            <div className="dashboard-nav-label">{group}</div>
+
+            <nav className="dashboard-nav-list" aria-label={`${group} navigation`}>
+              {items.map((item) => {
+                const Icon = item.icon;
+
+                return (
+                  <NavLink
+                    key={item.to}
+                    to={item.to}
+                    className={({ isActive }) =>
+                      `dashboard-nav-item${isActive ? ' active' : ''}`
+                    }
+                    onClick={onNavigate}
+                  >
+                    <span className="dashboard-nav-icon">
+                      <Icon size={16} strokeWidth={1.8} />
+                    </span>
+                    <span className="dashboard-nav-text">{item.label}</span>
+                  </NavLink>
+                );
+              })}
+            </nav>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function AffiliateLayout() {
   const { isAuthenticated, isAffiliate, bootstrapping, user } = useAuth();
+  const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const firstName = useMemo(() => extractFirstName(user), [user]);
   const greeting = useMemo(() => getGreeting(firstName), [firstName]);
 
-  const navItems = [
-    { label: 'Dashboard', to: '/affiliate/dashboard', icon: LayoutDashboard },
-    { label: 'Notifications', to: '/affiliate/notifications', icon: Bell },
-    { label: 'Leaderboard', to: '/affiliate/leaderboard', icon: Trophy },
-    { label: 'Ads Account', to: '/affiliate/ads', icon: Megaphone },
-    { label: 'Website', to: '/affiliate/website', icon: Globe },
-    { label: 'Products', to: '/affiliate/products', icon: ShoppingBag },
-    { label: 'Posts', to: '/affiliate/posts/create', icon: FileText },
-    { label: 'Templates', to: '/affiliate/templates/choose', icon: LayoutTemplate },
-    { label: 'Menus', to: '/affiliate/menus', icon: MenuSquare },
-    { label: 'Home Sliders Ads', to: '/affiliate/sliders', icon: SlidersHorizontal },
-    { label: 'Media Library', to: '/affiliate/media', icon: ImageIcon },
-    { label: 'Design', to: '/affiliate/design', icon: Palette },
+  const connectedWriterShellMode =
+  location.pathname === '/writer/plan' ||
+  (location.pathname === '/writer/dashboard' ||
+    location.pathname === '/writer/notifications' ||
+    location.pathname === '/writer/posts' ||
+    location.pathname === '/writer/posts/create' ||
+    location.pathname === '/writer/series' ||
+    location.pathname === '/writer/pages' ||
+    location.pathname === '/writer/courses' ||
+    location.pathname === '/writer/community' ||
+    location.pathname === '/writer/readers' ||
+    location.pathname === '/writer/email-lists' ||
+    location.pathname === '/writer/messages' ||
+    location.pathname === '/writer/website' ||
+    location.pathname === '/writer/templates/choose') ||
+    location.pathname === '/writer/memberships' ||
+    location.pathname === '/writer/menus' ||
+    location.pathname.startsWith('/writer/products') ||
+    location.pathname === '/writer/analytics' ||
+    location.pathname === '/writer/design'
+    || location.pathname === '/writer/sliders' ||
+    location.pathname === '/writer/monetization/analytics' ||
+    location.pathname === '/writer/monetization/eligibility' ||
+    location.pathname === '/writer/monetization/my-ads'
+    || location.pathname === '/writer/monetization/blogpulse-analytics' ||
+    location.pathname === '/writer/monetization/ad-placement' ||
+    location.pathname === '/writer/settings' ||
+    location.pathname === '/writer/leaderboard' ||
+    location.pathname === '/writer/wallet' ||
+    location.pathname === '/writer/ads';
 
-    { label: 'Monetization Eligibility', to: '/affiliate/monetization/eligibility', icon: BadgeDollarSign },
-    { label: 'Monetization Analytics', to: '/affiliate/monetization/analytics', icon: ChartNoAxesCombined },
-    { label: 'BlogPulse Earnings', to: '/affiliate/monetization/blogpulse-analytics', icon: LineChart },
-    { label: 'BlogPulse Wallet', to: '/affiliate/monetization/wallet', icon: Wallet },
-    { label: 'My Ads', to: '/affiliate/monetization/my-ads', icon: SquarePen },
-    { label: 'Ad Placement', to: '/affiliate/monetization/ad-placement', icon: PanelsTopLeft },
+  const dashboardMode =
+    connectedWriterShellMode ||
+    location.pathname === '/affiliate/dashboard';
 
-    { label: 'Analytics', to: '/affiliate/analytics', icon: BarChart3 },
-    { label: 'My Customers', to: '/affiliate/customers', icon: Users },
-    { label: 'Email Lists', to: '/affiliate/email-lists', icon: Mail },
-    { label: 'Chats', to: '/affiliate/chats', icon: MessageSquare },
-    { label: 'Subscription', to: '/affiliate/subscription', icon: CreditCard },
-    { label: 'Settings', to: '/affiliate/settings', icon: Settings },
-  ];
+  const shellTitle = location.pathname === '/writer/ads'
+    ? 'Ads Account'
+    : (location.pathname === '/writer/wallet'
+    ? 'Writer Wallet'
+    : (location.pathname === '/writer/leaderboard'
+    ? 'Leaderboard'
+    : (location.pathname === '/writer/plan'
+    ? 'Writer Plan'
+    : location.pathname === '/writer/settings'
+    ? 'Settings'
+    : (location.pathname === '/writer/monetization/ad-placement'
+    ? 'Ad Placement'
+    : (location.pathname === '/writer/monetization/blogpulse-analytics'
+    ? 'BlogPulse Earnings'
+    : (location.pathname === '/writer/monetization/my-ads'
+    ? 'My Ads'
+    : (location.pathname === '/writer/monetization/eligibility'
+    ? 'Monetization Eligibility'
+    : (location.pathname === '/writer/monetization/analytics'
+    ? 'Monetization Analytics'
+    : (location.pathname === '/writer/sliders'
+    ? 'Sliders'
+    : (location.pathname === '/writer/design'
+    ? 'Design'
+    : (location.pathname === '/writer/analytics'
+    ? 'Analytics'
+    : (location.pathname.startsWith('/writer/products')
+    ? 'Products'
+    : (location.pathname === '/writer/menus' ? 'Menus' : location.pathname === '/writer/templates/choose'
+    ? 'Templates'
+    : (location.pathname === '/writer/memberships' ? 'Memberships' : (location.pathname === '/writer/website'
+    ? 'Storefront'
+    : (location.pathname === '/writer/messages'
+    ? 'Messages'
+    : (location.pathname === '/writer/readers' ? 'Readers' : (location.pathname === '/writer/community'
+      ? 'Community'
+      : location.pathname === '/writer/courses'
+        ? 'Courses'
+        : location.pathname === '/writer/notifications'
+          ? 'Notifications'
+          : location.pathname === '/writer/posts'
+            ? 'Posts'
+            : location.pathname === '/writer/posts/create'
+              ? 'Write'
+              : location.pathname === '/writer/series'
+                ? 'Series and Books'
+                : location.pathname === '/writer/pages'
+                  ? 'Pages'
+                  : location.pathname === '/writer/email-lists'
+                    ? 'Email Lists'
+                    : 'Dashboard'))))))))))))))))));
+
+  const shellSubtitle =
+    location.pathname === '/writer/dashboard' ||
+    location.pathname === '/affiliate/dashboard'
+      ? 'Writer overview and recent activity'
+      : '';
 
   if (bootstrapping) {
     return (
@@ -113,48 +307,45 @@ export default function AffiliateLayout() {
   }
 
   return (
-    <div className="affiliate-layout-shell">
+    <div
+      className={`affiliate-layout-shell${dashboardMode ? ' dashboard-redesign' : ''}`}
+    >
       <style>{styles}</style>
 
-      <aside className={`affiliate-layout-sidebar ${mobileOpen ? 'open' : ''}`}>
+      <aside
+        className={`affiliate-layout-sidebar ${mobileOpen ? 'open' : ''}${
+          dashboardMode ? ' dashboard-sidebar' : ''
+        }`}
+      >
         <div className="affiliate-layout-sidebar-top">
           <div className="affiliate-layout-brand">
-            <div className="affiliate-layout-brand-logo">BG</div>
+            <div className="affiliate-layout-brand-logo">
+              {dashboardMode ? <span className="dashboard-brand-dot" /> : 'BG'}
+            </div>
 
             <div className="affiliate-layout-brand-copy">
               <h2>Bloggad</h2>
-              <p>Affiliate Panel</p>
+              <p>Writer Studio</p>
             </div>
+
+            {dashboardMode ? (
+              <button
+                type="button"
+                className="dashboard-sidebar-close"
+                onClick={() => setMobileOpen(false)}
+                aria-label="Close Writer menu"
+              >
+                <X size={18} />
+              </button>
+            ) : null}
           </div>
         </div>
 
-        <div className="affiliate-layout-sidebar-menu">
-          <div className="affiliate-layout-menu-label">Main Menu</div>
-
-          <nav className="affiliate-layout-nav">
-            {navItems.map((item) => {
-              const Icon = item.icon;
-
-              return (
-                <NavLink
-                  key={item.to}
-                  to={item.to}
-                  className={({ isActive }) =>
-                    `affiliate-layout-nav-item${isActive ? ' active' : ''}`
-                  }
-                  onClick={() => setMobileOpen(false)}
-                >
-                  <div className="affiliate-layout-nav-left">
-                    <Icon size={19} />
-                    <span>{item.label}</span>
-                  </div>
-
-                  <ChevronRight size={16} />
-                </NavLink>
-              );
-            })}
-          </nav>
-        </div>
+        {dashboardMode ? (
+          <DashboardNavigation onNavigate={() => setMobileOpen(false)} />
+        ) : (
+          <StandardNavigation onNavigate={() => setMobileOpen(false)} />
+        )}
       </aside>
 
       {mobileOpen ? (
@@ -167,38 +358,78 @@ export default function AffiliateLayout() {
       ) : null}
 
       <div className="affiliate-layout-main">
-        <header className="affiliate-layout-topbar">
-          <div className="affiliate-layout-topbar-left">
-            <button
-              type="button"
-              className="affiliate-layout-menu-btn"
-              onClick={() => setMobileOpen((prev) => !prev)}
-              aria-label="Toggle menu"
-            >
-              {mobileOpen ? <X size={20} /> : <Menu size={20} />}
-            </button>
+        {dashboardMode ? (
+          <header className="dashboard-layout-topbar">
+            <div className="dashboard-mobile-bar">
+              <button
+                type="button"
+                className="dashboard-mobile-menu"
+                onClick={() => setMobileOpen((prev) => !prev)}
+                aria-label="Toggle Writer menu"
+              >
+                {mobileOpen ? <X size={19} /> : <Menu size={19} />}
+              </button>
 
-            <div className="affiliate-layout-topbar-copy">
-              <h1>{greeting}</h1>
-              <p>
-                Manage your website, products, posts, design, ads account,
-                monetization, analytics, customers, email lists, chats, notifications,
-                leaderboard, and settings from one place.
-              </p>
-            </div>
-          </div>
+              <div className="dashboard-mobile-brand">
+                <span className="dashboard-mobile-brand-mark">
+                  <span />
+                </span>
+                <strong>Bloggad</strong>
+              </div>
 
-          <div className="affiliate-layout-user-card">
-            <div className="affiliate-layout-user-avatar">
-              {firstName.charAt(0).toUpperCase()}
+              <div className="dashboard-mobile-avatar">
+                {firstName.charAt(0).toUpperCase()}
+              </div>
             </div>
 
-            <div className="affiliate-layout-user-copy">
-              <strong>{firstName}</strong>
-              <span>Affiliate Account</span>
+            <div className="dashboard-desktop-title">
+              <h1>{shellTitle}</h1>
+              {shellSubtitle ? <p>{shellSubtitle}</p> : null}
             </div>
-          </div>
-        </header>
+
+            <div className="dashboard-account">
+              <div className="dashboard-account-avatar">
+                {firstName.charAt(0).toUpperCase()}
+              </div>
+              <div className="dashboard-account-copy">
+                <strong>{firstName}</strong>
+                <span>Writer Account</span>
+              </div>
+            </div>
+          </header>
+        ) : (
+          <header className="affiliate-layout-topbar">
+            <div className="affiliate-layout-topbar-left">
+              <button
+                type="button"
+                className="affiliate-layout-menu-btn"
+                onClick={() => setMobileOpen((prev) => !prev)}
+                aria-label="Toggle menu"
+              >
+                {mobileOpen ? <X size={20} /> : <Menu size={20} />}
+              </button>
+
+              <div className="affiliate-layout-topbar-copy">
+                <h1>{greeting}</h1>
+                <p>
+                  Manage your Writer Space, posts, series, courses, community, products,
+                  monetization, analytics, messages, notifications, and settings from one place.
+                </p>
+              </div>
+            </div>
+
+            <div className="affiliate-layout-user-card">
+              <div className="affiliate-layout-user-avatar">
+                {firstName.charAt(0).toUpperCase()}
+              </div>
+
+              <div className="affiliate-layout-user-copy">
+                <strong>{firstName}</strong>
+                <span>Writer Account</span>
+              </div>
+            </div>
+          </header>
+        )}
 
         <main className="affiliate-layout-content">
           <Outlet />
@@ -479,6 +710,212 @@ const styles = `
     display: none;
   }
 
+  .dashboard-nav-scroll,
+  .dashboard-layout-topbar,
+  .dashboard-mobile-bar,
+  .dashboard-sidebar-close {
+    display: none;
+  }
+
+  /* Approved Writer Dashboard Figma overrides only. */
+  .dashboard-redesign {
+    background: #f5f6f7;
+    color: #17191f;
+  }
+
+  .dashboard-redesign .affiliate-layout-sidebar {
+    width: 248px;
+    border-right: 1px solid #dfe3e6;
+    box-shadow: none;
+    overflow: hidden;
+  }
+
+  .dashboard-redesign .affiliate-layout-sidebar-top {
+    padding: 18px 18px 17px;
+    border-bottom: 1px solid #e8eaec;
+  }
+
+  .dashboard-redesign .affiliate-layout-brand {
+    gap: 11px;
+    min-width: 0;
+  }
+
+  .dashboard-redesign .affiliate-layout-brand-logo {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    position: relative;
+  }
+
+  .dashboard-brand-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 999px;
+    background: #ffffff;
+    display: block;
+  }
+
+  .dashboard-redesign .affiliate-layout-brand-copy {
+    min-width: 0;
+  }
+
+  .dashboard-redesign .affiliate-layout-brand-copy h2 {
+    margin: 0 0 2px;
+    font-size: 15px;
+    font-weight: 750;
+    letter-spacing: -0.01em;
+  }
+
+  .dashboard-redesign .affiliate-layout-brand-copy p {
+    font-size: 11px;
+    color: #7a828d;
+  }
+
+  .dashboard-redesign .affiliate-layout-main {
+    margin-left: 248px;
+    background: #f5f6f7;
+  }
+
+  .dashboard-redesign .affiliate-layout-content {
+    padding: 30px;
+  }
+
+  .dashboard-redesign .dashboard-nav-scroll {
+    display: block;
+    flex: 1;
+    padding: 13px 12px 24px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: #cfd4d9 transparent;
+  }
+
+  .dashboard-nav-group + .dashboard-nav-group {
+    margin-top: 15px;
+  }
+
+  .dashboard-nav-label {
+    padding: 0 10px;
+    margin-bottom: 5px;
+    color: #9aa1aa;
+    font-size: 9px;
+    line-height: 1.4;
+    font-weight: 800;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+  }
+
+  .dashboard-nav-list {
+    display: grid;
+    gap: 2px;
+  }
+
+  .dashboard-nav-item {
+    min-height: 34px;
+    padding: 0 9px;
+    border-radius: 7px;
+    color: #555f6c;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    font-size: 12px;
+    font-weight: 620;
+    transition: background 0.15s ease, color 0.15s ease;
+  }
+
+  .dashboard-nav-item:hover {
+    color: #17191f;
+    background: #f4f5f6;
+  }
+
+  .dashboard-nav-item.active {
+    color: #ffffff;
+    background: #1c1f24;
+  }
+
+  .dashboard-nav-icon {
+    width: 18px;
+    display: grid;
+    place-items: center;
+    flex: 0 0 18px;
+    opacity: 0.92;
+  }
+
+  .dashboard-nav-text {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .dashboard-redesign .dashboard-layout-topbar {
+    min-height: 72px;
+    padding: 0 30px;
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    background: rgba(255, 255, 255, 0.96);
+    border-bottom: 1px solid #dfe3e6;
+    backdrop-filter: blur(10px);
+  }
+
+  .dashboard-desktop-title h1 {
+    margin: 0 0 3px;
+    color: #17191f;
+    font-size: 17px;
+    line-height: 1.2;
+    font-weight: 760;
+    letter-spacing: -0.015em;
+  }
+
+  .dashboard-desktop-title p {
+    margin: 0;
+    color: #7a828d;
+    font-size: 11px;
+    line-height: 1.35;
+  }
+
+  .dashboard-account {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+  }
+
+  .dashboard-account-avatar,
+  .dashboard-mobile-avatar {
+    width: 34px;
+    height: 34px;
+    border-radius: 999px;
+    background: #1c1f24;
+    color: #ffffff;
+    display: grid;
+    place-items: center;
+    font-size: 12px;
+    font-weight: 800;
+    flex-shrink: 0;
+  }
+
+  .dashboard-account-copy {
+    display: grid;
+    gap: 1px;
+    min-width: 86px;
+  }
+
+  .dashboard-account-copy strong {
+    color: #25282e;
+    font-size: 11px;
+    line-height: 1.25;
+    font-weight: 700;
+  }
+
+  .dashboard-account-copy span {
+    color: #8a919b;
+    font-size: 10px;
+    line-height: 1.25;
+  }
+
   @media (max-width: 991px) {
     .affiliate-layout-main {
       margin-left: 0;
@@ -514,6 +951,113 @@ const styles = `
     .affiliate-layout-content {
       padding: 16px;
     }
+
+    .dashboard-redesign .affiliate-layout-main {
+      margin-left: 0;
+    }
+
+    .dashboard-redesign .affiliate-layout-sidebar {
+      width: min(306px, 84vw);
+      transform: translateX(-100%);
+      box-shadow: none;
+      z-index: 60;
+      overflow: hidden;
+    }
+
+    .dashboard-redesign .affiliate-layout-sidebar.open {
+      transform: translateX(0);
+      box-shadow: 18px 0 48px rgba(20, 24, 31, 0.12);
+    }
+
+    .dashboard-redesign .affiliate-layout-backdrop {
+      z-index: 55;
+      background: rgba(17, 20, 25, 0.36);
+    }
+
+    .dashboard-redesign .dashboard-sidebar-close {
+      margin-left: auto;
+      width: 30px;
+      height: 30px;
+      border: 0;
+      border-radius: 7px;
+      background: #f4f5f6;
+      color: #4f5864;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    .dashboard-redesign .dashboard-layout-topbar {
+      min-height: 64px;
+      padding: 0 17px;
+    }
+
+    .dashboard-desktop-title,
+    .dashboard-account {
+      display: none;
+    }
+
+    .dashboard-redesign .dashboard-mobile-bar {
+      width: 100%;
+      display: grid;
+      grid-template-columns: 36px 1fr 34px;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .dashboard-mobile-menu {
+      width: 36px;
+      height: 36px;
+      border: 1px solid #dfe3e6;
+      border-radius: 8px;
+      background: #ffffff;
+      color: #2f343c;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+
+    .dashboard-mobile-brand {
+      justify-self: start;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .dashboard-mobile-brand strong {
+      color: #1d2025;
+      font-size: 14px;
+      font-weight: 760;
+    }
+
+    .dashboard-mobile-brand-mark {
+      width: 27px;
+      height: 27px;
+      border-radius: 7px;
+      background: #1c1f24;
+      display: grid;
+      place-items: center;
+    }
+
+    .dashboard-mobile-brand-mark span {
+      width: 6px;
+      height: 6px;
+      border-radius: 999px;
+      background: #ffffff;
+    }
+
+    .dashboard-mobile-avatar {
+      width: 32px;
+      height: 32px;
+      justify-self: end;
+    }
+
+    .dashboard-redesign .affiliate-layout-content {
+      padding: 20px 17px 34px;
+    }
   }
 
   @media (max-width: 767px) {
@@ -536,6 +1080,11 @@ const styles = `
 
     .affiliate-layout-topbar-copy p {
       font-size: 13px;
+    }
+
+    .dashboard-redesign .dashboard-layout-topbar {
+      flex-direction: row;
+      align-items: center;
     }
   }
 `;

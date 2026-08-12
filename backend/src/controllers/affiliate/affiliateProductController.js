@@ -1,11 +1,13 @@
+const { getCurrentPaidWriterSubscription } = require('../../services/writerReaderAccessService');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const slugify = require('slugify');
 const pool = require('../../config/db');
 const { assertAndLogSupgadUrl } = require('../../services/linkValidationService');
+const { getUploadDir } = require('../../config/uploads');
 
-const PRODUCT_UPLOAD_DIR = path.join(__dirname, '../../../uploads/products');
+const PRODUCT_UPLOAD_DIR = getUploadDir('products');
 
 function ensureProductUploadDir() {
   if (!fs.existsSync(PRODUCT_UPLOAD_DIR)) {
@@ -344,6 +346,11 @@ async function getMyProductById(req, res) {
 
 async function createProduct(req, res) {
   try {
+    const paidWriterPlan = await getCurrentPaidWriterSubscription(req.user.id);
+    if (!paidWriterPlan) {
+      return res.status(403).json({ ok:false,message:'An active paid Writer plan and Storefront are required to create products.' });
+    }
+
     const userId = req.user.id;
     const website = await getAffiliateWebsite(userId);
 

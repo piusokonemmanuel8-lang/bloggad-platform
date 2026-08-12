@@ -1,5 +1,7 @@
+import { ConversationSafetyControls } from '../../components/writerReader/WriterReaderChatControls';
 import { useEffect, useMemo, useState } from 'react';
-import CustomerPageShell from '../../components/customer/CustomerPageShell';
+import ReaderUnifiedShell from '../../components/reader/ReaderUnifiedShell';
+import './CustomerMessagesApproved.css';
 
 const API_BASE =
   import.meta.env.VITE_API_BASE_URL ||
@@ -115,6 +117,9 @@ export default function CustomerMessagesPage() {
   const [startingAdminChat, setStartingAdminChat] = useState(false);
   const [startingAffiliateChat, setStartingAffiliateChat] = useState(false);
   const [error, setError] = useState('');
+  const [composerPanel, setComposerPanel] = useState('');
+  const [controlsOpen, setControlsOpen] = useState(false);
+  const [mobileThreadOpen, setMobileThreadOpen] = useState(false);
 
   const [adminForm, setAdminForm] = useState({
     subject: '',
@@ -143,7 +148,7 @@ export default function CustomerMessagesPage() {
     const adminData = await safeJson(adminRes);
 
     if (!affiliateRes.ok || !affiliateData?.ok) {
-      throw new Error(affiliateData?.message || 'Failed to fetch affiliate chats.');
+      throw new Error(affiliateData?.message || 'Failed to fetch Writer chats.');
     }
 
     if (!adminRes.ok || !adminData?.ok) {
@@ -302,7 +307,7 @@ export default function CustomerMessagesPage() {
     event.preventDefault();
 
     if (!affiliateForm.message.trim()) {
-      setError('Affiliate first message is required.');
+      setError('Writer first message is required.');
       return;
     }
 
@@ -311,7 +316,7 @@ export default function CustomerMessagesPage() {
     const affiliateId = loginContext?.affiliate_id || null;
 
     if (!websiteId && !websiteSlug) {
-      setError('Affiliate chat must start from a storefront context.');
+      setError('Writer chat must start from a storefront context.');
       return;
     }
 
@@ -339,7 +344,7 @@ export default function CustomerMessagesPage() {
       const data = await safeJson(response);
 
       if (!response.ok || !data?.ok) {
-        throw new Error(data?.message || 'Failed to start affiliate chat.');
+        throw new Error(data?.message || 'Failed to start Writer chat.');
       }
 
       setAffiliateForm({
@@ -354,7 +359,7 @@ export default function CustomerMessagesPage() {
       setSelectedType('affiliate');
       setSelectedId(nextChatId);
     } catch (err) {
-      setError(err.message || 'Failed to start affiliate chat.');
+      setError(err.message || 'Failed to start Writer chat.');
     } finally {
       setStartingAffiliateChat(false);
     }
@@ -451,668 +456,588 @@ export default function CustomerMessagesPage() {
     }
   }
 
+  const activeChats = selectedType === 'affiliate' ? affiliateChats : adminChats;
+  const totalChats = affiliateChats.length + adminChats.length;
+  const conversationClosed =
+    String(selectedChat?.status || '').toLowerCase() === 'closed';
+
+  function getWriterName(chat) {
+    return (
+      chat?.affiliate?.name ||
+      chat?.affiliate_name ||
+      chat?.writer_name ||
+      chat?.website?.website_name ||
+      chat?.website_name ||
+      'Writer'
+    );
+  }
+
+  function getConversationTitle(chat, type = selectedType) {
+    if (type === 'admin') {
+      return chat?.admin_name || 'Bloggad Admin Support';
+    }
+
+    return getWriterName(chat);
+  }
+
+  function getConversationSubject(chat, type = selectedType) {
+    if (!chat) return '';
+
+    if (type === 'admin') {
+      return chat?.subject || 'Support conversation';
+    }
+
+    return (
+      chat?.product_title ||
+      chat?.product?.title ||
+      chat?.subject ||
+      chat?.website_name ||
+      chat?.website?.website_name ||
+      'Writer conversation'
+    );
+  }
+
+  function getConversationTime(chat) {
+    return formatDateTime(
+      chat?.last_message_at ||
+      chat?.updated_at ||
+      chat?.created_at
+    );
+  }
+
+  function getInitials(value) {
+    const parts = String(value || 'B')
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2);
+
+    if (!parts.length) return 'B';
+    return parts.map((part) => part.charAt(0).toUpperCase()).join('');
+  }
+
+  function humanizeType(value) {
+    return String(value || 'support')
+      .replace(/_/g, ' ')
+      .replace(/\b\w/g, (letter) => letter.toUpperCase());
+  }
+
+  function selectGroup(type) {
+    const next = type === 'affiliate' ? affiliateChats : adminChats;
+    setSelectedType(type);
+    setSelectedId(next[0]?.id || null);
+    setSelectedChat(null);
+    setMessages([]);
+    setMobileThreadOpen(false);
+    setControlsOpen(false);
+  }
+
+  function openConversation(type, id) {
+    setSelectedType(type);
+    setSelectedId(id);
+    setMobileThreadOpen(true);
+    setControlsOpen(false);
+  }
+
+  function openComposer(type) {
+    setComposerPanel(type);
+    setControlsOpen(false);
+  }
+
   return (
-    <CustomerPageShell
-      currentPath="/customer/messages"
-      badge="Inbox"
-      title="Customer messages"
-      subtitle="Start admin support here. Affiliate chat starts from storefront context and continues here."
-      headerRight={
-        <div
-          style={{
-            display: 'flex',
-            gap: 10,
-            flexWrap: 'wrap',
-          }}
-        >
-          <div
-            style={{
-              borderRadius: 16,
-              border: '1px solid #e5e7eb',
-              background: '#ffffff',
-              padding: '12px 16px',
-              fontSize: 14,
-              color: '#6b7280',
-              fontWeight: 600,
-            }}
-          >
-            My Affiliate Chats:{' '}
-            <span style={{ color: '#111827', fontWeight: 800 }}>{affiliateChats.length}</span>
-          </div>
+    <ReaderUnifiedShell title="Messages" subtitle="Your Reader inbox">
+      <main className={`reader-messages-page${mobileThreadOpen ? ' is-mobile-thread-open' : ''}`}>
+        <h1 className="reader-messages-mobile-route-title">Messages</h1>
 
-          <div
-            style={{
-              borderRadius: 16,
-              border: '1px solid #e5e7eb',
-              background: '#ffffff',
-              padding: '12px 16px',
-              fontSize: 14,
-              color: '#6b7280',
-              fontWeight: 600,
-            }}
-          >
-            My Admin Support Chats:{' '}
-            <span style={{ color: '#111827', fontWeight: 800 }}>{adminChats.length}</span>
-          </div>
-        </div>
-      }
-    >
-      <style>{`
-        .customer-messages-start-grid {
-          display: grid;
-          gap: 24px;
-          grid-template-columns: repeat(2, minmax(0, 1fr));
-        }
-
-        .customer-messages-grid {
-          display: grid;
-          gap: 24px;
-          grid-template-columns: 360px minmax(0, 1fr);
-        }
-
-        @media (max-width: 1100px) {
-          .customer-messages-start-grid,
-          .customer-messages-grid {
-            grid-template-columns: 1fr;
-          }
-        }
-      `}</style>
-
-      {error ? (
-        <div
-          style={{
-            borderRadius: 20,
-            border: '1px solid #fecaca',
-            background: '#fff1f2',
-            padding: '16px 18px',
-            fontSize: 14,
-            color: '#be123c',
-          }}
-        >
-          {error}
-        </div>
-      ) : null}
-
-      <div className="customer-messages-start-grid">
-        <form
-          onSubmit={handleStartAffiliateChat}
-          style={{
-            borderRadius: 24,
-            border: '1px solid #e5e7eb',
-            background: '#ffffff',
-            padding: 20,
-            boxShadow: '0 18px 45px rgba(15, 23, 42, 0.05)',
-            display: 'grid',
-            gap: 12,
-          }}
-        >
-          <div
-            style={{
-              fontSize: 24,
-              fontWeight: 800,
-              letterSpacing: '-0.03em',
-              color: '#111827',
-            }}
-          >
-            Start Affiliate Chat
-          </div>
-
-          <div
-            style={{
-              fontSize: 14,
-              color: '#6b7280',
-              lineHeight: 1.7,
-            }}
-          >
-            This uses your current storefront context. If you did not enter from a storefront, start the affiliate chat from that storefront or product first.
-          </div>
-
-          <input
-            type="text"
-            placeholder="Subject (optional)"
-            value={affiliateForm.subject}
-            onChange={(e) =>
-              setAffiliateForm((prev) => ({
-                ...prev,
-                subject: e.target.value,
-              }))
-            }
-            style={inputStyle}
-          />
-
-          <select
-            value={affiliateForm.chat_type}
-            onChange={(e) =>
-              setAffiliateForm((prev) => ({
-                ...prev,
-                chat_type: e.target.value,
-              }))
-            }
-            style={inputStyle}
-          >
-            <option value="support">support</option>
-            <option value="general">general</option>
-            <option value="coupon_request">coupon_request</option>
-            <option value="product_question">product_question</option>
-          </select>
-
-          <textarea
-            placeholder="Write your first message..."
-            rows={4}
-            value={affiliateForm.message}
-            onChange={(e) =>
-              setAffiliateForm((prev) => ({
-                ...prev,
-                message: e.target.value,
-              }))
-            }
-            style={textareaStyle}
-          />
-
-          <button
-            type="submit"
-            disabled={startingAffiliateChat}
-            style={{
-              ...primaryButtonStyle,
-              opacity: startingAffiliateChat ? 0.65 : 1,
-              cursor: startingAffiliateChat ? 'not-allowed' : 'pointer',
-            }}
-          >
-            {startingAffiliateChat ? 'Starting...' : 'Start Affiliate Chat'}
-          </button>
-        </form>
-
-        <form
-          onSubmit={handleStartAdminChat}
-          style={{
-            borderRadius: 24,
-            border: '1px solid #e5e7eb',
-            background: '#ffffff',
-            padding: 20,
-            boxShadow: '0 18px 45px rgba(15, 23, 42, 0.05)',
-            display: 'grid',
-            gap: 12,
-          }}
-        >
-          <div
-            style={{
-              fontSize: 24,
-              fontWeight: 800,
-              letterSpacing: '-0.03em',
-              color: '#111827',
-            }}
-          >
-            Start Admin Chat
-          </div>
-
-          <div
-            style={{
-              fontSize: 14,
-              color: '#6b7280',
-              lineHeight: 1.7,
-            }}
-          >
-            Use this for general marketplace help, support, complaints, or account issues.
-          </div>
-
-          <input
-            type="text"
-            placeholder="Subject (optional)"
-            value={adminForm.subject}
-            onChange={(e) =>
-              setAdminForm((prev) => ({
-                ...prev,
-                subject: e.target.value,
-              }))
-            }
-            style={inputStyle}
-          />
-
-          <textarea
-            placeholder="Write your first message..."
-            rows={4}
-            value={adminForm.message}
-            onChange={(e) =>
-              setAdminForm((prev) => ({
-                ...prev,
-                message: e.target.value,
-              }))
-            }
-            style={textareaStyle}
-          />
-
-          <button
-            type="submit"
-            disabled={startingAdminChat}
-            style={{
-              ...primaryButtonStyle,
-              opacity: startingAdminChat ? 0.65 : 1,
-              cursor: startingAdminChat ? 'not-allowed' : 'pointer',
-            }}
-          >
-            {startingAdminChat ? 'Starting...' : 'Start Admin Chat'}
-          </button>
-        </form>
-      </div>
-
-      <div className="customer-messages-grid">
-        <section
-          style={{
-            borderRadius: 24,
-            border: '1px solid #e5e7eb',
-            background: '#ffffff',
-            padding: 20,
-            boxShadow: '0 18px 45px rgba(15, 23, 42, 0.05)',
-          }}
-        >
-          <div style={{ marginBottom: 16, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+        <section className="reader-messages-toolbar">
+          <div className="reader-messages-action-buttons">
             <button
               type="button"
-              onClick={() => {
-                setSelectedType('affiliate');
-                setSelectedId(affiliateChats[0]?.id || null);
-              }}
-              style={{
-                minHeight: 42,
-                padding: '0 14px',
-                borderRadius: 14,
-                border: selectedType === 'affiliate' ? '1px solid #111827' : '1px solid #d1d5db',
-                background: selectedType === 'affiliate' ? '#111827' : '#ffffff',
-                color: selectedType === 'affiliate' ? '#ffffff' : '#111827',
-                fontSize: 14,
-                fontWeight: 700,
-                cursor: 'pointer',
-              }}
+              className="reader-messages-button is-primary"
+              onClick={() => openComposer('affiliate')}
             >
-              My Affiliate Chats
+              New Writer message
             </button>
-
             <button
               type="button"
-              onClick={() => {
-                setSelectedType('admin');
-                setSelectedId(adminChats[0]?.id || null);
-              }}
-              style={{
-                minHeight: 42,
-                padding: '0 14px',
-                borderRadius: 14,
-                border: selectedType === 'admin' ? '1px solid #111827' : '1px solid #d1d5db',
-                background: selectedType === 'admin' ? '#111827' : '#ffffff',
-                color: selectedType === 'admin' ? '#ffffff' : '#111827',
-                fontSize: 14,
-                fontWeight: 700,
-                cursor: 'pointer',
-              }}
+              className="reader-messages-button"
+              onClick={() => openComposer('admin')}
             >
-              My Admin Support Chats
+              Contact Admin Support
             </button>
           </div>
 
-          <div style={{ display: 'grid', gap: 12 }}>
-            {loadingLists ? (
-              <div
-                style={{
-                  borderRadius: 18,
-                  border: '1px solid #e5e7eb',
-                  background: '#f8fafc',
-                  padding: 16,
-                  fontSize: 14,
-                  color: '#6b7280',
-                }}
-              >
-                Loading chats...
-              </div>
-            ) : null}
-
-            {!loadingLists &&
-              selectedType === 'affiliate' &&
-              affiliateChats.map((chat) => (
-                <ChatListCard
-                  key={`affiliate-${chat.id}`}
-                  active={selectedId === chat.id && selectedType === 'affiliate'}
-                  onClick={() => {
-                    setSelectedType('affiliate');
-                    setSelectedId(chat.id);
-                  }}
-                  title={
-                    chat?.affiliate?.name ||
-                    chat?.website?.website_name ||
-                    'Affiliate'
-                  }
-                  subtitle={
-                    chat?.product?.title ||
-                    chat?.subject ||
-                    chat?.website?.website_name ||
-                    'Affiliate conversation'
-                  }
-                  meta={`${chat.chat_type || 'general'} • ${chat.status || 'open'}`}
-                />
-              ))}
-
-            {!loadingLists &&
-              selectedType === 'admin' &&
-              adminChats.map((chat) => (
-                <ChatListCard
-                  key={`admin-${chat.id}`}
-                  active={selectedId === chat.id && selectedType === 'admin'}
-                  onClick={() => {
-                    setSelectedType('admin');
-                    setSelectedId(chat.id);
-                  }}
-                  title="Marketplace Admin"
-                  subtitle={chat?.subject || 'Support conversation'}
-                  meta={`${chat.status || 'open'}`}
-                />
-              ))}
-
-            {!loadingLists &&
-            ((selectedType === 'affiliate' && affiliateChats.length === 0) ||
-              (selectedType === 'admin' && adminChats.length === 0)) ? (
-              <div
-                style={{
-                  borderRadius: 18,
-                  border: '1px dashed #d1d5db',
-                  background: '#ffffff',
-                  padding: 18,
-                  fontSize: 14,
-                  color: '#6b7280',
-                }}
-              >
-                {selectedType === 'affiliate'
-                  ? 'No affiliate chats yet.'
-                  : 'No admin support chats yet.'}
-              </div>
-            ) : null}
+          <div className="reader-messages-counts" aria-label="Conversation counts">
+            <span>{affiliateChats.length} Writer {affiliateChats.length === 1 ? 'chat' : 'chats'}</span>
+            <span>{adminChats.length} Admin support</span>
           </div>
         </section>
 
-        <section
-          style={{
-            display: 'flex',
-            minHeight: 620,
-            flexDirection: 'column',
-            borderRadius: 24,
-            border: '1px solid #e5e7eb',
-            background: '#ffffff',
-            boxShadow: '0 18px 45px rgba(15, 23, 42, 0.05)',
-            overflow: 'hidden',
-          }}
-        >
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: 16,
-              padding: '18px 20px',
-              borderBottom: '1px solid #eef2f7',
-              flexWrap: 'wrap',
-            }}
-          >
-            <div>
-              <div
-                style={{
-                  fontSize: 18,
-                  fontWeight: 800,
-                  letterSpacing: '-0.03em',
-                  color: '#111827',
-                }}
-              >
-                {selectedType === 'affiliate'
-                  ? selectedChat?.affiliate_name ||
-                    selectedChat?.affiliate?.name ||
-                    selectedChat?.website_name ||
-                    selectedChat?.website?.website_name ||
-                    'Affiliate Chat'
-                  : 'Marketplace Admin'}
-              </div>
+        {error ? (
+          <div className="reader-messages-alert" role="alert">
+            {error}
+          </div>
+        ) : null}
 
-              <div
-                style={{
-                  marginTop: 4,
-                  fontSize: 14,
-                  color: '#6b7280',
-                }}
-              >
-                {selectedType === 'affiliate'
-                  ? selectedChat?.product_title ||
-                    selectedChat?.product?.title ||
-                    selectedChat?.subject ||
-                    selectedChat?.website_name ||
-                    selectedChat?.website?.website_name ||
-                    'Storefront conversation'
-                  : selectedChat?.subject || 'Support conversation'}
-              </div>
+        <div
+          className={`reader-messages-workspace${mobileThreadOpen ? ' is-mobile-thread' : ''}`}
+        >
+          <aside className="reader-messages-inbox" aria-label="Message inbox">
+            <div className="reader-messages-inbox-head">
+              <h2>Inbox</h2>
+              <span>{totalChats} {totalChats === 1 ? 'conversation' : 'conversations'}</span>
             </div>
 
-            {selectedChat?.id ? (
+            <div className="reader-messages-tabs" role="tablist" aria-label="Conversation type">
               <button
                 type="button"
-                onClick={handleCloseChat}
-                style={{
-                  minHeight: 42,
-                  padding: '0 14px',
-                  borderRadius: 14,
-                  border: '1px solid #fecaca',
-                  background: '#fff1f2',
-                  color: '#be123c',
-                  fontSize: 14,
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                }}
+                className={selectedType === 'affiliate' ? 'is-active' : ''}
+                onClick={() => selectGroup('affiliate')}
               >
-                Close Chat
+                Writers
               </button>
-            ) : null}
-          </div>
-
-          <div
-            style={{
-              flex: 1,
-              overflowY: 'auto',
-              padding: 20,
-              display: 'grid',
-              gap: 14,
-              background: '#f8fafc',
-            }}
-          >
-            {loadingChat ? (
-              <div style={{ fontSize: 14, color: '#6b7280' }}>Loading conversation...</div>
-            ) : null}
-
-            {!loadingChat && !selectedChat ? (
-              <div
-                style={{
-                  minHeight: 280,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  textAlign: 'center',
-                  fontSize: 14,
-                  color: '#6b7280',
-                }}
+              <button
+                type="button"
+                className={selectedType === 'admin' ? 'is-active' : ''}
+                onClick={() => selectGroup('admin')}
               >
-                Select a chat to view messages.
-              </div>
-            ) : null}
+                Admin Support
+              </button>
+            </div>
 
-            {!loadingChat &&
-              messages.map((chatMessage) => {
-                const isMine = chatMessage?.sender_role === 'customer';
+            <div className="reader-messages-list">
+              {loadingLists ? (
+                <div className="reader-messages-list-state">Loading chats...</div>
+              ) : null}
 
-                return (
-                  <div
-                    key={chatMessage.id}
-                    style={{
-                      display: 'flex',
-                      justifyContent: isMine ? 'flex-end' : 'flex-start',
-                    }}
-                  >
-                    <div
-                      style={{
-                        maxWidth: '80%',
-                        borderRadius: 20,
-                        padding: '14px 16px',
-                        fontSize: 14,
-                        lineHeight: 1.7,
-                        background: isMine ? '#111827' : '#ffffff',
-                        color: isMine ? '#ffffff' : '#111827',
-                        border: isMine ? '1px solid #111827' : '1px solid #e5e7eb',
-                        boxShadow: '0 10px 25px rgba(15, 23, 42, 0.05)',
-                      }}
+              {!loadingLists &&
+                activeChats.map((chat) => {
+                  const title = getConversationTitle(chat, selectedType);
+                  const subject = getConversationSubject(chat, selectedType);
+                  const status = String(chat?.status || 'open').toLowerCase();
+
+                  return (
+                    <button
+                      type="button"
+                      key={`${selectedType}-${chat.id}`}
+                      className={`reader-messages-row${
+                        Number(selectedId) === Number(chat.id) ? ' is-selected' : ''
+                      }`}
+                      onClick={() => openConversation(selectedType, chat.id)}
                     >
-                      <div
-                        style={{
-                          marginBottom: 6,
-                          fontSize: 11,
-                          textTransform: 'uppercase',
-                          letterSpacing: '0.12em',
-                          fontWeight: 800,
-                          opacity: 0.7,
-                        }}
-                      >
-                        {chatMessage?.sender_name || chatMessage?.sender_role}
-                      </div>
+                      <span className="reader-messages-avatar" aria-hidden="true">
+                        {getInitials(title)}
+                      </span>
 
-                      <div>{chatMessage?.message}</div>
+                      <span className="reader-messages-row-copy">
+                        <span className="reader-messages-row-title">
+                          <strong>{title}</strong>
+                          <span className={`reader-messages-status is-${status}`}>
+                            {status === 'closed' ? 'Closed' : 'Open'}
+                          </span>
+                        </span>
 
-                      {chatMessage?.coupon_code ? (
-                        <div
-                          style={{
-                            marginTop: 10,
-                            borderRadius: 12,
-                            padding: '8px 10px',
-                            background: isMine ? 'rgba(255,255,255,0.12)' : '#f8fafc',
-                            fontSize: 12,
-                            fontWeight: 700,
-                          }}
-                        >
-                          Coupon: {chatMessage.coupon_code}
-                        </div>
-                      ) : null}
+                        <small>
+                          {getConversationTime(chat)}
+                          {selectedType === 'affiliate'
+                            ? ` - ${humanizeType(chat?.chat_type)}`
+                            : ' - support'}
+                        </small>
+                        <span>{subject}</span>
+                      </span>
+                    </button>
+                  );
+                })}
 
-                      <div
-                        style={{
-                          marginTop: 10,
-                          fontSize: 11,
-                          opacity: 0.6,
-                        }}
-                      >
-                        {formatDateTime(chatMessage?.created_at)}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-          </div>
+              {!loadingLists && activeChats.length === 0 ? (
+                <div className="reader-messages-list-state">
+                  {selectedType === 'affiliate'
+                    ? 'No Writer chats yet.'
+                    : 'No Admin Support chats yet.'}
+                </div>
+              ) : null}
+            </div>
+          </aside>
 
-          <form
-            onSubmit={handleSendMessage}
-            style={{
-              borderTop: '1px solid #eef2f7',
-              padding: 16,
-              background: '#ffffff',
-            }}
-          >
-            <div
-              style={{
-                display: 'flex',
-                gap: 12,
-                flexWrap: 'wrap',
+          <section className="reader-messages-thread" aria-label="Active conversation">
+            <button
+              type="button"
+              className="reader-messages-mobile-back"
+              onClick={() => {
+                setMobileThreadOpen(false);
+                setControlsOpen(false);
               }}
             >
-              <textarea
-                value={draft}
-                onChange={(event) => setDraft(event.target.value)}
-                placeholder="Write your message..."
-                rows={3}
-                disabled={!selectedChat || selectedChat?.status === 'closed' || sending}
-                style={{
-                  minHeight: 88,
-                  flex: 1,
-                  resize: 'none',
-                  borderRadius: 18,
-                  border: '1px solid #d1d5db',
-                  background: '#ffffff',
-                  padding: '14px 16px',
-                  fontSize: 14,
-                  color: '#111827',
-                  outline: 'none',
-                  minWidth: 260,
-                }}
-              />
+              &lt; Messages
+            </button>
+
+            <header className="reader-messages-thread-head">
+              <div className="reader-messages-thread-person">
+                <span className="reader-messages-avatar" aria-hidden="true">
+                  {getInitials(getConversationTitle(selectedChat))}
+                </span>
+                <div>
+                  <div className="reader-messages-thread-name">
+                    {selectedChat
+                      ? getConversationTitle(selectedChat)
+                      : selectedType === 'affiliate'
+                        ? 'Writer conversation'
+                        : 'Admin Support'}
+                  </div>
+                  <div className="reader-messages-thread-subject">
+                    {selectedChat
+                      ? getConversationSubject(selectedChat)
+                      : 'Select a conversation from your inbox.'}
+                  </div>
+                </div>
+              </div>
+
+              {selectedChat?.id ? (
+                <div className="reader-messages-thread-actions">
+                  <span className={`reader-messages-status is-${conversationClosed ? 'closed' : 'open'}`}>
+                    {conversationClosed ? 'Closed' : 'Open'}
+                  </span>
+
+                  {selectedType === 'affiliate' ? (
+                    <button
+                      type="button"
+                      className="reader-messages-button is-compact is-dark"
+                      onClick={() => setControlsOpen(true)}
+                    >
+                      Controls
+                    </button>
+                  ) : null}
+
+                  {!conversationClosed ? (
+                    <button
+                      type="button"
+                      className="reader-messages-button is-compact"
+                      onClick={handleCloseChat}
+                    >
+                      Close chat
+                    </button>
+                  ) : null}
+                </div>
+              ) : null}
+            </header>
+
+            <div className="reader-messages-thread-kind">
+              {selectedType === 'affiliate' ? 'Writer conversation' : 'Admin Support conversation'}
+            </div>
+
+            <div className="reader-messages-conversation">
+              {loadingChat ? (
+                <div className="reader-messages-thread-state">Loading conversation...</div>
+              ) : null}
+
+              {!loadingChat && !selectedChat ? (
+                <div className="reader-messages-thread-state is-centered">
+                  Select a conversation to view messages.
+                </div>
+              ) : null}
+
+              {!loadingChat && selectedChat && messages.length === 0 ? (
+                <div className="reader-messages-thread-state is-centered">
+                  No messages yet.
+                </div>
+              ) : null}
+
+              {!loadingChat &&
+                messages.map((chatMessage) => {
+                  const isMine = chatMessage?.sender_role === 'customer';
+
+                  return (
+                    <div
+                      key={chatMessage.id}
+                      className={`reader-messages-message${isMine ? ' is-mine' : ''}`}
+                    >
+                      {!isMine ? (
+                        <span className="reader-messages-message-avatar" aria-hidden="true">
+                          {getInitials(
+                            chatMessage?.sender_name ||
+                            getConversationTitle(selectedChat)
+                          )}
+                        </span>
+                      ) : null}
+
+                      <div className="reader-messages-bubble-wrap">
+                        <div className="reader-messages-bubble">
+                          <div className="reader-messages-message-text">
+                            {chatMessage?.message}
+                          </div>
+                        </div>
+                        <small>
+                          {isMine
+                            ? 'You'
+                            : chatMessage?.sender_name ||
+                              chatMessage?.sender_role ||
+                              getConversationTitle(selectedChat)}
+                          {' - '}
+                          {formatDateTime(chatMessage?.created_at)}
+                        </small>
+                      </div>
+                    </div>
+                  );
+                })}
+            </div>
+
+            <form className="reader-messages-composer" onSubmit={handleSendMessage}>
+              <div className="reader-messages-composer-field">
+                <textarea
+                  value={draft}
+                  onChange={(event) => setDraft(event.target.value)}
+                  placeholder={
+                    conversationClosed
+                      ? 'This conversation is closed.'
+                      : 'Write a message...'
+                  }
+                  disabled={!selectedChat || conversationClosed || sending}
+                  rows={2}
+                />
+                <small>Text messages only</small>
+              </div>
 
               <button
                 type="submit"
+                className="reader-messages-button is-primary reader-messages-send"
                 disabled={
                   !selectedChat ||
-                  selectedChat?.status === 'closed' ||
+                  conversationClosed ||
                   sending ||
                   !draft.trim()
                 }
-                style={{
-                  alignSelf: 'flex-end',
-                  minHeight: 48,
-                  padding: '0 18px',
-                  borderRadius: 16,
-                  border: '1px solid #111827',
-                  background: '#111827',
-                  color: '#ffffff',
-                  fontSize: 14,
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                  opacity:
-                    !selectedChat ||
-                    selectedChat?.status === 'closed' ||
-                    sending ||
-                    !draft.trim()
-                      ? 0.6
-                      : 1,
-                }}
               >
                 {sending ? 'Sending...' : 'Send'}
               </button>
+            </form>
+          </section>
+        </div>
+
+        <p className="reader-messages-footer-note">
+          Closed conversations remain readable, but the composer is disabled until a new conversation is started.
+        </p>
+      </main>
+
+      {composerPanel ? (
+        <div
+          className="reader-messages-overlay"
+          role="presentation"
+          onMouseDown={() => setComposerPanel('')}
+        >
+          <section
+            className="reader-messages-drawer"
+            role="dialog"
+            aria-modal="true"
+            aria-label="New conversation"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <header className="reader-messages-drawer-head">
+              <div>
+                <h2>New conversation</h2>
+                <p>Start a Writer or Admin Support conversation.</p>
+              </div>
+              <button
+                type="button"
+                className="reader-messages-button is-compact"
+                onClick={() => setComposerPanel('')}
+              >
+                Close
+              </button>
+            </header>
+
+            <div className="reader-messages-drawer-tabs">
+              <button
+                type="button"
+                className={composerPanel === 'affiliate' ? 'is-active' : ''}
+                onClick={() => setComposerPanel('affiliate')}
+              >
+                Writer
+              </button>
+              <button
+                type="button"
+                className={composerPanel === 'admin' ? 'is-active' : ''}
+                onClick={() => setComposerPanel('admin')}
+              >
+                Admin Support
+              </button>
             </div>
 
-            {selectedChat?.status === 'closed' ? (
-              <div
-                style={{
-                  marginTop: 12,
-                  fontSize: 14,
-                  color: '#be123c',
-                }}
-              >
-                This chat is closed.
+            {composerPanel === 'affiliate' ? (
+              <form className="reader-messages-form" onSubmit={handleStartAffiliateChat}>
+                <div className="reader-messages-info">
+                  <strong aria-hidden="true">i</strong>
+                  <span>
+                    This uses your current storefront context. If you did not enter from a storefront,
+                    start the Writer chat from that Writer Space or product first.
+                  </span>
+                </div>
+
+                <label>
+                  <span>Subject</span>
+                  <input
+                    type="text"
+                    value={affiliateForm.subject}
+                    onChange={(event) =>
+                      setAffiliateForm((current) => ({
+                        ...current,
+                        subject: event.target.value,
+                      }))
+                    }
+                    placeholder="Subject (optional)"
+                  />
+                </label>
+
+                <label>
+                  <span>Conversation type</span>
+                  <select
+                    value={affiliateForm.chat_type}
+                    onChange={(event) =>
+                      setAffiliateForm((current) => ({
+                        ...current,
+                        chat_type: event.target.value,
+                      }))
+                    }
+                  >
+                    <option value="support">Support</option>
+                    <option value="general">General</option>
+                    <option value="coupon_request">Coupon request</option>
+                    <option value="product_question">Product question</option>
+                  </select>
+                  <small>Options: support, general, coupon_request, product_question</small>
+                </label>
+
+                <label>
+                  <span>First message</span>
+                  <textarea
+                    value={affiliateForm.message}
+                    onChange={(event) =>
+                      setAffiliateForm((current) => ({
+                        ...current,
+                        message: event.target.value,
+                      }))
+                    }
+                    placeholder="Write your first message..."
+                    rows={6}
+                  />
+                  <small>Required</small>
+                </label>
+
+                <div className="reader-messages-form-actions">
+                  <button
+                    type="button"
+                    className="reader-messages-button"
+                    onClick={() => setComposerPanel('')}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="reader-messages-button is-primary"
+                    disabled={startingAffiliateChat}
+                  >
+                    {startingAffiliateChat ? 'Starting...' : 'Start Writer Chat'}
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <form className="reader-messages-form" onSubmit={handleStartAdminChat}>
+                <div className="reader-messages-info">
+                  <strong aria-hidden="true">i</strong>
+                  <span>
+                    Use Admin Support for marketplace help, account issues, complaints, or general support.
+                  </span>
+                </div>
+
+                <label>
+                  <span>Subject</span>
+                  <input
+                    type="text"
+                    value={adminForm.subject}
+                    onChange={(event) =>
+                      setAdminForm((current) => ({
+                        ...current,
+                        subject: event.target.value,
+                      }))
+                    }
+                    placeholder="Subject (optional)"
+                  />
+                </label>
+
+                <label>
+                  <span>First message</span>
+                  <textarea
+                    value={adminForm.message}
+                    onChange={(event) =>
+                      setAdminForm((current) => ({
+                        ...current,
+                        message: event.target.value,
+                      }))
+                    }
+                    placeholder="Write your first message..."
+                    rows={7}
+                  />
+                  <small>Required</small>
+                </label>
+
+                <div className="reader-messages-form-actions">
+                  <button
+                    type="button"
+                    className="reader-messages-button"
+                    onClick={() => setComposerPanel('')}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="reader-messages-button is-primary"
+                    disabled={startingAdminChat}
+                  >
+                    {startingAdminChat ? 'Starting...' : 'Start Admin Support Chat'}
+                  </button>
+                </div>
+              </form>
+            )}
+          </section>
+        </div>
+      ) : null}
+
+      {controlsOpen && selectedType === 'affiliate' && selectedChat?.id ? (
+        <div
+          className="reader-messages-overlay"
+          role="presentation"
+          onMouseDown={() => setControlsOpen(false)}
+        >
+          <section
+            className="reader-messages-drawer"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Conversation controls"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <header className="reader-messages-drawer-head">
+              <div>
+                <h2>Conversation controls</h2>
+                <p>Manage this Writer conversation without leaving the thread.</p>
               </div>
-            ) : null}
-          </form>
-        </section>
-      </div>
-    </CustomerPageShell>
+              <button
+                type="button"
+                className="reader-messages-button is-compact"
+                onClick={() => setControlsOpen(false)}
+              >
+                Close
+              </button>
+            </header>
+
+            <div className="reader-messages-controls-body">
+              <ConversationSafetyControls
+                chatId={selectedChat.id}
+                participantRole="reader"
+                onChanged={() => fetchChatLists(true)}
+              />
+            </div>
+          </section>
+        </div>
+      ) : null}
+    </ReaderUnifiedShell>
   );
 }
-
-const inputStyle = {
-  width: '100%',
-  minHeight: 48,
-  borderRadius: 16,
-  border: '1px solid #d1d5db',
-  background: '#ffffff',
-  padding: '0 16px',
-  fontSize: 14,
-  color: '#111827',
-  outline: 'none',
-};
-
-const textareaStyle = {
-  width: '100%',
-  borderRadius: 16,
-  border: '1px solid #d1d5db',
-  background: '#ffffff',
-  padding: 16,
-  fontSize: 14,
-  color: '#111827',
-  outline: 'none',
-  resize: 'vertical',
-};

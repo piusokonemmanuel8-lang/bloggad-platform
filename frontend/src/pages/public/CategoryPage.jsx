@@ -1,21 +1,31 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import {
+  BarChart3,
+  Bookmark,
+  BookOpen,
   CheckCircle2,
   ChevronDown,
   ChevronRight,
   Grid3X3,
   Heart,
+  Home,
   LayoutGrid,
   Loader2,
   Menu,
+  Plus,
   Search,
   Share2,
   Star,
-  X,
+  Tags,
+  UserRound,
+  Users,
+  X
 } from 'lucide-react';
 import api from '../../api/axios';
 import formatCurrency from '../../utils/formatCurrency';
+import './HomePageFeed.css';
+import './CategoryPageApproved.css';
 
 function getNumericPrice(product) {
   if (product?.pricing_type === 'simple') {
@@ -866,6 +876,261 @@ function ProductCard({
   );
 }
 
+function ApprovedCategoryProductCard({ product, onQuickView, onImpression, onAction }) {
+  const cardRef = useRef(null);
+
+  useEffect(() => {
+    const node = cardRef.current;
+    if (!node || typeof IntersectionObserver === 'undefined') return undefined;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting && entry.intersectionRatio >= 0.35)) {
+          onImpression(product);
+          observer.disconnect();
+        }
+      },
+      { threshold: [0.35] }
+    );
+
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [product, onImpression]);
+
+  const categoryName = product?.category?.name || 'Category';
+
+  return (
+    <article ref={cardRef} className="cat-approved-product-card">
+      <button
+        type="button"
+        className="cat-approved-product-media"
+        onClick={() => onQuickView(product)}
+        aria-label={`Quick view ${product?.title || 'product'}`}
+      >
+        {product?.product_image ? (
+          <img src={product.product_image} alt={product?.title || 'Product'} />
+        ) : (
+          <span className="cat-approved-product-placeholder"><span /></span>
+        )}
+      </button>
+
+      <div className="cat-approved-product-copy">
+        <span className="cat-approved-product-category">{categoryName}</span>
+        <button
+          type="button"
+          className="cat-approved-product-title"
+          onClick={() => onQuickView(product)}
+        >
+          {product?.title || 'Product title'}
+        </button>
+
+        <strong className="cat-approved-product-price">{renderPrice(product)}</strong>
+
+        <div className="cat-approved-product-actions">
+          <button
+            type="button"
+            className="primary"
+            onClick={() => onAction(product, 'buy_now', resolveBuyNowUrl(product))}
+          >
+            {product?.homepage_cta_label || 'Buy Now'}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onAction(product, 'read_more', resolveReadMoreUrl(product))}
+          >
+            {product?.storefront_cta_label || 'Read More'}
+          </button>
+        </div>
+
+        <button
+          type="button"
+          className="cat-approved-quick-link"
+          onClick={() => onQuickView(product)}
+        >
+          Quick view
+        </button>
+      </div>
+    </article>
+  );
+}
+
+function ApprovedCategorySponsoredCard({ ad, onView, onClick }) {
+  const cardRef = useRef(null);
+  const image = resolveSponsoredImage(ad);
+  const title = resolveSponsoredTitle(ad);
+  const priceValue =
+    ad?.price ??
+    ad?.target_price ??
+    ad?.product_price ??
+    null;
+
+  useEffect(() => {
+    const node = cardRef.current;
+    if (!node || typeof IntersectionObserver === 'undefined') return undefined;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting && entry.intersectionRatio >= 0.35)) {
+          onView(ad);
+          observer.disconnect();
+        }
+      },
+      { threshold: [0.35] }
+    );
+
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [ad, onView]);
+
+  return (
+    <article ref={cardRef} className="cat-approved-sponsored-card">
+      <span className="cat-approved-ad-badge">Ads</span>
+
+      <button
+        type="button"
+        className="cat-approved-sponsored-media"
+        onClick={() => onClick(ad)}
+      >
+        {image ? (
+          <img src={image} alt={title} />
+        ) : (
+          <span className="cat-approved-product-placeholder"><span /></span>
+        )}
+      </button>
+
+      <div className="cat-approved-product-copy">
+        <span className="cat-approved-product-category">Sponsored</span>
+        <button
+          type="button"
+          className="cat-approved-product-title"
+          onClick={() => onClick(ad)}
+        >
+          {title}
+        </button>
+
+        <strong className="cat-approved-product-price">
+          {priceValue !== null && priceValue !== undefined
+            ? formatCurrency(priceValue)
+            : 'Featured'}
+        </strong>
+
+        <div className="cat-approved-product-actions">
+          <button type="button" className="primary" onClick={() => onClick(ad)}>
+            Buy Now
+          </button>
+          <button type="button" onClick={() => onClick(ad)}>
+            Read More
+          </button>
+        </div>
+
+        <button type="button" className="cat-approved-quick-link" onClick={() => onClick(ad)}>
+          Quick view
+        </button>
+      </div>
+    </article>
+  );
+}
+
+function ApprovedCategoryQuickView({
+  product,
+  isSaved,
+  actionLoading,
+  onClose,
+  onTrackedAction,
+  onSave,
+  onShare,
+}) {
+  useEffect(() => {
+    if (!product) return undefined;
+
+    function onKeyDown(event) {
+      if (event.key === 'Escape') onClose();
+    }
+
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [product, onClose]);
+
+  if (!product) return null;
+
+  return (
+    <div className="cat-approved-modal-backdrop" role="presentation" onMouseDown={onClose}>
+      <section
+        className="cat-approved-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Product Quick View"
+        onMouseDown={(event) => event.stopPropagation()}
+      >
+        <button
+          type="button"
+          className="cat-approved-modal-close"
+          onClick={onClose}
+          aria-label="Close quick view"
+        >
+          x
+        </button>
+
+        <h2>Quick View</h2>
+
+        <div className="cat-approved-modal-grid">
+          <div className="cat-approved-modal-media">
+            {product?.product_image ? (
+              <img src={product.product_image} alt={product?.title || 'Product'} />
+            ) : (
+              <span className="cat-approved-product-placeholder large"><span /></span>
+            )}
+          </div>
+
+          <div className="cat-approved-modal-copy">
+            <span className="cat-approved-modal-category">
+              {product?.category?.name || 'Category'}
+            </span>
+            <h3>{product?.title || 'Product'}</h3>
+            <strong>{renderPrice(product)}</strong>
+            <p>{product?.short_description || 'No description available.'}</p>
+
+            <div className="cat-approved-modal-actions">
+              <button
+                type="button"
+                className="primary"
+                disabled={actionLoading}
+                onClick={() => onTrackedAction('buy_now')}
+              >
+                {actionLoading ? 'Please wait...' : product?.homepage_cta_label || 'Buy Now'}
+              </button>
+
+              <button
+                type="button"
+                disabled={actionLoading}
+                onClick={() => onTrackedAction('visit_website')}
+              >
+                Visit Website
+              </button>
+
+              <button
+                type="button"
+                className="wide"
+                disabled={actionLoading}
+                onClick={() => onTrackedAction('read_more')}
+              >
+                {product?.storefront_cta_label || 'Read More'}
+              </button>
+            </div>
+
+            <div className="cat-approved-modal-tools">
+              <button type="button" onClick={onSave}>
+                {isSaved ? 'Saved' : 'Save'}
+              </button>
+              <button type="button" onClick={onShare}>Share</button>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  );
+}
 export default function CategoryPage() {
   const { slug } = useParams();
 
@@ -877,7 +1142,7 @@ export default function CategoryPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortValue, setSortValue] = useState('default');
   const [itemsPerPage, setItemsPerPage] = useState(20);
-  const [columns, setColumns] = useState(4);
+  const [columns, setColumns] = useState(3);
   const [quickViewProduct, setQuickViewProduct] = useState(null);
   const [savedProducts, setSavedProducts] = useState({});
   const [actionLoading, setActionLoading] = useState(false);
@@ -1119,798 +1384,316 @@ export default function CategoryPage() {
     }
   };
 
-  if (loading) {
-    return (
-      <div
-        style={{
-          minHeight: '100vh',
-          background: '#f5f7fb',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: 24,
-        }}
-      >
-        <div
-          style={{
-            background: '#ffffff',
-            border: '1px solid #e5e7eb',
-            borderRadius: 18,
-            padding: 22,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 12,
-            color: '#334155',
-            boxShadow: '0 12px 30px rgba(15, 23, 42, 0.06)',
-          }}
-        >
-          <Loader2 size={18} className="spin-soft" />
-          <span>Loading category...</span>
-        </div>
+  const approvedTrackImpression = useCallback(
+    async (product) => {
+      if (!product?.id || trackedImpressionsRef.current.has(product.id)) return;
+      trackedImpressionsRef.current.add(product.id);
+      await trackProductEvent(product, 'impression');
+    },
+    [trackProductEvent]
+  );
 
-        <style>{`
-          .spin-soft {
-            animation: spinSoft 0.9s linear infinite;
-          }
-          @keyframes spinSoft {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
-          }
-        `}</style>
-      </div>
-    );
+  const approvedProductAction = useCallback(
+    async (product, clickType, fallbackUrl) => {
+      if (!product) return;
+
+      try {
+        const data = await trackProductEvent(product, clickType);
+        const targetUrl =
+          data?.redirect_url ||
+          data?.url ||
+          fallbackUrl;
+
+        if (targetUrl && targetUrl !== '#') {
+          window.location.assign(targetUrl);
+        }
+      } catch {
+        if (fallbackUrl && fallbackUrl !== '#') {
+          window.location.assign(fallbackUrl);
+        }
+      }
+    },
+    [trackProductEvent]
+  );
+
+  const approvedTrackedQuickAction = async (clickType) => {
+    if (!quickViewProduct) return;
+
+    const fallbackUrl =
+      clickType === 'buy_now'
+        ? resolveBuyNowUrl(quickViewProduct)
+        : clickType === 'visit_website'
+          ? resolveVisitWebsiteUrl(quickViewProduct)
+          : resolveReadMoreUrl(quickViewProduct);
+
+    try {
+      setActionLoading(true);
+      const data = await trackProductEvent(quickViewProduct, clickType);
+      const targetUrl = data?.redirect_url || data?.url || fallbackUrl;
+
+      if (targetUrl && targetUrl !== '#') {
+        window.location.assign(targetUrl);
+      }
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const approvedSave = async () => {
+    if (!quickViewProduct?.id) return;
+
+    setSavedProducts((current) => ({
+      ...current,
+      [quickViewProduct.id]: !current[quickViewProduct.id],
+    }));
+
+    try {
+      await trackProductEvent(quickViewProduct, 'save');
+    } catch {
+      // Saving the local visual state should not fail because analytics failed.
+    }
+  };
+
+  const approvedShare = async () => {
+    if (!quickViewProduct) return;
+
+    const shareUrl = resolveReadMoreUrl(quickViewProduct);
+    const shareTitle = quickViewProduct?.title || 'Product';
+
+    try {
+      await trackProductEvent(quickViewProduct, 'share');
+    } catch {
+      // Sharing should remain available when analytics is unavailable.
+    }
+
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: shareTitle,
+          url: shareUrl,
+        });
+        return;
+      }
+
+      await navigator.clipboard.writeText(shareUrl);
+    } catch {
+      // Share cancellation should not interrupt the page.
+    }
+  };
+
+  if (loading) {
+    return <div className="cat-approved-loading-space" aria-hidden="true" />;
   }
 
   return (
-    <div
-      style={{
-        minHeight: '100vh',
-        background: '#f5f7fb',
-      }}
-    >
-      <style>{`
-        .category-topbar {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 16px;
-          flex-wrap: wrap;
-        }
-
-        .category-main-grid {
-          display: grid;
-          grid-template-columns: 320px minmax(0, 1fr);
-          gap: 24px;
-        }
-
-        .category-product-grid {
-          display: grid;
-          grid-template-columns: repeat(var(--category-columns, 4), minmax(0, 1fr));
-          gap: 20px;
-        }
-
-        .category-sponsored-grid {
-          display: grid;
-          grid-template-columns: repeat(var(--category-columns, 4), minmax(0, 1fr));
-          gap: 20px;
-          margin-bottom: 28px;
-        }
-
-        .category-sponsored-product-card {
-          background: #ffffff;
-          border: 1px solid #e5e7eb;
-          border-radius: 18px;
-          overflow: hidden;
-          position: relative;
-          box-shadow: 0 10px 24px rgba(15, 23, 42, 0.04);
-          min-height: 100%;
-          display: block;
-        }
-
-        .category-sponsored-ads-badge {
-          position: absolute;
-          top: 12px;
-          left: 12px;
-          z-index: 3;
-          background: rgba(17, 24, 39, 0.92);
-          color: #ffffff;
-          font-size: 10px;
-          font-weight: 900;
-          letter-spacing: 0.06em;
-          text-transform: uppercase;
-          padding: 6px 10px;
-          border-radius: 999px;
-          box-shadow: 0 10px 22px rgba(15, 23, 42, 0.18);
-        }
-
-        .category-sponsored-image-button,
-        .category-sponsored-content-button {
-          width: 100%;
-          border: 0;
-          padding: 0;
-          background: transparent;
-          cursor: pointer;
-          text-align: left;
-          display: block;
-        }
-
-        .category-sponsored-image-wrap {
-          display: block;
-          background: #f8fafc;
-          padding: 14px;
-          border-bottom: 1px solid #eef2f7;
-          position: relative;
-          overflow: hidden;
-        }
-
-        .category-sponsored-image {
-          width: 100%;
-          height: 240px;
-          object-fit: contain;
-          border-radius: 14px;
-          background: #ffffff;
-          display: block;
-          transform: scale(1);
-          transition: transform 0.25s ease;
-        }
-
-        .category-sponsored-product-card:hover .category-sponsored-image {
-          transform: scale(1.06);
-        }
-
-        .category-sponsored-image-empty {
-          width: 100%;
-          height: 240px;
-          border-radius: 14px;
-          background: #111827;
-          color: #ffffff;
-          display: grid;
-          place-items: center;
-          font-weight: 900;
-          font-size: 24px;
-        }
-
-        .category-sponsored-content-button {
-          padding: 16px;
-          position: relative;
-        }
-
-        .category-sponsored-category {
-          display: block;
-          font-size: 13px;
-          color: #94a3b8;
-          margin-bottom: 8px;
-        }
-
-        .category-sponsored-rating {
-          display: flex;
-          align-items: center;
-          gap: 4px;
-          margin-bottom: 10px;
-          color: #f59e0b;
-        }
-
-        .category-sponsored-rating span {
-          font-size: 14px;
-          color: #64748b;
-          margin-right: 4px;
-        }
-
-        .category-sponsored-title {
-          display: block;
-          font-size: 18px;
-          font-weight: 800;
-          color: #111827;
-          line-height: 1.35;
-          margin-bottom: 10px;
-          min-height: 48px;
-        }
-
-        .category-sponsored-price {
-          display: block;
-          font-size: 24px;
-          font-weight: 900;
-          color: #ff2b05;
-          margin-bottom: 14px;
-          line-height: 1.15;
-        }
-
-        .category-sponsored-hover-description {
-          position: absolute;
-          left: 12px;
-          right: 12px;
-          bottom: 12px;
-          z-index: 4;
-          min-height: 58px;
-          max-height: 88px;
-          overflow: hidden;
-          background: rgba(17, 24, 39, 0.93);
-          color: #ffffff;
-          font-size: 12px;
-          font-weight: 700;
-          line-height: 1.45;
-          border-radius: 16px;
-          padding: 10px 12px;
-          opacity: 0;
-          transform: translateY(12px);
-          transition: all 0.22s ease;
-          pointer-events: none;
-        }
-
-        .category-sponsored-product-card:hover .category-sponsored-hover-description {
-          opacity: 1;
-          transform: translateY(0);
-        }
-
-        .category-sponsored-heading-row {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 14px;
-          flex-wrap: wrap;
-          margin-bottom: 14px;
-        }
-
-        .category-sponsored-heading-row h2 {
-          margin: 0;
-          color: #111827;
-          font-size: 24px;
-          font-weight: 900;
-          letter-spacing: -0.03em;
-        }
-
-        .category-sponsored-heading-row span {
-          display: inline-flex;
-          align-items: center;
-          border-radius: 999px;
-          background: #111827;
-          color: #ffffff;
-          font-size: 11px;
-          font-weight: 900;
-          letter-spacing: 0.08em;
-          text-transform: uppercase;
-          padding: 7px 11px;
-        }
-
-        @media (max-width: 1100px) {
-          .category-main-grid {
-            grid-template-columns: 1fr;
-          }
-
-          .category-product-grid,
-          .category-sponsored-grid {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-          }
-        }
-
-        @media (max-width: 720px) {
-          .category-product-grid,
-          .category-sponsored-grid {
-            grid-template-columns: 1fr;
-          }
-
-          .category-sponsored-hover-description {
-            display: none;
-          }
-        }
-      `}</style>
-
-      {sidebarOpen ? (
-        <button
-          type="button"
-          onClick={() => setSidebarOpen(false)}
-          aria-label="Close categories"
-          style={{
-            position: 'fixed',
-            inset: 0,
-            border: 0,
-            background: 'rgba(15,23,42,0.35)',
-            zIndex: 80,
-          }}
-        />
-      ) : null}
-
-      <div
-        style={{
-          width: 'min(1460px, calc(100% - 24px))',
-          margin: '0 auto',
-          padding: '18px 0 40px',
-        }}
-      >
-        <header
-          style={{
-            background: '#ffffff',
-            border: '1px solid #e5e7eb',
-            borderRadius: 18,
-            boxShadow: '0 10px 28px rgba(15, 23, 42, 0.04)',
-            marginBottom: 18,
-            overflow: 'hidden',
-          }}
-        >
-          <div
-            style={{
-              padding: '14px 18px',
-              borderBottom: '1px solid #eef2f7',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: 16,
-              flexWrap: 'wrap',
-            }}
-          >
-            <div
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 12,
-                color: '#111827',
-                fontWeight: 900,
-                fontSize: 28,
-                letterSpacing: '-0.03em',
-              }}
-            >
-              Bloggad
-            </div>
-
-            <div
-              style={{
-                flex: '1 1 520px',
-                maxWidth: 720,
-                position: 'relative',
-              }}
-            >
-              <Search
-                size={18}
-                style={{
-                  position: 'absolute',
-                  left: 16,
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  color: '#64748b',
-                }}
-              />
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={(event) => setSearchTerm(event.target.value)}
-                placeholder="Search for products"
-                style={{
-                  width: '100%',
-                  height: 52,
-                  borderRadius: 14,
-                  border: '1px solid #dbe1ea',
-                  background: '#f8fafc',
-                  padding: '0 16px 0 48px',
-                  fontSize: 15,
-                  color: '#111827',
-                  outline: 'none',
-                }}
-              />
-            </div>
-
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 16,
-                color: '#111827',
-                fontWeight: 700,
-                flexWrap: 'wrap',
-              }}
-            >
-              <span>Blog</span>
-              <span>About Us</span>
-              <span>Contact Us</span>
-              <span>FAQs</span>
-            </div>
-          </div>
-        </header>
-
-        {error ? (
-          <div
-            style={{
-              background: '#ffffff',
-              border: '1px solid #fecaca',
-              borderLeft: '4px solid #dc2626',
-              color: '#991b1b',
-              borderRadius: 12,
-              padding: 16,
-              marginBottom: 18,
-            }}
-          >
-            {error}
-          </div>
-        ) : null}
-
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 10,
-            flexWrap: 'wrap',
-            color: '#64748b',
-            fontSize: 14,
-            marginBottom: 18,
-            fontWeight: 600,
-          }}
-        >
-          <Link to="/" style={{ color: '#64748b' }}>
-            Home
-          </Link>
-          <span>/</span>
-          <span>{currentCategoryName}</span>
-          <span>/</span>
-          <span style={{ color: '#111827', fontWeight: 800 }}>{currentCategoryName}</span>
+    <div className="cat-approved-page">
+      <aside className="bh-sidebar cat-approved-bh-sidebar">
+        <div className="bh-sidebar-brand">
+          <Menu size={24} strokeWidth={1.8} />
+          <Link to="/">Bloggad</Link>
         </div>
 
-        <div className="category-main-grid">
-          <aside style={{ position: 'relative' }}>
-            <button
-              type="button"
-              onClick={() => setSidebarOpen(true)}
-              style={{
-                width: '100%',
-                display: 'none',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 10,
-                padding: '13px 16px',
-                borderRadius: 14,
-                border: '1px solid #d1d5db',
-                background: '#ffffff',
-                color: '#111827',
-                fontWeight: 800,
-                marginBottom: 14,
-                cursor: 'pointer',
-              }}
-              className="category-mobile-button"
-            >
-              <Menu size={18} />
-              Categories
-            </button>
+        <nav className="bh-sidebar-nav" aria-label="Public navigation">
+          <Link className="bh-sidebar-item active" to="/">
+            <Home size={21} strokeWidth={1.8} />
+            <span>Home</span>
+          </Link>
 
-            <div
-              style={{
-                background: '#ffffff',
-                border: '1px solid #e5e7eb',
-                borderRadius: 18,
-                overflow: 'hidden',
-                boxShadow: '0 10px 24px rgba(15, 23, 42, 0.04)',
-              }}
-            >
-              <div
-                style={{
-                  padding: '16px 18px',
-                  borderBottom: '1px solid #eef2f7',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  gap: 12,
-                }}
-              >
-                <div
-                  style={{
-                    fontSize: 16,
-                    fontWeight: 900,
-                    color: '#111827',
-                  }}
+          <Link className="bh-sidebar-item" to="/reader/saved">
+            <Bookmark size={21} strokeWidth={1.8} />
+            <span>Library</span>
+          </Link>
+
+          <Link className="bh-sidebar-item" to="/reader/profile">
+            <UserRound size={21} strokeWidth={1.8} />
+            <span>Profile</span>
+          </Link>
+
+          <Link className="bh-sidebar-item" to="/writer/posts">
+            <BookOpen size={21} strokeWidth={1.8} />
+            <span>Stories</span>
+          </Link>
+
+          <Link className="bh-sidebar-item" to="/topics">
+            <Tags size={21} strokeWidth={1.8} />
+            <span>Topics</span>
+          </Link>
+
+          <Link className="bh-sidebar-item" to="/writer/analytics">
+            <BarChart3 size={21} strokeWidth={1.8} />
+            <span>Stats</span>
+          </Link>
+        </nav>
+
+        <div className="bh-sidebar-divider" />
+
+        <nav className="bh-sidebar-nav cat-approved-follow-nav">
+          <Link className="bh-sidebar-item" to="/reader/following">
+            <Users size={21} strokeWidth={1.8} />
+            <span>Following</span>
+          </Link>
+        </nav>
+
+        <div className="cat-approved-home-follow-box">
+          <Plus size={18} strokeWidth={1.8} />
+          <div>
+            <p>Find writers and publications to follow.</p>
+            <Link to="/topics">See suggestions</Link>
+          </div>
+        </div>
+
+        <div className="cat-approved-sidebar-categories">
+          <h2>Browse categories</h2>
+
+          <div className="cat-approved-sidebar-category-list">
+            {allCategories.length ? (
+              allCategories.map((item) => (
+                <Link
+                  key={`sidebar-${item.id}`}
+                  className={item.slug === slug ? 'active' : ''}
+                  to={`/category/${item.slug}`}
                 >
-                  Categories
-                </div>
+                  {item.name}
+                </Link>
+              ))
+            ) : (
+              <span>No categories available.</span>
+            )}
+          </div>
+        </div>
+      </aside>
 
+      <header className="cat-approved-header">
+        <Link className="cat-approved-mobile-brand" to="/">Bloggad</Link>
+
+        <label className="cat-approved-header-search">
+          <Search size={15} />
+          <input
+            type="search"
+            value={searchTerm}
+            onChange={(event) => setSearchTerm(event.target.value)}
+            placeholder="Search"
+          />
+        </label>
+
+        <div className="cat-approved-header-actions">
+          <button type="button" className="cat-approved-get-app">Get app</button>
+          <Link to="/writer/posts/create">Write</Link>
+          <span className="cat-approved-header-circle" />
+          <Link className="cat-approved-header-avatar" to="/reader/profile">U</Link>
+        </div>
+      </header>
+
+      <main className="cat-approved-main">
+        {error ? <div className="cat-approved-error">{error}</div> : null}
+
+        <div className="cat-approved-breadcrumb">
+          <Link to="/">Home</Link>
+          <span>/</span>
+          <span>{currentCategoryName}</span>
+        </div>
+
+        <section className="cat-approved-title-row">
+          <h1>{currentCategoryName}</h1>
+          <p>Browse products from independent sellers and publications across Bloggad.</p>
+        </section>
+
+        <div className="cat-approved-mobile-categories">
+          {allCategories.slice(0, 5).map((item) => (
+            <Link
+              key={`mobile-top-${item.id}`}
+              className={item.slug === slug ? 'active' : ''}
+              to={`/category/${item.slug}`}
+            >
+              {item.name}
+            </Link>
+          ))}
+        </div>
+
+        <div className="cat-approved-mobile-tools">
+          <button type="button" onClick={() => setSidebarOpen(true)}>Filter</button>
+          <select value={sortValue} onChange={(event) => setSortValue(event.target.value)}>
+            <option value="default">Default sorting</option>
+            <option value="price_low_high">Price: low to high</option>
+            <option value="price_high_low">Price: high to low</option>
+            <option value="name_az">Name: A to Z</option>
+            <option value="name_za">Name: Z to A</option>
+          </select>
+        </div>
+
+        <div className="cat-approved-market-grid">
+          <section className="cat-approved-products-area">
+            <div className="cat-approved-toolbar">
+              <div className="cat-approved-toolbar-count">
+                <strong>{filteredProducts.length} products</strong>
+              </div>
+
+              <div className="cat-approved-show-count">
+                <span>Show:</span>
+                {[20, 16, 12, 8].map((count) => (
+                  <button
+                    key={count}
+                    type="button"
+                    className={itemsPerPage === count ? 'active' : ''}
+                    onClick={() => setItemsPerPage(count)}
+                  >
+                    {count}
+                  </button>
+                ))}
+              </div>
+
+              <label className="cat-approved-product-search">
+                <Search size={14} />
+                <input
+                  type="search"
+                  value={searchTerm}
+                  onChange={(event) => setSearchTerm(event.target.value)}
+                  placeholder="Search products"
+                />
+              </label>
+
+              <select
+                className="cat-approved-sort"
+                value={sortValue}
+                onChange={(event) => setSortValue(event.target.value)}
+              >
+                <option value="default">Default sorting</option>
+                <option value="price_low_high">Price: low to high</option>
+                <option value="price_high_low">Price: high to low</option>
+                <option value="name_az">Name: A to Z</option>
+                <option value="name_za">Name: Z to A</option>
+              </select>
+
+              <div className="cat-approved-grid-buttons">
                 <button
                   type="button"
-                  onClick={() => setSidebarOpen(false)}
-                  style={{
-                    display: 'none',
-                    width: 34,
-                    height: 34,
-                    borderRadius: 10,
-                    border: '1px solid #e5e7eb',
-                    background: '#ffffff',
-                    color: '#111827',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    cursor: 'pointer',
-                  }}
-                  className="category-close-button"
+                  className={columns === 3 ? 'active' : ''}
+                  onClick={() => setColumns(3)}
+                  aria-label="Three columns"
                 >
-                  <X size={16} />
+                  :::
                 </button>
-              </div>
-
-              <div style={{ padding: 12 }}>
-                {allCategories.length ? (
-                  allCategories.map((item) => {
-                    const active = item.slug === slug;
-
-                    return (
-                      <Link
-                        key={item.id}
-                        to={`/category/${item.slug}`}
-                        onClick={() => setSidebarOpen(false)}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          gap: 12,
-                          padding: '13px 12px',
-                          borderRadius: 12,
-                          background: active ? '#eff6ff' : 'transparent',
-                          border: active ? '1px solid #bfdbfe' : '1px solid transparent',
-                          color: active ? '#1d4ed8' : '#111827',
-                          fontWeight: active ? 800 : 700,
-                          marginBottom: 4,
-                        }}
-                      >
-                        <span>{item.name}</span>
-                        <ChevronRight size={15} />
-                      </Link>
-                    );
-                  })
-                ) : (
-                  <div style={{ padding: 8, color: '#64748b' }}>No categories available.</div>
-                )}
-              </div>
-            </div>
-
-            <style>{`
-              @media (max-width: 1100px) {
-                .category-mobile-button {
-                  display: inline-flex !important;
-                }
-
-                .category-close-button {
-                  display: inline-flex !important;
-                }
-              }
-            `}</style>
-
-            {sidebarOpen ? (
-              <div
-                style={{
-                  position: 'fixed',
-                  top: 0,
-                  left: 0,
-                  bottom: 0,
-                  width: 'min(340px, 88vw)',
-                  background: '#ffffff',
-                  borderRight: '1px solid #e5e7eb',
-                  zIndex: 90,
-                  overflowY: 'auto',
-                  boxShadow: '0 20px 40px rgba(15,23,42,0.18)',
-                  display:
-                    typeof window !== 'undefined' && window.innerWidth <= 1100 ? 'block' : 'none',
-                }}
-              >
-                <div
-                  style={{
-                    padding: '16px 18px',
-                    borderBottom: '1px solid #eef2f7',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                  }}
+                <button
+                  type="button"
+                  className={columns === 4 ? 'active' : ''}
+                  onClick={() => setColumns(4)}
+                  aria-label="Four columns"
                 >
-                  <div
-                    style={{
-                      fontSize: 16,
-                      fontWeight: 900,
-                      color: '#111827',
-                    }}
-                  >
-                    Categories
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => setSidebarOpen(false)}
-                    style={{
-                      width: 36,
-                      height: 36,
-                      borderRadius: 10,
-                      border: '1px solid #e5e7eb',
-                      background: '#ffffff',
-                      color: '#111827',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    <X size={16} />
-                  </button>
-                </div>
-
-                <div style={{ padding: 12 }}>
-                  {allCategories.map((item) => {
-                    const active = item.slug === slug;
-
-                    return (
-                      <Link
-                        key={`mobile-${item.id}`}
-                        to={`/category/${item.slug}`}
-                        onClick={() => setSidebarOpen(false)}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          gap: 12,
-                          padding: '13px 12px',
-                          borderRadius: 12,
-                          background: active ? '#eff6ff' : 'transparent',
-                          border: active ? '1px solid #bfdbfe' : '1px solid transparent',
-                          color: active ? '#1d4ed8' : '#111827',
-                          fontWeight: active ? 800 : 700,
-                          marginBottom: 4,
-                        }}
-                      >
-                        <span>{item.name}</span>
-                        <ChevronRight size={15} />
-                      </Link>
-                    );
-                  })}
-                </div>
-              </div>
-            ) : null}
-          </aside>
-
-          <main>
-            <div className="category-topbar" style={{ marginBottom: 18 }}>
-              <div>
-                <h1
-                  style={{
-                    margin: 0,
-                    fontSize: 40,
-                    lineHeight: 1.08,
-                    fontWeight: 900,
-                    letterSpacing: '-0.04em',
-                    color: '#111827',
-                    marginBottom: 10,
-                  }}
-                >
-                  {currentCategoryName}
-                </h1>
-              </div>
-
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 14,
-                  flexWrap: 'wrap',
-                }}
-              >
-                <div
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 10,
-                    color: '#64748b',
-                    fontWeight: 700,
-                  }}
-                >
-                  <span>Show :</span>
-
-                  {[20, 16, 12, 8].map((count) => (
-                    <button
-                      key={count}
-                      type="button"
-                      onClick={() => setItemsPerPage(count)}
-                      style={{
-                        border: 0,
-                        background: 'transparent',
-                        color: itemsPerPage === count ? '#111827' : '#64748b',
-                        fontWeight: itemsPerPage === count ? 900 : 700,
-                        cursor: 'pointer',
-                        padding: 0,
-                      }}
-                    >
-                      {count}
-                    </button>
-                  ))}
-                </div>
-
-                <div
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 10,
-                  }}
-                >
-                  <button
-                    type="button"
-                    onClick={() => setColumns(4)}
-                    style={{
-                      width: 42,
-                      height: 42,
-                      borderRadius: 10,
-                      border: columns === 4 ? '1px solid #93c5fd' : '1px solid #e5e7eb',
-                      background: columns === 4 ? '#eff6ff' : '#ffffff',
-                      color: columns === 4 ? '#2563eb' : '#94a3b8',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    <Grid3X3 size={18} />
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setColumns(3)}
-                    style={{
-                      width: 42,
-                      height: 42,
-                      borderRadius: 10,
-                      border: columns === 3 ? '1px solid #93c5fd' : '1px solid #e5e7eb',
-                      background: columns === 3 ? '#eff6ff' : '#ffffff',
-                      color: columns === 3 ? '#2563eb' : '#94a3b8',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    <LayoutGrid size={18} />
-                  </button>
-                </div>
-
-                <div
-                  style={{
-                    minWidth: 220,
-                    height: 46,
-                    borderRadius: 999,
-                    border: '1px solid #e5e7eb',
-                    background: '#ffffff',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: '0 16px',
-                    color: '#64748b',
-                    fontWeight: 600,
-                  }}
-                >
-                  <select
-                    value={sortValue}
-                    onChange={(event) => setSortValue(event.target.value)}
-                    style={{
-                      width: '100%',
-                      height: '100%',
-                      border: 0,
-                      outline: 'none',
-                      background: 'transparent',
-                      color: '#64748b',
-                      fontWeight: 600,
-                      appearance: 'none',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    <option value="default">Default sorting</option>
-                    <option value="price_low_high">Price: low to high</option>
-                    <option value="price_high_low">Price: high to low</option>
-                    <option value="name_az">Name: A to Z</option>
-                    <option value="name_za">Name: Z to A</option>
-                  </select>
-                  <ChevronDown size={16} />
-                </div>
+                  ::
+                </button>
               </div>
             </div>
 
             {sponsoredAds.length ? (
-              <section>
-                <div className="category-sponsored-heading-row">
+              <section className="cat-approved-featured">
+                <div className="cat-approved-section-heading">
                   <h2>Featured Product</h2>
                   <span>Ads</span>
                 </div>
 
-                <div
-                  className="category-sponsored-grid"
-                  style={{ '--category-columns': columns }}
-                >
+                <div className="cat-approved-sponsored-grid">
                   {sponsoredAds.map((ad) => (
-                    <SponsoredAdCard
+                    <ApprovedCategorySponsoredCard
                       key={ad.id}
                       ad={ad}
                       onView={trackSponsoredView}
@@ -1921,47 +1704,75 @@ export default function CategoryPage() {
               </section>
             ) : null}
 
-            <div
-              className="category-product-grid"
-              style={{ '--category-columns': columns }}
-            >
-              {filteredProducts.length ? (
-                filteredProducts.map((product, index) => (
-                  <ProductCard
-                    key={product.id || index}
-                    product={product}
-                    onQuickView={setQuickViewProduct}
-                    onImpression={handleImpression}
-                  />
-                ))
-              ) : (
-                <div
-                  style={{
-                    gridColumn: '1 / -1',
-                    background: '#ffffff',
-                    border: '1px solid #e5e7eb',
-                    borderRadius: 18,
-                    padding: 24,
-                    color: '#64748b',
-                  }}
-                >
-                  No products matched your search.
-                </div>
-              )}
-            </div>
-          </main>
-        </div>
-      </div>
+            <section className="cat-approved-all-products">
+              <h2>All products</h2>
 
-      <ProductQuickViewModal
+              {filteredProducts.length ? (
+                <div
+                  className="cat-approved-product-grid"
+                  style={{ '--cat-approved-columns': columns }}
+                >
+                  {filteredProducts.map((product, index) => (
+                    <ApprovedCategoryProductCard
+                      key={product.id || index}
+                      product={product}
+                      onQuickView={setQuickViewProduct}
+                      onImpression={approvedTrackImpression}
+                      onAction={approvedProductAction}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div className="cat-approved-empty">No products matched your search.</div>
+              )}
+            </section>
+          </section>
+        </div>
+      </main>
+
+      {sidebarOpen ? (
+        <div className="cat-approved-drawer-backdrop" onMouseDown={() => setSidebarOpen(false)}>
+          <aside
+            className="cat-approved-drawer"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <div className="cat-approved-drawer-head">
+              <strong>Categories</strong>
+              <button type="button" onClick={() => setSidebarOpen(false)}>x</button>
+            </div>
+
+            <div className="cat-approved-drawer-list">
+              {allCategories.map((item) => (
+                <Link
+                  key={`drawer-${item.id}`}
+                  className={item.slug === slug ? 'active' : ''}
+                  to={`/category/${item.slug}`}
+                  onClick={() => setSidebarOpen(false)}
+                >
+                  {item.name}
+                </Link>
+              ))}
+            </div>
+          </aside>
+        </div>
+      ) : null}
+
+      <ApprovedCategoryQuickView
         product={quickViewProduct}
         isSaved={!!savedProducts[quickViewProduct?.id]}
         actionLoading={actionLoading}
         onClose={() => setQuickViewProduct(null)}
-        onToggleSave={handleToggleSave}
-        onShare={handleShare}
-        onTrackedAction={handleTrackedPopupAction}
+        onTrackedAction={approvedTrackedQuickAction}
+        onSave={approvedSave}
+        onShare={approvedShare}
       />
+
+      <nav className="cat-approved-mobile-bottom">
+        <Link className="active" to="/">Home</Link>
+        <Link to="/reader/saved">Library</Link>
+        <Link to="/writer/posts/create">Write</Link>
+        <Link to="/reader/profile">Profile</Link>
+      </nav>
     </div>
   );
 }

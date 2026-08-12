@@ -70,6 +70,169 @@ async function getValidationLogById(logId) {
   return rows[0] || null;
 }
 
+function sanitizeDomainRule(row) {
+  if (!row) return null;
+
+  return {
+    id: row.id,
+    domain: row.domain,
+    rule_status: row.rule_status,
+    category: row.category,
+    reason: row.reason,
+    applies_to_subdomains: !!row.applies_to_subdomains,
+    is_active: !!row.is_active,
+    created_by: row.created_by,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+  };
+}
+
+function normalizeDomainInput(value) {
+  const raw = String(value || '').trim().toLowerCase();
+
+  if (!raw) return '';
+
+  try {
+    const parsed = new URL(raw.includes('://') ? raw : `https://${raw}`);
+    return String(parsed.hostname || '').toLowerCase().replace(/\.$/, '');
+  } catch (error) {
+    return '';
+  }
+}
+
+async function getDomainRules(req, res) {
+  try {
+    const [rows] = await pool.query(
+      `
+      SELECT *
+      FROM outbound_domain_rules
+      ORDER BY is_active DESC, rule_status ASC, domain ASC
+      `
+    );
+
+    return res.status(200).json({
+      ok: true,
+      rules: rows.map(sanitizeDomainRule),
+    });
+  } catch (error) {
+    console.error('getDomainRules error:', error);
+    return res.status(500).json({ ok: false, message: 'Failed to fetch domain rules', error: error.message });
+  }
+}
+
+async function createDomainRule(req, res) {
+  try {
+    const domain = normalizeDomainInput(req.body?.domain);
+    const ruleStatus = ['allow', 'block', 'review'].includes(req.body?.rule_status)
+      ? req.body.rule_status
+      : 'review';
+    const category = String(req.body?.category || '').trim().slice(0, 80) || null;
+    const reason = String(req.body?.reason || '').trim().slice(0, 500) || null;
+    const appliesToSubdomains = req.body?.applies_to_subdomains === false ? 0 : 1;
+    const isActive = req.body?.is_active === false ? 0 : 1;
+
+    if (!domain) {
+      return res.status(400).json({ ok: false, message: 'Valid domain is required' });
+    }
+
+    const [result] = await pool.query(
+      `
+      INSERT INTO outbound_domain_rules
+      (domain, rule_status, category, reason, applies_to_subdomains, is_active, created_by, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+      `,
+      [domain, ruleStatus, category, reason, appliesToSubdomains, isActive, req.user?.id || null]
+    );
+
+    const [rows] = await pool.query('SELECT * FROM outbound_domain_rules WHERE id = ? LIMIT 1', [result.insertId]);
+    return res.status(201).json({ ok: true, rule: sanitizeDomainRule(rows[0]) });
+  } catch (error) {
+    if (error?.code === 'ER_DUP_ENTRY') {
+      return res.status(409).json({ ok: false, message: 'A rule already exists for this domain' });
+    }
+    console.error('createDomainRule error:', error);
+    return res.status(500).json({ ok: false, message: 'Failed to create domain rule', error: error.message });
+  }
+}
+
+async function updateDomainRule(req, res) {
+  try {
+    const ruleId = Number(req.params.ruleId);
+
+    if (!Number.isInteger(ruleId) || ruleId <= 0) {
+      return res.status(400).json({ ok: false, message: 'Invalid domain rule id' });
+    }
+
+    const [existingRows] = await pool.query('SELECT * FROM outbound_domain_rules WHERE id = ? LIMIT 1', [ruleId]);
+    const existing = existingRows[0];
+
+    if (!existing) {
+      return res.status(404).json({ ok: false, message: 'Domain rule not found' });
+    }
+
+    const domain = req.body?.domain !== undefined ? normalizeDomainInput(req.body.domain) : existing.domain;
+    const ruleStatus = req.body?.rule_status !== undefined
+      ? (['allow', 'block', 'review'].includes(req.body.rule_status) ? req.body.rule_status : null)
+      : existing.rule_status;
+
+    if (!domain || !ruleStatus) {
+      return res.status(400).json({ ok: false, message: 'Valid domain and rule status are required' });
+    }
+
+    const category = req.body?.category !== undefined
+      ? (String(req.body.category || '').trim().slice(0, 80) || null)
+      : existing.category;
+    const reason = req.body?.reason !== undefined
+      ? (String(req.body.reason || '').trim().slice(0, 500) || null)
+      : existing.reason;
+    const appliesToSubdomains = req.body?.applies_to_subdomains !== undefined
+      ? (req.body.applies_to_subdomains ? 1 : 0)
+      : Number(existing.applies_to_subdomains);
+    const isActive = req.body?.is_active !== undefined
+      ? (req.body.is_active ? 1 : 0)
+      : Number(existing.is_active);
+
+    await pool.query(
+      `
+      UPDATE outbound_domain_rules
+      SET domain = ?, rule_status = ?, category = ?, reason = ?, applies_to_subdomains = ?, is_active = ?, updated_at = NOW()
+      WHERE id = ?
+      `,
+      [domain, ruleStatus, category, reason, appliesToSubdomains, isActive, ruleId]
+    );
+
+    const [rows] = await pool.query('SELECT * FROM outbound_domain_rules WHERE id = ? LIMIT 1', [ruleId]);
+    return res.status(200).json({ ok: true, rule: sanitizeDomainRule(rows[0]) });
+  } catch (error) {
+    if (error?.code === 'ER_DUP_ENTRY') {
+      return res.status(409).json({ ok: false, message: 'A rule already exists for this domain' });
+    }
+    console.error('updateDomainRule error:', error);
+    return res.status(500).json({ ok: false, message: 'Failed to update domain rule', error: error.message });
+  }
+}
+
+async function deleteDomainRule(req, res) {
+  try {
+    const ruleId = Number(req.params.ruleId);
+
+    if (!Number.isInteger(ruleId) || ruleId <= 0) {
+      return res.status(400).json({ ok: false, message: 'Invalid domain rule id' });
+    }
+
+    const [result] = await pool.query('DELETE FROM outbound_domain_rules WHERE id = ?', [ruleId]);
+
+    if (!result.affectedRows) {
+      return res.status(404).json({ ok: false, message: 'Domain rule not found' });
+    }
+
+    return res.status(200).json({ ok: true, message: 'Domain rule deleted successfully' });
+  } catch (error) {
+    console.error('deleteDomainRule error:', error);
+    return res.status(500).json({ ok: false, message: 'Failed to delete domain rule', error: error.message });
+  }
+}
+
 async function getAllValidationLogs(req, res) {
   try {
     const [rows] = await pool.query(
@@ -379,6 +542,10 @@ async function clearAllValidationLogs(req, res) {
 }
 
 module.exports = {
+  getDomainRules,
+  createDomainRule,
+  updateDomainRule,
+  deleteDomainRule,
   getAllValidationLogs,
   getFailedValidationLogs,
   getPassedValidationLogs,

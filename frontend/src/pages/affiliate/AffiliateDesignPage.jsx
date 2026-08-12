@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import {
   RefreshCw,
   AlertCircle,
@@ -1532,6 +1533,8 @@ function setDeepValue(object, path, value) {
 }
 
 export default function AffiliateDesignPage() {
+  const location = useLocation();
+  const writerRouteMode = location.pathname === '/writer/design';
   const [templates, setTemplates] = useState([]);
   const [form, setForm] = useState(getEmptyForm());
 
@@ -1825,6 +1828,165 @@ export default function AffiliateDesignPage() {
       </div>
     );
   }
+
+  if (writerRouteMode) {
+    return (
+      <div className="affiliate-design-page writer-design-redesign">
+        <section className="affiliate-design-command">
+          <div className="affiliate-design-command-current">
+            <strong>{currentTemplate?.name || 'No template selected'}</strong>
+            {currentTemplate ? (
+              <span className="affiliate-design-selection-pill">Selected</span>
+            ) : null}
+          </div>
+
+          <div className="affiliate-design-hero-actions">
+            <button
+              className="affiliate-design-btn secondary"
+              type="button"
+              onClick={() => fetchData(true)}
+              disabled={refreshing}
+            >
+              <RefreshCw size={16} className={refreshing ? 'spin' : ''} />
+              {refreshing ? 'Refreshing...' : 'Refresh'}
+            </button>
+
+            <button
+              className="affiliate-design-btn primary"
+              type="submit"
+              form="affiliate-design-form"
+              disabled={saving}
+            >
+              <Save size={16} />
+              {saving ? 'Saving...' : 'Save Design'}
+            </button>
+          </div>
+        </section>
+
+        <section className="affiliate-design-stats">
+          <div className="affiliate-design-stat-card">
+            <span>Templates</span>
+            <strong>{templates.length}</strong>
+          </div>
+
+          <div className="affiliate-design-stat-card">
+            <span>Selected template</span>
+            <strong title={currentTemplate?.name || 'None'}>
+              {currentTemplate?.name || 'None'}
+            </strong>
+          </div>
+
+          <div className="affiliate-design-stat-card">
+            <span>Builder status</span>
+            <strong>{showBuilder ? 'Ready' : 'Unavailable'}</strong>
+          </div>
+        </section>
+
+        {error ? (
+          <div className="affiliate-design-alert error">
+            <AlertCircle size={18} />
+            <span>{error}</span>
+          </div>
+        ) : null}
+
+        {success ? (
+          <div className="affiliate-design-alert success">
+            <CheckCircle2 size={18} />
+            <span>{success}</span>
+          </div>
+        ) : null}
+
+        <div className="affiliate-design-tabs">
+          {tabItems.map((tab) => {
+            const Icon = tab.icon;
+            const desktopLabel =
+              tab.key === 'library'
+                ? 'Template Library'
+                : tab.key === 'general'
+                  ? 'General'
+                  : 'Builder';
+            const mobileLabel = tab.key === 'library' ? 'Library' : desktopLabel;
+
+            return (
+              <button
+                key={tab.key}
+                type="button"
+                className={'affiliate-design-tab ' + (activeTab === tab.key ? 'active' : '')}
+                onClick={() => setActiveTab(tab.key)}
+              >
+                <Icon size={16} />
+                <span className="affiliate-design-tab-label desktop">{desktopLabel}</span>
+                <span className="affiliate-design-tab-label mobile">{mobileLabel}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        <form id="affiliate-design-form" onSubmit={handleSubmit} className="affiliate-design-body">
+          {activeTab === 'library' ? (
+            <div className="affiliate-design-library-section">
+              <div className="affiliate-design-section-head">
+                <h2>Template Library</h2>
+                <span>{templates.length} available</span>
+              </div>
+
+              <TemplateLibraryPanel
+                templates={templates}
+                currentTemplateId={form.website_template_id}
+                selectedBuilderId={selectedBuilderTemplateId}
+                onSelectTemplate={handleSelectTemplate}
+                onOpenBuilder={handleOpenBuilder}
+                writerMode
+              />
+            </div>
+          ) : null}
+
+          {activeTab === 'general' ? (
+            <div className="affiliate-design-panel-section">
+              <div className="affiliate-design-section-head">
+                <h2>General settings</h2>
+                <span>Storefront defaults</span>
+              </div>
+              <GeneralSettingsPanel form={form} onChange={handleChange} />
+            </div>
+          ) : null}
+
+          {activeTab === 'builder' ? (
+            <div className="affiliate-design-builder-wrap">
+              <div className="affiliate-design-section-head">
+                <h2>{builderTemplate?.name || currentTemplate?.name || 'Template Builder'}</h2>
+                <span>{showBuilder ? 'Ready' : 'Unavailable'}</span>
+              </div>
+
+              {showBuilder ? (
+                <TemplateBuilderRouter
+                  templateCodeKey={builderTemplateCodeKey}
+                  settings={form.template_settings_json}
+                  onTextChange={handleTemplateSettingTextChange}
+                  onToggleChange={handleTemplateSettingToggleChange}
+                  onNumberChange={handleTemplateSettingNumberChange}
+                  onImageUpload={handleImageUpload}
+                  uploadState={uploadState}
+                />
+              ) : (
+                <div className="affiliate-design-empty-builder">
+                  <div className="affiliate-design-empty-builder-icon">
+                    <Layers3 size={20} />
+                  </div>
+                  <h3>Builder not available</h3>
+                  <p>
+                    Select a supported template from the library and open its builder. Current code
+                    key: {builderTemplateCodeKey || currentTemplateCodeKey || 'none'}
+                  </p>
+                </div>
+              )}
+            </div>
+          ) : null}
+        </form>
+      </div>
+    );
+  }
+
 
   return (
     <div className="affiliate-design-page">

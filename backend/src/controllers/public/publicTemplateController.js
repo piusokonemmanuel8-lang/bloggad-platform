@@ -94,7 +94,9 @@ async function getPublicBlogTemplates(req, res) {
 
       if (String(latestPlan.blog_templates_mode || 'unlimited').toLowerCase() === 'specific') {
         const allowedTemplateIds = await getAllowedBlogTemplateIdsByPlanId(latestPlan.plan_id);
-        templates = templates.filter((item) => allowedTemplateIds.includes(Number(item.id)));
+        templates = templates.filter(
+          (item) => !item.is_premium || allowedTemplateIds.includes(Number(item.id))
+        );
       }
     }
 

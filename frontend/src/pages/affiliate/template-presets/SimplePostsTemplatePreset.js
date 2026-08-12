@@ -71,6 +71,15 @@ const SimplePostsTemplatePreset = {
 
   fields: [
     createField({
+      field_key: 'bloggad_video_url',
+      field_type: 'url',
+      label: 'Video URL',
+      section: 'Video',
+      helper_text: 'Optional YouTube, Vimeo, MP4, WebM, or OGG video link.',
+      placeholder: 'https://www.youtube.com/watch?v=...',
+      sort_order: 9999,
+    }),
+    createField({
       field_key: 'top_notice_text',
       field_type: 'text',
       sort_order: 1,
@@ -95,7 +104,7 @@ const SimplePostsTemplatePreset = {
       label: 'Notice Link URL',
       section: 'Top Notice Bar',
       helper_text: 'Optional notice link URL.',
-      placeholder: 'https://supgad.com/your-link',
+      placeholder: 'https://example.com/your-link',
     }),
 
     createField({
@@ -673,7 +682,7 @@ const SimplePostsTemplatePreset = {
       label: 'Related Post 1 URL',
       section: 'Related Posts',
       helper_text: 'Optional link for the first manual related post card.',
-      placeholder: 'https://supgad.com/your-link',
+      placeholder: 'https://example.com/your-link',
     }),
     createField({
       field_key: 'related_post_2_title',
@@ -709,7 +718,7 @@ const SimplePostsTemplatePreset = {
       label: 'Related Post 2 URL',
       section: 'Related Posts',
       helper_text: 'Optional link for the second manual related post card.',
-      placeholder: 'https://supgad.com/your-link',
+      placeholder: 'https://example.com/your-link',
     }),
     createField({
       field_key: 'related_post_3_title',
@@ -745,7 +754,7 @@ const SimplePostsTemplatePreset = {
       label: 'Related Post 3 URL',
       section: 'Related Posts',
       helper_text: 'Optional link for the third manual related post card.',
-      placeholder: 'https://supgad.com/your-link',
+      placeholder: 'https://example.com/your-link',
     }),
   ],
 

@@ -1,8 +1,9 @@
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const { getUploadsRoot } = require('../config/uploads');
 
-const uploadRoot = path.join(__dirname, '..', 'uploads');
+const uploadRoot = getUploadsRoot();
 
 function ensureDir(dirPath) {
   if (!fs.existsSync(dirPath)) {

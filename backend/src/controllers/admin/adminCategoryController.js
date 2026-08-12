@@ -6,6 +6,7 @@ function sanitizeCategory(row) {
 
   return {
     id: row.id,
+    parent_id: row.parent_id ? Number(row.parent_id) : null,
     name: row.name,
     slug: row.slug,
     icon: row.icon,
@@ -30,7 +31,84 @@ function normalizeNullable(value) {
   return str ? str : null;
 }
 
-async function ensureUniqueCategorySlug(baseSlug, currentCategoryId = null) {
+function normalizeParentId(value) {
+  if (
+    value === undefined ||
+    value === null ||
+    value === '' ||
+    value === 0 ||
+    value === '0'
+  ) {
+    return null;
+  }
+
+  const id = Number(value);
+
+  if (!Number.isInteger(id) || id <= 0) {
+    const error = new Error('Invalid parent category id');
+    error.status = 400;
+    throw error;
+  }
+
+  return id;
+}
+
+async function validateParentCategory(parentId, currentCategoryId = null) {
+  if (!parentId) return null;
+
+  if (currentCategoryId && Number(parentId) === Number(currentCategoryId)) {
+    const error = new Error('A category cannot be its own parent');
+    error.status = 400;
+    throw error;
+  }
+
+  const [rows] = await pool.query(
+    `
+    SELECT id, parent_id
+    FROM categories
+    `
+  );
+
+  const byId = new Map(
+    rows.map((row) => [
+      Number(row.id),
+      {
+        id: Number(row.id),
+        parent_id: row.parent_id ? Number(row.parent_id) : null,
+      },
+    ])
+  );
+
+  if (!byId.has(Number(parentId))) {
+    const error = new Error('Parent category not found');
+    error.status = 400;
+    throw error;
+  }
+
+  let cursor = Number(parentId);
+  const seen = new Set();
+
+  while (cursor) {
+    if (currentCategoryId && cursor === Number(currentCategoryId)) {
+      const error = new Error('A category cannot be moved under one of its descendants');
+      error.status = 400;
+      throw error;
+    }
+
+    if (seen.has(cursor)) {
+      const error = new Error('Category hierarchy contains a cycle');
+      error.status = 400;
+      throw error;
+    }
+
+    seen.add(cursor);
+
+    const row = byId.get(cursor);
+    cursor = row?.parent_id || null;
+  }
+
+  return Number(parentId);
+}async function ensureUniqueCategorySlug(baseSlug, currentCategoryId = null) {
   let candidate = baseSlug;
   let counter = 1;
 
@@ -65,6 +143,7 @@ async function getCategoryById(categoryId) {
     `
     SELECT
       id,
+      parent_id,
       name,
       slug,
       icon,
@@ -88,6 +167,7 @@ async function getAllCategories(req, res) {
       `
       SELECT
         id,
+        parent_id,
         name,
         slug,
         icon,
@@ -96,7 +176,7 @@ async function getAllCategories(req, res) {
         created_at,
         updated_at
       FROM categories
-      ORDER BY sort_order ASC, name ASC, id DESC
+      ORDER BY COALESCE(parent_id, 0) ASC, sort_order ASC, name ASC, id ASC
       `
     );
 
@@ -121,6 +201,7 @@ async function getActiveCategories(req, res) {
       `
       SELECT
         id,
+        parent_id,
         name,
         slug,
         icon,
@@ -130,7 +211,7 @@ async function getActiveCategories(req, res) {
         updated_at
       FROM categories
       WHERE status = 'active'
-      ORDER BY sort_order ASC, name ASC, id DESC
+      ORDER BY COALESCE(parent_id, 0) ASC, sort_order ASC, name ASC, id ASC
       `
     );
 
@@ -186,7 +267,7 @@ async function getSingleCategory(req, res) {
 
 async function createCategory(req, res) {
   try {
-    const { name, slug, icon, status, sort_order } = req.body;
+    const { name, slug, icon, parent_id, status, sort_order } = req.body;
 
     if (!name || !String(name).trim()) {
       return res.status(400).json({
@@ -210,11 +291,14 @@ async function createCategory(req, res) {
     const cleanStatus = ['active', 'inactive'].includes(status) ? status : 'active';
     const cleanSortOrder = Number.isInteger(Number(sort_order)) ? Number(sort_order) : 0;
     const cleanIcon = normalizeNullable(icon);
+    const cleanParentId = normalizeParentId(parent_id);
+    await validateParentCategory(cleanParentId);
 
     const [result] = await pool.query(
       `
       INSERT INTO categories
       (
+        parent_id,
         name,
         slug,
         icon,
@@ -223,9 +307,9 @@ async function createCategory(req, res) {
         created_at,
         updated_at
       )
-      VALUES (?, ?, ?, ?, ?, NOW(), NOW())
+      VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())
       `,
-      [cleanName, uniqueSlug, cleanIcon, cleanStatus, cleanSortOrder]
+      [cleanParentId, cleanName, uniqueSlug, cleanIcon, cleanStatus, cleanSortOrder]
     );
 
     const category = await getCategoryById(result.insertId);
@@ -238,9 +322,9 @@ async function createCategory(req, res) {
   } catch (error) {
     console.error('createCategory error:', error);
 
-    return res.status(500).json({
+    return res.status(error.status || 500).json({
       ok: false,
-      message: 'Failed to create category',
+      message: error.status ? error.message : 'Failed to create category',
       error: error.message,
     });
   }
@@ -266,7 +350,7 @@ async function updateCategory(req, res) {
       });
     }
 
-    const { name, slug, icon, status, sort_order } = req.body;
+    const { name, slug, icon, parent_id, status, sort_order } = req.body;
 
     const cleanName = name !== undefined ? String(name).trim() : existingCategory.name;
 
@@ -300,11 +384,20 @@ async function updateCategory(req, res) {
         ? Number(sort_order)
         : existingCategory.sort_order;
     const cleanIcon = icon !== undefined ? normalizeNullable(icon) : existingCategory.icon;
+    const cleanParentId =
+      parent_id === undefined
+        ? existingCategory.parent_id
+          ? Number(existingCategory.parent_id)
+          : null
+        : normalizeParentId(parent_id);
+
+    await validateParentCategory(cleanParentId, existingCategory.id);
 
     await pool.query(
       `
       UPDATE categories
       SET
+        parent_id = ?,
         name = ?,
         slug = ?,
         icon = ?,
@@ -313,7 +406,7 @@ async function updateCategory(req, res) {
         updated_at = NOW()
       WHERE id = ?
       `,
-      [cleanName, uniqueSlug, cleanIcon, cleanStatus, cleanSortOrder, existingCategory.id]
+      [cleanParentId, cleanName, uniqueSlug, cleanIcon, cleanStatus, cleanSortOrder, existingCategory.id]
     );
 
     const updatedCategory = await getCategoryById(existingCategory.id);
@@ -326,9 +419,9 @@ async function updateCategory(req, res) {
   } catch (error) {
     console.error('updateCategory error:', error);
 
-    return res.status(500).json({
+    return res.status(error.status || 500).json({
       ok: false,
-      message: 'Failed to update category',
+      message: error.status ? error.message : 'Failed to update category',
       error: error.message,
     });
   }

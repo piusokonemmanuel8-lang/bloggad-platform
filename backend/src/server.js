@@ -5,6 +5,10 @@ const pool = require('./config/db');
 const createApp = require('./app');
 const { syncBuiltInBlogTemplates } = require('./utils/syncBuiltInBlogTemplates');
 const { startLeaderboardDailyJob, stopLeaderboardDailyJob } = require('./jobs/leaderboardDailyJob');
+const {
+  startWriterScheduledPostJob,
+  stopWriterScheduledPostJob,
+} = require('./jobs/writerScheduledPostJob');
 
 const app = createApp();
 
@@ -66,6 +70,7 @@ async function startServer() {
       console.log('Affiliate-admin chat base route: /api/affiliate-admin-chats');
 
       startLeaderboardDailyJob();
+      startWriterScheduledPostJob();
     });
   } catch (error) {
     console.error('Failed to start Bloggad backend:', error.message);
@@ -78,6 +83,7 @@ async function shutdown(signal) {
 
   try {
     stopLeaderboardDailyJob();
+    stopWriterScheduledPostJob();
 
     if (server) {
       await new Promise((resolve, reject) => {

@@ -56,12 +56,13 @@ export function validateSupgadUrl(value, options = {}) {
     };
   }
 
+  const protocol = String(parsedUrl.protocol || '').toLowerCase();
   const hostname = String(parsedUrl.hostname || '').toLowerCase();
 
-  if (!isSupgadHost(hostname)) {
+  if (!['http:', 'https:'].includes(protocol) || !hostname) {
     return {
       ok: false,
-      message: `${fieldName} must belong to supgad.com`,
+      message: `${fieldName} must be a valid http or https URL`,
       submitted_link: rawValue,
       detected_host: hostname || null,
     };

@@ -98,6 +98,39 @@ async function getLatestUserPlanLinkPermission(userId) {
   }
 }
 
+async function getOutboundDomainRule(hostname) {
+  const cleanHost = String(hostname || '').trim().toLowerCase().replace(/\.$/, '');
+
+  if (!cleanHost) return null;
+
+  const [rows] = await pool.query(
+    `
+    SELECT
+      id,
+      domain,
+      rule_status,
+      category,
+      reason,
+      applies_to_subdomains,
+      is_active
+    FROM outbound_domain_rules
+    WHERE is_active = 1
+      AND (
+        domain = ?
+        OR (applies_to_subdomains = 1 AND ? LIKE CONCAT('%.', domain))
+      )
+    ORDER BY
+      CASE WHEN domain = ? THEN 0 ELSE 1 END ASC,
+      LENGTH(domain) DESC,
+      id DESC
+    LIMIT 1
+    `,
+    [cleanHost, cleanHost, cleanHost]
+  );
+
+  return rows[0] || null;
+}
+
 async function validateAndLogSupgadUrl({
   value,
   fieldName = 'URL',
@@ -118,15 +151,49 @@ async function validateAndLogSupgadUrl({
           subscription_id: null,
         };
 
-  const externalAllowed = !!permission.allow_external_links;
+  const externalAllowed = true;
+  const blockedDomains = String(process.env.BLOGGAD_BLOCKED_OUTBOUND_DOMAINS || '')
+    .split(',')
+    .map((item) => item.trim().toLowerCase())
+    .filter(Boolean);
 
-  const result = validateSupgadUrl(value, {
+  let result = validateSupgadUrl(value, {
     required,
     allowEmpty,
     fieldName,
     allowExternalLinks: externalAllowed,
-    allowedDomains: externalAllowed ? [] : ['supgad.com'],
+    allowedDomains: [],
+    blockedDomains,
   });
+
+  if (result.ok && result.detected_host) {
+    const domainRule = await getOutboundDomainRule(result.detected_host);
+
+    if (domainRule?.rule_status === 'block') {
+      result = {
+        ...result,
+        ok: false,
+        message: domainRule.reason
+          ? `Destination blocked by Bloggad: ${domainRule.reason}`
+          : 'Destination blocked by Bloggad link policy',
+        domain_rule: domainRule,
+      };
+    } else if (domainRule?.rule_status === 'review') {
+      result = {
+        ...result,
+        ok: false,
+        message: domainRule.reason
+          ? `Destination requires review: ${domainRule.reason}`
+          : 'Destination requires Bloggad review before it can be used',
+        domain_rule: domainRule,
+      };
+    } else if (domainRule) {
+      result = {
+        ...result,
+        domain_rule: domainRule,
+      };
+    }
+  }
 
   await logLinkValidation({
     userId,
@@ -173,6 +240,7 @@ async function validateMultipleSupgadUrls(items = []) {
 
 module.exports = {
   logLinkValidation,
+  getOutboundDomainRule,
   getLatestUserPlanLinkPermission,
   validateAndLogSupgadUrl,
   assertAndLogSupgadUrl,

@@ -1,4 +1,7 @@
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import WriterTopicSelector from '../../components/writer/WriterTopicSelector';
+import WriterPlacementSelector from '../../components/writer/WriterPlacementSelector';
+import SimpleWriterWorkroom, { buildInitialSimpleWriterBlocks } from '../../components/writer/SimpleWriterWorkroom';
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   FileText,
@@ -44,7 +47,7 @@ function countWords(value) {
 function getFieldWordRuleLabel(rule) {
   if (!rule) return '';
   if (rule.mode === 'exact') return `${rule.exact_words} words exact`;
-  return `min ${rule.min_words} words · suggested max ${rule.max_words}`;
+  return `min ${rule.min_words} words - suggested max ${rule.max_words}`;
 }
 
 function validateWordRule(value, rule) {
@@ -85,6 +88,12 @@ function validateWordRule(value, rule) {
         ? `${rule.label} is above suggested max ${maxWords} words`
         : '',
   };
+}
+
+const SIMPLE_WRITER_TEMPLATE_KEY = 'simple_writer_template_v1';
+
+function isSimpleWriterTemplate(template) {
+  return String(template?.template_code_key || '').toLowerCase() === SIMPLE_WRITER_TEMPLATE_KEY;
 }
 
 function buildGenericDefaultFields() {
@@ -300,7 +309,7 @@ function getSpecificitySignals(value, productTitle = '') {
   if (!text) return 0;
 
   if (/\d/.test(text)) score += 1;
-  if (/%|\$|₦|£|€/.test(text)) score += 1;
+  if (/%|\$|\u2026|\u00A3|\u20AC/.test(text)) score += 1;
   if (/\bfor example\b|\bfor instance\b|\bsuch as\b|\bespecially\b/i.test(text)) score += 1;
   if (text.includes(':')) score += 1;
 
@@ -455,7 +464,9 @@ function getLocalFieldReview({ field, totalTextWords, productTitle }) {
 
 export default function AffiliateCreatePostPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
+  const routeRoot = location.pathname.startsWith('/writer') ? '/writer' : '/affiliate';
 
   const presetProductId = searchParams.get('product_id') || '';
   const presetTemplateId = searchParams.get('template_id') || '';
@@ -465,8 +476,12 @@ export default function AffiliateCreatePostPage() {
   const [categories, setCategories] = useState([]);
 
   const [form, setForm] = useState({
+    content_type: presetProductId ? 'product_post' : 'article',
     product_id: presetProductId,
     category_id: '',
+    topic_ids: [],
+    page_ids: [],
+    show_on_storefront: false,
     template_id: presetTemplateId,
     title: '',
     slug: '',
@@ -475,6 +490,7 @@ export default function AffiliateCreatePostPage() {
     seo_description: '',
     featured_image: '',
     status: 'draft',
+    scheduled_at: '',
     template_fields: buildGenericDefaultFields(),
     cta_buttons: buildGenericDefaultButtons(),
   });
@@ -517,6 +533,18 @@ export default function AffiliateCreatePostPage() {
 
     fetchData();
   }, []);
+
+  useEffect(() => {
+    if (presetTemplateId || presetProductId || form.template_id || !templates.length) return;
+
+    const simpleWriterTemplate = templates.find((template) => isSimpleWriterTemplate(template));
+    if (!simpleWriterTemplate?.id) return;
+
+    setForm((prev) => ({
+      ...prev,
+      template_id: String(simpleWriterTemplate.id),
+    }));
+  }, [templates, presetTemplateId, presetProductId, form.template_id]);
 
   const selectedProduct = useMemo(
     () => products.find((item) => String(item.id) === String(form.product_id)),
@@ -582,8 +610,16 @@ export default function AffiliateCreatePostPage() {
     if (!selectedTemplate) return;
 
     const preset = resolveBlogTemplatePreset(selectedTemplate);
+    const simpleWriter = isSimpleWriterTemplate(selectedTemplate);
 
     setForm((prev) => {
+      if (simpleWriter) {
+        return {
+          ...prev,
+          template_fields: buildInitialSimpleWriterBlocks(),
+          cta_buttons: [],
+        };
+      }
       const shouldResetToPreset =
         !prev.template_fields.length ||
         prev.template_fields.every((item) =>
@@ -736,8 +772,8 @@ export default function AffiliateCreatePostPage() {
   };
 
   const validateBeforeSubmit = () => {
-    if (!form.product_id) {
-      throw new Error('Product is required');
+    if (form.content_type === 'product_post' && !form.product_id) {
+      throw new Error('Product Post requires a product');
     }
 
     if (!form.template_id) {
@@ -847,8 +883,12 @@ export default function AffiliateCreatePostPage() {
       validateBeforeSubmit();
 
       const payload = {
-        product_id: Number(form.product_id),
+        content_type: form.content_type,
+        product_id: form.product_id ? Number(form.product_id) : null,
         category_id: form.category_id || null,
+        topic_ids: form.topic_ids,
+      page_ids: form.page_ids || [],
+      show_on_storefront: !!form.show_on_storefront,
         template_id: Number(form.template_id),
         title: form.title,
         slug: form.slug,
@@ -857,6 +897,7 @@ export default function AffiliateCreatePostPage() {
         seo_description: form.seo_description,
         featured_image: form.featured_image,
         status: form.status,
+        scheduled_at: form.scheduled_at || null,
         template_fields: form.template_fields.map((field, idx) => ({
           field_key: field.field_key,
           field_type: field.field_type,
@@ -879,7 +920,7 @@ export default function AffiliateCreatePostPage() {
       if (data?.ok && data?.post?.id) {
         setSuccess('Post created successfully. Redirecting...');
         setTimeout(() => {
-          navigate(`/affiliate/posts/${data.post.id}/edit`);
+          navigate(`${routeRoot}/posts/${data.post.id}/edit`);
         }, 700);
       }
     } catch (err) {
@@ -909,25 +950,29 @@ export default function AffiliateCreatePostPage() {
   return (
     <div className="affiliate-create-post-page">
       <style>{styles}</style>
-
-      <section className="affiliate-create-post-hero">
-        <div className="affiliate-create-post-hero-copy">
-          <div className="affiliate-create-post-badge">Post creator</div>
-          <h1 className="affiliate-create-post-title">Create Post</h1>
-          <p className="affiliate-create-post-subtitle">
-            {activePreset
-              ? 'This template is locked. Replace every Lepresium field, image, and CTA before saving.'
-              : 'Choose a template and fill in the content blocks for this product post.'}
-          </p>
+      <section className="affiliate-create-post-command">
+        <div className="affiliate-create-post-command-left">
+          <strong>Create post</strong>
+          <span className={getStatusClass(form.status)}>{form.status || 'draft'}</span>
         </div>
 
-        <div className="affiliate-create-post-hero-actions">
+        <div className="affiliate-create-post-command-actions">
           <button
             className="affiliate-create-post-btn secondary"
             type="button"
-            onClick={() => navigate('/affiliate/products')}
+            onClick={() => navigate(`${routeRoot}/posts`)}
           >
-            Back to Products
+            Back to Posts
+          </button>
+
+          <button
+            className="affiliate-create-post-btn primary"
+            type="submit"
+            form="affiliate-create-post-form"
+            disabled={saving}
+          >
+            <Save size={15} />
+            {saving ? 'Saving...' : 'Create Post'}
           </button>
         </div>
       </section>
@@ -937,16 +982,38 @@ export default function AffiliateCreatePostPage() {
           <div className="affiliate-create-post-panel-head">
             <div>
               <p className="affiliate-create-post-panel-kicker">Post details</p>
-              <h2 className="affiliate-create-post-panel-title">Create content</h2>
+              <h2 className="affiliate-create-post-panel-title">Post setup</h2>
             </div>
           </div>
 
-          <form className="affiliate-create-post-form" onSubmit={handleSubmit}>
+          <form id="affiliate-create-post-form" className="affiliate-create-post-form" onSubmit={handleSubmit}>
             <div className="affiliate-create-post-form-grid">
               <label className="affiliate-create-post-field">
                 <span className="affiliate-create-post-label">
+                  <FileText size={16} />
+                  Content type
+                </span>
+                <select
+                  className="affiliate-create-post-input"
+                  name="content_type"
+                  value={form.content_type}
+                  onChange={handleChange}
+                >
+                  <option value="article">Article</option>
+                  <option value="story">Story</option>
+                  <option value="tutorial">Tutorial</option>
+                  <option value="course_lesson">Course Lesson</option>
+                  <option value="review">Review</option>
+                  <option value="news">News</option>
+                  <option value="opinion">Opinion</option>
+                  <option value="product_post">Product Post</option>
+                </select>
+              </label>
+
+              <label className="affiliate-create-post-field">
+                <span className="affiliate-create-post-label">
                   <Package size={16} />
-                  Product
+                  Product (optional)
                 </span>
                 <select
                   className="affiliate-create-post-input"
@@ -954,7 +1021,7 @@ export default function AffiliateCreatePostPage() {
                   value={form.product_id}
                   onChange={handleChange}
                 >
-                  <option value="">Select product</option>
+                  <option value="">No product</option>
                   {products.map((product) => (
                     <option key={product.id} value={product.id}>
                       {product.title}
@@ -982,6 +1049,24 @@ export default function AffiliateCreatePostPage() {
                   ))}
                 </select>
               </label>
+
+              <WriterTopicSelector
+                value={form.topic_ids}
+                primaryCategoryId={form.category_id}
+                onChange={(topic_ids) =>
+                  setForm((prev) => ({ ...prev, topic_ids }))
+                }
+                disabled={saving}
+              />
+
+            <WriterPlacementSelector
+              pageIds={form.page_ids || []}
+              showOnStorefront={!!form.show_on_storefront}
+              contentType={form.content_type}
+              onChange={({ page_ids, show_on_storefront }) =>
+                setForm((prev) => ({ ...prev, page_ids, show_on_storefront }))
+              }
+            />
 
               <label className="affiliate-create-post-field">
                 <span className="affiliate-create-post-label">
@@ -1087,6 +1172,17 @@ export default function AffiliateCreatePostPage() {
                 </select>
               </label>
 
+              <label className="affiliate-create-post-field">
+                <span className="affiliate-create-post-label">Schedule release</span>
+                <input
+                  className="affiliate-create-post-input"
+                  type="datetime-local"
+                  name="scheduled_at"
+                  value={form.scheduled_at}
+                  onChange={handleChange}
+                />
+              </label>
+
               <label className="affiliate-create-post-field affiliate-create-post-field-full">
                 <span className="affiliate-create-post-label">SEO description</span>
                 <textarea
@@ -1127,6 +1223,17 @@ export default function AffiliateCreatePostPage() {
                 </div>
               ) : null}
 
+              {isSimpleWriterTemplate(selectedTemplate) ? (
+                <SimpleWriterWorkroom
+                  blocks={form.template_fields}
+                  onChange={(nextBlocks) => {
+                    setQualityReview(null);
+                    setForm((prev) => ({ ...prev, template_fields: nextBlocks }));
+                  }}
+                  uploadImage={uploadImageFile}
+                  disabled={saving}
+                />
+              ) : (
               <div className="affiliate-create-post-stack">
                 {Object.entries(groupedTemplateFields).map(([section, fields]) => (
                   <div key={section} className="affiliate-create-post-section-group">
@@ -1224,7 +1331,7 @@ export default function AffiliateCreatePostPage() {
                                   {field.field_type === 'text' || field.field_type === 'textarea'
                                     ? `${localFieldReviews[field.field_key]?.wordCount || 0} words`
                                     : 'Image field'}
-                                  {wordRule ? ` • ${getFieldWordRuleLabel(wordRule)}` : ''}
+                                  {wordRule ? ` - ${getFieldWordRuleLabel(wordRule)}` : ''}
                                 </div>
                               </div>
 
@@ -1275,9 +1382,13 @@ export default function AffiliateCreatePostPage() {
                   </div>
                 ))}
               </div>
+              )}
             </div>
 
-            <div className="affiliate-create-post-block">
+            <div
+              className="affiliate-create-post-block"
+              style={isSimpleWriterTemplate(selectedTemplate) ? { display: 'none' } : undefined}
+            >
               <div className="affiliate-create-post-block-head">
                 <div>
                   <p className="affiliate-create-post-panel-kicker">CTA buttons</p>
@@ -1357,11 +1468,7 @@ export default function AffiliateCreatePostPage() {
 
                     <div className="affiliate-create-post-field-meta">
                       <div>
-                        {linkPermission.loaded
-                          ? linkPermission.allow_external_links
-                            ? 'Your current premium permission allows external links.'
-                            : 'Your current plan uses Supgad-only link protection.'
-                          : 'Final link permission is checked on save based on your current plan.'}
+                        {'External links are allowed. Bloggad checks and records outbound destinations when you save.'}
                       </div>
                       <div className="affiliate-create-post-required-tag">Required</div>
                     </div>
@@ -1390,7 +1497,7 @@ export default function AffiliateCreatePostPage() {
                 {saving ? 'Saving...' : 'Create Post'}
               </button>
 
-              <Link className="affiliate-create-post-btn secondary" to="/affiliate/posts">
+              <Link className="affiliate-create-post-btn secondary" to={`${routeRoot}/posts`}>
                 View My Posts
               </Link>
             </div>
@@ -1429,7 +1536,7 @@ export default function AffiliateCreatePostPage() {
 
               <div className="affiliate-create-post-summary-row">
                 <span>Mode</span>
-                <strong>{activePreset ? 'Locked template editor' : 'Generic field editor'}</strong>
+                <strong>{isSimpleWriterTemplate(selectedTemplate) ? 'Simple Writer workroom' : activePreset ? 'Locked template editor' : 'Generic field editor'}</strong>
               </div>
 
               <div className="affiliate-create-post-summary-row">
@@ -1451,7 +1558,10 @@ export default function AffiliateCreatePostPage() {
             </div>
           </div>
 
-          <div className="affiliate-create-post-panel">
+          <div
+            className="affiliate-create-post-panel"
+            style={isSimpleWriterTemplate(selectedTemplate) ? { display: 'none' } : undefined}
+          >
             <div className="affiliate-create-post-panel-head">
               <div>
                 <p className="affiliate-create-post-panel-kicker">Live quality</p>
@@ -1465,7 +1575,7 @@ export default function AffiliateCreatePostPage() {
                 {passedLocalFields}/{form.template_fields.length} fields currently passing
               </div>
               <div className="affiliate-create-post-quality-meta">
-                Total text words: {totalTextWords} • Similarity review starts fully from 100 words
+                Total text words: {totalTextWords} - Similarity review starts fully from 100 words
               </div>
             </div>
           </div>
@@ -1474,17 +1584,13 @@ export default function AffiliateCreatePostPage() {
             <div className="affiliate-create-post-panel-head">
               <div>
                 <p className="affiliate-create-post-panel-kicker">Link policy</p>
-                <h2 className="affiliate-create-post-panel-title">Plan permission</h2>
+                <h2 className="affiliate-create-post-panel-title">Outbound links</h2>
               </div>
             </div>
 
             <div className="affiliate-create-post-summary">
               <div className="affiliate-create-post-plan-note">
-                {linkPermission.loaded
-                  ? linkPermission.allow_external_links
-                    ? 'Premium external-link permission is active on your account.'
-                    : 'Default Supgad-only link protection is active on your account.'
-                  : 'Backend checks your live plan on save or publish.'}
+                {'Free and paid Writers can use legitimate external links. Prohibited destinations may be blocked or reviewed.'}
               </div>
             </div>
           </div>
@@ -1556,22 +1662,37 @@ const styles = `
 
   .affiliate-create-post-page {
     width: 100%;
+    color: #111827;
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+
+  .affiliate-create-post-page button,
+  .affiliate-create-post-page input,
+  .affiliate-create-post-page select,
+  .affiliate-create-post-page textarea {
+    font: inherit;
   }
 
   .affiliate-create-post-loading-wrap {
-    min-height: 60vh;
+    min-height: 58vh;
     display: grid;
     place-items: center;
   }
 
   .affiliate-create-post-loading-card {
-    min-width: 260px;
-    background: #ffffff;
+    min-width: 230px;
+    padding: 22px;
     border: 1px solid #e5e7eb;
-    border-radius: 24px;
-    padding: 28px 22px;
+    border-radius: 14px;
+    background: #ffffff;
     text-align: center;
-    box-shadow: 0 18px 45px rgba(15, 23, 42, 0.06);
+  }
+
+  .affiliate-create-post-loading-card p {
+    margin: 10px 0 0;
+    color: #6b7280;
+    font-size: 11px;
+    font-weight: 600;
   }
 
   .affiliate-create-post-spinner,
@@ -1580,12 +1701,12 @@ const styles = `
   }
 
   .affiliate-create-post-spinner {
-    width: 38px;
-    height: 38px;
-    border-radius: 999px;
+    width: 32px;
+    height: 32px;
+    margin: 0 auto;
     border: 3px solid #e5e7eb;
     border-top-color: #111827;
-    margin: 0 auto 12px;
+    border-radius: 999px;
   }
 
   @keyframes affiliateCreatePostSpin {
@@ -1594,678 +1715,855 @@ const styles = `
     }
   }
 
-  .affiliate-create-post-hero {
+  .affiliate-create-post-command {
+    min-height: 60px;
+    margin-bottom: 12px;
+    padding: 10px 16px;
     display: flex;
+    align-items: center;
     justify-content: space-between;
-    align-items: flex-start;
-    gap: 18px;
-    background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+    gap: 12px;
     border: 1px solid #e5e7eb;
-    border-radius: 28px;
-    padding: 24px;
-    box-shadow: 0 18px 45px rgba(15, 23, 42, 0.05);
-    margin-bottom: 20px;
+    border-radius: 14px;
+    background: #ffffff;
   }
 
-  .affiliate-create-post-badge {
-    display: inline-flex;
-    align-items: center;
-    padding: 8px 12px;
-    border-radius: 999px;
-    background: #111827;
-    color: #ffffff;
-    font-size: 12px;
-    font-weight: 800;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-    margin-bottom: 14px;
-  }
-
-  .affiliate-create-post-title {
-    margin: 0;
-    font-size: 30px;
-    line-height: 1.1;
-    font-weight: 900;
-    color: #111827;
-  }
-
-  .affiliate-create-post-subtitle {
-    margin: 12px 0 0;
-    max-width: 760px;
-    color: #6b7280;
-    font-size: 15px;
-    line-height: 1.7;
-  }
-
-  .affiliate-create-post-hero-actions,
-  .affiliate-create-post-actions {
+  .affiliate-create-post-command-left,
+  .affiliate-create-post-command-actions {
     display: flex;
     align-items: center;
-    gap: 12px;
-    flex-wrap: wrap;
-  }
-
-  .affiliate-create-post-btn {
-    height: 46px;
-    padding: 0 16px;
-    border-radius: 14px;
-    border: 1px solid #dbe2ea;
-    background: #ffffff;
-    color: #111827;
-    font-size: 14px;
-    font-weight: 800;
-    text-decoration: none;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
     gap: 8px;
-    cursor: pointer;
-    transition: 0.2s ease;
   }
 
-  .affiliate-create-post-btn.primary {
-    background: #111827;
-    color: #ffffff;
-    border-color: #111827;
+  .affiliate-create-post-command-left {
+    min-width: 0;
   }
 
-  .affiliate-create-post-btn:disabled,
-  .affiliate-create-post-upload-btn:disabled {
-    opacity: 0.7;
-    cursor: not-allowed;
+  .affiliate-create-post-command-left > strong {
+    font-size: 16px;
+    line-height: 1.2;
+    font-weight: 600;
+    letter-spacing: -0.01em;
   }
 
   .affiliate-create-post-grid {
     display: grid;
-    grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.85fr);
-    gap: 20px;
+    grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.65fr);
+    gap: 12px;
+    align-items: start;
   }
 
   .affiliate-create-post-side-stack {
     display: flex;
     flex-direction: column;
-    gap: 20px;
+    gap: 12px;
+    position: sticky;
+    top: 12px;
   }
 
   .affiliate-create-post-panel {
-    background: #ffffff;
+    padding: 16px;
     border: 1px solid #e5e7eb;
-    border-radius: 24px;
-    padding: 22px;
-    box-shadow: 0 16px 35px rgba(15, 23, 42, 0.04);
+    border-radius: 14px;
+    background: #ffffff;
+    box-shadow: none;
   }
 
   .affiliate-create-post-panel-head,
   .affiliate-create-post-block-head {
+    margin-bottom: 12px;
     display: flex;
-    align-items: flex-start;
+    align-items: center;
     justify-content: space-between;
-    gap: 14px;
-    margin-bottom: 18px;
+    gap: 10px;
   }
 
   .affiliate-create-post-panel-kicker {
-    margin: 0 0 6px;
-    font-size: 12px;
-    font-weight: 800;
-    color: #6b7280;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
+    display: none;
   }
 
   .affiliate-create-post-panel-title,
   .affiliate-create-post-block-title {
     margin: 0;
-    font-size: 22px;
-    font-weight: 900;
     color: #111827;
-    line-height: 1.2;
+    font-size: 13px;
+    line-height: 1.25;
+    font-weight: 600;
+    letter-spacing: 0;
   }
 
   .affiliate-create-post-form {
     display: flex;
     flex-direction: column;
-    gap: 18px;
+    gap: 12px;
   }
 
   .affiliate-create-post-form-grid {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 16px;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .affiliate-create-post-form-grid > :nth-child(1),
+  .affiliate-create-post-form-grid > :nth-child(2),
+  .affiliate-create-post-form-grid > :nth-child(3) {
+    grid-column: span 2;
+  }
+
+  .affiliate-create-post-form-grid > :nth-child(4),
+  .affiliate-create-post-form-grid > :nth-child(5),
+  .affiliate-create-post-form-grid > :nth-child(6),
+  .affiliate-create-post-form-grid > :nth-child(7) {
+    grid-column: span 3;
+  }
+
+  .affiliate-create-post-form-grid > :nth-child(8),
+  .affiliate-create-post-form-grid > :nth-child(12),
+  .affiliate-create-post-form-grid > :nth-child(13) {
+    grid-column: span 2;
+  }
+
+  .affiliate-create-post-form-grid > :nth-child(9),
+  .affiliate-create-post-form-grid > :nth-child(10),
+  .affiliate-create-post-form-grid > :nth-child(11),
+  .affiliate-create-post-form-grid > :nth-child(14) {
+    grid-column: span 3;
   }
 
   .affiliate-create-post-form-grid.single {
     grid-template-columns: 1fr;
   }
 
+  .affiliate-create-post-form-grid.single > * {
+    grid-column: auto;
+  }
+
   .affiliate-create-post-field,
   .affiliate-create-post-upload-field {
+    min-width: 0;
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 6px;
   }
 
   .affiliate-create-post-field-full {
-    grid-column: span 2;
+    grid-column: 1 / -1 !important;
   }
 
   .affiliate-create-post-label {
     display: inline-flex;
     align-items: center;
-    gap: 8px;
-    font-size: 13px;
-    font-weight: 800;
-    color: #111827;
+    gap: 6px;
+    color: #6b7280;
+    font-size: 9px;
+    line-height: 1.2;
+    font-weight: 600;
+    letter-spacing: 0.025em;
+    text-transform: uppercase;
+  }
+
+  .affiliate-create-post-label svg {
+    width: 13px;
+    height: 13px;
+    color: #6b7280;
   }
 
   .affiliate-create-post-input {
     width: 100%;
-    min-height: 50px;
-    border-radius: 16px;
-    border: 1px solid #dbe2ea;
+    min-height: 42px;
+    padding: 0 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 10px;
+    outline: 0;
     background: #ffffff;
-    padding: 0 14px;
-    font-size: 14px;
     color: #111827;
-    outline: none;
-    transition: 0.2s ease;
+    font-size: 11px;
+    line-height: 1.4;
+    font-weight: 500;
+    transition: border-color 140ms ease, box-shadow 140ms ease;
+  }
+
+  .affiliate-create-post-input::placeholder {
+    color: #6b7280;
+    opacity: 1;
   }
 
   .affiliate-create-post-input:focus {
     border-color: #111827;
-    box-shadow: 0 0 0 4px rgba(17, 24, 39, 0.06);
+    box-shadow: 0 0 0 2px rgba(17, 24, 39, 0.06);
   }
 
   .affiliate-create-post-textarea {
-    min-height: 110px;
-    padding: 14px;
+    min-height: 78px;
+    padding: 10px 12px;
     resize: vertical;
   }
 
   .affiliate-create-post-upload-row {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
-    gap: 10px;
-    align-items: center;
+    gap: 8px;
+    align-items: end;
   }
 
   .affiliate-create-post-upload-btn {
-    min-height: 50px;
-    padding: 0 16px;
-    border-radius: 14px;
-    border: 1px solid #111827;
-    background: #111827;
-    color: #ffffff;
-    font-size: 14px;
-    font-weight: 800;
+    min-height: 38px;
+    padding: 0 14px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
+    gap: 6px;
+    border: 1px solid #111827;
+    border-radius: 10px;
+    background: #111827;
+    color: #ffffff;
+    font-size: 11px;
+    font-weight: 600;
     cursor: pointer;
+  }
+
+  .affiliate-create-post-upload-btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
   }
 
   .affiliate-create-post-inline-preview {
     width: 100%;
-    padding: 10px;
-    border: 1px solid #edf2f7;
-    border-radius: 16px;
+    padding: 8px;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
     background: #f8fafc;
   }
 
+  .affiliate-create-post-inline-preview img {
+    border-radius: 9px !important;
+  }
+
   .affiliate-create-post-block {
-    background: #f8fafc;
-    border: 1px solid #edf2f7;
-    border-radius: 22px;
-    padding: 18px;
+    width: 100%;
+    min-width: 0;
+    margin-top: 2px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    border: 1px solid #dfe3e8;
+    border-radius: 14px;
+    background: #ffffff;
+  }
+
+  .affiliate-create-post-block + .affiliate-create-post-block {
+    margin-top: 0;
+  }
+
+  .affiliate-create-post-block-head {
+    width: 100%;
+    margin-bottom: 0;
+    padding-bottom: 2px;
+  }
+
+  .affiliate-create-post-block-title {
+    font-size: 15px;
+    line-height: 1.35;
+    font-weight: 650;
   }
 
   .affiliate-create-post-stack {
     display: flex;
     flex-direction: column;
-    gap: 14px;
+    gap: 10px;
   }
 
   .affiliate-create-post-section-group {
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 10px;
   }
 
   .affiliate-create-post-section-title {
-    font-size: 14px;
-    font-weight: 900;
+    padding: 2px 0;
     color: #111827;
-    letter-spacing: 0.02em;
-    padding: 2px 2px 0;
+    font-size: 11px;
+    line-height: 1.3;
+    font-weight: 600;
   }
 
   .affiliate-create-post-card {
-    background: #ffffff;
+    padding: 12px;
     border: 1px solid #e5e7eb;
-    border-radius: 18px;
-    padding: 16px;
+    border-radius: 12px;
+    background: #ffffff;
   }
 
   .affiliate-create-post-card-top {
+    margin-bottom: 10px;
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    margin-bottom: 14px;
+    gap: 8px;
     flex-wrap: wrap;
   }
 
-  .affiliate-create-post-chip {
+  .affiliate-create-post-chip,
+  .affiliate-create-post-lock-note,
+  .affiliate-create-post-score-pill,
+  .affiliate-create-post-review-state,
+  .affiliate-create-post-word-rule,
+  .affiliate-create-post-required-tag,
+  .affiliate-create-post-status {
+    min-height: 25px;
+    padding: 0 9px;
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    min-height: 34px;
-    padding: 0 12px;
+    justify-content: center;
+    gap: 5px;
+    border: 1px solid #e5e7eb;
     border-radius: 999px;
     background: #f8fafc;
-    border: 1px solid #e5e7eb;
-    color: #111827;
-    font-size: 12px;
-    font-weight: 800;
+    color: #6b7280;
+    font-size: 9px;
+    line-height: 1;
+    font-weight: 600;
   }
 
-  .affiliate-create-post-chip.muted {
-    color: #475467;
+  .affiliate-create-post-score-pill {
+    margin-left: auto;
+  }
+
+  .affiliate-create-post-status {
+    text-transform: capitalize;
+  }
+
+  .affiliate-create-post-status.active,
+  .affiliate-create-post-score-pill.good,
+  .affiliate-create-post-review-state.good,
+  .affiliate-create-post-word-rule.valid {
+    border-color: #abefc6;
+    background: #ecfdf3;
+    color: #027a48;
+  }
+
+  .affiliate-create-post-status.draft,
+  .affiliate-create-post-status.neutral {
+    border-color: #e5e7eb;
+    background: #f8fafc;
+    color: #6b7280;
+  }
+
+  .affiliate-create-post-status.inactive,
+  .affiliate-create-post-score-pill.warn,
+  .affiliate-create-post-review-state.warn,
+  .affiliate-create-post-word-rule.invalid {
+    border-color: #fed7aa;
+    background: #fff7ed;
+    color: #b54708;
+  }
+
+  .affiliate-create-post-score-pill.bad,
+  .affiliate-create-post-review-state.bad {
+    border-color: #fecaca;
+    background: #fef2f2;
+    color: #b42318;
+  }
+
+  .affiliate-create-post-preset-note {
+    margin-bottom: 10px;
+    padding: 10px 12px;
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    border: 1px solid #fde68a;
+    border-radius: 10px;
+    background: #fffbeb;
+    color: #92400e;
+    font-size: 10px;
+    line-height: 1.5;
+    font-weight: 600;
+  }
+
+  .affiliate-create-post-field-meta,
+  .affiliate-create-post-review-top {
+    margin-top: 9px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    flex-wrap: wrap;
+    color: #6b7280;
+    font-size: 9px;
+    line-height: 1.45;
+  }
+
+  .affiliate-create-post-review-box {
+    margin-top: 9px;
+    padding: 10px;
+    display: grid;
+    gap: 6px;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
     background: #ffffff;
+  }
+
+  .affiliate-create-post-review-message {
+    color: #111827;
+    font-size: 10px;
+    line-height: 1.45;
+    font-weight: 600;
+  }
+
+  .affiliate-create-post-review-suggestion,
+  .affiliate-create-post-review-meta,
+  .affiliate-create-post-suggested-note {
+    color: #6b7280;
+    font-size: 9px;
+    line-height: 1.45;
+  }
+
+  .affiliate-create-post-review-tag {
+    width: fit-content;
+    padding: 5px 8px;
+    border-radius: 999px;
+    background: #f8fafc;
+    color: #6b7280;
+    font-size: 9px;
+    font-weight: 600;
   }
 
   .affiliate-create-post-check {
+    min-height: 42px;
+    padding: 0 12px;
     display: flex;
     align-items: center;
-    gap: 10px;
-    min-height: 50px;
-    padding: 0 14px;
-    border-radius: 16px;
-    border: 1px solid #dbe2ea;
+    gap: 8px;
+    border: 1px solid #d1d5db;
+    border-radius: 10px;
     background: #ffffff;
-    font-size: 14px;
-    font-weight: 700;
     color: #111827;
+    font-size: 10px;
+    font-weight: 600;
   }
 
   .affiliate-create-post-alert {
+    padding: 11px 12px;
     display: flex;
     align-items: flex-start;
-    gap: 10px;
-    padding: 14px 16px;
-    border-radius: 16px;
-    font-size: 14px;
-    font-weight: 700;
+    gap: 8px;
+    border-radius: 10px;
+    font-size: 11px;
+    line-height: 1.45;
+    font-weight: 600;
   }
 
   .affiliate-create-post-alert.error {
-    background: #fff7ed;
     border: 1px solid #fed7aa;
+    background: #fff7ed;
     color: #9a3412;
   }
 
   .affiliate-create-post-alert.success {
-    background: #ecfdf3;
     border: 1px solid #abefc6;
+    background: #ecfdf3;
     color: #027a48;
+  }
+
+  .affiliate-create-post-actions {
+    padding-top: 2px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .affiliate-create-post-btn {
+    min-height: 38px;
+    padding: 0 14px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    border: 1px solid #d1d5db;
+    border-radius: 10px;
+    background: #ffffff;
+    color: #111827;
+    font-size: 11px;
+    line-height: 1;
+    font-weight: 600;
+    text-decoration: none;
+    cursor: pointer;
+  }
+
+  .affiliate-create-post-btn.primary {
+    border-color: #111827;
+    background: #111827;
+    color: #ffffff;
+  }
+
+  .affiliate-create-post-btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
   }
 
   .affiliate-create-post-summary {
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 2px;
   }
 
   .affiliate-create-post-summary-row {
+    min-height: 32px;
+    padding: 5px 0;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 12px;
-    padding: 14px 16px;
-    background: #f8fafc;
-    border: 1px solid #edf2f7;
-    border-radius: 16px;
+    gap: 10px;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
   }
 
   .affiliate-create-post-summary-row span {
     color: #6b7280;
-    font-weight: 700;
-    font-size: 13px;
+    font-size: 10px;
+    line-height: 1.3;
+    font-weight: 500;
   }
 
   .affiliate-create-post-summary-row strong {
+    max-width: 62%;
     color: #111827;
-    font-weight: 900;
+    font-size: 10px;
+    line-height: 1.35;
+    font-weight: 600;
     text-align: right;
-    word-break: break-word;
-  }
-
-  .affiliate-create-post-status {
-    display: inline-flex;
-    width: fit-content;
-    align-items: center;
-    justify-content: center;
-    min-height: 34px;
-    padding: 0 12px;
-    border-radius: 999px;
-    font-size: 12px;
-    font-weight: 800;
-    text-transform: capitalize;
-    border: 1px solid transparent;
-  }
-
-  .affiliate-create-post-status.active {
-    background: #ecfdf3;
-    color: #027a48;
-    border-color: #abefc6;
-  }
-
-  .affiliate-create-post-status.inactive {
-    background: #fff7ed;
-    color: #b54708;
-    border-color: #fed7aa;
-  }
-
-  .affiliate-create-post-status.draft {
-    background: #f8fafc;
-    color: #475467;
-    border-color: #e4e7ec;
-  }
-
-  .affiliate-create-post-status.neutral {
-    background: #eef2f7;
-    color: #344054;
-    border-color: #dbe2ea;
+    overflow-wrap: anywhere;
   }
 
   .affiliate-create-post-preview-image,
   .affiliate-create-post-preview-empty {
     width: 100%;
-    height: 240px;
-    border-radius: 18px;
-    border: 1px solid #edf2f7;
+    height: 190px;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
     background: #f8fafc;
   }
 
   .affiliate-create-post-preview-image {
-    object-fit: cover;
     display: block;
+    object-fit: cover;
   }
 
   .affiliate-create-post-preview-empty {
     display: grid;
     place-items: center;
+    gap: 6px;
     color: #6b7280;
-    gap: 8px;
+    font-size: 10px;
     text-align: center;
   }
 
-  .affiliate-create-post-lock-note {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    min-height: 36px;
-    padding: 0 12px;
-    border-radius: 999px;
-    border: 1px solid #dbe2ea;
-    background: #ffffff;
-    color: #111827;
-    font-size: 12px;
-    font-weight: 800;
-  }
-
-  .affiliate-create-post-preset-note {
-    display: flex;
-    align-items: flex-start;
-    gap: 10px;
-    padding: 12px 14px;
-    border-radius: 16px;
-    background: #fffbeb;
-    border: 1px solid #fde68a;
-    color: #92400e;
-    font-size: 13px;
-    font-weight: 700;
-    margin-bottom: 14px;
-  }
-
-  .affiliate-create-post-field-meta {
-    display: flex;
-    justify-content: space-between;
-    gap: 14px;
-    flex-wrap: wrap;
-    margin-top: 12px;
-    color: #6b7280;
-    font-size: 12px;
-    line-height: 1.5;
-  }
-
-  .affiliate-create-post-suggested-note {
-    margin-top: 4px;
-    color: #b45309;
-    font-weight: 700;
-  }
-
-  .affiliate-create-post-word-rule {
-    display: inline-flex;
-    align-items: center;
-    gap: 10px;
-    min-height: 30px;
-    padding: 0 10px;
-    border-radius: 999px;
-    font-size: 12px;
-    font-weight: 800;
-    border: 1px solid transparent;
-  }
-
-  .affiliate-create-post-word-rule.valid {
-    background: #ecfdf3;
-    color: #027a48;
-    border-color: #abefc6;
-  }
-
-  .affiliate-create-post-word-rule.invalid {
-    background: #fff7ed;
-    color: #b54708;
-    border-color: #fed7aa;
-  }
-
-  .affiliate-create-post-required-tag {
-    display: inline-flex;
-    align-items: center;
-    min-height: 30px;
-    padding: 0 10px;
-    border-radius: 999px;
-    background: #f8fafc;
-    border: 1px solid #e5e7eb;
-    color: #111827;
-    font-size: 12px;
-    font-weight: 800;
-  }
-
-  .affiliate-create-post-score-pill {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    margin-left: auto;
-    padding: 8px 12px;
-    border-radius: 999px;
-    font-size: 12px;
-    font-weight: 800;
-    white-space: nowrap;
-  }
-
-  .affiliate-create-post-score-pill.good,
-  .affiliate-create-post-review-state.good {
-    background: #ecfdf3;
-    color: #166534;
-  }
-
-  .affiliate-create-post-score-pill.warn,
-  .affiliate-create-post-review-state.warn {
-    background: #fff7e6;
-    color: #9a6700;
-  }
-
-  .affiliate-create-post-score-pill.bad,
-  .affiliate-create-post-review-state.bad {
-    background: #fff1f2;
-    color: #b42318;
-  }
-
-  .affiliate-create-post-review-box {
-    border: 1px solid #e5e7eb;
-    background: #ffffff;
-    border-radius: 18px;
-    padding: 14px;
-    display: grid;
-    gap: 8px;
-  }
-
-  .affiliate-create-post-review-top {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    flex-wrap: wrap;
-  }
-
-  .affiliate-create-post-review-state {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    padding: 6px 10px;
-    border-radius: 999px;
-    font-size: 12px;
-    font-weight: 800;
-  }
-
-  .affiliate-create-post-review-meta {
-    font-size: 12px;
-    font-weight: 700;
-    color: #6b7280;
-  }
-
-  .affiliate-create-post-review-message {
-    font-size: 14px;
-    line-height: 1.6;
-    color: #111827;
-    font-weight: 800;
-  }
-
-  .affiliate-create-post-review-suggestion {
-    font-size: 13px;
-    line-height: 1.6;
-    color: #6b7280;
-  }
-
-  .affiliate-create-post-review-tag {
-    display: inline-flex;
-    align-items: center;
-    width: max-content;
-    padding: 6px 10px;
-    border-radius: 999px;
-    background: #eef2ff;
-    color: #4338ca;
-    font-size: 12px;
-    font-weight: 800;
-  }
-
   .affiliate-create-post-quality-box {
-    border-radius: 24px;
-    padding: 22px;
-    background: linear-gradient(135deg, #111827 0%, #1d4ed8 100%);
-    color: #ffffff;
+    padding: 0;
+    border-radius: 0;
+    background: transparent;
+    color: #111827;
   }
 
   .affiliate-create-post-quality-score {
-    font-size: 52px;
+    margin-bottom: 7px;
+    color: #111827;
+    font-size: 34px;
     line-height: 1;
-    font-weight: 900;
-    margin-bottom: 10px;
+    font-weight: 700;
   }
 
   .affiliate-create-post-quality-text {
-    font-size: 14px;
-    font-weight: 700;
-    color: rgba(255, 255, 255, 0.92);
-    margin-bottom: 8px;
+    margin-bottom: 4px;
+    color: #111827;
+    font-size: 10px;
+    line-height: 1.4;
+    font-weight: 600;
   }
 
   .affiliate-create-post-quality-meta,
   .affiliate-create-post-plan-note,
   .affiliate-create-post-server-warning {
-    font-size: 13px;
-    line-height: 1.7;
-  }
-
-  .affiliate-create-post-quality-meta,
-  .affiliate-create-post-plan-note {
-    color: rgba(255, 255, 255, 0.82);
+    color: #6b7280;
+    font-size: 9px;
+    line-height: 1.5;
   }
 
   .affiliate-create-post-server-warning {
     color: #b42318;
-    font-weight: 800;
-    margin-top: 10px;
+    font-weight: 600;
+  }
+
+  .affiliate-create-post-block > div[style] {
+    width: 100% !important;
+    min-width: 0 !important;
+    gap: 12px !important;
+    align-items: stretch !important;
+  }
+
+  .affiliate-create-post-block > div[style] > * {
+    min-width: 0 !important;
+  }
+
+  .affiliate-create-post-block button:not(.affiliate-create-post-upload-btn) {
+    min-height: 32px !important;
+    padding: 0 11px !important;
+    border: 1px solid #dfe3e8 !important;
+    border-radius: 9px !important;
+    background: #f8fafc !important;
+    color: #475467 !important;
+    font-size: 11px !important;
+    line-height: 1 !important;
+    font-weight: 600 !important;
+    box-shadow: none !important;
+  }
+
+  .affiliate-create-post-block button:not(.affiliate-create-post-upload-btn):hover {
+    border-color: #c8cfd8 !important;
+    background: #f3f4f6 !important;
+    color: #111827 !important;
+  }
+
+  .affiliate-create-post-block input:not([type="file"]),
+  .affiliate-create-post-block textarea {
+    width: 100% !important;
+    min-width: 0 !important;
+    border: 1px solid #cfd5dd !important;
+    border-radius: 10px !important;
+    background: #ffffff !important;
+    color: #111827 !important;
+    font-size: 15px !important;
+    line-height: 1.55 !important;
+    font-weight: 400 !important;
+    box-shadow: none !important;
+  }
+
+  .affiliate-create-post-block input:not([type="file"]) {
+    min-height: 44px !important;
+    padding: 0 12px !important;
+  }
+
+  .affiliate-create-post-block textarea {
+    min-height: 132px !important;
+    padding: 12px 13px !important;
+    resize: vertical !important;
+  }
+
+  .affiliate-create-post-block input:not([type="file"])::placeholder,
+  .affiliate-create-post-block textarea::placeholder {
+    color: #98a2b3 !important;
+    opacity: 1 !important;
+  }
+
+  .affiliate-create-post-block input:not([type="file"]):focus,
+  .affiliate-create-post-block textarea:focus {
+    border-color: #111827 !important;
+    outline: 0 !important;
+    box-shadow: 0 0 0 2px rgba(17, 24, 39, 0.06) !important;
+  }
+
+  .affiliate-create-post-block input[type="file"] {
+    width: 100% !important;
+    min-height: 42px !important;
+    padding: 5px !important;
+    border: 1px solid #d1d5db !important;
+    border-radius: 10px !important;
+    background: #ffffff !important;
+    color: #475467 !important;
+    font-size: 11px !important;
+  }
+
+  .affiliate-create-post-block input[type="file"]::file-selector-button {
+    min-height: 30px;
+    margin-right: 10px;
+    padding: 0 11px;
+    border: 0;
+    border-radius: 7px;
+    background: #111827;
+    color: #ffffff;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .affiliate-create-post-block label,
+  .affiliate-create-post-block .affiliate-create-post-label {
+    font-size: 10px !important;
+    line-height: 1.3 !important;
+  }
+
+  .affiliate-create-post-block img {
+    width: 100%;
+    max-width: 100%;
+    border-radius: 10px !important;
   }
 
   @media (max-width: 1100px) {
     .affiliate-create-post-grid {
       grid-template-columns: 1fr;
     }
-  }
 
-  @media (max-width: 991px) {
-    .affiliate-create-post-hero {
-      flex-direction: column;
-      padding: 20px;
-    }
-
-    .affiliate-create-post-title {
-      font-size: 26px;
-    }
-
-    .affiliate-create-post-panel {
-      padding: 18px;
+    .affiliate-create-post-side-stack {
+      position: static;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
     }
   }
 
   @media (max-width: 767px) {
-    .affiliate-create-post-title {
-      font-size: 22px;
+    .affiliate-create-post-command {
+      min-height: 52px;
+      margin-bottom: 10px;
+      padding: 8px 12px;
+      border-radius: 12px;
     }
 
-    .affiliate-create-post-subtitle {
+    .affiliate-create-post-command-left > strong {
       font-size: 14px;
     }
 
-    .affiliate-create-post-form-grid,
+    .affiliate-create-post-command-left .affiliate-create-post-status {
+      display: none;
+    }
+
+    .affiliate-create-post-command-actions {
+      gap: 6px;
+    }
+
+    .affiliate-create-post-command-actions .affiliate-create-post-btn {
+      min-height: 36px;
+      padding: 0 11px;
+      font-size: 10px;
+    }
+
+    .affiliate-create-post-command-actions .affiliate-create-post-btn svg {
+      display: none;
+    }
+
+    .affiliate-create-post-grid {
+      gap: 10px;
+    }
+
+    .affiliate-create-post-panel {
+      padding: 14px;
+      border-radius: 14px;
+    }
+
+    .affiliate-create-post-form-grid {
+      grid-template-columns: 1fr;
+      gap: 9px;
+    }
+
+    .affiliate-create-post-form-grid > * {
+      grid-column: auto !important;
+    }
+
+    .affiliate-create-post-label {
+      font-size: 8px;
+    }
+
+    .affiliate-create-post-input {
+      min-height: 40px;
+      border-radius: 9px;
+      font-size: 10px;
+    }
+
+    .affiliate-create-post-textarea {
+      min-height: 72px;
+    }
+
     .affiliate-create-post-upload-row {
       grid-template-columns: 1fr;
     }
 
-    .affiliate-create-post-field-full {
-      grid-column: span 1;
+    .affiliate-create-post-upload-btn {
+      width: 100%;
+      min-height: 36px;
+      border-radius: 9px;
+      font-size: 10px;
     }
 
-    .affiliate-create-post-hero-actions,
-    .affiliate-create-post-actions,
-    .affiliate-create-post-block-head {
+    .affiliate-create-post-block {
+      padding: 13px;
+      gap: 10px;
+    }
+
+    .affiliate-create-post-block-title {
+      font-size: 14px;
+    }
+
+    .affiliate-create-post-block input:not([type="file"]),
+    .affiliate-create-post-block textarea {
+      font-size: 14px !important;
+    }
+
+    .affiliate-create-post-block textarea {
+      min-height: 120px !important;
+    }
+
+    .affiliate-create-post-block button:not(.affiliate-create-post-upload-btn) {
+      min-height: 32px !important;
+      font-size: 11px !important;
+    }
+
+    .affiliate-create-post-card {
+      padding: 11px;
+    }
+
+    .affiliate-create-post-side-stack {
+      display: flex;
+    }
+
+    .affiliate-create-post-summary-row {
+      min-height: 30px;
+    }
+
+    .affiliate-create-post-preview-image,
+    .affiliate-create-post-preview-empty {
+      height: 170px;
+    }
+
+    .affiliate-create-post-actions {
       flex-direction: column;
       align-items: stretch;
     }
 
-    .affiliate-create-post-btn,
-    .affiliate-create-post-upload-btn {
+    .affiliate-create-post-actions .affiliate-create-post-btn {
       width: 100%;
+      min-height: 36px;
     }
 
-    .affiliate-create-post-summary-row,
-    .affiliate-create-post-card-top,
-    .affiliate-create-post-field-meta {
-      flex-direction: column;
-      align-items: flex-start;
+    .affiliate-create-post-panel-main .affiliate-create-post-panel-head {
+      margin-bottom: 10px;
+    }
+
+    .affiliate-create-post-block-head {
+      align-items: center;
+      flex-direction: row;
+    }
+  }
+
+  @media (max-width: 420px) {
+    .affiliate-create-post-command {
+      gap: 8px;
+    }
+
+    .affiliate-create-post-command-actions .affiliate-create-post-btn {
+      padding: 0 9px;
+    }
+
+    .affiliate-create-post-panel {
+      padding: 12px;
+    }
+
+    .affiliate-create-post-block {
+      padding: 12px;
+    }
+
+    .affiliate-create-post-block textarea {
+      min-height: 112px !important;
     }
   }
 `;

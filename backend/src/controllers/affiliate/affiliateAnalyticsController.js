@@ -286,6 +286,142 @@ async function getRecentAnalyticsActivity(websiteId) {
   }));
 }
 
+function normalizeTrendDays(value) {
+  const requested = Number(value);
+  return [7, 30, 90].includes(requested) ? requested : 30;
+}
+
+function addUtcDays(dateKey, offset) {
+  const date = new Date(`${dateKey}T00:00:00Z`);
+  date.setUTCDate(date.getUTCDate() + offset);
+  return date.toISOString().slice(0, 10);
+}
+
+function buildTrendComparison(currentPoints, previousPoints, key) {
+  const current = currentPoints.reduce((sum, point) => sum + Number(point?.[key] || 0), 0);
+  const previous = previousPoints.reduce((sum, point) => sum + Number(point?.[key] || 0), 0);
+
+  let changePercent = 0;
+
+  if (previous > 0) {
+    changePercent = ((current - previous) / previous) * 100;
+  } else if (current > 0) {
+    changePercent = 100;
+  }
+
+  return {
+    current,
+    previous,
+    change_percent: Number(changePercent.toFixed(2)),
+    direction: current > previous ? 'up' : current < previous ? 'down' : 'flat',
+  };
+}
+
+async function getTrafficTrend(websiteId, days = 30) {
+  const safeDays = normalizeTrendDays(days);
+  const windowDays = safeDays * 2;
+  const historyDays = windowDays - 1;
+
+  const [[todayRow]] = await pool.query(
+    `SELECT DATE_FORMAT(CURDATE(), '%Y-%m-%d') AS today`
+  );
+
+  const [rows] = await pool.query(
+    `
+    SELECT
+      DATE_FORMAT(DATE(event_time), '%Y-%m-%d') AS day,
+      SUM(CASE WHEN event_type = 'product_view' THEN 1 ELSE 0 END) AS product_views,
+      SUM(CASE WHEN event_type = 'product_click' THEN 1 ELSE 0 END) AS product_clicks,
+      SUM(CASE WHEN event_type = 'post_view' THEN 1 ELSE 0 END) AS post_views,
+      SUM(CASE WHEN event_type = 'slider_click' THEN 1 ELSE 0 END) AS slider_clicks
+    FROM (
+      SELECT created_at AS event_time, 'product_view' AS event_type
+      FROM analytics_product_views
+      WHERE website_id = ?
+        AND created_at >= DATE_SUB(CURDATE(), INTERVAL ${historyDays} DAY)
+
+      UNION ALL
+
+      SELECT created_at AS event_time, 'product_click' AS event_type
+      FROM analytics_product_clicks
+      WHERE website_id = ?
+        AND created_at >= DATE_SUB(CURDATE(), INTERVAL ${historyDays} DAY)
+
+      UNION ALL
+
+      SELECT created_at AS event_time, 'post_view' AS event_type
+      FROM analytics_post_views
+      WHERE website_id = ?
+        AND created_at >= DATE_SUB(CURDATE(), INTERVAL ${historyDays} DAY)
+
+      UNION ALL
+
+      SELECT created_at AS event_time, 'slider_click' AS event_type
+      FROM analytics_slider_clicks
+      WHERE website_id = ?
+        AND created_at >= DATE_SUB(CURDATE(), INTERVAL ${historyDays} DAY)
+    ) analytics_events
+    GROUP BY DATE(event_time)
+    ORDER BY DATE(event_time) ASC
+    `,
+    [websiteId, websiteId, websiteId, websiteId]
+  );
+
+  const byDay = new Map(
+    rows.map((row) => [
+      String(row.day),
+      {
+        product_views: Number(row.product_views || 0),
+        product_clicks: Number(row.product_clicks || 0),
+        post_views: Number(row.post_views || 0),
+        slider_clicks: Number(row.slider_clicks || 0),
+      },
+    ])
+  );
+
+  const today = String(todayRow?.today || new Date().toISOString().slice(0, 10));
+
+  const allPoints = Array.from({ length: windowDays }, (_, index) => {
+    const date = addUtcDays(today, index - (windowDays - 1));
+    const values = byDay.get(date) || {
+      product_views: 0,
+      product_clicks: 0,
+      post_views: 0,
+      slider_clicks: 0,
+    };
+
+    const totalActivity =
+      Number(values.product_views || 0) +
+      Number(values.product_clicks || 0) +
+      Number(values.post_views || 0) +
+      Number(values.slider_clicks || 0);
+
+    return {
+      date,
+      product_views: Number(values.product_views || 0),
+      product_clicks: Number(values.product_clicks || 0),
+      post_views: Number(values.post_views || 0),
+      slider_clicks: Number(values.slider_clicks || 0),
+      total_activity: totalActivity,
+    };
+  });
+
+  const previousPoints = allPoints.slice(0, safeDays);
+  const currentPoints = allPoints.slice(safeDays);
+
+  return {
+    days: safeDays,
+    points: currentPoints,
+    comparison: {
+      total_activity: buildTrendComparison(currentPoints, previousPoints, 'total_activity'),
+      product_views: buildTrendComparison(currentPoints, previousPoints, 'product_views'),
+      product_clicks: buildTrendComparison(currentPoints, previousPoints, 'product_clicks'),
+      post_views: buildTrendComparison(currentPoints, previousPoints, 'post_views'),
+      slider_clicks: buildTrendComparison(currentPoints, previousPoints, 'slider_clicks'),
+    },
+  };
+}
+
 async function getAnalyticsOverview(req, res) {
   try {
     const website = await getAffiliateWebsite(req.user.id);
@@ -302,6 +438,7 @@ async function getAnalyticsOverview(req, res) {
     const top_products = await getTopProducts(website.id);
     const top_posts = await getTopPosts(website.id);
     const recent_activity = await getRecentAnalyticsActivity(website.id);
+    const trend = await getTrafficTrend(website.id, req.query?.days);
 
     return res.status(200).json({
       ok: true,
@@ -317,6 +454,7 @@ async function getAnalyticsOverview(req, res) {
         top_products,
         top_posts,
         recent_activity,
+        trend,
       },
     });
   } catch (error) {

@@ -1,3 +1,4 @@
+import PostVideoEmbed from '../../../../components/writer/PostVideoEmbed';
 import { Link } from 'react-router-dom';
 import { Check, ChevronRight, ShoppingCart, Star } from 'lucide-react';
 import MonetizationAdSlot from '../../../../components/monetization/MonetizationAdSlot';
@@ -1458,6 +1459,8 @@ export default function DxtTemplate({
           }
         }
       `}</style>
+
+      <PostVideoEmbed url={fieldMap.bloggad_video_url} />
 
       <FullWidthSection style={{ background: '#0b7f4b', marginBottom: 30 }}>
         <PageContainer>

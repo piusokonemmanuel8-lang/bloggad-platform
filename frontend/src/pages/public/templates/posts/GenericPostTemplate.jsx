@@ -51,19 +51,198 @@ function renderField(field) {
     );
   }
 
+  if (field.field_type === 'heading' && field.field_value) {
+    return (
+      <h2
+        style={{
+          margin: '12px 0 0',
+          fontSize: 'clamp(1.5rem, 3vw, 2.1rem)',
+          lineHeight: 1.2,
+          color: '#111827',
+        }}
+      >
+        {field.field_value}
+      </h2>
+    );
+  }
+
+  if (field.field_type === 'quote' && field.field_value) {
+    return (
+      <blockquote
+        style={{
+          margin: 0,
+          padding: '16px 20px',
+          borderLeft: '4px solid #cbd5e1',
+          background: '#f8fafc',
+          color: '#334155',
+          fontSize: 18,
+          lineHeight: 1.8,
+          fontStyle: 'italic',
+        }}
+      >
+        {field.field_value}
+      </blockquote>
+    );
+  }
+
+  if (field.field_type === 'divider') {
+    return <hr style={{ border: 0, borderTop: '1px solid #e2e8f0', margin: '8px 0' }} />;
+  }
+
+  if (
+    field.field_type === 'url' &&
+    field.field_value &&
+    String(field.field_key || '').toLowerCase().startsWith('simple_writer_video_')
+  ) {
+    let storedUrl = String(field.field_value || '').trim();
+
+    try {
+      const parsed = JSON.parse(storedUrl);
+      storedUrl = String(parsed?.url || '').trim();
+    } catch (error) {}
+
+    const resolveVideo = (value) => {
+      if (!/^https?:\/\//i.test(value)) return null;
+
+      try {
+        const url = new URL(value);
+        const host = url.hostname.toLowerCase().replace(/^www\./, '');
+
+        if (host === 'youtu.be') {
+          const id = url.pathname.split('/').filter(Boolean)[0] || '';
+          if (/^[A-Za-z0-9_-]{6,}$/.test(id)) {
+            return {
+              kind: 'embed',
+              provider: 'YouTube',
+              src: `https://www.youtube-nocookie.com/embed/${id}`,
+            };
+          }
+        }
+
+        if (
+          host === 'youtube.com' ||
+          host === 'm.youtube.com' ||
+          host === 'youtube-nocookie.com'
+        ) {
+          let id = '';
+
+          if (url.pathname === '/watch') {
+            id = url.searchParams.get('v') || '';
+          } else {
+            const parts = url.pathname.split('/').filter(Boolean);
+            if (['shorts', 'embed'].includes(parts[0])) {
+              id = parts[1] || '';
+            }
+          }
+
+          if (/^[A-Za-z0-9_-]{6,}$/.test(id)) {
+            return {
+              kind: 'embed',
+              provider: 'YouTube',
+              src: `https://www.youtube-nocookie.com/embed/${id}`,
+            };
+          }
+        }
+
+        if (host === 'vimeo.com' || host === 'player.vimeo.com') {
+          const parts = url.pathname.split('/').filter(Boolean);
+          const id = [...parts].reverse().find((part) => /^\d+$/.test(part)) || '';
+
+          if (id) {
+            return {
+              kind: 'embed',
+              provider: 'Vimeo',
+              src: `https://player.vimeo.com/video/${id}`,
+            };
+          }
+        }
+
+        if (/\.(mp4|webm|ogg)$/i.test(url.pathname)) {
+          return {
+            kind: 'file',
+            provider: 'Direct video',
+            src: url.href,
+          };
+        }
+      } catch (error) {}
+
+      return null;
+    };
+
+    const video = resolveVideo(storedUrl);
+    if (!video) return null;
+
+    if (video.kind === 'file') {
+      return (
+        <video
+          src={video.src}
+          controls
+          preload="metadata"
+          style={{
+            display: 'block',
+            width: '100%',
+            maxHeight: 680,
+            borderRadius: 14,
+            background: '#0f172a',
+          }}
+        />
+      );
+    }
+
+    return (
+      <div
+        style={{
+          width: '100%',
+          aspectRatio: '16 / 9',
+          overflow: 'hidden',
+          borderRadius: 14,
+          background: '#0f172a',
+        }}
+      >
+        <iframe
+          src={video.src}
+          title={`${video.provider} video`}
+          loading="lazy"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+          allowFullScreen
+          referrerPolicy="strict-origin-when-cross-origin"
+          style={{
+            display: 'block',
+            width: '100%',
+            height: '100%',
+            border: 0,
+          }}
+        />
+      </div>
+    );
+  }
+
   if (field.field_type === 'url' && field.field_value) {
+    let linkUrl = String(field.field_value || '').trim();
+    let linkLabel = linkUrl;
+
+    try {
+      const parsed = JSON.parse(linkUrl);
+      linkUrl = String(parsed?.url || '').trim();
+      linkLabel = String(parsed?.label || '').trim() || linkUrl;
+    } catch (error) {}
+
+    if (!/^https?:\/\//i.test(linkUrl)) {
+      return linkLabel ? <span>{linkLabel}</span> : null;
+    }
+
     return (
       <a
-        href={field.field_value}
+        href={linkUrl}
         target="_blank"
-        rel="noreferrer"
+        rel="nofollow ugc noopener noreferrer"
         style={{
           color: '#2563eb',
           wordBreak: 'break-word',
           fontWeight: 700,
         }}
       >
-        {field.field_value}
+        {linkLabel}
       </a>
     );
   }
@@ -541,17 +720,21 @@ export default function GenericPostTemplate({
                         borderBottom: '1px solid #eef2f7',
                       }}
                     >
-                      <div
-                        style={{
-                          fontSize: 20,
-                          fontWeight: 900,
-                          color: '#111827',
-                          marginBottom: 12,
-                          textTransform: 'capitalize',
-                        }}
-                      >
-                        {field.field_key}
-                      </div>
+                      {String(
+                        post?.template?.template_code_key || post?.template_code_key || ''
+                      ).toLowerCase() === 'simple_writer_template_v1' ? null : (
+                        <div
+                          style={{
+                            fontSize: 20,
+                            fontWeight: 900,
+                            color: '#111827',
+                            marginBottom: 12,
+                            textTransform: 'capitalize',
+                          }}
+                        >
+                          {field.field_key}
+                        </div>
+                      )}
                       {renderField(field)}
                     </div>
                   ))

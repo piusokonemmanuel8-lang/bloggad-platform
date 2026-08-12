@@ -1,2066 +1,1087 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  Camera,
-  CheckCircle2,
-  ChevronDown,
-  ChevronLeft,
-  ChevronRight,
-  Cpu,
-  Eye,
-  Gamepad2,
-  Globe2,
+  BarChart3,
+  Bell,
+  Bookmark,
+  BookOpen,
+  Gift,
+  Hand,
   Heart,
   Home,
-  Image as ImageIcon,
-  Laptop,
-  Loader2,
+  LayoutGrid,
   Menu,
+  MessageCircle,
+  MoreHorizontal,
+  PenSquare,
+  Plus,
   Search,
   Share2,
-  Smartphone,
   Star,
-  Tv,
+  Tags,
   User,
-  Video,
-  WashingMachine,
-  X,
+  UserPlus,
+  Users
 } from 'lucide-react';
 import api from '../../api/axios';
 import { useAuth } from '../../hooks/useAuth';
-import LocalizedPrice from '../../components/common/LocalizedPrice';
-import CurrencySwitcher from '../../components/common/CurrencySwitcher';
-import LegalFooter from '../../components/common/LegalFooter';
-import '../../components/common/CurrencySwitcher.css';
-import './HomePage.css';
-import './BannerHomeSlider.css';
+import './HomePageFeed.css';
 
-function renderPrice(product) {
-  if (product?.pricing_type === 'simple') {
-    return <LocalizedPrice product={product} />;
+function formatCompact(value) {
+  const number = Number(value || 0);
+  if (!Number.isFinite(number) || number <= 0) return '0';
+  if (number >= 1000000) return `${(number / 1000000).toFixed(number >= 10000000 ? 0 : 1)}M`;
+  if (number >= 1000) return `${(number / 1000).toFixed(number >= 10000 ? 0 : 1)}K`;
+  return String(number);
+}
+
+function relativeDate(value) {
+  if (!value) return '';
+  const date = new Date(value);
+  const diff = Date.now() - date.getTime();
+  if (!Number.isFinite(diff)) return '';
+  const days = Math.max(0, Math.floor(diff / 86400000));
+  if (days === 0) return 'Today';
+  if (days === 1) return '1d ago';
+  return `${days}d ago`;
+}
+
+function postUrl(post) {
+  if (post?.writer_page_slug && post?.slug) {
+    return `/page/${encodeURIComponent(post.writer_page_slug)}/post/${encodeURIComponent(post.slug)}`;
   }
-
-  return (
-    <>
-      <LocalizedPrice amount={product?.min_price || 0} />
-      {' - '}
-      <LocalizedPrice amount={product?.max_price || 0} />
-    </>
-  );
-}
-
-function resolveProductWebsiteSlug(product) {
-  return (
-    product?.website_slug ||
-    product?.website?.slug ||
-    product?.affiliate?.website_slug ||
-    product?.affiliate?.website?.slug ||
-    ''
-  );
-}
-
-function resolveReadMoreUrl(product) {
-  const productSlug = product?.slug || '';
-  const websiteSlug = resolveProductWebsiteSlug(product);
-
-  if (product?.read_more_url) return product.read_more_url;
-  if (websiteSlug && productSlug) return `/${websiteSlug}/product/${productSlug}`;
-  if (product?.slug) return `/product/${product.slug}`;
+  if (post?.website_slug && post?.slug) {
+    return `/${encodeURIComponent(post.website_slug)}/post/${encodeURIComponent(post.slug)}`;
+  }
   return '#';
 }
 
-function resolveBuyNowUrl(product) {
-  return product?.affiliate_buy_url || product?.website_url || '#';
+function writerUrl(post) {
+  if (post?.writer_page_slug) {
+    return `/page/${encodeURIComponent(post.writer_page_slug)}`;
+  }
+  if (post?.website_slug) {
+    return `/${encodeURIComponent(post.website_slug)}`;
+  }
+  return '#';
 }
 
-function resolveVisitWebsiteUrl(product) {
-  return product?.website_url || '#';
+function authRedirect(error) {
+  if (Number(error?.response?.status || 0) === 401) {
+    window.location.assign('/reader/login');
+    return true;
+  }
+  return false;
 }
 
-function resolveTrackingEndpoint(product) {
-  const websiteSlug = resolveProductWebsiteSlug(product);
-  const productSlug = product?.slug || '';
-
-  if (!websiteSlug || !productSlug) return '';
-  return `/api/public/products/${websiteSlug}/product/${productSlug}/click`;
-}
-
-function resolveStoreName(store) {
+function SidebarItem({ to, icon: Icon, label, active = false }) {
   return (
-    store?.name ||
-    store?.website_name ||
-    store?.store_name ||
-    store?.title ||
-    store?.affiliate?.website_name ||
-    store?.affiliate?.name ||
-    ''
-  );
-}
-
-function resolveStoreSlug(store) {
-  return (
-    store?.slug ||
-    store?.website_slug ||
-    store?.store_slug ||
-    store?.affiliate?.website_slug ||
-    store?.affiliate?.website?.slug ||
-    ''
-  );
-}
-
-function resolveStoreUrl(store) {
-  const slug = resolveStoreSlug(store);
-  if (!slug) return '#';
-  return `/${slug}`;
-}
-
-function resolveDashboardUrl(user) {
-  const role = String(user?.role || '').toLowerCase();
-
-  if (role === 'admin') return '/admin/dashboard';
-  if (role === 'affiliate') return '/affiliate/dashboard';
-  if (role === 'customer') return '/customer/dashboard';
-  if (role === 'advertiser') return '/advertiser/dashboard';
-
-  return '/dashboard';
-}
-
-function resolveDisplayName(user) {
-  return user?.name || user?.full_name || user?.email || 'Account';
-}
-
-function formatCompactCount(value) {
-  const number = Number(value || 0);
-
-  if (!Number.isFinite(number) || number <= 0) return '0';
-
-  if (number >= 1000000) {
-    const formatted = number / 1000000;
-    return `${formatted % 1 === 0 ? formatted.toFixed(0) : formatted.toFixed(1)}M`;
-  }
-
-  if (number >= 1000) {
-    const formatted = number / 1000;
-    return `${formatted % 1 === 0 ? formatted.toFixed(0) : formatted.toFixed(1)}K`;
-  }
-
-  return `${number}`;
-}
-
-function resolveVisitCount(product) {
-  return (
-    product?.visit_count ||
-    product?.visits_count ||
-    product?.visited_count ||
-    product?.visitor_count ||
-    product?.website_visits ||
-    product?.total_visits ||
-    product?.view_count ||
-    product?.views_count ||
-    product?.total_views ||
-    product?.click_count ||
-    product?.clicks_count ||
-    product?.total_clicks ||
-    0
-  );
-}
-
-function resolveProductScore(product) {
-  const score = Number(product?.product_score || product?.rating || product?.score || 4.1);
-
-  if (!Number.isFinite(score)) return '4.1';
-
-  const safeScore = Math.min(5, Math.max(1, score));
-  return safeScore.toFixed(1);
-}
-
-function mergeProductVisitStats(product, data) {
-  if (!product || !data) return product;
-
-  return {
-    ...product,
-    visit_count:
-      data.visit_count !== undefined && data.visit_count !== null
-        ? Number(data.visit_count || 0)
-        : product.visit_count,
-    product_score:
-      data.product_score !== undefined && data.product_score !== null
-        ? Number(data.product_score || 4.1)
-        : product.product_score,
-  };
-}
-
-const categoryIconMap = {
-  smartphones: Smartphone,
-  supplement: Smartphone,
-  fashion: Smartphone,
-  'laptops, tablets & pcs': Laptop,
-  'pc components': Cpu,
-  gaming: Gamepad2,
-  appliances: WashingMachine,
-  'tv & audio': Tv,
-  'home & outdoor': Home,
-  cameras: Camera,
-};
-
-function getCategoryIcon(name = '') {
-  const key = String(name).trim().toLowerCase();
-  return categoryIconMap[key] || Smartphone;
-}
-
-function createDummyProduct(seed, index, overrides = {}) {
-  const imagePool = [
-    'https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=1200&q=80',
-    'https://images.unsplash.com/photo-1512436991641-6745cdb1723f?auto=format&fit=crop&w=1200&q=80',
-    'https://images.unsplash.com/photo-1523381210434-271e8be1f52b?auto=format&fit=crop&w=1200&q=80',
-    'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=1200&q=80',
-    'https://images.unsplash.com/photo-1546868871-7041f2a55e12?auto=format&fit=crop&w=1200&q=80',
-    'https://images.unsplash.com/photo-1491553895911-0055eca6402d?auto=format&fit=crop&w=1200&q=80',
-    'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=1200&q=80',
-    'https://images.unsplash.com/photo-1560343090-f0409e92791a?auto=format&fit=crop&w=1200&q=80',
-  ];
-
-  return {
-    id: `dummy-${seed}-${index}`,
-    _renderId: `dummy-${seed}-${index}`,
-    title: `Product ${index + 1}`,
-    short_description: 'Product preview from Bloggad marketplace.',
-    homepage_cta_label: 'Buy Now',
-    storefront_cta_label: 'Read More',
-    affiliate_buy_url: '#',
-    slug: `product-${seed}-${index + 1}`,
-    pricing_type: 'simple',
-    price: 12000 + index * 3500,
-    visit_count: 0,
-    product_score: 4.1,
-    affiliate: {
-      name: 'Bloggad',
-      website_name: 'Bloggad Store',
-      website_slug: 'bloggad-store',
-    },
-    website_slug: 'bloggad-store',
-    product_image: imagePool[index % imagePool.length],
-    ...overrides,
-  };
-}
-
-function ensureProducts(products, needed, seed, titlePrefix = 'Product') {
-  const clean = Array.isArray(products) ? products.filter(Boolean) : [];
-  const list = [];
-
-  if (!clean.length) {
-    return Array.from({ length: needed }, (_, index) =>
-      createDummyProduct(seed, index, { title: `${titlePrefix} ${index + 1}` })
-    );
-  }
-
-  let i = 0;
-
-  while (list.length < needed) {
-    const item = clean[i % clean.length];
-
-    list.push({
-      ...item,
-      title: item?.title || `${titlePrefix} ${list.length + 1}`,
-      _renderId: `${seed}-${item.id || i}-${list.length}`,
-    });
-
-    i += 1;
-  }
-
-  return list;
-}
-
-function buildCategoryTree(categories = []) {
-  if (!Array.isArray(categories) || !categories.length) return [];
-
-  return categories
-    .filter((category) => category && category.name)
-    .map((category) => ({
-      ...category,
-      children:
-        Array.isArray(category.children) && category.children.length
-          ? category.children.filter((child) => child && child.name)
-          : [],
-    }));
-}
-
-function buildFeaturedWebsites(pageData) {
-  const directWebsites = pageData?.featured_websites || pageData?.featuredWebsites || [];
-  const fromDirect = Array.isArray(directWebsites) ? directWebsites : [];
-  const seen = new Set();
-
-  return fromDirect
-    .filter((store) => {
-      const name = resolveStoreName(store);
-      const slug = resolveStoreSlug(store);
-      const key = slug || name;
-
-      if (!key || seen.has(key)) return false;
-
-      seen.add(key);
-      return true;
-    })
-    .slice(0, 10);
-}
-
-function resolveAdTitle(ad) {
-  return ad?.target_title || ad?.campaign_title || 'Featured Product';
-}
-
-function resolveAdImage(ad) {
-  return ad?.display_image || ad?.target_image || ad?.campaign_image_url || ad?.campaign_image || '';
-}
-
-function resolveAdProductUrl(ad) {
-  if (ad?.website_slug && ad?.product_slug) {
-    return `/${ad.website_slug}/product/${ad.product_slug}`;
-  }
-
-  if (ad?.website_slug) {
-    return `/${ad.website_slug}`;
-  }
-
-  return '/products';
-}
-
-function isDirectVideoFile(url = '') {
-  const value = String(url || '').trim().toLowerCase();
-
-  return (
-    value.includes('/uploads/') ||
-    value.includes('.mp4') ||
-    value.includes('.webm') ||
-    value.includes('.ogg') ||
-    value.includes('.mov') ||
-    value.includes('.m4v')
-  );
-}
-
-function getYouTubeVideoId(url = '') {
-  const value = String(url || '').trim();
-
-  if (!value) return '';
-
-  try {
-    const parsed = new URL(value);
-    const host = parsed.hostname.replace(/^www\./, '').toLowerCase();
-
-    if (host === 'youtu.be') {
-      return parsed.pathname.replace('/', '').split('?')[0] || '';
-    }
-
-    if (host === 'youtube.com' || host === 'm.youtube.com') {
-      if (parsed.pathname.startsWith('/watch')) return parsed.searchParams.get('v') || '';
-      if (parsed.pathname.startsWith('/embed/')) return parsed.pathname.split('/embed/')[1]?.split('/')[0] || '';
-      if (parsed.pathname.startsWith('/shorts/')) return parsed.pathname.split('/shorts/')[1]?.split('/')[0] || '';
-    }
-  } catch (err) {
-    return '';
-  }
-
-  return '';
-}
-
-function isVideoGadWatchUrl(url = '') {
-  const value = String(url || '').trim();
-
-  if (!value) return false;
-
-  try {
-    const parsed = new URL(value);
-    const host = parsed.hostname.replace(/^www\./, '').toLowerCase();
-
-    return host === 'videogad.com' && parsed.pathname.startsWith('/watch');
-  } catch (err) {
-    return false;
-  }
-}
-
-function resolveVideoRenderMode(url = '') {
-  const value = String(url || '').trim();
-
-  if (!value) {
-    return {
-      type: 'none',
-      src: '',
-    };
-  }
-
-  if (isDirectVideoFile(value)) {
-    return {
-      type: 'direct',
-      src: value,
-    };
-  }
-
-  const youtubeId = getYouTubeVideoId(value);
-
-  if (youtubeId) {
-    return {
-      type: 'iframe',
-      src: `https://www.youtube.com/embed/${youtubeId}?autoplay=1&mute=1&loop=1&playlist=${youtubeId}&playsinline=1&rel=0&modestbranding=1`,
-    };
-  }
-
-  if (isVideoGadWatchUrl(value)) {
-    return {
-      type: 'iframe',
-      src: value,
-    };
-  }
-
-  return {
-    type: 'iframe',
-    src: value,
-  };
-}
-
-function playBannerVideo(event) {
-  const video = event?.currentTarget;
-
-  if (!video) return;
-
-  video.play().catch(() => {});
-}
-
-function pauseSingleBannerVideo(video, reset = true) {
-  if (!video || video.tagName !== 'VIDEO') return;
-
-  video.pause();
-  video.muted = true;
-  video.defaultMuted = true;
-  video.loop = true;
-
-  if (reset) {
-    try {
-      video.currentTime = 0;
-    } catch (err) {
-      // ignore browser timing error
-    }
-  }
-}
-
-function pauseAllMainBannerVideos(reset = true) {
-  const videos = document.querySelectorAll('.banner-home-slider-video');
-
-  videos.forEach((video) => {
-    pauseSingleBannerVideo(video, reset);
-  });
-}
-
-function FeaturedProductAdsStrip({ ads }) {
-  const safeAds = Array.isArray(ads) ? ads.filter(Boolean).slice(0, 6) : [];
-  const [viewedAds, setViewedAds] = useState({});
-
-  useEffect(() => {
-    if (!safeAds.length) return;
-
-    safeAds.forEach((ad) => {
-      if (!ad?.id || viewedAds[ad.id]) return;
-
-      setViewedAds((prev) => ({
-        ...prev,
-        [ad.id]: true,
-      }));
-
-      api
-        .post(`/api/public/affiliate-ads/${ad.id}/view`, {
-          placement_key: 'homepage_featured_product',
-          page_url: window.location.href,
-          publisher_website_slug: '',
-          publisher_website_id: '',
-          publisher_affiliate_id: '',
-        })
-        .catch(() => {});
-    });
-  }, [safeAds, viewedAds]);
-
-  const handleAdClick = async (event, ad) => {
-    event.preventDefault();
-
-    const targetUrl = resolveAdProductUrl(ad);
-
-    if (ad?.id) {
-      try {
-        await api.post(`/api/public/affiliate-ads/${ad.id}/click`, {
-          placement_key: 'homepage_featured_product',
-          page_url: window.location.href,
-          destination_url: targetUrl,
-          publisher_website_slug: '',
-          publisher_website_id: '',
-          publisher_affiliate_id: '',
-        });
-      } catch (err) {
-        // continue redirect
-      }
-    }
-
-    if (targetUrl && targetUrl !== '#') {
-      window.location.href = targetUrl;
-    }
-  };
-
-  if (!safeAds.length) return null;
-
-  return (
-    <section className="home-product-section featured-product-ad-section">
-      <div className="home-section-title-row">
-        <h2 className="home-section-title">Featured Product</h2>
-
-        <Link to="/products" className="home-section-view-all">
-          View all
-        </Link>
-      </div>
-
-      <div className="home-product-grid-4">
-        {safeAds.map((ad, index) => (
-          <Link
-            key={`${ad.id}-${index}`}
-            to={resolveAdProductUrl(ad)}
-            onClick={(event) => handleAdClick(event, ad)}
-            className="home-product-card featured-product-ad-card"
-          >
-            <span className="featured-product-ad-label">Ads</span>
-
-            <span className="home-product-image-wrap featured-product-ad-image-wrap">
-              <img src={resolveAdImage(ad)} alt={resolveAdTitle(ad)} className="home-product-image" />
-            </span>
-
-            <span className="home-product-content">
-              <span className="home-product-title-button featured-product-ad-title">
-                {resolveAdTitle(ad)}
-              </span>
-
-              <span className="home-product-stats-row">
-                <span className="home-product-rating">
-                  {Array.from({ length: 5 }).map((_, i) => (
-                    <Star key={i} size={11} fill="#ffb300" strokeWidth={1.5} />
-                  ))}
-                  <span>Ad</span>
-                </span>
-
-                <span className="home-product-visit-stat">
-                  <Eye size={12} />
-                  <span>Sponsored</span>
-                </span>
-              </span>
-
-              <span className="home-product-price">{ad?.campaign_title || 'Featured product'}</span>
-
-              <span className="featured-product-ad-description">
-                {ad?.campaign_description || 'Sponsored product from an active advertiser.'}
-              </span>
-            </span>
-          </Link>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function CategoriesButton({ categoryTree, featuredWebsites }) {
-  const [open, setOpen] = useState(false);
-  const [viewedCampaigns, setViewedCampaigns] = useState({});
-  const safeCategories = Array.isArray(categoryTree) ? categoryTree : [];
-  const safeWebsites = Array.isArray(featuredWebsites) ? featuredWebsites : [];
-
-  useEffect(() => {
-    if (!open || !safeWebsites.length) return;
-
-    safeWebsites.forEach((store) => {
-      const campaignId = store?.campaign_id;
-
-      if (!campaignId || viewedCampaigns[campaignId]) return;
-
-      setViewedCampaigns((prev) => ({
-        ...prev,
-        [campaignId]: true,
-      }));
-
-      api
-        .post(`/api/public/affiliate-ads/${campaignId}/view`, {
-          placement_key: 'homepage_featured_website_drawer',
-          page_url: window.location.href,
-          publisher_website_slug: '',
-          publisher_website_id: '',
-          publisher_affiliate_id: '',
-        })
-        .catch(() => {});
-    });
-  }, [open, safeWebsites, viewedCampaigns]);
-
-  const handleFeaturedWebsiteClick = async (event, store) => {
-    event.preventDefault();
-
-    const campaignId = store?.campaign_id;
-    const targetUrl = resolveStoreUrl(store);
-
-    if (campaignId) {
-      try {
-        await api.post(`/api/public/affiliate-ads/${campaignId}/click`, {
-          placement_key: 'homepage_featured_website_drawer',
-          page_url: window.location.href,
-          destination_url: targetUrl,
-          publisher_website_slug: '',
-          publisher_website_id: '',
-          publisher_affiliate_id: '',
-        });
-      } catch (err) {
-        // continue redirect
-      }
-    }
-
-    setOpen(false);
-
-    if (targetUrl && targetUrl !== '#') {
-      window.location.href = targetUrl;
-    }
-  };
-
-  return (
-    <>
-      <div className="desktop-categories-button">
-        <button type="button" onClick={() => setOpen(true)} className="home-categories-btn">
-          <Menu size={22} />
-          All Categories
-        </button>
-      </div>
-
-      <button type="button" className="mobile-categories-pill" onClick={() => setOpen(true)}>
-        <Menu size={18} />
-        Categories
-      </button>
-
-      {open ? (
-        <div className="amazon-category-overlay">
-          <aside className="amazon-category-drawer">
-            <div className="amazon-category-header">
-              <div className="amazon-category-user">
-                <User size={24} />
-                <span>Hello, welcome</span>
-              </div>
-
-              <button type="button" className="amazon-category-close" onClick={() => setOpen(false)}>
-                <X size={28} />
-              </button>
-            </div>
-
-            <div className="amazon-category-scroll">
-              <div className="amazon-category-group">
-                <div className="amazon-category-group-title">Website Categories</div>
-
-                {safeCategories.length ? (
-                  safeCategories.map((category, index) => {
-                    const Icon = getCategoryIcon(category.name);
-
-                    return (
-                      <div key={`${category.name}-${index}`} className="amazon-category-block">
-                        <Link
-                          to={category.slug ? `/category/${category.slug}` : '#'}
-                          className="amazon-category-main"
-                          onClick={() => setOpen(false)}
-                        >
-                          <span className="amazon-category-main-left">
-                            <Icon size={18} />
-                            <span>{category.name}</span>
-                          </span>
-
-                          <ChevronRight size={20} />
-                        </Link>
-
-                        {category.children?.length ? (
-                          <div className="amazon-category-children">
-                            {category.children.slice(0, 10).map((child, childIndex) => (
-                              <Link
-                                key={`${child.name}-${childIndex}`}
-                                to={child.slug ? `/category/${child.slug}` : '#'}
-                                className="amazon-category-child"
-                                onClick={() => setOpen(false)}
-                              >
-                                {child.name}
-                              </Link>
-                            ))}
-                          </div>
-                        ) : null}
-                      </div>
-                    );
-                  })
-                ) : (
-                  <div className="amazon-category-empty">No categories found yet.</div>
-                )}
-              </div>
-
-              <div className="amazon-category-group">
-                <div className="amazon-category-group-title">Featured Website</div>
-
-                {safeWebsites.length ? (
-                  safeWebsites.map((store, index) => (
-                    <Link
-                      key={`${resolveStoreName(store)}-${store?.campaign_id || index}`}
-                      to={resolveStoreUrl(store)}
-                      onClick={(event) => handleFeaturedWebsiteClick(event, store)}
-                      className="amazon-category-main"
-                    >
-                      <span>{resolveStoreName(store)}</span>
-                      <ChevronRight size={20} />
-                    </Link>
-                  ))
-                ) : (
-                  <div className="amazon-category-empty">No featured website found yet.</div>
-                )}
-              </div>
-
-              <div className="amazon-category-group">
-                <div className="amazon-category-group-title">Marketplace Picks</div>
-
-                <Link to="/products" onClick={() => setOpen(false)} className="amazon-category-main">
-                  <span>Bundle deals</span>
-                  <ChevronRight size={20} />
-                </Link>
-
-                <Link to="/products" onClick={() => setOpen(false)} className="amazon-category-main">
-                  <span>SuperDeals</span>
-                  <ChevronRight size={20} />
-                </Link>
-
-                <Link to="/products" onClick={() => setOpen(false)} className="amazon-category-main">
-                  <span>Bloggad Business</span>
-                  <ChevronRight size={20} />
-                </Link>
-              </div>
-
-              <div className="amazon-category-group">
-                <div className="amazon-category-group-title">Currency</div>
-
-                <div className="amazon-category-currency-box">
-                  <CurrencySwitcher />
-                </div>
-              </div>
-
-              <div className="amazon-category-group">
-                <div className="amazon-category-group-title">Account Center</div>
-
-                <Link to="/login" onClick={() => setOpen(false)} className="amazon-category-main">
-                  <span>Sign in</span>
-                </Link>
-
-                <Link to="/register" onClick={() => setOpen(false)} className="amazon-category-main">
-                  <span>Register Affiliate</span>
-                </Link>
-
-                <Link to="/customer/register" onClick={() => setOpen(false)} className="amazon-category-main">
-                  <span>Register Customer</span>
-                </Link>
-              </div>
-            </div>
-          </aside>
-        </div>
-      ) : null}
-    </>
-  );
-}
-
-function AuthLinksPills() {
-  return (
-    <div className="homepage-auth-pills">
-      <Link to="/register" className="home-auth-pill home-auth-pill-red">
-        Register Affiliate
-      </Link>
-
-      <Link to="/login" className="home-auth-pill home-auth-pill-white">
-        Affiliate Login
-      </Link>
-
-      <Link to="/customer/register" className="home-auth-pill home-auth-pill-orange">
-        Register Customer
-      </Link>
-
-      <Link to="/customer/login" className="home-auth-pill home-auth-pill-white">
-        Customer Login
-      </Link>
-    </div>
-  );
-}
-
-function HeaderAccountBox({ user, isAuthenticated, logout }) {
-  if (isAuthenticated && user) {
-    return (
-      <div className="ali-user-link ali-user-logged-box">
-        <User size={28} />
-
-        <span>
-          {resolveDisplayName(user)}
-          <br />
-          <strong>{String(user?.role || 'User')}</strong>
-        </span>
-
-        <div className="ali-user-dropdown-card">
-          <Link to={resolveDashboardUrl(user)} className="ali-user-dropdown-link">
-            Go to Dashboard
-          </Link>
-
-          <button type="button" onClick={logout} className="ali-user-dropdown-logout">
-            Sign out
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <Link to="/login" className="ali-user-link">
-      <User size={28} />
-      <span>
-        Welcome
-        <br />
-        <strong>Sign in / Register</strong>
-      </span>
+    <Link className={`bh-sidebar-item ${active ? 'active' : ''}`} to={to}>
+      <Icon size={21} strokeWidth={1.6} />
+      <span>{label}</span>
     </Link>
   );
 }
 
-function HeaderNav({ categoryTree, featuredWebsites }) {
-  const realNavCategories = Array.isArray(categoryTree)
-    ? categoryTree.filter((category) => category && category.name).slice(0, 8)
-    : [];
-
+function ClapIcon({ size = 17 }) {
   return (
-    <nav className="home-nav-row">
-      <CategoriesButton categoryTree={categoryTree} featuredWebsites={featuredWebsites} />
-
-      {realNavCategories.map((category, index) => (
-        <Link
-          key={`${category.name}-${index}`}
-          to={category.slug ? `/category/${category.slug}` : '#'}
-          className={index === 0 ? 'home-nav-link hot' : 'home-nav-link'}
-        >
-          {category.name}
-        </Link>
-      ))}
-
-      <Link to="/products" className="home-nav-link">
-        Bloggad Business
-      </Link>
-    </nav>
+    <svg
+      aria-hidden="true"
+      className="bh-clap-icon"
+      height={size}
+      viewBox="0 0 24 24"
+      width={size}
+      fill="none"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="1.8"
+    >
+      <path d="M7.4 12.7 4.9 10.2a1.45 1.45 0 0 1 2.05-2.05l2.28 2.28" />
+      <path d="m9.2 10.4-3.05-3.05A1.45 1.45 0 1 1 8.2 5.3l3.05 3.05" />
+      <path d="m11.2 8.4-2.1-2.1a1.45 1.45 0 0 1 2.05-2.05l5.5 5.5" />
+      <path d="m14.1 7.2-.85-.85a1.45 1.45 0 0 1 2.05-2.05l3.5 3.5c2.75 2.75 2.75 7.2 0 9.95l-.4.4c-2.75 2.75-7.2 2.75-9.95 0l-3.6-3.6a1.45 1.45 0 1 1 2.05-2.05l1.85 1.85" />
+      <path d="M3.5 4.7 2.2 3.4M4.2 1.8l.15 1.85M1.6 7.1l1.85.05" />
+      <path d="m19.6 4.1 1.3-1.3M20.1 7l1.8-.55" />
+    </svg>
   );
 }
-
-function MirrorMediaLayer({ isDirectVideo, slide, mainImage, position }) {
-  if (isDirectVideo) {
-    return (
-      <span className={`banner-home-mirror-circle banner-home-mirror-circle-${position}`}>
-        <video
-          key={slide.video_url}
-          className="banner-home-mirror-video"
-          src={slide.video_url}
-          poster={slide.poster_url || slide.image_url || ''}
-          muted
-          autoPlay
-          playsInline
-          loop
-          preload="auto"
-          onCanPlay={playBannerVideo}
-        />
-      </span>
-    );
-  }
-
-  if (mainImage) {
-    return (
-      <span className={`banner-home-mirror-circle banner-home-mirror-circle-${position}`}>
-        <img
-          src={mainImage}
-          alt=""
-          aria-hidden="true"
-          className="banner-home-mirror-image"
-        />
-      </span>
-    );
-  }
-
-  return null;
-}
-
-function MainSlider() {
-  const fallbackSlides = [
-    {
-      id: 'fallback-1',
-      source: 'fallback',
-      media_type: 'image',
-      eyebrow_text: 'Discover curated home collections',
-      title: 'Sectional fabric sofa by Ramón Esteve',
-      subtitle: 'Premium marketplace products selected for modern living.',
-      promo_text: '$3620',
-      cta_label: 'Shop Now',
-      cta_url: '/products',
-      image_url:
-        'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=1600&q=80',
-      poster_url: '',
-      video_url: '',
-      theme_key: 'sofa',
-    },
-  ];
-
-  const activeVideoRef = useRef(null);
-  const [slides, setSlides] = useState(fallbackSlides);
-  const [activeSlide, setActiveSlide] = useState(0);
-  const [trackedViews, setTrackedViews] = useState({});
-  const [soundUnlocked, setSoundUnlocked] = useState(false);
-
-  useEffect(() => {
-    const fetchSlides = async () => {
-      try {
-        const { data } = await api.get('/api/public/banner-home-ads/slides');
-        const realSlides = Array.isArray(data?.slides) ? data.slides.filter(Boolean) : [];
-
-        if (realSlides.length) {
-          pauseAllMainBannerVideos(true);
-          setSoundUnlocked(false);
-          setSlides(realSlides);
-          setActiveSlide(0);
-        }
-      } catch (err) {
-        pauseAllMainBannerVideos(true);
-        setSoundUnlocked(false);
-        setSlides(fallbackSlides);
-      }
-    };
-
-    fetchSlides();
-
-    return () => {
-      pauseAllMainBannerVideos(true);
-    };
-  }, []);
-
-  const slide = slides[activeSlide] || fallbackSlides[0];
-  const mainImage = slide?.image_url || slide?.poster_url || '';
-  const videoMode = slide?.media_type === 'video' ? resolveVideoRenderMode(slide?.video_url) : { type: 'none', src: '' };
-  const isVideo = slide?.media_type === 'video' && !!videoMode.src;
-  const isDirectVideo = isVideo && videoMode.type === 'direct';
-  const isIframeVideo = isVideo && videoMode.type === 'iframe';
-  const animationKey = `${slide?.id || 'slide'}-${activeSlide}`;
-
-  const playActiveVideoMuted = useCallback(() => {
-    const video = activeVideoRef.current;
-
-    if (!video || video.tagName !== 'VIDEO') return;
-
-    if (!soundUnlocked) {
-      video.muted = true;
-      video.defaultMuted = true;
-      video.loop = true;
-    }
-
-    video.play().catch(() => {});
-  }, [soundUnlocked]);
-
-  const goToSlide = useCallback(
-    (nextIndex) => {
-      if (!slides.length) return;
-
-      pauseAllMainBannerVideos(true);
-      setSoundUnlocked(false);
-      setActiveSlide(nextIndex);
-    },
-    [slides.length]
-  );
-
-  const goToNextSlide = useCallback(() => {
-    if (!slides.length) return;
-
-    pauseAllMainBannerVideos(true);
-    setSoundUnlocked(false);
-    setActiveSlide((prev) => (prev + 1) % slides.length);
-  }, [slides.length]);
-
-  const goToPrevSlide = useCallback(() => {
-    if (!slides.length) return;
-
-    pauseAllMainBannerVideos(true);
-    setSoundUnlocked(false);
-    setActiveSlide((prev) => (prev - 1 + slides.length) % slides.length);
-  }, [slides.length]);
-
-  useEffect(() => {
-    if (!slides.length || slides.length <= 1) return undefined;
-
-    if (isDirectVideo && soundUnlocked) {
-      return undefined;
-    }
-
-    const timer = setInterval(() => {
-      pauseAllMainBannerVideos(true);
-      setSoundUnlocked(false);
-      setActiveSlide((prev) => (prev + 1) % slides.length);
-    }, 6000);
-
-    return () => clearInterval(timer);
-  }, [slides.length, isDirectVideo, soundUnlocked]);
-
-  useEffect(() => {
-    if (!isDirectVideo) {
-      activeVideoRef.current = null;
-      return;
-    }
-
-    playActiveVideoMuted();
-  }, [activeSlide, isDirectVideo, playActiveVideoMuted]);
-
-  useEffect(() => {
-    const currentSlide = slides[activeSlide];
-
-    if (!currentSlide?.is_ad || !currentSlide?.campaign_id || trackedViews[currentSlide.campaign_id]) return;
-
-    setTrackedViews((prev) => ({
-      ...prev,
-      [currentSlide.campaign_id]: true,
-    }));
-
-    api
-      .post(`/api/public/banner-home-ads/ads/${currentSlide.campaign_id}/view`, {
-        placement_key: 'homepage_slider',
-        slide_position: activeSlide + 1,
-        page_url: window.location.href,
-      })
-      .catch(() => {});
-  }, [activeSlide, slides, trackedViews]);
-
-  const handleSlideClick = async (event, targetUrl) => {
-    event.preventDefault();
-
-    const finalUrl = targetUrl || slide?.cta_url || '/products';
-
-    if (slide?.is_ad && slide?.campaign_id) {
-      try {
-        await api.post(`/api/public/banner-home-ads/ads/${slide.campaign_id}/click`, {
-          placement_key: 'homepage_slider',
-          slide_position: activeSlide + 1,
-          page_url: window.location.href,
-          destination_url: finalUrl,
-        });
-      } catch (err) {
-        // continue redirect
-      }
-    }
-
-    if (finalUrl && finalUrl !== '#') {
-      window.location.href = finalUrl;
-    }
-  };
-
-  const handleTapForSound = (event) => {
-    event.preventDefault();
-    event.stopPropagation();
-
-    const video = activeVideoRef.current;
-
-    if (!video || video.tagName !== 'VIDEO') return;
-
-    document.querySelectorAll('.banner-home-slider-video').forEach((item) => {
-      if (!item || item === video || item.tagName !== 'VIDEO') return;
-      pauseSingleBannerVideo(item, true);
-    });
-
-    video.muted = false;
-    video.defaultMuted = false;
-    video.volume = 1;
-    video.loop = false;
-    video.play().catch(() => {});
-
-    setSoundUnlocked(true);
-  };
-
-  const handleActiveVideoEnded = () => {
-    setSoundUnlocked(false);
-    pauseAllMainBannerVideos(true);
-
-    if (slides.length > 1) {
-      setActiveSlide((prev) => (prev + 1) % slides.length);
-    }
-  };
-
-  const renderSliderMedia = () => {
-    if (isDirectVideo) {
-      return (
-        <video
-          key={`${videoMode.src}-${activeSlide}`}
-          ref={activeVideoRef}
-          className="banner-home-slider-video"
-          src={videoMode.src}
-          poster={slide.poster_url || slide.image_url || ''}
-          muted={!soundUnlocked}
-          autoPlay
-          playsInline
-          loop={!soundUnlocked}
-          controls
-          preload="auto"
-          onCanPlay={playActiveVideoMuted}
-          onLoadedMetadata={playActiveVideoMuted}
-          onEnded={handleActiveVideoEnded}
-          onClick={handleTapForSound}
-        />
-      );
-    }
-
-    if (isIframeVideo) {
-      return (
-        <iframe
-          className="banner-home-slider-video banner-home-slider-iframe"
-          src={videoMode.src}
-          title={slide?.title || 'Homepage slider video'}
-          allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
-          allowFullScreen
-          loading="lazy"
-        />
-      );
-    }
-
-    if (mainImage) {
-      return (
-        <img
-          src={mainImage}
-          alt={slide?.title || 'Homepage slider'}
-          className="banner-home-slider-main-image"
-        />
-      );
-    }
-
-    return (
-      <span className="banner-home-slider-empty-media">
-        <ImageIcon size={38} />
-      </span>
-    );
-  };
-
-  return (
-    <section className="luxury-hero-slider banner-home-dynamic-slider">
-      <div
-        key={animationKey}
-        className={`luxury-hero-bg luxury-hero-theme-${slide?.theme_key || 'sofa'}`}
-      >
-        {slide?.is_ad ? <span className="banner-home-slider-ad-badge">Ads</span> : null}
-
-        <div className="luxury-hero-left">
-          <div className="luxury-hero-category-badge">
-            <span className="luxury-hero-icon">
-              {isVideo ? <Video size={18} /> : <ImageIcon size={18} />}
-            </span>
-
-            <span className="luxury-hero-badge-copy">
-              <span>{slide?.eyebrow_text || 'Featured marketplace slide'}</span>
-            </span>
-          </div>
-
-          <h1 className="luxury-hero-title">{slide?.title || 'Homepage Slider'}</h1>
-
-          {slide?.subtitle ? <p className="banner-home-slider-subtitle">{slide.subtitle}</p> : null}
-
-          <div className="luxury-hero-price-row">
-            <a
-              href={slide?.cta_url || '/products'}
-              onClick={(event) => handleSlideClick(event, slide?.cta_url || '/products')}
-              className="luxury-hero-shop-btn"
-            >
-              {slide?.cta_label || 'Shop Now'}
-            </a>
-
-            {slide?.secondary_cta_label && slide?.secondary_cta_url ? (
-              <a
-                href={slide.secondary_cta_url}
-                onClick={(event) => handleSlideClick(event, slide.secondary_cta_url)}
-                className="banner-home-slider-secondary-btn"
-              >
-                {slide.secondary_cta_label}
-              </a>
-            ) : null}
-
-            {slide?.promo_text ? <strong>{slide.promo_text}</strong> : null}
-          </div>
-        </div>
-
-        <div className="luxury-hero-image-area">
-          <div className="luxury-hero-shape luxury-hero-shape-left" />
-          <div className="luxury-hero-shape luxury-hero-shape-middle" />
-          <div className="luxury-hero-shape luxury-hero-shape-right" />
-
-          <div
-            className={isIframeVideo ? 'banner-home-slider-media-button has-iframe-video' : 'banner-home-slider-media-button'}
-            role="button"
-            tabIndex={0}
-            onClick={(event) => {
-              if (isIframeVideo || isDirectVideo) return;
-              handleSlideClick(event, slide?.cta_url || '/products');
-            }}
-            onKeyDown={(event) => {
-              if (isIframeVideo || isDirectVideo) return;
-
-              if (event.key === 'Enter') {
-                handleSlideClick(event, slide?.cta_url || '/products');
-              }
-            }}
-          >
-            {renderSliderMedia()}
-
-            {isDirectVideo && !soundUnlocked ? (
-              <button
-                type="button"
-                className="banner-home-sound-unlock-btn"
-                onClick={handleTapForSound}
-              >
-                Tap for Sound
-              </button>
-            ) : null}
-
-            <MirrorMediaLayer isDirectVideo={isDirectVideo} slide={slide} mainImage={mainImage} position="one" />
-            <MirrorMediaLayer isDirectVideo={isDirectVideo} slide={slide} mainImage={mainImage} position="two" />
-          </div>
-
-          <div className="luxury-hero-bubbles">
-            <span />
-            <span />
-            <span />
-            <span />
-            <span />
-          </div>
-        </div>
-
-        <button
-          type="button"
-          className="luxury-hero-arrow luxury-hero-arrow-left"
-          onClick={goToPrevSlide}
-        >
-          <ChevronLeft size={28} />
-        </button>
-
-        <button
-          type="button"
-          className="luxury-hero-arrow luxury-hero-arrow-right"
-          onClick={goToNextSlide}
-        >
-          <ChevronRight size={28} />
-        </button>
-
-        <div className="luxury-hero-dots">
-          {slides.map((item, index) => (
-            <button
-              key={item.id || index}
-              type="button"
-              onClick={() => goToSlide(index)}
-              className={index === activeSlide ? 'active' : ''}
-            />
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function DealShowcaseMiniProduct({ product, badge }) {
-  const numericPrice = Number(product?.price || product?.min_price || 0);
-  const oldPrice = numericPrice ? numericPrice * 2.3 : 0;
-
-  return (
-    <Link to={resolveReadMoreUrl(product)} className="deal-showcase-product-card">
-      <span className="deal-showcase-product-image-wrap">
-        <img src={product?.product_image} alt={product?.title || 'Product'} />
-      </span>
-
-      <span className="deal-showcase-product-title">{product?.title || 'Product'}</span>
-
-      <span className="deal-showcase-price-row">
-        <strong>{renderPrice(product)}</strong>
-        {oldPrice ? (
-          <del>
-            <LocalizedPrice amount={oldPrice} />
-          </del>
-        ) : null}
-      </span>
-
-      {badge ? <span className="deal-showcase-badge">{badge}</span> : null}
-    </Link>
-  );
-}
-
-function DealShowcaseSection({ products }) {
-  const items = ensureProducts(products, 6, 'deal-showcase', 'Deal Product');
-  const bundleProducts = items.slice(0, 3);
-  const superDealProducts = items.slice(3, 6);
-
-  return (
-    <section className="deal-showcase-section">
-      <h2 className="deal-showcase-main-title">Today&apos;s deals</h2>
-
-      <div className="deal-showcase-grid">
-        <div className="deal-showcase-panel">
-          <div className="deal-showcase-panel-head">
-            <h3>Bundle deals</h3>
-
-            <Link to="/products" className="deal-showcase-pill deal-showcase-pill-yellow">
-              <span className="deal-showcase-bag-icon">▣</span>
-              3 from <LocalizedPrice amount={1.99} />
-              <ChevronRight size={20} />
-            </Link>
-          </div>
-
-          <div className="deal-showcase-products">
-            {bundleProducts.map((product, index) => (
-              <DealShowcaseMiniProduct
-                key={product._renderId || product.id || index}
-                product={product}
-                badge="New shoppers only"
-              />
-            ))}
-          </div>
-        </div>
-
-        <div className="deal-showcase-panel">
-          <div className="deal-showcase-panel-head">
-            <h3>SuperDeals</h3>
-
-            <Link to="/products" className="deal-showcase-pill deal-showcase-pill-red">
-              <span className="deal-showcase-clock-icon">●</span>
-              Ends in: 16:23:08
-              <ChevronRight size={20} />
-            </Link>
-          </div>
-
-          <div className="deal-showcase-products">
-            {superDealProducts.map((product, index) => (
-              <DealShowcaseMiniProduct
-                key={product._renderId || product.id || index}
-                product={product}
-                badge={index === 0 ? '-34%' : index === 1 ? '-57%' : '-72%'}
-              />
-            ))}
-          </div>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function WidePromoSection({ products }) {
-  const items = ensureProducts(products, 3, 'wide-promo', 'Promo Product');
-
-  return (
-    <section className="wide-promo-section">
-      {items.map((product, index) => (
-        <div key={product._renderId || product.id || index} className={`wide-promo-card wide-promo-card-${index + 1}`}>
-          <div className="wide-promo-copy">
-            <div className="wide-promo-kicker">{index === 0 ? 'Top review' : index === 1 ? 'Trending' : 'Popular'}</div>
-            <div className="wide-promo-title">{product?.title || 'Featured Product'}</div>
-            <div className="wide-promo-price">{renderPrice(product)}</div>
-
-            <div className="wide-promo-actions">
-              <Link to={resolveReadMoreUrl(product)}>Read More</Link>
-              <a href={resolveBuyNowUrl(product)} target="_blank" rel="noreferrer">
-                Buy Now
-              </a>
-            </div>
-          </div>
-
-          <img src={product?.product_image} alt={product?.title || 'Product'} className="wide-promo-img" />
-        </div>
-      ))}
-    </section>
-  );
-}
-
-function ShopByCategory({ categoryTree, products }) {
-  if (!categoryTree.length) return null;
-
-  return (
-    <section className="shop-category-section">
-      <div className="home-section-title-row">
-        <h2 className="home-section-title">Shop by category</h2>
-        <Link to="/products" className="home-section-view-all">
-          View all
-        </Link>
-      </div>
-
-      <div className="shop-category-grid">
-        {categoryTree.slice(0, 6).map((category, index) => {
-          const Icon = getCategoryIcon(category.name);
-          const previewProduct = products[index % products.length] || createDummyProduct('category', index);
-
-          return (
-            <Link
-              key={`${category.name}-shop-${index}`}
-              to={category.slug ? `/category/${category.slug}` : '#'}
-              className="shop-category-card"
-            >
-              <span className="shop-category-image-wrap">
-                <img src={previewProduct?.product_image} alt={category.name} />
-              </span>
-
-              <span className="shop-category-content">
-                <span className="shop-category-icon">
-                  <Icon size={16} />
-                </span>
-
-                <span className="shop-category-name">{category.name}</span>
-
-                <span className="shop-category-sub">
-                  {(category.children || []).slice(0, 2).map((item) => item.name).join(' • ')}
-                </span>
-              </span>
-            </Link>
-          );
-        })}
-      </div>
-    </section>
-  );
-}
-
-function ProductQuickViewModal({
-  product,
-  isSaved,
-  actionLoading,
-  onClose,
-  onToggleSave,
+function StoryCard({
+  post,
+  stats,
+  saved,
+  loved,
+  applauded,
+  following,
+  hidden,
+  menuOpen,
+  onLike,
+  onApplaud,
+  onComment,
+  onGift,
+  onFollow,
+  onSave,
   onShare,
-  onTrackedAction,
+  onHide,
+  onMore,
 }) {
-  if (!product) return null;
+  if (hidden) return null;
 
-  const safeProductScore = resolveProductScore(product);
-  const visitCount = formatCompactCount(resolveVisitCount(product));
+  const url = postUrl(post);
+  const author = post?.writer_name || post?.website_name || 'Writer';
 
   return (
-    <>
-      <div onClick={onClose} className="home-modal-backdrop" />
+    <article className="bh-story-card">
+      <div className="bh-story-main">
+        <div className="bh-story-author">
+          <Link
+            className="bh-story-author-avatar"
+            to={writerUrl(post)}
+            aria-label={`${author} profile`}
+            title={`${author} profile`}
+          >
+            {post?.writer_avatar_url ? (
+              <img src={post.writer_avatar_url} alt="" />
+            ) : (
+              <span>{String(author || 'W').slice(0, 1).toUpperCase()}</span>
+            )}
+          </Link>
 
-      <div className="home-modal">
-        <div className="home-modal-header">
-          <div className="home-modal-label">Product Quick View</div>
+          <Link className="bh-story-author-name" to={writerUrl(post)}>{author}</Link>
 
-          <button type="button" onClick={onClose} className="home-modal-close">
-            <X size={18} />
+          <button
+            type="button"
+            className={`bh-inline-follow ${following ? 'active' : ''}`}
+            onClick={() => onFollow(post)}
+          >
+            <UserPlus size={12} />
+            <span>{following ? 'Following' : 'Follow'}</span>
           </button>
+
+          <span className="bh-author-dot">-</span>
+          <span>{relativeDate(post?.published_at || post?.created_at)}</span>
         </div>
 
-        <div className="home-quick-view-grid">
-          <div className="home-quick-view-image-side">
-            <div className="home-quick-view-image-card">
-              <img
-                src={product?.product_image || ''}
-                alt={product?.title || 'Product'}
-                className="home-quick-view-image"
-              />
+        <Link className="bh-story-title" to={url}>
+          {post?.title || 'Untitled story'}
+        </Link>
 
-              <div className="home-quick-view-verified">
-                <CheckCircle2 size={14} />
-                Verified
-              </div>
-            </div>
-          </div>
+        {post?.excerpt ? (
+          <p className="bh-story-excerpt">{post.excerpt}</p>
+        ) : null}
 
-          <div className="home-quick-view-content">
-            <div className="home-quick-view-title-row">
-              <div>
-                <div className="home-quick-view-category">{product?.category?.name || 'Marketplace Product'}</div>
-                <h2 className="home-quick-view-title">{product?.title || 'Product'}</h2>
-              </div>
-
-              <div className="home-quick-view-icons">
-                <button
-                  type="button"
-                  onClick={onToggleSave}
-                  className={isSaved ? 'home-modal-icon active' : 'home-modal-icon'}
-                >
-                  <Heart size={18} fill={isSaved ? '#e11d48' : 'none'} />
-                </button>
-
-                <button type="button" onClick={onShare} className="home-modal-icon">
-                  <Share2 size={18} />
-                </button>
-              </div>
-            </div>
-
-            <div className="home-quick-view-stars">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <Star key={i} size={15} fill="#f59e0b" strokeWidth={1.5} />
-              ))}
-              <span>{safeProductScore}</span>
-              <span>{visitCount} Visits</span>
-            </div>
-
-            <div className="home-quick-info-grid">
-              <div className="home-quick-info-card">
-                <div className="home-quick-info-label">Website</div>
-                <div className="home-quick-info-value">{product?.affiliate?.website_name || 'Website'}</div>
-              </div>
-
-              <div className="home-quick-info-card">
-                <div className="home-quick-info-label">Price</div>
-                <div className="home-quick-info-price">{renderPrice(product)}</div>
-              </div>
-            </div>
-
-            <div className="home-quick-description">
-              <div className="home-quick-info-label">Short Description</div>
-              <div className="home-quick-description-text">
-                {product?.short_description || 'No description available.'}
-              </div>
-            </div>
-
+        <div className="bh-story-bottom bh-story-social-bar">
+          <div className="bh-story-stats bh-primary-social">
             <button
               type="button"
-              onClick={() => onTrackedAction('visit_website')}
-              disabled={actionLoading}
-              className="home-quick-visit-btn"
+              className={loved ? 'active' : ''}
+              title="Like"
+              aria-label="Like"
+              onClick={() => onLike(post)}
             >
-              {actionLoading ? 'Please wait...' : 'Visit Website'}
+              <Heart size={17} fill={loved ? 'currentColor' : 'none'} />
+              <span className="bh-action-label">Like</span>
+              <span className="bh-action-count">{formatCompact(stats?.love)}</span>
             </button>
 
-            <div className="home-quick-actions">
+            <button
+              type="button"
+              className={applauded ? 'active' : ''}
+              title="Applaud"
+              aria-label="Applaud"
+              onClick={() => onApplaud(post)}
+            >
+              <ClapIcon size={18} />
+              <span className="bh-action-label">Applaud</span>
+              <span className="bh-action-count">{formatCompact(stats?.applaud)}</span>
+            </button>
+
+            <button
+              type="button"
+              title="Comment"
+              aria-label="Comment"
+              onClick={() => onComment(post)}
+            >
+              <MessageCircle size={17} />
+              <span className="bh-action-label">Comment</span>
+              <span className="bh-action-count">{formatCompact(stats?.comments)}</span>
+            </button>
+
+            <button
+              type="button"
+              className="bh-gift-action"
+              title="Gift this Writer"
+              aria-label="Gift this Writer"
+              onClick={() => onGift(post)}
+            >
+              <Gift size={17} />
+              <span className="bh-action-label">Gift</span>
+            </button>
+          </div>
+
+          <div className="bh-story-actions bh-secondary-social">
+            <button
+              type="button"
+              title="Share"
+              aria-label="Share"
+              onClick={() => onShare(post)}
+            >
+              <Share2 size={18} />
+            </button>
+
+            <button
+              type="button"
+              className={saved ? 'active' : ''}
+              title={saved ? 'Saved' : 'Save'}
+              aria-label={saved ? 'Saved' : 'Save'}
+              onClick={() => onSave(post)}
+            >
+              <Bookmark size={18} fill={saved ? 'currentColor' : 'none'} />
+            </button>
+
+            <div className="bh-more-wrap">
               <button
                 type="button"
-                onClick={() => onTrackedAction('read_more')}
-                disabled={actionLoading}
-                className="home-quick-read-btn"
+                title="More"
+                aria-label="More"
+                onClick={() => onMore(post)}
               >
-                {actionLoading ? 'Please wait...' : product?.storefront_cta_label || 'Read More'}
+                <MoreHorizontal size={20} />
               </button>
 
-              <button
-                type="button"
-                onClick={() => onTrackedAction('buy_now')}
-                disabled={actionLoading}
-                className="home-quick-buy-btn"
-              >
-                {actionLoading ? 'Please wait...' : product?.homepage_cta_label || 'Buy Now'}
-              </button>
+              {menuOpen ? (
+                <div className="bh-story-menu">
+                  <button type="button" onClick={() => onHide(post)}>
+                    Show less like this
+                  </button>
+                  <Link to={url}>Open story</Link>
+                </div>
+              ) : null}
             </div>
           </div>
         </div>
       </div>
-    </>
+
+      {post?.featured_image ? (
+        <Link className="bh-story-thumb" to={url}>
+          <img src={post.featured_image} alt="" />
+        </Link>
+      ) : (
+        <Link className="bh-story-thumb bh-story-thumb-empty" to={url} aria-label={post?.title || 'Story'} />
+      )}
+    </article>
+  );
+}
+function StaffPick({ post }) {
+  return (
+    <Link className="bh-staff-pick" to={postUrl(post)}>
+      <span className="bh-staff-author">{post?.writer_name || post?.website_name || 'Writer'}</span>
+      <strong>{post?.title || 'Story'}</strong>
+      <span className="bh-staff-date">? &nbsp; {relativeDate(post?.published_at || post?.created_at)}</span>
+    </Link>
   );
 }
 
-function ProductCard({ product, onQuickView, onTrackedAction }) {
-  const readMoreUrl = resolveReadMoreUrl(product);
-  const buyNowUrl = resolveBuyNowUrl(product);
-  const safeProductScore = resolveProductScore(product);
-  const visitCount = formatCompactCount(resolveVisitCount(product));
-
+function WriterRow({ writer, following, onFollow }) {
   return (
-    <div className="home-product-card">
-      <button
-        type="button"
-        onClick={() => onQuickView(product)}
-        className="home-product-save-btn"
-        aria-label="Quick view product"
-      >
-        <Heart size={13} />
-      </button>
+    <div className="bh-writer-row">
+      <Link className="bh-writer-avatar" to={writer.url}>
+        {String(writer.name || 'W').slice(0, 1).toUpperCase()}
+      </Link>
 
-      <button type="button" onClick={() => onQuickView(product)} className="home-product-image-button">
-        <span className="home-product-image-wrap">
-          <img src={product?.product_image} alt={product?.title || 'Product'} className="home-product-image" />
-        </span>
-      </button>
-
-      <div className="home-product-content">
-        <button type="button" onClick={() => onQuickView(product)} className="home-product-title-button">
-          {product?.title || 'Product'}
-        </button>
-
-        <div className="home-product-stats-row">
-          <div className="home-product-rating">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <Star key={i} size={11} fill="#ffb300" strokeWidth={1.5} />
-            ))}
-            <span>{safeProductScore}</span>
-          </div>
-
-          <div className="home-product-visit-stat" title="Visit count">
-            <Eye size={12} />
-            <span>Visits</span>
-            <strong>{visitCount}</strong>
-          </div>
-        </div>
-
-        <div className="home-product-price">{renderPrice(product)}</div>
-
-        <div className="home-product-actions">
-          <button
-            type="button"
-            onClick={() => onTrackedAction(product, 'read_more', readMoreUrl)}
-            className="home-product-action-btn home-product-learn-btn"
-          >
-            {product?.storefront_cta_label || 'Read More'}
-          </button>
-
-          <button
-            type="button"
-            onClick={() => onTrackedAction(product, 'buy_now', buyNowUrl)}
-            className="home-product-action-btn home-product-buy-btn"
-          >
-            {product?.homepage_cta_label || 'Buy Now'}
-          </button>
-        </div>
+      <div className="bh-writer-copy">
+        <Link to={writer.url}>{writer.name}</Link>
+        <span>{writer.topic || 'Writer on Bloggad'}</span>
       </div>
+
+      <button type="button" onClick={() => onFollow(writer)} className={following ? 'active' : ''}>
+        {following ? 'Following' : 'Follow'}
+      </button>
     </div>
-  );
-}
-
-function MoreLovePromoBanners() {
-  return (
-    <section className="more-love-promo-banners">
-      <Link to="/products" className="more-love-promo-card">
-        <img
-          src="https://images.unsplash.com/photo-1622979135225-d2ba269cf1ac?auto=format&fit=crop&w=1200&q=80"
-          alt="Mega discount product"
-          className="more-love-promo-image"
-        />
-
-        <span className="more-love-promo-overlay" />
-
-        <span className="more-love-promo-content">
-          <span className="more-love-promo-kicker">Mega Discount</span>
-          <span className="more-love-promo-title">Trending Smart Picks For The Season</span>
-          <span className="more-love-promo-btn">Shop Now</span>
-        </span>
-      </Link>
-
-      <Link to="/products" className="more-love-promo-card">
-        <img
-          src="https://images.unsplash.com/photo-1585659722983-3a675dabf23d?auto=format&fit=crop&w=1200&q=80"
-          alt="Weekend sale product"
-          className="more-love-promo-image"
-        />
-
-        <span className="more-love-promo-overlay" />
-
-        <span className="more-love-promo-content">
-          <span className="more-love-promo-kicker">Weekend Sale</span>
-          <span className="more-love-promo-title">Best Seller Deals For Homes</span>
-          <span className="more-love-promo-btn">Shop Now</span>
-        </span>
-      </Link>
-    </section>
-  );
-}
-
-function FeaturedCategoriesCircleSection({ categoryTree }) {
-  const realCategories = Array.isArray(categoryTree)
-    ? categoryTree.filter((category) => category && category.name).slice(0, 10)
-    : [];
-
-  const imagePool = [
-    'https://images.unsplash.com/photo-1503602642458-232111445657?auto=format&fit=crop&w=700&q=80',
-    'https://images.unsplash.com/photo-1533090481720-856c6e3c1fdc?auto=format&fit=crop&w=700&q=80',
-    'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=700&q=80',
-    'https://images.unsplash.com/photo-1567016432779-094069958ea5?auto=format&fit=crop&w=700&q=80',
-    'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=700&q=80',
-    'https://images.unsplash.com/photo-1556228720-195a672e8a03?auto=format&fit=crop&w=700&q=80',
-    'https://images.unsplash.com/photo-1583847268964-b28dc8f51f92?auto=format&fit=crop&w=700&q=80',
-    'https://images.unsplash.com/photo-1524484485831-a92ffc0de03f?auto=format&fit=crop&w=700&q=80',
-    'https://images.unsplash.com/photo-1566576912321-d58ddd7a6088?auto=format&fit=crop&w=700&q=80',
-    'https://images.unsplash.com/photo-1513519245088-0e12902e5a38?auto=format&fit=crop&w=700&q=80',
-  ];
-
-  if (!realCategories.length) return null;
-
-  return (
-    <section className="featured-circle-section">
-      <div className="featured-circle-head">
-        <h2>Featured Categories</h2>
-        <p>Lots of fresh products and product collections</p>
-      </div>
-
-      <div className="featured-circle-grid">
-        {realCategories.map((category, index) => (
-          <Link
-            key={`${category.name}-${index}`}
-            to={category.slug ? `/category/${category.slug}` : '/products'}
-            className="featured-circle-card"
-          >
-            <span className="featured-circle-image-wrap">
-              <img src={imagePool[index % imagePool.length]} alt={category.name} />
-            </span>
-
-            <span className="featured-circle-label">{category.name}</span>
-          </Link>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function ProductGridSection({ title, products, onQuickView, onTrackedAction, categoryTree }) {
-  const firstTwoRows = products.slice(0, 12);
-  const nextRowAfterPromo = products.slice(12, 18);
-  const remainingProducts = products.slice(18);
-
-  return (
-    <section className="home-product-section">
-      <div className="more-love-title-wrap">
-        <h2>{title}</h2>
-      </div>
-
-      <div className="home-product-grid-4">
-        {firstTwoRows.map((product, index) => (
-          <ProductCard
-            key={product._renderId || product.id || index}
-            product={product}
-            onQuickView={onQuickView}
-            onTrackedAction={onTrackedAction}
-          />
-        ))}
-      </div>
-
-      <MoreLovePromoBanners />
-
-      <div className="home-product-grid-4">
-        {nextRowAfterPromo.map((product, index) => (
-          <ProductCard
-            key={product._renderId || product.id || `more-love-after-promo-row-${index}`}
-            product={product}
-            onQuickView={onQuickView}
-            onTrackedAction={onTrackedAction}
-          />
-        ))}
-      </div>
-
-      <FeaturedCategoriesCircleSection categoryTree={categoryTree} />
-
-      <div className="home-product-grid-4">
-        {remainingProducts.map((product, index) => (
-          <ProductCard
-            key={product._renderId || product.id || `more-love-after-featured-categories-${index}`}
-            product={product}
-            onQuickView={onQuickView}
-            onTrackedAction={onTrackedAction}
-          />
-        ))}
-      </div>
-    </section>
   );
 }
 
 export default function HomePage() {
-  const { user, isAuthenticated, logout } = useAuth();
+  const { user, isAuthenticated } = useAuth();
 
   const [pageData, setPageData] = useState(null);
-  const [featuredProductAds, setFeaturedProductAds] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [quickViewProduct, setQuickViewProduct] = useState(null);
-  const [savedProducts, setSavedProducts] = useState({});
-  const [actionLoading, setActionLoading] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [activeTab, setActiveTab] = useState('for-you');
+  const [search, setSearch] = useState('');
+  const [visibleCount, setVisibleCount] = useState(10);
+  const [personalizedPosts, setPersonalizedPosts] = useState(null);
+  const [postStats, setPostStats] = useState({});
+  const [savedPosts, setSavedPosts] = useState({});
+  const [following, setFollowing] = useState({});
+  const [postReactionActive, setPostReactionActive] = useState({});
+  const [hiddenPosts, setHiddenPosts] = useState({});
+  const [openStoryMenuId, setOpenStoryMenuId] = useState(null);
+  const [giftPost, setGiftPost] = useState(null);
+  const [giftWallet, setGiftWallet] = useState(null);
+  const [giftAmount, setGiftAmount] = useState('');
+  const [giftBusy, setGiftBusy] = useState('');
+  const [giftError, setGiftError] = useState('');
+  const [giftNotice, setGiftNotice] = useState('');
+  const giftRequestKeyRef = useRef('');
+  const loaderRef = useRef(null);
 
   useEffect(() => {
-    const fetchHome = async () => {
-      try {
-        setLoading(true);
-        setError('');
-        const { data } = await api.get('/api/public/home');
+    let active = true;
+
+    api.get('/api/public/home')
+      .then(({ data }) => {
+        if (!active) return;
         setPageData(data || null);
-      } catch (err) {
-        setError(err?.response?.data?.message || 'Failed to load homepage');
-      } finally {
-        setLoading(false);
-      }
-    };
+        setError('');
+      })
+      .catch((loadError) => {
+        if (!active) return;
+        setError(loadError?.response?.data?.message || 'Failed to load homepage.');
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
 
-    fetchHome();
+    return () => {
+      active = false;
+    };
   }, []);
+
+    useEffect(() => {
+    if (!isAuthenticated) {
+      setPersonalizedPosts(null);
+      return undefined;
+    }
+
+    let active = true;
+
+    async function loadPersonalizedHomeFeed() {
+      try {
+        const { data } = await api.get('/api/reader/reading/feed');
+
+        if (!active) return;
+
+        const feed = Array.isArray(data?.feed)
+          ? data.feed.filter(Boolean)
+          : Array.isArray(data?.posts)
+            ? data.posts.filter(Boolean)
+            : [];
+
+        setPersonalizedPosts(feed.length ? feed : null);
+      } catch {
+        if (active) {
+          setPersonalizedPosts(null);
+        }
+      }
+    }
+
+    loadPersonalizedHomeFeed();
+
+    return () => {
+      active = false;
+    };
+  }, [isAuthenticated]);
+const allPosts = useMemo(() => {
+    const source = Array.isArray(personalizedPosts)
+      ? personalizedPosts
+      : Array.isArray(pageData?.posts)
+        ? pageData.posts
+        : [];
+
+    return source.filter(Boolean);
+  }, [pageData, personalizedPosts]);
+
+  const categories = useMemo(
+    () => (Array.isArray(pageData?.categories) ? pageData.categories.filter(Boolean) : []),
+    [pageData]
+  );
+
+  const filteredPosts = useMemo(() => {
+    const query = search.trim().toLowerCase();
+
+    let list = activeTab === 'featured'
+      ? allPosts.filter((post) => post?.featured_image)
+      : allPosts;
+
+    if (query) {
+      list = list.filter((post) => {
+        const haystack = [
+          post?.title,
+          post?.excerpt,
+          post?.writer_name,
+          post?.website_name,
+          post?.content_type,
+        ]
+          .filter(Boolean)
+          .join(' ')
+          .toLowerCase();
+
+        return haystack.includes(query);
+      });
+    }
+
+    return list;
+  }, [activeTab, allPosts, search]);
+
+  const visiblePosts = filteredPosts.slice(0, visibleCount);
 
   useEffect(() => {
-    const fetchFeaturedProductAds = async () => {
-      try {
-        const { data } = await api.get('/api/public/affiliate-ads', {
-          params: {
-            ad_type: 'product',
-            placement_key: 'homepage_featured_product',
-            limit: 6,
-          },
+    const ids = visiblePosts
+      .map((post) => Number(post?.id || 0))
+      .filter((id) => id > 0 && !postStats[id]);
+
+    if (!ids.length) return;
+
+    let active = true;
+
+    Promise.all(
+      ids.map((id) =>
+        api
+          .get(`/api/public/social/posts/${id}`)
+          .then(({ data }) => ({ id, data }))
+          .catch(() => ({ id, data: null }))
+      )
+    ).then((results) => {
+      if (!active) return;
+
+      setPostStats((current) => {
+        const next = { ...current };
+
+        results.forEach(({ id, data }) => {
+          next[id] = {
+            love: Number(data?.counts?.love || 0),
+            applaud: Number(data?.counts?.applaud || 0),
+            comments: Number(data?.counts?.comments || 0),
+          };
         });
 
-        setFeaturedProductAds(Array.isArray(data?.ads) ? data.ads : []);
-      } catch (err) {
-        setFeaturedProductAds([]);
-      }
+        return next;
+      });
+    });
+
+    return () => {
+      active = false;
     };
+  }, [visiblePosts, postStats]);
 
-    fetchFeaturedProductAds();
-  }, []);
+  useEffect(() => {
+    if (!loaderRef.current || visibleCount >= filteredPosts.length) return;
 
-  const categories = pageData?.categories || [];
-  const categoryTree = useMemo(() => buildCategoryTree(categories), [categories]);
-  const products = pageData?.products || [];
-  const featuredWebsites = useMemo(() => buildFeaturedWebsites(pageData), [pageData]);
+    const target = loaderRef.current;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) {
+          setVisibleCount((count) => Math.min(count + 8, filteredPosts.length));
+        }
+      },
+      { rootMargin: '240px 0px' }
+    );
 
-  const promoProducts = useMemo(() => ensureProducts(products, 8, 'promo', 'Promo Product'), [products]);
-  const todayDeals = useMemo(() => ensureProducts(products, 6, 'today', 'Today Deal'), [products]);
-  const categoryProducts = useMemo(() => ensureProducts(products, 8, 'category', 'Category Product'), [products]);
-  const moreToLoveProducts = useMemo(() => ensureProducts(products, 96, 'more-love', 'More Product'), [products]);
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [filteredPosts.length, visibleCount]);
 
-  const updateProductStats = useCallback((product, data) => {
-    if (!product?.id || !data) return;
+  useEffect(() => {
+    setVisibleCount(10);
+  }, [activeTab, search]);
 
-    setPageData((prev) => {
-      if (!prev) return prev;
+  const staffPicks = useMemo(() => {
+    const indexes = [0, 2, 4];
+    return indexes.map((index) => allPosts[index]).filter(Boolean);
+  }, [allPosts]);
 
-      const updatedProducts = Array.isArray(prev.products)
-        ? prev.products.map((item) => (item?.id === product.id ? mergeProductVisitStats(item, data) : item))
-        : prev.products;
+  const writers = useMemo(() => {
+    const seen = new Set();
+    const list = [];
 
-      return {
-        ...prev,
-        products: updatedProducts,
-      };
+    allPosts.forEach((post) => {
+      const id = Number(post?.user_id || 0);
+      if (!id || seen.has(id) || list.length >= 4) return;
+
+      seen.add(id);
+      list.push({
+        id,
+        name: post?.writer_name || post?.website_name || 'Writer',
+        topic: post?.content_type
+          ? String(post.content_type).replace(/_/g, ' ')
+          : 'Writer on Bloggad',
+        url: writerUrl(post),
+      });
     });
 
-    setQuickViewProduct((prev) => {
-      if (!prev?.id || prev.id !== product.id) return prev;
-      return mergeProductVisitStats(prev, data);
-    });
-  }, []);
+    return list;
+  }, [allPosts]);
 
-  const trackProductEvent = useCallback(
-    async (product, clickType) => {
-      const endpoint = resolveTrackingEndpoint(product);
-      if (!endpoint) return null;
+  useEffect(() => {
+    if (!isAuthenticated || !visiblePosts.length) return;
 
-      try {
-        const { data } = await api.post(endpoint, {
-          click_type: clickType,
+    let active = true;
+
+    Promise.all(
+      visiblePosts.map((post) =>
+        api
+          .get(`/api/reader/social/posts/${Number(post?.id || 0)}`)
+          .then(({ data }) => ({ post, data }))
+          .catch(() => ({ post, data: null }))
+      )
+    ).then((rows) => {
+      if (!active) return;
+
+      setPostReactionActive((current) => {
+        const next = { ...current };
+
+        rows.forEach(({ post, data }) => {
+          const id = Number(post?.id || 0);
+          if (!id || !data) return;
+
+          next[id] = {
+            love: !!data?.loved,
+            applaud: !!data?.applauded,
+          };
         });
 
-        updateProductStats(product, data);
-        return data || null;
-      } catch (err) {
-        return null;
-      }
-    },
-    [updateProductStats]
-  );
+        return next;
+      });
 
-  const handleQuickViewOpen = useCallback(
-    async (product) => {
-      if (!product) return;
+      setFollowing((current) => {
+        const next = { ...current };
 
-      setQuickViewProduct(product);
-      await trackProductEvent(product, 'quick_view');
-    },
-    [trackProductEvent]
-  );
+        rows.forEach(({ post, data }) => {
+          const writerId = Number(post?.user_id || 0);
+          if (!writerId || !data) return;
+          next[writerId] = !!data?.following;
+        });
 
-  const handleTrackedProductAction = useCallback(
-    async (product, clickType, fallbackUrl = '#') => {
-      if (!product) return;
+        return next;
+      });
+    });
 
-      const data = await trackProductEvent(product, clickType);
-      const targetUrl = data?.redirect_url || fallbackUrl;
+    return () => {
+      active = false;
+    };
+  }, [isAuthenticated, visiblePosts]);
 
-      if (targetUrl && targetUrl !== '#') {
-        window.location.href = targetUrl;
-      }
-    },
-    [trackProductEvent]
-  );
-
-  const handleTrackedPopupAction = async (clickType) => {
-    if (!quickViewProduct) return;
-
-    const fallbackUrl =
-      clickType === 'buy_now'
-        ? resolveBuyNowUrl(quickViewProduct)
-        : clickType === 'visit_website'
-        ? resolveVisitWebsiteUrl(quickViewProduct)
-        : resolveReadMoreUrl(quickViewProduct);
+  async function loadHomepageReaderState() {
+    return true;
+  }
+  async function togglePostReaction(post, type) {
+    const id = Number(post?.id || 0);
+    if (!id) return;
 
     try {
-      setActionLoading(true);
+      const { data } = await api.post(`/api/reader/social/posts/${id}/reactions/${type}`);
 
-      const data = await trackProductEvent(quickViewProduct, clickType);
-      const targetUrl = data?.redirect_url || fallbackUrl;
+      setPostStats((current) => ({
+        ...current,
+        [id]: {
+          ...(current[id] || {}),
+          love: Number(data?.counts?.love ?? current[id]?.love ?? 0),
+          applaud: Number(data?.counts?.applaud ?? current[id]?.applaud ?? 0),
+          comments: Number(current[id]?.comments || 0),
+        },
+      }));
 
-      if (targetUrl && targetUrl !== '#') {
-        window.location.href = targetUrl;
-      }
-    } finally {
-      setActionLoading(false);
+      setPostReactionActive((current) => ({
+        ...current,
+        [id]: {
+          ...(current[id] || {}),
+          [type]: !!data?.active,
+        },
+      }));
+    } catch (actionError) {
+      authRedirect(actionError);
     }
-  };
+  }
 
-  const handleToggleSave = () => {
-    if (!quickViewProduct?.id) return;
+  function hideHomepageStory(post) {
+    const id = Number(post?.id || 0);
+    if (!id) return;
 
-    setSavedProducts((prev) => ({
-      ...prev,
-      [quickViewProduct.id]: !prev[quickViewProduct.id],
+    setHiddenPosts((current) => ({
+      ...current,
+      [id]: true,
     }));
-  };
 
-  const handleShare = async () => {
-    if (!quickViewProduct) return;
+    setOpenStoryMenuId(null);
+  }
 
-    const shareUrl = resolveReadMoreUrl(quickViewProduct);
-    const shareTitle = quickViewProduct?.title || 'Product';
+  function toggleHomepageStoryMenu(post) {
+    const id = Number(post?.id || 0);
+    if (!id) return;
+
+    setOpenStoryMenuId((current) => (current === id ? null : id));
+  }
+
+  function openHomepageComments(post) {
+    const target = postUrl(post);
+    if (!target || target === '#') return;
+    window.location.assign(`${target}#responses`);
+  }
+  async function shareHomepageStory(post) {
+    const path = postUrl(post);
+    const url = `${window.location.origin}${path}`;
 
     try {
       if (navigator.share) {
         await navigator.share({
-          title: shareTitle,
-          url: shareUrl,
+          title: post?.title || 'Bloggad story',
+          text: post?.excerpt || '',
+          url,
         });
-        return;
+      } else if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(url);
       }
-
-      if (navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(shareUrl);
+    } catch (shareError) {
+      if (shareError?.name !== 'AbortError') {
+        // Keep homepage usable if browser sharing is unavailable.
       }
-    } catch (err) {
-      // ignore
+    } finally {
+      setOpenStoryMenuId(null);
     }
-  };
+  }
 
-  const handleSearch = () => {
-    const query = searchTerm.trim();
-    if (!query) return;
-    window.location.href = `/products?search=${encodeURIComponent(query)}`;
-  };
+  function makeHomepageGiftKey(writerId, postId) {
+    const random =
+      globalThis.crypto?.randomUUID?.() ||
+      `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+    return `reader-gift-${writerId}-${postId}-${random}`;
+  }
+
+  async function openHomepageGift(post) {
+    const writerId = Number(post?.user_id || 0);
+    const postId = Number(post?.id || 0);
+    if (!writerId || !postId) return;
+
+    try {
+      setGiftBusy('load');
+      setGiftError('');
+      setGiftNotice('');
+
+      const { data } = await api.get('/api/reader/credits');
+      const settings = data?.appreciation_settings || {};
+      const minimum = Math.max(1, Number(settings?.minimum_credits || 1));
+
+      setGiftPost(post);
+      setGiftWallet(data || null);
+      setGiftAmount(String(minimum));
+      giftRequestKeyRef.current = '';
+    } catch (actionError) {
+      if (!authRedirect(actionError)) {
+        setGiftError(actionError?.response?.data?.message || 'Could not open Gift.');
+      }
+    } finally {
+      setGiftBusy('');
+    }
+  }
+
+  function closeHomepageGift() {
+    setGiftPost(null);
+    setGiftWallet(null);
+    setGiftAmount('');
+    setGiftBusy('');
+    setGiftError('');
+    setGiftNotice('');
+    giftRequestKeyRef.current = '';
+  }
+
+  async function submitHomepageGift(event) {
+    event.preventDefault();
+
+    const writerId = Number(giftPost?.user_id || 0);
+    const postId = Number(giftPost?.id || 0);
+    const credits = Number(giftAmount);
+    const settings = giftWallet?.appreciation_settings || {};
+    const minimum = Math.max(1, Number(settings?.minimum_credits || 1));
+    const maximum =
+      settings?.maximum_credits === null ||
+      settings?.maximum_credits === undefined
+        ? null
+        : Number(settings.maximum_credits);
+
+    if (!writerId || !postId) return;
+
+    if (!Number.isInteger(credits) || credits < minimum) {
+      setGiftError(`Enter at least ${minimum} whole Reader credits.`);
+      return;
+    }
+
+    if (maximum !== null && credits > maximum) {
+      setGiftError(`The maximum Gift is ${maximum} Reader credits.`);
+      return;
+    }
+
+    try {
+      setGiftBusy('send');
+      setGiftError('');
+      setGiftNotice('');
+
+      if (!giftRequestKeyRef.current) {
+        giftRequestKeyRef.current = makeHomepageGiftKey(writerId, postId);
+      }
+
+      const idempotencyKey = giftRequestKeyRef.current;
+
+      const { data } = await api.post(
+        '/api/reader/credits/appreciate',
+        {
+          writer_user_id: writerId,
+          post_id: postId,
+          credits_amount: credits,
+          idempotency_key: idempotencyKey,
+        },
+        {
+          headers: {
+            'Idempotency-Key': idempotencyKey,
+          },
+        }
+      );
+
+      const nextBalance = data?.appreciation?.reader_available_credits;
+
+      if (nextBalance !== undefined && nextBalance !== null) {
+        setGiftWallet((current) => ({
+          ...(current || {}),
+          available_credits: Number(nextBalance),
+        }));
+      }
+
+      setGiftNotice(data?.message || 'Gift sent to the Writer.');
+      giftRequestKeyRef.current = '';
+    } catch (actionError) {
+      if (!authRedirect(actionError)) {
+        setGiftError(actionError?.response?.data?.message || 'Could not send Gift.');
+      }
+    } finally {
+      setGiftBusy('');
+    }
+  }
+  async function followHomepageStoryWriter(post) {
+    const writerId = Number(post?.user_id || 0);
+    if (!writerId) return;
+
+    try {
+      const { data } = await api.post(`/api/reader/social/writers/${writerId}/follow`);
+
+      setFollowing((current) => ({
+        ...current,
+        [writerId]: !!data?.following,
+      }));
+    } catch (actionError) {
+      authRedirect(actionError);
+    } finally {
+      setOpenStoryMenuId(null);
+    }
+  }
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    let active = true;
+
+    api
+      .get('/api/customer/saved/posts')
+      .then(({ data }) => {
+        if (!active) return;
+
+        const items = Array.isArray(data?.items) ? data.items : [];
+        const next = {};
+
+        items.forEach((item) => {
+          const id = Number(item?.post?.id || item?.post_id || 0);
+          if (id) next[id] = true;
+        });
+
+        setSavedPosts(next);
+      })
+      .catch(() => {});
+
+    return () => {
+      active = false;
+    };
+  }, [isAuthenticated]);
+
+  async function loadHomepageSavedPosts() {
+    return true;
+  }
+  async function toggleSave(post) {
+    const id = Number(post?.id || 0);
+    if (!id) return;
+
+    const isSaved = !!savedPosts[id];
+
+    try {
+      if (isSaved) {
+        await api.delete(`/api/customer/saved/posts/${id}`);
+      } else {
+        await api.post('/api/customer/saved/posts', { post_id: id });
+      }
+
+      setSavedPosts((current) => ({ ...current, [id]: !isSaved }));
+    } catch (actionError) {
+      authRedirect(actionError);
+    }
+  }
+
+  async function toggleFollow(writer) {
+    if (!writer?.id) return;
+
+    try {
+      const { data } = await api.post(`/api/reader/social/writers/${writer.id}/follow`);
+      setFollowing((current) => ({
+        ...current,
+        [writer.id]: !!data?.following,
+      }));
+    } catch (actionError) {
+      authRedirect(actionError);
+    }
+  }
 
   if (loading) {
-    return (
-      <div className="home-loading-screen">
-        <div className="home-loading-box">
-          <Loader2 size={18} className="spin-soft" />
-          <span>Loading homepage...</span>
-        </div>
-      </div>
-    );
+    return <div className="bh-status">Loading Bloggad...</div>;
   }
 
   return (
-    <div className="home-page">
-      <header className="ali-main-header">
-        <div className="ali-header-shell">
-          <Link to="/" className="home-logo-link">
-            <span className="home-logo-mark">B</span>
-            <span className="home-logo-text">
-              bloggad<span>.</span>
-            </span>
-          </Link>
-
-          <div className="home-search-wrap">
-            <input
-              type="text"
-              placeholder="Search products, reviews, stores..."
-              className="home-search-input"
-              value={searchTerm}
-              onChange={(event) => setSearchTerm(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter') handleSearch();
-              }}
-            />
-            <button type="button" className="home-search-btn" onClick={handleSearch}>
-              <Search size={24} />
-            </button>
-          </div>
-
-          <div className="ali-header-actions">
-            <div className="ali-language-btn ali-currency-switcher-wrap">
-              <Globe2 size={23} />
-              <CurrencySwitcher />
-              <ChevronDown size={14} />
-            </div>
-
-            <HeaderAccountBox user={user} isAuthenticated={isAuthenticated} logout={logout} />
-          </div>
+    <div className="bh-page">
+      <aside className="bh-sidebar">
+        <div className="bh-sidebar-brand">
+          <Menu size={22} />
+          <Link to="/">Bloggad</Link>
         </div>
 
-        <div className="ali-mobile-header">
-          <Link to="/" className="mobile-home-logo">
-            <span className="home-logo-mark">B</span>
-            <span className="home-logo-text">
-              bloggad<span>.</span>
-            </span>
-          </Link>
+        <nav className="bh-sidebar-nav">
+          <SidebarItem active to="/" icon={Home} label="Home" />
+          <SidebarItem to="/reader/saved" icon={Bookmark} label="Library" />
+          <SidebarItem to="/reader/profile" icon={User} label="Profile" />
+          <SidebarItem to="/writer/posts" icon={BookOpen} label="Stories" />
+          <SidebarItem to="/topics" icon={Tags} label="Topics" />
+          <SidebarItem to="/categories" icon={LayoutGrid} label="Categories" />
+          <SidebarItem to="/writer/analytics" icon={BarChart3} label="Stats" />
+        </nav>
 
-          <div className="mobile-search-wrap">
-            <input
-              type="text"
-              placeholder="Search products..."
-              className="mobile-search-input"
-              value={searchTerm}
-              onChange={(event) => setSearchTerm(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter') handleSearch();
-              }}
-            />
-            <button type="button" className="mobile-search-btn" onClick={handleSearch}>
-              <Search size={18} />
-            </button>
-          </div>
+        <div className="bh-sidebar-divider" />
 
-          <CategoriesButton categoryTree={categoryTree} featuredWebsites={featuredWebsites} />
+        <nav className="bh-sidebar-nav">
+          <SidebarItem to="/reader/following" icon={Users} label="Following" />
+        </nav>
 
-          <div className="mobile-home-auth-wrap">
-            {isAuthenticated && user ? (
-              <div className="mobile-logged-auth-box">
-                <Link to={resolveDashboardUrl(user)} className="home-auth-pill home-auth-pill-red">
-                  Go to Dashboard
-                </Link>
-
-                <button type="button" onClick={logout} className="home-auth-pill home-auth-pill-white">
-                  Sign out
-                </button>
-              </div>
-            ) : (
-              <>
-                <div className="mobile-home-auth-title">Join or sign in</div>
-                <AuthLinksPills />
-              </>
-            )}
+        <div className="bh-find-writers">
+          <Plus size={19} />
+          <div>
+            <span>Find writers and publications to follow.</span>
+            <Link to="/topics">See suggestions</Link>
           </div>
         </div>
+      </aside>
 
-        <HeaderNav categoryTree={categoryTree} featuredWebsites={featuredWebsites} />
+      <header className="bh-header">
+        <Link className="bh-mobile-brand" to="/">Bloggad</Link>
+
+        <label className="bh-search">
+          <Search size={17} />
+          <input
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Search"
+          />
+        </label>
+
+        <div className="bh-header-actions">
+          <button className="bh-get-app" type="button" disabled title="Bloggad app coming soon">
+            Get app
+          </button>
+
+          <Link className="bh-write-link" to="/writer/posts/create">
+            <PenSquare size={18} />
+            <span>Write</span>
+          </Link>
+
+          <Bell className="bh-header-icon" size={20} />
+
+          {isAuthenticated && user ? (
+            <Link className="bh-profile-circle" to="/reader/profile">
+              {String(user?.name || user?.email || 'U').slice(0, 1).toUpperCase()}
+            </Link>
+          ) : (
+            <Link className="bh-profile-circle" to="/reader/login">
+              <User size={16} />
+            </Link>
+          )}
+        </div>
       </header>
 
-      {error ? (
-        <div className="homepage-shell">
-          <div className="home-error-box">{error}</div>
-        </div>
-      ) : null}
+<main className="bh-main">
+        <section className="bh-feed-column">
+          <div className="bh-tabs">
+            <button
+              type="button"
+              className={activeTab === 'for-you' ? 'active' : ''}
+              onClick={() => setActiveTab('for-you')}
+            >
+              For you
+            </button>
+            <button
+              type="button"
+              className={activeTab === 'featured' ? 'active' : ''}
+              onClick={() => setActiveTab('featured')}
+            >
+              Featured
+            </button>
+          </div>
 
-      <MainSlider />
+          {error ? <div className="bh-inline-error">{error}</div> : null}
 
-      <main className="homepage-shell">
-        <DealShowcaseSection products={todayDeals} />
-        <FeaturedProductAdsStrip ads={featuredProductAds} />
-        <WidePromoSection products={promoProducts} />
-        <ShopByCategory categoryTree={categoryTree} products={categoryProducts} />
+          <div className="bh-story-list">
+            {visiblePosts.length ? (
+              visiblePosts.map((post) => (
+                <StoryCard
+                  key={post.id}
+                  post={post}
+                  stats={postStats[post.id]}
+                  saved={!!savedPosts[post.id]}
+                  loved={!!postReactionActive[post.id]?.love}
+                  applauded={!!postReactionActive[post.id]?.applaud}
+                  following={!!following[Number(post?.user_id || 0)]}
+                  hidden={!!hiddenPosts[post.id]}
+                  menuOpen={openStoryMenuId === Number(post.id)}
+                  onLike={(item) => togglePostReaction(item, 'love')}
+                  onApplaud={(item) => togglePostReaction(item, 'applaud')}
+                  onComment={openHomepageComments}
+                  onGift={openHomepageGift}
+                  onFollow={followHomepageStoryWriter}
+                  onSave={toggleSave}
+                  onShare={shareHomepageStory}
+                  onHide={hideHomepageStory}
+                  onMore={toggleHomepageStoryMenu}
+                />
+              ))
+            ) : (
+              <div className="bh-empty">
+                <strong>No published stories yet.</strong>
+                <span>Published Writer posts will appear here automatically.</span>
+              </div>
+            )}
+          </div>
 
-        <ProductGridSection
-          title="More to love"
-          products={moreToLoveProducts}
-          onQuickView={handleQuickViewOpen}
-          onTrackedAction={handleTrackedProductAction}
-          categoryTree={categoryTree}
-        />
+          <div className="bh-load-sentinel" ref={loaderRef}>
+            {visibleCount < filteredPosts.length ? 'Loading more stories...' : ''}
+          </div>
+        </section>
+
+        <aside className="bh-right-rail">
+          <section className="bh-rail-section">
+            <h2>Staff Picks</h2>
+            <div className="bh-staff-list">
+              {staffPicks.map((post) => (
+                <StaffPick key={post.id} post={post} />
+              ))}
+            </div>
+            <Link className="bh-rail-link" to="/topics">See the full list</Link>
+          </section>
+
+          <section className="bh-rail-section bh-topics-section">
+            <h2>Recommended topics</h2>
+            <div className="bh-topic-pills">
+              {categories.slice(0, 6).map((category) => (
+                <Link key={category.id || category.slug} to={`/category/${encodeURIComponent(category.slug || '')}`}>
+                  {category.name}
+                </Link>
+              ))}
+            </div>
+          </section>
+
+          <section className="bh-rail-section">
+            <h2>Who to follow</h2>
+            <div className="bh-writer-list">
+              {writers.map((writer) => (
+                <WriterRow
+                  key={writer.id}
+                  writer={writer}
+                  following={!!following[writer.id]}
+                  onFollow={toggleFollow}
+                />
+              ))}
+            </div>
+          </section>
+
+          <section className="bh-rail-section bh-reading-list">
+            <h2>Reading list</h2>
+            <p>Save stories you want to return to and keep your reading organized.</p>
+            <Link to="/reader/saved">Open Library</Link>
+          </section>
+        </aside>
       </main>
 
-      <LegalFooter />
+      {giftPost ? (
+        <div className="bh-gift-overlay" role="presentation" onMouseDown={closeHomepageGift}>
+          <section
+            className="bh-gift-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Gift this Writer"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <div className="bh-gift-head">
+              <div className="bh-gift-mark"><Gift size={20} /></div>
+              <div>
+                <strong>Send a Gift</strong>
+                <span>{giftPost?.writer_name || giftPost?.website_name || 'Writer'}</span>
+              </div>
+              <button type="button" onClick={closeHomepageGift} aria-label="Close Gift">
+                x
+              </button>
+            </div>
 
-      <ProductQuickViewModal
-        product={quickViewProduct}
-        isSaved={!!savedProducts[quickViewProduct?.id]}
-        actionLoading={actionLoading}
-        onClose={() => setQuickViewProduct(null)}
-        onToggleSave={handleToggleSave}
-        onShare={handleShare}
-        onTrackedAction={handleTrackedPopupAction}
-      />
+            <form className="bh-gift-form" onSubmit={submitHomepageGift}>
+              <p>
+                Gift this Writer with Reader credits for work you value.
+              </p>
+
+              <div className="bh-gift-balance">
+                <span>Available credits</span>
+                <strong>{Number(giftWallet?.available_credits || 0).toLocaleString()}</strong>
+              </div>
+
+              <label>
+                <span>Gift amount</span>
+                <input
+                  type="number"
+                  min={Math.max(1, Number(giftWallet?.appreciation_settings?.minimum_credits || 1))}
+                  max={
+                    giftWallet?.appreciation_settings?.maximum_credits === null ||
+                    giftWallet?.appreciation_settings?.maximum_credits === undefined
+                      ? undefined
+                      : Number(giftWallet.appreciation_settings.maximum_credits)
+                  }
+                  step="1"
+                  value={giftAmount}
+                  onChange={(event) => setGiftAmount(event.target.value)}
+                  disabled={giftBusy === 'send'}
+                />
+              </label>
+
+              {giftError ? <div className="bh-gift-message error">{giftError}</div> : null}
+              {giftNotice ? <div className="bh-gift-message success">{giftNotice}</div> : null}
+
+              <div className="bh-gift-footer">
+                <button type="button" className="secondary" onClick={closeHomepageGift}>
+                  Cancel
+                </button>
+                <button type="submit" className="primary" disabled={giftBusy === 'send'}>
+                  <Gift size={16} />
+                  {giftBusy === 'send' ? 'Sending...' : 'Send Gift'}
+                </button>
+              </div>
+            </form>
+          </section>
+        </div>
+      ) : null}
+      <nav className="bh-mobile-bottom">
+        <Link className="active" to="/"><Home size={19} /><span>Home</span></Link>
+        <Link to="/reader/saved"><Bookmark size={19} /><span>Library</span></Link>
+        <Link to="/writer/posts/create"><PenSquare size={19} /><span>Write</span></Link>
+        <Link to="/reader/profile"><User size={19} /><span>Profile</span></Link>
+      </nav>
     </div>
   );
 }

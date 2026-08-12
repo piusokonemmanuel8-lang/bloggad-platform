@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
   Package,
   Save,
@@ -29,6 +29,8 @@ function createSlugFromTitle(value = '') {
 
 export default function AffiliateCreateProductPage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const routeRoot = location.pathname.startsWith('/writer/') ? '/writer' : '/affiliate';
 
   const [categories, setCategories] = useState([]);
   const [form, setForm] = useState({
@@ -207,7 +209,7 @@ export default function AffiliateCreateProductPage() {
       if (data?.ok && data?.product?.id) {
         setSuccess('Product created successfully. Redirecting...');
         setTimeout(() => {
-          navigate(`/affiliate/products/${data.product.id}/posts`);
+          navigate(`${routeRoot}/products/${data.product.id}/posts`);
         }, 700);
       }
     } catch (err) {
@@ -451,12 +453,12 @@ export default function AffiliateCreateProductPage() {
                 <input
                   className="affiliate-create-product-input"
                   name="affiliate_buy_url"
-                  placeholder="Affiliate Buy URL (must be supgad.com)"
+                  placeholder="Product / destination URL"
                   value={form.affiliate_buy_url}
                   onChange={handleChange}
                 />
                 <small className="affiliate-create-product-help">
-                  Only supgad.com links are allowed.
+                  External links are allowed and checked by Bloggad on save.
                 </small>
               </label>
 
@@ -588,7 +590,7 @@ export default function AffiliateCreateProductPage() {
 
               <div className="affiliate-create-product-tip">
                 <span className="dot" />
-                <p>Only supgad.com affiliate links are allowed on the platform.</p>
+                <p>Legitimate external links are allowed. Bloggad records and reviews outbound destinations for safety.</p>
               </div>
             </div>
           </div>

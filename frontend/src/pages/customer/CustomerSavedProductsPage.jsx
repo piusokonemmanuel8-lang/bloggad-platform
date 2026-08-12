@@ -1,11 +1,60 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
+import {
+  Bell,
+  Bookmark,
+  CircleDollarSign,
+  Crown,
+  GraduationCap,
+  Home,
+  LogOut,
+  Menu,
+  MessageCircle,
+  Settings,
+  ShoppingBag,
+  Sparkles,
+  Tags,
+  UserRoundCheck,
+  X,
+} from 'lucide-react';
 import CustomerPageShell from '../../components/customer/CustomerPageShell';
+import ReaderUnifiedShell from '../../components/reader/ReaderUnifiedShell';
+import './CustomerSavedPostsApproved.css';
 
 const API_BASE =
   import.meta.env.VITE_API_BASE_URL ||
   import.meta.env.VITE_API_URL ||
   '';
+
+const readerGroups = [
+  {
+    label: 'Discover',
+    items: [
+      { label: 'Overview', to: '/reader/dashboard', icon: Home },
+      { label: 'For You', to: '/reader/feed', icon: Sparkles },
+      { label: 'Interests', to: '/reader/interests', icon: Tags },
+    ],
+  },
+  {
+    label: 'Library',
+    items: [
+      { label: 'Saved Posts', to: '/reader/saved-posts', icon: Bookmark },
+      { label: 'Saved Products', to: '/reader/saved-products', icon: ShoppingBag },
+      { label: 'Following', to: '/reader/following', icon: UserRoundCheck },
+      { label: 'Courses', to: '/reader/courses', icon: GraduationCap },
+    ],
+  },
+  {
+    label: 'Account',
+    items: [
+      { label: 'Credits', to: '/reader/credits', icon: CircleDollarSign },
+      { label: 'Premium', to: '/reader/premium', icon: Crown },
+      { label: 'Notifications', to: '/reader/notifications', icon: Bell },
+      { label: 'Messages', to: '/reader/messages', icon: MessageCircle },
+      { label: 'Settings', to: '/reader/settings', icon: Settings },
+    ],
+  },
+];
 
 function getApiUrl(path) {
   if (!API_BASE) return path;
@@ -21,12 +70,40 @@ function getStoredToken() {
   );
 }
 
+function getStoredUser() {
+  try {
+    const raw =
+      localStorage.getItem('customerUser') ||
+      localStorage.getItem('user') ||
+      '';
+
+    return raw ? JSON.parse(raw) : null;
+  } catch (error) {
+    return null;
+  }
+}
+
 async function safeJson(response) {
   try {
     return await response.json();
   } catch (error) {
     return null;
   }
+}
+
+function displayName(user) {
+  return (
+    user?.display_name ||
+    user?.full_name ||
+    user?.name ||
+    user?.username ||
+    'Reader'
+  );
+}
+
+function initialFor(value) {
+  const clean = String(value || '').trim();
+  return clean ? clean.charAt(0).toUpperCase() : 'R';
 }
 
 function formatMoney(value) {
@@ -40,18 +117,74 @@ function formatMoney(value) {
   }).format(amount);
 }
 
+function getSavedPrice(item) {
+  return item?.product?.sale_price !== null &&
+    item?.product?.sale_price !== undefined &&
+    Number(item.product.sale_price) > 0
+    ? item.product.sale_price
+    : item?.product?.price;
+}
+
+function hasSavedSale(item) {
+  return (
+    item?.product?.sale_price !== null &&
+    item?.product?.sale_price !== undefined &&
+    Number(item.product.sale_price) > 0 &&
+    Number(item?.product?.price) > Number(item.product.sale_price)
+  );
+}
+
+function ReaderNavigation({ onNavigate }) {
+  return (
+    <nav className="reader-saved-nav" aria-label="Reader navigation">
+      {readerGroups.map((group) => (
+        <div className="reader-saved-nav-group" key={group.label}>
+          <div className="reader-saved-nav-label">{group.label}</div>
+          <div className="reader-saved-nav-list">
+            {group.items.map((item) => {
+              const Icon = item.icon;
+
+              return (
+                <NavLink
+                  key={item.to}
+                  to={item.to}
+                  onClick={onNavigate}
+                  className={({ isActive }) =>
+                    `reader-saved-nav-item${isActive ? ' active' : ''}`
+                  }
+                >
+                  <span className="reader-saved-nav-icon" aria-hidden="true">
+                    <Icon size={16} strokeWidth={1.9} />
+                  </span>
+                  <span>{item.label}</span>
+                </NavLink>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+    </nav>
+  );
+}
+
 export default function CustomerSavedProductsPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const token = useMemo(() => getStoredToken(), []);
+  const customer = useMemo(() => getStoredUser(), []);
+  const readerName = useMemo(() => displayName(customer), [customer]);
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState([]);
   const [busyId, setBusyId] = useState(null);
   const [error, setError] = useState('');
+  const [mobileOpen, setMobileOpen] = useState(false);
+
+  const isReaderRoute = location.pathname === '/reader/saved-products';
 
   useEffect(() => {
     if (!token) {
-      navigate('/customer/login', { replace: true });
-      return;
+      navigate(isReaderRoute ? '/reader/login' : '/customer/login', { replace: true });
+      return undefined;
     }
 
     let active = true;
@@ -90,9 +223,11 @@ export default function CustomerSavedProductsPage() {
     return () => {
       active = false;
     };
-  }, [navigate, token]);
+  }, [isReaderRoute, navigate, token]);
 
   async function handleRemove(productId) {
+    if (!productId || busyId) return;
+
     setBusyId(productId);
     setError('');
 
@@ -119,6 +254,137 @@ export default function CustomerSavedProductsPage() {
     }
   }
 
+  function handleLogout() {
+    localStorage.removeItem('token');
+    localStorage.removeItem('authToken');
+    localStorage.removeItem('customerToken');
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('supgad_token');
+    localStorage.removeItem('user');
+    localStorage.removeItem('customerUser');
+    localStorage.removeItem('customerLoginContext');
+    navigate('/reader/login', { replace: true });
+  }
+
+  if (isReaderRoute) {
+    return (
+      <ReaderUnifiedShell title="Saved Products" subtitle="Your Reader library">
+        <style>{readerSavedProductsContentCss}</style>
+<main className="reader-saved-page">
+            <section className="reader-saved-hero">
+              <div>
+                <h2 className="reader-saved-desktop-heading">Saved products</h2>
+                <h2 className="reader-saved-mobile-heading">Saved Products</h2>
+                <p className="reader-saved-desktop-subtitle">
+                  Keep the products you want to revisit in one clean list.
+                </p>
+                <p className="reader-saved-mobile-subtitle">
+                  Products you saved to view again.
+                </p>
+              </div>
+              <span className="reader-saved-count">
+                {items.length} saved {items.length === 1 ? 'product' : 'products'}
+              </span>
+            </section>
+
+            <div className="reader-saved-info">
+              <ShoppingBag size={15} aria-hidden="true" />
+              <span>
+                Saved products stay here until you remove them. Open any card to view the product.
+              </span>
+            </div>
+
+            {error ? (
+              <div className="reader-saved-alert error" role="alert">
+                {error}
+              </div>
+            ) : null}
+
+            {loading ? (
+              <div className="reader-saved-loading" role="status">
+                <span className="reader-saved-loading-dot" />
+                Loading saved products...
+              </div>
+            ) : null}
+
+            {!loading && !error && items.length === 0 ? (
+              <section className="reader-saved-empty">
+                <div className="reader-saved-empty-icon" aria-hidden="true">P</div>
+                <h3>No saved products yet</h3>
+                <p>When you save a product, it will be kept here until you remove it.</p>
+                <Link className="reader-saved-product-marketplace" to="/">
+                  Go to marketplace
+                </Link>
+              </section>
+            ) : null}
+
+            {!loading && items.length > 0 ? (
+              <section className="reader-saved-grid" aria-label="Saved products">
+                {items.map((item) => {
+                  const product = item?.product || {};
+                  const price = getSavedPrice(item);
+                  const writer = item?.affiliate?.name || 'Writer';
+                  const storefront = item?.website?.website_name || 'Storefront';
+                  const viewPath = product?.slug ? `/products/${product.slug}` : '#';
+
+                  return (
+                    <article className="reader-saved-card" key={item.saved_id || product.id}>
+                      <Link
+                        to={viewPath}
+                        className="reader-saved-card-media"
+                        aria-label={`View ${product.name || 'saved product'}`}
+                      >
+                        {product.featured_image ? (
+                          <img
+                            src={product.featured_image}
+                            alt={product.name || 'Saved product'}
+                          />
+                        ) : (
+                          <span className="reader-saved-no-image">
+                            <ShoppingBag size={24} aria-hidden="true" />
+                            <span>No image</span>
+                          </span>
+                        )}
+                      </Link>
+
+                      <div className="reader-saved-card-body">
+                        <div className="reader-saved-card-meta">
+                          <span className="reader-saved-date">{storefront}</span>
+                          <span className="reader-saved-writer">{writer}</span>
+                        </div>
+
+                        <h3>{product.name || 'Untitled product'}</h3>
+
+                        <div className="reader-saved-product-prices">
+                          <strong>{formatMoney(price)}</strong>
+                          {hasSavedSale(item) ? (
+                            <span>{formatMoney(product.price)}</span>
+                          ) : null}
+                        </div>
+
+                        <div className="reader-saved-card-actions">
+                          <Link to={viewPath} className="reader-saved-read-button">
+                            View Product
+                          </Link>
+                          <button
+                            type="button"
+                            className="reader-saved-remove-button"
+                            onClick={() => handleRemove(product.id)}
+                            disabled={busyId === product.id}
+                          >
+                            {busyId === product.id ? 'Removing...' : 'Remove'}
+                          </button>
+                        </div>
+                      </div>
+                    </article>
+                  );
+                })}
+              </section>
+            ) : null}
+          </main>
+      </ReaderUnifiedShell>
+    );
+  }
   return (
     <CustomerPageShell
       currentPath="/customer/saved-products"
@@ -234,12 +500,7 @@ export default function CustomerSavedProductsPage() {
         }}
       >
         {items.map((item) => {
-          const price =
-            item?.product?.sale_price !== null &&
-            item?.product?.sale_price !== undefined &&
-            Number(item.product.sale_price) > 0
-              ? item.product.sale_price
-              : item?.product?.price;
+          const price = getSavedPrice(item);
 
           return (
             <article
@@ -319,7 +580,7 @@ export default function CustomerSavedProductsPage() {
                       color: '#6b7280',
                     }}
                   >
-                    {item?.affiliate?.name || 'Affiliate'}
+                    {item?.affiliate?.name || 'Writer'}
                   </span>
                 </div>
 
@@ -347,10 +608,7 @@ export default function CustomerSavedProductsPage() {
                   {formatMoney(price)}
                 </div>
 
-                {item?.product?.sale_price !== null &&
-                item?.product?.sale_price !== undefined &&
-                Number(item.product.sale_price) > 0 &&
-                Number(item?.product?.price) > Number(item.product.sale_price) ? (
+                {hasSavedSale(item) ? (
                   <div
                     style={{
                       marginTop: 6,
@@ -411,3 +669,58 @@ export default function CustomerSavedProductsPage() {
     </CustomerPageShell>
   );
 }
+
+const readerSavedProductsContentCss = `
+  .reader-saved-product-prices {
+    margin: 38px 0 0;
+    min-width: 0;
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .reader-saved-product-prices strong {
+    color: #111827;
+    font-size: 18px;
+    line-height: 1.25;
+    font-weight: 780;
+    letter-spacing: -0.02em;
+    overflow-wrap: anywhere;
+  }
+
+  .reader-saved-product-prices span {
+    color: #8a96a8;
+    font-size: 11px;
+    line-height: 1.25;
+    text-decoration: line-through;
+    overflow-wrap: anywhere;
+  }
+
+  .reader-saved-product-marketplace {
+    min-height: 34px;
+    margin-top: 2px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 12px;
+    border-radius: 9px;
+    border: 1px solid #111827;
+    background: #111827;
+    color: #ffffff;
+    font-size: 12px;
+    line-height: 1;
+    font-weight: 700;
+    text-decoration: none;
+  }
+
+  @media (max-width: 767px) {
+    .reader-saved-product-prices {
+      margin-top: 24px;
+    }
+
+    .reader-saved-product-prices strong {
+      font-size: 17px;
+    }
+  }
+`;

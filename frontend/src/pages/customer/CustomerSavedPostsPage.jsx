@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import CustomerPageShell from '../../components/customer/CustomerPageShell';
+import { Bookmark, BookOpen } from 'lucide-react';
+import ReaderUnifiedShell from '../../components/reader/ReaderUnifiedShell';
+import './CustomerSavedPostsApproved.css';
 
 const API_BASE =
   import.meta.env.VITE_API_BASE_URL ||
@@ -29,6 +31,40 @@ async function safeJson(response) {
   }
 }
 
+function formatSavedDate(value) {
+  if (!value) return 'Saved';
+
+  const saved = new Date(value);
+  if (Number.isNaN(saved.getTime())) return 'Saved';
+
+  const now = new Date();
+  const savedDay = new Date(saved.getFullYear(), saved.getMonth(), saved.getDate());
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const diffDays = Math.round((today.getTime() - savedDay.getTime()) / 86400000);
+
+  if (diffDays === 0) return 'Saved today';
+  if (diffDays === 1) return 'Saved yesterday';
+
+  return `Saved ${saved.toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+  })}`;
+}
+
+function getReadPath(item) {
+  if (item?.post?.url) return item.post.url;
+
+  const websiteSlug = item?.website?.slug;
+  const postSlug = item?.post?.slug;
+
+  if (websiteSlug && postSlug) {
+    return `/${websiteSlug}/post/${postSlug}`;
+  }
+
+  if (postSlug) return `/posts/${postSlug}`;
+  return '#';
+}
+
 export default function CustomerSavedPostsPage() {
   const navigate = useNavigate();
   const token = useMemo(() => getStoredToken(), []);
@@ -39,8 +75,8 @@ export default function CustomerSavedPostsPage() {
 
   useEffect(() => {
     if (!token) {
-      navigate('/customer/login', { replace: true });
-      return;
+      navigate('/reader/login', { replace: true });
+      return undefined;
     }
 
     let active = true;
@@ -82,6 +118,8 @@ export default function CustomerSavedPostsPage() {
   }, [navigate, token]);
 
   async function handleRemove(postId) {
+    if (!postId || busyId) return;
+
     setBusyId(postId);
     setError('');
 
@@ -109,269 +147,101 @@ export default function CustomerSavedPostsPage() {
   }
 
   return (
-    <CustomerPageShell
-      currentPath="/customer/saved-posts"
-      badge="Saved Reading"
-      title="Your saved posts"
-      subtitle="Posts you bookmarked will stay here so you can come back and continue reading anytime."
-      headerRight={
-        <div
-          style={{
-            borderRadius: 16,
-            border: '1px solid #e5e7eb',
-            background: '#ffffff',
-            padding: '12px 16px',
-            fontSize: 14,
-            color: '#6b7280',
-            fontWeight: 600,
-          }}
-        >
-          Total: <span style={{ color: '#111827', fontWeight: 800 }}>{items.length}</span>
-        </div>
-      }
-    >
-      {error ? (
-        <div
-          style={{
-            borderRadius: 20,
-            border: '1px solid #fecaca',
-            background: '#fff1f2',
-            padding: '16px 18px',
-            fontSize: 14,
-            color: '#be123c',
-          }}
-        >
-          {error}
-        </div>
-      ) : null}
-
-      {loading ? (
-        <div
-          style={{
-            borderRadius: 20,
-            border: '1px solid #e5e7eb',
-            background: '#ffffff',
-            padding: '18px 20px',
-            fontSize: 14,
-            color: '#6b7280',
-          }}
-        >
-          Loading saved posts...
-        </div>
-      ) : null}
-
-      {!loading && !items.length ? (
-        <div
-          style={{
-            borderRadius: 24,
-            border: '1px dashed #d1d5db',
-            background: '#ffffff',
-            padding: 40,
-            textAlign: 'center',
-            boxShadow: '0 18px 45px rgba(15, 23, 42, 0.05)',
-          }}
-        >
-          <div
-            style={{
-              fontSize: 28,
-              fontWeight: 800,
-              letterSpacing: '-0.04em',
-              color: '#111827',
-            }}
-          >
-            No saved posts yet
+    <ReaderUnifiedShell title="Saved Posts" subtitle="Your Reader library">
+      <main className="reader-saved-page">
+        <section className="reader-saved-hero">
+          <div>
+            <h2 className="reader-saved-desktop-heading">Reading list</h2>
+            <h2 className="reader-saved-mobile-heading">Saved Posts</h2>
+            <p className="reader-saved-desktop-subtitle">
+              Keep the stories you want to revisit in one clean reading list.
+            </p>
+            <p className="reader-saved-mobile-subtitle">Posts you saved to read again.</p>
           </div>
+          <span className="reader-saved-count">
+            {items.length} saved {items.length === 1 ? 'post' : 'posts'}
+          </span>
+        </section>
 
-          <div
-            style={{
-              marginTop: 10,
-              fontSize: 15,
-              lineHeight: 1.7,
-              color: '#6b7280',
-            }}
-          >
-            When you save a post from any storefront, it will appear here.
-          </div>
-
-          <Link
-            to="/"
-            style={{
-              marginTop: 20,
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              minHeight: 48,
-              padding: '0 18px',
-              borderRadius: 16,
-              background: '#111827',
-              color: '#ffffff',
-              fontSize: 14,
-              fontWeight: 700,
-              textDecoration: 'none',
-            }}
-          >
-            Go to marketplace
-          </Link>
+        <div className="reader-saved-info">
+          <Bookmark size={15} aria-hidden="true" />
+          <span>Saved posts stay here until you remove them. Open any card to continue reading.</span>
         </div>
-      ) : null}
 
-      <div
-        style={{
-          display: 'grid',
-          gap: 20,
-          gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
-        }}
-      >
-        {items.map((item) => (
-          <article
-            key={item.saved_id}
-            style={{
-              overflow: 'hidden',
-              borderRadius: 24,
-              border: '1px solid #e5e7eb',
-              background: '#ffffff',
-              boxShadow: '0 18px 45px rgba(15, 23, 42, 0.05)',
-            }}
-          >
-            <div
-              style={{
-                aspectRatio: '16 / 9',
-                width: '100%',
-                overflow: 'hidden',
-                background: '#f8fafc',
-              }}
-            >
-              {item?.post?.featured_image ? (
-                <img
-                  src={item.post.featured_image}
-                  alt={item?.post?.title || 'Post'}
-                  style={{
-                    width: '100%',
-                    height: '100%',
-                    objectFit: 'cover',
-                    display: 'block',
-                  }}
-                />
-              ) : (
-                <div
-                  style={{
-                    width: '100%',
-                    height: '100%',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: 14,
-                    color: '#94a3b8',
-                  }}
-                >
-                  No image
-                </div>
-              )}
-            </div>
+        {error ? (
+          <div className="reader-saved-alert error" role="alert">
+            {error}
+          </div>
+        ) : null}
 
-            <div style={{ padding: 20 }}>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                <span
-                  style={{
-                    borderRadius: 999,
-                    border: '1px solid #e5e7eb',
-                    background: '#f8fafc',
-                    padding: '6px 10px',
-                    fontSize: 11,
-                    fontWeight: 800,
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.12em',
-                    color: '#6b7280',
-                  }}
-                >
-                  {item?.website?.website_name || 'Storefront'}
-                </span>
+        {loading ? (
+          <div className="reader-saved-loading" role="status">
+            <span className="reader-saved-loading-dot" />
+            Loading saved posts...
+          </div>
+        ) : null}
 
-                <span
-                  style={{
-                    borderRadius: 999,
-                    border: '1px solid #e5e7eb',
-                    background: '#f8fafc',
-                    padding: '6px 10px',
-                    fontSize: 11,
-                    fontWeight: 800,
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.12em',
-                    color: '#6b7280',
-                  }}
-                >
-                  {item?.affiliate?.name || 'Affiliate'}
-                </span>
-              </div>
+        {!loading && !error && items.length === 0 ? (
+          <section className="reader-saved-empty">
+            <div className="reader-saved-empty-icon" aria-hidden="true">S</div>
+            <h3>No saved posts yet</h3>
+            <p>When you save a post, it will be kept here until you remove it.</p>
+          </section>
+        ) : null}
 
-              <h2
-                style={{
-                  margin: '16px 0 0',
-                  fontSize: 24,
-                  fontWeight: 800,
-                  letterSpacing: '-0.04em',
-                  lineHeight: 1.2,
-                  color: '#111827',
-                }}
-              >
-                {item?.post?.title || 'Untitled post'}
-              </h2>
+        {!loading && items.length > 0 ? (
+          <section className="reader-saved-grid" aria-label="Saved posts">
+            {items.map((item) => {
+              const post = item?.post || {};
+              const writer = item?.affiliate?.name || 'Writer';
+              const readPath = getReadPath(item);
 
-              <p
-                style={{
-                  margin: '12px 0 0',
-                  fontSize: 15,
-                  lineHeight: 1.75,
-                  color: '#6b7280',
-                }}
-              >
-                {item?.post?.excerpt || 'No excerpt available for this post.'}
-              </p>
+              return (
+                <article className="reader-saved-card" key={item.saved_id || post.id}>
+                  <Link
+                    to={readPath}
+                    className="reader-saved-card-media"
+                    aria-label={`Read ${post.title || 'saved post'}`}
+                  >
+                    {post.featured_image ? (
+                      <img src={post.featured_image} alt={post.title || 'Saved post'} />
+                    ) : (
+                      <span className="reader-saved-no-image">
+                        <BookOpen size={24} aria-hidden="true" />
+                        <span>Saved post</span>
+                      </span>
+                    )}
+                  </Link>
 
-              <div style={{ marginTop: 18, display: 'flex', flexWrap: 'wrap', gap: 12 }}>
-                <Link
-                  to={item?.post?.slug ? `/posts/${item.post.slug}` : '#'}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    minHeight: 46,
-                    padding: '0 16px',
-                    borderRadius: 16,
-                    background: '#111827',
-                    color: '#ffffff',
-                    fontSize: 14,
-                    fontWeight: 700,
-                    textDecoration: 'none',
-                  }}
-                >
-                  Continue Reading
-                </Link>
+                  <div className="reader-saved-card-body">
+                    <div className="reader-saved-card-meta">
+                      <span className="reader-saved-date">{formatSavedDate(item.saved_at)}</span>
+                      <span className="reader-saved-writer">{writer}</span>
+                    </div>
 
-                <button
-                  type="button"
-                  onClick={() => handleRemove(item?.post?.id)}
-                  disabled={busyId === item?.post?.id}
-                  style={{
-                    minHeight: 46,
-                    padding: '0 16px',
-                    borderRadius: 16,
-                    border: '1px solid #fecaca',
-                    background: '#fff1f2',
-                    color: '#be123c',
-                    fontSize: 14,
-                    fontWeight: 700,
-                    cursor: busyId === item?.post?.id ? 'not-allowed' : 'pointer',
-                    opacity: busyId === item?.post?.id ? 0.65 : 1,
-                  }}
-                >
-                  {busyId === item?.post?.id ? 'Removing...' : 'Remove'}
-                </button>
-              </div>
-            </div>
-          </article>
-        ))}
-      </div>
-    </CustomerPageShell>
+                    <h3>{post.title || 'Untitled post'}</h3>
+                    <p>{post.excerpt || 'No excerpt available for this post.'}</p>
+
+                    <div className="reader-saved-card-actions">
+                      <Link to={readPath} className="reader-saved-read-button">
+                        Read post
+                      </Link>
+                      <button
+                        type="button"
+                        className="reader-saved-remove-button"
+                        onClick={() => handleRemove(post.id)}
+                        disabled={busyId === post.id}
+                      >
+                        {busyId === post.id ? 'Removing...' : 'Remove'}
+                      </button>
+                    </div>
+                  </div>
+                </article>
+              );
+            })}
+          </section>
+        ) : null}
+      </main>
+    </ReaderUnifiedShell>
   );
 }

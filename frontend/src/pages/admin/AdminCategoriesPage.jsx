@@ -20,6 +20,7 @@ function emptyForm() {
     name: '',
     slug: '',
     icon: '',
+    parent_id: '',
     sort_order: 0,
     status: 'active',
   };
@@ -151,6 +152,7 @@ export default function AdminCategoriesPage() {
       name: category.name || '',
       slug: category.slug || '',
       icon: category.icon || '',
+      parent_id: category.parent_id ? String(category.parent_id) : '',
       sort_order: category.sort_order ?? 0,
       status: category.status || 'active',
     });
@@ -220,6 +222,7 @@ export default function AdminCategoriesPage() {
         name: form.name,
         slug: form.slug,
         icon: form.icon,
+        parent_id: form.parent_id || null,
         sort_order: Number(form.sort_order || 0),
         status: form.status,
       };
@@ -769,6 +772,25 @@ export default function AdminCategoriesPage() {
                 <label style={{ display: 'block', marginBottom: 8, fontSize: 13, fontWeight: 600, color: '#1d2327' }}>
                   Sort Order
                 </label>
+              <select
+                className="input-control"
+                name="parent_id"
+                value={form.parent_id}
+                onChange={handleChange}
+              >
+                <option value="">Top-level category</option>
+                {categories
+                  .filter(
+                    (category) =>
+                      String(category.id) !== String(selectedCategoryId || '')
+                  )
+                  .map((category) => (
+                    <option key={category.id} value={category.id}>
+                      {category.parent_id ? '- ' : ''}
+                      {category.name}
+                    </option>
+                  ))}
+              </select>
                 <input
                   name="sort_order"
                   type="number"

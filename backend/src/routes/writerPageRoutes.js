@@ -1,0 +1,12 @@
+const express=require('express');
+const {protect,affiliateOnly}=require('../middleware/authMiddleware');
+const c=require('../controllers/writerPageController');
+const router=express.Router();
+router.get('/health',(req,res)=>res.json({ok:true,message:'Writer Page routes working'}));
+router.get('/',protect,affiliateOnly,c.listMyWriterPages);
+router.get('/context',protect,affiliateOnly,c.getMyWriterPageContext);
+router.post('/',protect,affiliateOnly,c.createWriterPage);
+router.put('/:pageId',protect,affiliateOnly,c.updateWriterPage);
+router.put('/:pageId/primary',protect,affiliateOnly,c.setPrimaryWriterPage);
+router.delete('/:pageId',protect,affiliateOnly,c.deleteWriterPage);
+module.exports=router;

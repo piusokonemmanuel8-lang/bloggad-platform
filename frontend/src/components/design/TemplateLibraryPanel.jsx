@@ -12,12 +12,95 @@ export default function TemplateLibraryPanel({
   selectedBuilderId,
   onSelectTemplate,
   onOpenBuilder,
+  writerMode = false,
 }) {
   return (
     <div className="affiliate-design-template-list">
       {templates.map((template) => {
         const isSelected = String(currentTemplateId) === String(template.id);
         const isOpen = String(selectedBuilderId) === String(template.id);
+
+
+        if (writerMode) {
+          return (
+            <div
+              key={template.id}
+              className={getTemplateCardClass(currentTemplateId, template.id)}
+            >
+              <button
+                type="button"
+                className="affiliate-design-template-mainbtn writer"
+                onClick={() => onSelectTemplate(template)}
+              >
+                <div className="affiliate-design-template-preview">
+                  {template.preview_image ? (
+                    <img
+                      src={template.preview_image}
+                      alt={template.name}
+                      className="affiliate-design-template-image"
+                    />
+                  ) : (
+                    <div className="affiliate-design-template-image-empty">
+                      <LayoutTemplate size={24} />
+                      <span>No preview</span>
+                    </div>
+                  )}
+                </div>
+              </button>
+
+              <div className="affiliate-design-template-body writer">
+                <div className="affiliate-design-template-title-row">
+                  <h3>{template.name}</h3>
+                  <span
+                    className={
+                      'affiliate-design-template-tier ' +
+                      (template.is_premium ? 'premium' : 'standard')
+                    }
+                  >
+                    {template.is_premium ? <Crown size={12} /> : <LayoutTemplate size={12} />}
+                    {template.is_premium ? 'Premium' : 'Standard'}
+                  </span>
+                </div>
+
+                <p>{template.description || 'No description'}</p>
+
+                <div className="affiliate-design-template-meta">
+                  <span>{template.template_code_key || 'no_code_key'}</span>
+                  <span>{template.status || 'active'}</span>
+                  {isSelected ? (
+                    <span className="affiliate-design-template-selected">
+                      <CheckCircle2 size={11} />
+                      Selected
+                    </span>
+                  ) : null}
+                  {isOpen ? (
+                    <span className="affiliate-design-template-builder-open">Builder Open</span>
+                  ) : null}
+                </div>
+              </div>
+
+              <div className="affiliate-design-template-actions-inline writer">
+                <button
+                  type="button"
+                  className="affiliate-design-btn secondary slim"
+                  onClick={() => onSelectTemplate(template)}
+                >
+                  <CheckCircle2 size={15} />
+                  {isSelected ? 'Selected' : 'Select'}
+                </button>
+
+                <button
+                  type="button"
+                  className="affiliate-design-btn primary slim"
+                  onClick={() => onOpenBuilder(template)}
+                >
+                  <ChevronRight size={15} />
+                  {isOpen ? 'Builder Open' : 'Open Builder'}
+                </button>
+              </div>
+            </div>
+          );
+        }
 
         return (
           <div

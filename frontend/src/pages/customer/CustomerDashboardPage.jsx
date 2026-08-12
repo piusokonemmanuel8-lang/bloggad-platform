@@ -1,5 +1,24 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
+import ReaderUnifiedShell from '../../components/reader/ReaderUnifiedShell';
+import {
+  Bell,
+  Bookmark,
+  CircleDollarSign,
+  Crown,
+  GraduationCap,
+  Home,
+  LogOut,
+  Menu,
+  Megaphone,
+  MessageCircle,
+  Settings,
+  ShoppingBag,
+  Sparkles,
+  Tags,
+  UserRoundCheck,
+  X,
+} from 'lucide-react';
 
 const API_BASE =
   import.meta.env.VITE_API_BASE_URL ||
@@ -33,255 +52,224 @@ function getStoredUser() {
   }
 }
 
-function formatMoney(value, currency = 'USD') {
-  const amount = Number(value || 0);
-
-  try {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: currency || 'USD',
-      maximumFractionDigits: 2,
-    }).format(amount);
-  } catch (error) {
-    return `${currency || 'USD'} ${amount.toFixed(2)}`;
-  }
+function labelize(value, fallback = '-') {
+  const text = String(value || '').trim();
+  if (!text) return fallback;
+  return text
+    .replace(/[_-]+/g, ' ')
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
-function StatCard({ label, value, href }) {
-  const content = (
-    <div
-      style={{
-        borderRadius: 22,
-        border: '1px solid #e5e7eb',
-        background: '#ffffff',
-        padding: 20,
-        boxShadow: '0 12px 30px rgba(15, 23, 42, 0.06)',
-      }}
-    >
-      <div style={{ fontSize: 13, color: '#6b7280' }}>{label}</div>
-      <div
-        style={{
-          marginTop: 10,
-          fontSize: 34,
-          fontWeight: 800,
-          letterSpacing: '-0.04em',
-          color: '#111827',
-        }}
-      >
-        {value}
-      </div>
-    </div>
-  );
-
-  if (!href) return content;
+function StatusPill({ value, tone }) {
+  const normalized = String(value || '').trim().toLowerCase();
+  const stateTone =
+    tone ||
+    (['active', 'approved', 'verified', 'paid', 'completed'].includes(normalized)
+      ? 'good'
+      : ['pending', 'review', 'under review', 'processing'].includes(normalized)
+        ? 'warn'
+        : ['rejected', 'failed', 'suspended', 'inactive'].includes(normalized)
+          ? 'bad'
+          : 'neutral');
 
   return (
-    <Link
-      to={href}
-      style={{
-        display: 'block',
-        textDecoration: 'none',
-      }}
-    >
+    <span className={`reader-dashboard-pill ${stateTone}`}>
+      {labelize(value, 'Not set')}
+    </span>
+  );
+}
+
+function MetricCard({ label, value, helper, to }) {
+  const content = (
+    <>
+      <span className="reader-dashboard-metric-label">{label}</span>
+      <strong>{value}</strong>
+      <span className="reader-dashboard-metric-helper">{helper}</span>
+    </>
+  );
+
+  return to ? (
+    <Link className="reader-dashboard-metric" to={to}>
       {content}
     </Link>
+  ) : (
+    <div className="reader-dashboard-metric">{content}</div>
   );
 }
 
-function AdvertiserMiniCard({ label, value, subtext }) {
+const readerGroups = [
+  {
+    label: 'Discover',
+    items: [
+      { label: 'Overview', to: '/reader/dashboard', icon: Home },
+      { label: 'For You', to: '/reader/feed', icon: Sparkles },
+      { label: 'Interests', to: '/reader/interests', icon: Tags },
+    ],
+  },
+  {
+    label: 'Library',
+    items: [
+      { label: 'Saved Posts', to: '/reader/saved-posts', icon: Bookmark },
+      { label: 'Saved Products', to: '/reader/saved-products', icon: ShoppingBag },
+      { label: 'Following', to: '/reader/following', icon: UserRoundCheck },
+      { label: 'Courses', to: '/reader/courses', icon: GraduationCap },
+    ],
+  },
+  {
+    label: 'Account',
+    items: [
+      { label: 'Credits', to: '/reader/credits', icon: CircleDollarSign },
+      { label: 'Premium', to: '/reader/premium', icon: Crown },
+      { label: 'Notifications', to: '/reader/notifications', icon: Bell },
+      { label: 'Messages', to: '/reader/messages', icon: MessageCircle },
+      { label: 'Settings', to: '/reader/settings', icon: Settings },
+    ],
+  },
+  {
+    label: 'Advertiser',
+    items: [
+      {
+        label: 'Create Campaign',
+        to: '/customer/advertiser/campaigns/create',
+        icon: Megaphone,
+      },
+    ],
+  },
+];
+
+function dashboardDisplayName(user) {
   return (
-    <div
-      style={{
-        borderRadius: 18,
-        border: '1px solid #dbeafe',
-        background: '#f8fbff',
-        padding: 16,
-      }}
-    >
-      <div
-        style={{
-          fontSize: 12,
-          textTransform: 'uppercase',
-          letterSpacing: '0.14em',
-          color: '#6b7280',
-          fontWeight: 800,
-        }}
-      >
-        {label}
-      </div>
+    user?.display_name ||
+    user?.full_name ||
+    user?.name ||
+    user?.username ||
+    user?.email ||
+    'Reader'
+  );
+}
 
-      <div
-        style={{
-          marginTop: 10,
-          fontSize: 22,
-          fontWeight: 800,
-          letterSpacing: '-0.03em',
-          color: '#111827',
-        }}
-      >
-        {value}
-      </div>
+function dashboardInitial(value) {
+  const clean = String(value || '').trim();
+  return clean ? clean.charAt(0).toUpperCase() : 'R';
+}
 
-      {subtext ? (
-        <div
-          style={{
-            marginTop: 6,
-            fontSize: 13,
-            color: '#6b7280',
-            lineHeight: 1.6,
-          }}
-        >
-          {subtext}
+function ReaderNavigation({ onNavigate }) {
+  const location = useLocation();
+
+  return (
+    <nav className="reader-dashboard-nav" aria-label="Reader navigation">
+      {readerGroups.map((group) => (
+        <div className="reader-dashboard-nav-group" key={group.label}>
+          <div className="reader-dashboard-nav-label">{group.label}</div>
+          <div className="reader-dashboard-nav-list">
+            {group.items.map((item) => {
+              const Icon = item.icon;
+
+              return (
+                <NavLink
+                  key={item.to}
+                  to={item.to}
+                  onClick={onNavigate}
+                  className={({ isActive }) => {
+                    const overviewAlias =
+                      item.to === '/reader/dashboard' &&
+                      location.pathname === '/customer/dashboard';
+
+                    return `reader-dashboard-nav-link${
+                      isActive || overviewAlias ? ' active' : ''
+                    }`;
+                  }}
+                >
+                  <span className="reader-dashboard-nav-icon" aria-hidden="true">
+                    <Icon size={16} strokeWidth={1.9} />
+                  </span>
+                  <span>{item.label}</span>
+                </NavLink>
+              );
+            })}
+          </div>
         </div>
-      ) : null}
+      ))}
+    </nav>
+  );
+}
+
+function ReaderSidebar({ customer, onLogout }) {
+  const readerName = dashboardDisplayName(customer);
+
+  return (
+    <aside className="reader-dashboard-sidebar">
+      <div className="reader-dashboard-brand">
+        <span className="reader-dashboard-brand-mark">B</span>
+        <div className="reader-dashboard-brand-copy">
+          <strong>Bloggad</strong>
+          <small>Reader</small>
+        </div>
+      </div>
+
+      <ReaderNavigation />
+
+      <div className="reader-dashboard-reader-card">
+        <span className="reader-dashboard-avatar" aria-hidden="true">
+          {dashboardInitial(readerName)}
+        </span>
+        <div className="reader-dashboard-reader-copy">
+          <strong>{readerName}</strong>
+          <small>Reader account</small>
+        </div>
+        <button
+          type="button"
+          className="reader-dashboard-logout"
+          onClick={onLogout}
+          aria-label="Log out"
+        >
+          <LogOut size={15} />
+        </button>
+      </div>
+    </aside>
+  );
+}
+
+function InfoRow({ label, value, children }) {
+  return (
+    <div className="reader-dashboard-info-row">
+      <span>{label}</span>
+      {children || <strong>{value || '-'}</strong>}
     </div>
   );
 }
 
-function CustomerSidebar({ customer, onLogout, currentPath }) {
-  const links = [
-    { label: 'Overview', to: '/customer/dashboard' },
-    { label: 'Advertiser', to: '/customer/advertiser' },
-    { label: 'Advertiser Profile', to: '/customer/advertiser/profile' },
-    { label: 'Advertiser Wallet', to: '/customer/advertiser/wallet' },
-    { label: 'Advertiser Campaigns', to: '/customer/advertiser/campaigns' },
-    { label: 'Create Campaign', to: '/customer/advertiser/campaigns/create' },
-    { label: 'Saved Posts', to: '/customer/saved-posts' },
-    { label: 'Saved Products', to: '/customer/saved-products' },
-    { label: 'Messages', to: '/customer/messages' },
-    { label: 'Settings', to: '/customer/settings' },
-  ];
-
+function QuickLink({ eyebrow, title, description, to }) {
   return (
-    <aside
-      style={{
-        borderRadius: 26,
-        border: '1px solid #e5e7eb',
-        background: '#ffffff',
-        padding: 20,
-        boxShadow: '0 18px 45px rgba(15, 23, 42, 0.06)',
-        height: 'fit-content',
-      }}
-    >
-      <div
-        style={{
-          borderRadius: 22,
-          border: '1px solid #eef2f7',
-          background: '#f8fafc',
-          padding: 16,
-        }}
-      >
-        <div
-          style={{
-            fontSize: 12,
-            textTransform: 'uppercase',
-            letterSpacing: '0.18em',
-            color: '#6b7280',
-            marginBottom: 8,
-            fontWeight: 800,
-          }}
-        >
-          Customer Dashboard
-        </div>
-
-        <div
-          style={{
-            fontSize: 22,
-            fontWeight: 800,
-            letterSpacing: '-0.03em',
-            color: '#111827',
-            lineHeight: 1.15,
-          }}
-        >
-          {customer?.name || 'Customer'}
-        </div>
-
-        <div
-          style={{
-            marginTop: 6,
-            fontSize: 14,
-            color: '#6b7280',
-            wordBreak: 'break-word',
-          }}
-        >
-          {customer?.email || '-'}
-        </div>
-      </div>
-
-      <nav style={{ marginTop: 18, display: 'grid', gap: 8 }}>
-        {links.map((item) => {
-          const active = currentPath === item.to;
-
-          return (
-            <Link
-              key={item.to}
-              to={item.to}
-              style={{
-                minHeight: 48,
-                borderRadius: 16,
-                border: active ? '1px solid #111827' : '1px solid #e5e7eb',
-                background: active ? '#111827' : '#ffffff',
-                color: active ? '#ffffff' : '#111827',
-                textDecoration: 'none',
-                fontSize: 14,
-                fontWeight: 700,
-                display: 'flex',
-                alignItems: 'center',
-                padding: '0 16px',
-              }}
-            >
-              {item.label}
-            </Link>
-          );
-        })}
-      </nav>
-
-      <button
-        type="button"
-        onClick={onLogout}
-        style={{
-          marginTop: 18,
-          width: '100%',
-          minHeight: 48,
-          borderRadius: 16,
-          border: '1px solid #fecaca',
-          background: '#fff1f2',
-          color: '#be123c',
-          fontSize: 14,
-          fontWeight: 700,
-          cursor: 'pointer',
-        }}
-      >
-        Logout
-      </button>
-    </aside>
+    <Link className="reader-dashboard-quick-link" to={to}>
+      <span>{eyebrow}</span>
+      <strong>{title}</strong>
+      <p>{description}</p>
+      <b>Open</b>
+    </Link>
   );
 }
 
 export default function CustomerDashboardPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [loading, setLoading] = useState(true);
   const [dashboard, setDashboard] = useState(null);
   const [error, setError] = useState('');
-  const [advertiserLoading, setAdvertiserLoading] = useState(true);
-  const [advertiserError, setAdvertiserError] = useState('');
-  const [advertiserProfile, setAdvertiserProfile] = useState(null);
-  const [advertiserWallet, setAdvertiserWallet] = useState(null);
-  const [advertiserPayments, setAdvertiserPayments] = useState([]);
-  const [advertiserCampaigns, setAdvertiserCampaigns] = useState([]);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const token = useMemo(() => getStoredToken(), []);
   const storedUser = useMemo(() => getStoredUser(), []);
 
   useEffect(() => {
     if (!token) {
-      navigate('/customer/login', { replace: true });
-      return;
+      navigate('/reader/login', { replace: true });
+      return undefined;
     }
 
     let isMounted = true;
 
-    async function fetchDashboard() {
+    async function loadDashboard() {
       setLoading(true);
       setError('');
 
@@ -289,1134 +277,1641 @@ export default function CustomerDashboardPage() {
         const response = await fetch(getApiUrl('/api/customer/dashboard'), {
           method: 'GET',
           headers: {
+            Accept: 'application/json',
             Authorization: `Bearer ${token}`,
           },
-          credentials: 'include',
         });
-
         const data = await response.json();
 
         if (!response.ok || !data?.ok) {
-          throw new Error(data?.message || 'Failed to fetch dashboard.');
+          throw new Error(data?.message || 'Failed to fetch Reader dashboard.');
         }
 
-        if (!isMounted) return;
-        setDashboard(data);
+        if (isMounted) setDashboard(data);
       } catch (err) {
-        if (!isMounted) return;
-        setError(err.message || 'Failed to fetch dashboard.');
+        if (isMounted) setError(err?.message || 'Failed to fetch Reader dashboard.');
       } finally {
         if (isMounted) setLoading(false);
       }
     }
 
-    fetchDashboard();
+    loadDashboard();
 
     return () => {
       isMounted = false;
     };
   }, [navigate, token]);
 
-  useEffect(() => {
-    if (!token) return;
-
-    let isMounted = true;
-
-    async function fetchAdvertiserData() {
-      setAdvertiserLoading(true);
-      setAdvertiserError('');
-
-      try {
-        const [profileResponse, walletResponse, paymentResponse, campaignResponse] =
-          await Promise.all([
-            fetch(getApiUrl('/api/customer/advertiser/profile'), {
-              method: 'GET',
-              headers: {
-                Authorization: `Bearer ${token}`,
-              },
-              credentials: 'include',
-            }),
-            fetch(getApiUrl('/api/customer/advertiser/wallet'), {
-              method: 'GET',
-              headers: {
-                Authorization: `Bearer ${token}`,
-              },
-              credentials: 'include',
-            }),
-            fetch(getApiUrl('/api/customer/advertiser/payments'), {
-              method: 'GET',
-              headers: {
-                Authorization: `Bearer ${token}`,
-              },
-              credentials: 'include',
-            }),
-            fetch(getApiUrl('/api/customer/advertiser/campaigns'), {
-              method: 'GET',
-              headers: {
-                Authorization: `Bearer ${token}`,
-              },
-              credentials: 'include',
-            }),
-          ]);
-
-        const [profileData, walletData, paymentData, campaignData] = await Promise.all([
-          profileResponse.json(),
-          walletResponse.json(),
-          paymentResponse.json(),
-          campaignResponse.json(),
-        ]);
-
-        if (!profileResponse.ok || !profileData?.ok) {
-          throw new Error(profileData?.message || 'Failed to fetch advertiser profile.');
-        }
-
-        if (!walletResponse.ok || !walletData?.ok) {
-          throw new Error(walletData?.message || 'Failed to fetch advertiser wallet.');
-        }
-
-        if (!paymentResponse.ok || !paymentData?.ok) {
-          throw new Error(paymentData?.message || 'Failed to fetch advertiser payments.');
-        }
-
-        if (!campaignResponse.ok || !campaignData?.ok) {
-          throw new Error(campaignData?.message || 'Failed to fetch advertiser campaigns.');
-        }
-
-        if (!isMounted) return;
-
-        setAdvertiserProfile(profileData?.advertiser_profile || walletData?.advertiser_profile || null);
-        setAdvertiserWallet(walletData?.wallet || profileData?.advertiser_wallet || null);
-        setAdvertiserPayments(paymentData?.payments || walletData?.recent_payments || []);
-        setAdvertiserCampaigns(campaignData?.campaigns || []);
-      } catch (err) {
-        if (!isMounted) return;
-        setAdvertiserError(err.message || 'Failed to fetch advertiser data.');
-      } finally {
-        if (isMounted) setAdvertiserLoading(false);
-      }
-    }
-
-    fetchAdvertiserData();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [token]);
-
-  function handleLogout() {
-    localStorage.removeItem('token');
-    localStorage.removeItem('authToken');
-    localStorage.removeItem('customerToken');
-    localStorage.removeItem('user');
-    localStorage.removeItem('customerUser');
-    localStorage.removeItem('customerLoginContext');
-    navigate('/customer/login', { replace: true });
-  }
-
-  const customer = dashboard?.customer || storedUser || null;
-  const stats = dashboard?.stats || {
-    saved_posts: 0,
-    saved_products: 0,
-    affiliate_chats: 0,
-    admin_chats: 0,
-  };
-  const registeredAffiliate = dashboard?.registered_under?.affiliate || null;
+  const customer = dashboard?.customer || storedUser || {};
+  const stats = dashboard?.stats || {};
+  const registeredWriter = dashboard?.registered_under?.affiliate || null;
   const registeredWebsite = dashboard?.registered_under?.website || null;
 
-  const advertiserSummary = useMemo(() => {
-    const approvedCampaigns = advertiserCampaigns.filter(
-      (item) => item?.approval_status === 'approved'
-    ).length;
+  const writerSpacePath = registeredWebsite?.slug
+    ? `/${encodeURIComponent(registeredWebsite.slug)}`
+    : '/reader/feed';
 
-    const pendingCampaigns = advertiserCampaigns.filter(
-      (item) => item?.approval_status === 'pending'
-    ).length;
+  function handleLogout() {
+    [
+      'customerToken',
+      'authToken',
+      'accessToken',
+      'token',
+      'customerUser',
+      'user',
+      'customerLoginContext',
+    ].forEach((key) => localStorage.removeItem(key));
+    navigate('/reader/login', { replace: true });
+  }
 
-    const paidPayments = advertiserPayments.filter(
-      (item) => item?.payment_status === 'paid'
-    ).length;
-
-    return {
-      totalCampaigns: advertiserCampaigns.length,
-      approvedCampaigns,
-      pendingCampaigns,
-      paidPayments,
-    };
-  }, [advertiserCampaigns, advertiserPayments]);
-
-  return (
-    <div
-      style={{
-        minHeight: '100vh',
-        background: '#f8fafc',
-        padding: '20px 16px',
-      }}
-    >
-      <style>{`
-        .customer-dashboard-layout {
-          display: grid;
-          grid-template-columns: 280px minmax(0, 1fr);
-          gap: 24px;
-          align-items: start;
-        }
-
-        .customer-dashboard-stats {
-          display: grid;
-          grid-template-columns: repeat(4, minmax(0, 1fr));
-          gap: 16px;
-        }
-
-        .customer-dashboard-bottom {
-          display: grid;
-          grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr);
-          gap: 24px;
-        }
-
-        .customer-advertiser-grid {
-          display: grid;
-          grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr);
-          gap: 24px;
-        }
-
-        .customer-advertiser-mini-grid {
-          display: grid;
-          grid-template-columns: repeat(4, minmax(0, 1fr));
-          gap: 16px;
-        }
-
-        @media (max-width: 1200px) {
-          .customer-dashboard-stats,
-          .customer-advertiser-mini-grid {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-          }
-        }
-
-        @media (max-width: 991px) {
-          .customer-dashboard-layout,
-          .customer-dashboard-bottom,
-          .customer-advertiser-grid {
-            grid-template-columns: 1fr;
-          }
-        }
-
-        @media (max-width: 640px) {
-          .customer-dashboard-stats,
-          .customer-advertiser-mini-grid {
-            grid-template-columns: 1fr;
-          }
-        }
-      `}</style>
-
-      <div style={{ width: '100%', maxWidth: 1280, margin: '0 auto' }}>
-        <div className="customer-dashboard-layout">
-          <CustomerSidebar
-            customer={customer}
-            onLogout={handleLogout}
-            currentPath="/customer/dashboard"
-          />
-
-          <main style={{ display: 'grid', gap: 24 }}>
-            <section
-              style={{
-                borderRadius: 28,
-                border: '1px solid #e5e7eb',
-                background: 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)',
-                padding: 24,
-                boxShadow: '0 22px 50px rgba(15, 23, 42, 0.06)',
-              }}
-            >
-              <div
-                style={{
-                  display: 'flex',
-                  gap: 16,
-                  justifyContent: 'space-between',
-                  alignItems: 'flex-end',
-                  flexWrap: 'wrap',
-                }}
-              >
-                <div>
-                  <div
-                    style={{
-                      display: 'inline-flex',
-                      padding: '6px 12px',
-                      borderRadius: 999,
-                      background: '#ecfdf5',
-                      border: '1px solid #bbf7d0',
-                      color: '#166534',
-                      fontSize: 11,
-                      fontWeight: 800,
-                      letterSpacing: '0.16em',
-                      textTransform: 'uppercase',
-                    }}
-                  >
-                    Welcome
-                  </div>
-
-                  <h1
-                    style={{
-                      margin: '14px 0 0',
-                      fontSize: 44,
-                      fontWeight: 800,
-                      letterSpacing: '-0.05em',
-                      lineHeight: 1.04,
-                      color: '#111827',
-                    }}
-                  >
-                    Your customer space
-                  </h1>
-
-                  <p
-                    style={{
-                      margin: '12px 0 0',
-                      maxWidth: 760,
-                      fontSize: 15,
-                      lineHeight: 1.8,
-                      color: '#6b7280',
-                    }}
-                  >
-                    Save posts to continue later, bookmark products you like, request direct coupon offers, chat with affiliates or admin, and manage your advertiser account from one place.
-                  </p>
-                </div>
-
-                <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-                  <Link to="/customer/saved-posts" style={primaryBtnStyle}>
-                    View Saved Posts
-                  </Link>
-                  <a href="#customer-advertiser-section" style={secondaryBtnStyle}>
-                    Open Advertiser
-                  </a>
-                </div>
+  if (location.pathname === '/reader/dashboard') {
+    return (
+      <ReaderUnifiedShell title="Overview" subtitle="Your Reader dashboard">
+        <style>{readerDashboardCss}</style>
+          <main className="reader-dashboard-main">
+            <section className="reader-dashboard-hero">
+              <div>
+                <span className="reader-dashboard-eyebrow">READER HOME</span>
+                <h1>Reader Dashboard</h1>
+                <p>
+                  Keep your saved content, Writer conversations, and reading tools organized
+                  in one clear place.
+                </p>
               </div>
+              <Link className="reader-dashboard-primary-button" to="/reader/feed">
+                Open For You
+              </Link>
             </section>
 
-            {error ? (
-              <div
-                style={{
-                  borderRadius: 20,
-                  border: '1px solid #fecaca',
-                  background: '#fff1f2',
-                  padding: '16px 18px',
-                  fontSize: 14,
-                  color: '#be123c',
-                }}
-              >
-                {error}
-              </div>
-            ) : null}
+            {error ? <div className="reader-dashboard-alert error">{error}</div> : null}
 
-            {loading ? (
-              <div
-                style={{
-                  borderRadius: 20,
-                  border: '1px solid #e5e7eb',
-                  background: '#ffffff',
-                  padding: '18px 20px',
-                  fontSize: 14,
-                  color: '#6b7280',
-                }}
-              >
-                Loading dashboard...
-              </div>
-            ) : null}
-
-            <div className="customer-dashboard-stats">
-              <StatCard
+            <section className="reader-dashboard-metrics">
+              <MetricCard
                 label="Saved Posts"
-                value={stats.saved_posts || 0}
-                href="/customer/saved-posts"
+                value={loading ? '-' : Number(stats.saved_posts || 0)}
+                helper="Posts kept for later"
+                to="/reader/saved-posts"
               />
-              <StatCard
+              <MetricCard
                 label="Saved Products"
-                value={stats.saved_products || 0}
-                href="/customer/saved-products"
+                value={loading ? '-' : Number(stats.saved_products || 0)}
+                helper="Products you bookmarked"
+                to="/reader/saved-products"
               />
-              <StatCard
-                label="Affiliate Chats"
-                value={stats.affiliate_chats || 0}
-                href="/customer/messages"
+              <MetricCard
+                label="Writer Chats"
+                value={loading ? '-' : Number(stats.affiliate_chats || 0)}
+                helper="Writer conversations"
+                to="/reader/messages"
               />
-              <StatCard
-                label="Admin Support Chats"
-                value={stats.admin_chats || 0}
-                href="/customer/messages"
+              <MetricCard
+                label="Admin Support"
+                value={loading ? '-' : Number(stats.admin_chats || 0)}
+                helper="Support conversations"
+                to="/reader/messages"
               />
-            </div>
+            </section>
 
-            <div className="customer-dashboard-bottom">
-              <section
-                style={{
-                  borderRadius: 24,
-                  border: '1px solid #e5e7eb',
-                  background: '#ffffff',
-                  padding: 20,
-                  boxShadow: '0 18px 45px rgba(15, 23, 42, 0.05)',
-                }}
-              >
-                <div
-                  style={{
-                    fontSize: 24,
-                    fontWeight: 800,
-                    letterSpacing: '-0.03em',
-                    color: '#111827',
-                  }}
-                >
-                  Account summary
+            <section className="reader-dashboard-two-column">
+              <article className="reader-dashboard-panel reader-dashboard-connection-panel">
+                <div className="reader-dashboard-panel-heading">
+                  <div>
+                    <span className="reader-dashboard-section-kicker">CONNECTION</span>
+                    <h2>Writer &amp; Writer Space</h2>
+                    <p>Your signup connection and the Writer Space attached to this Reader account.</p>
+                  </div>
+                  {registeredWebsite?.status ? <StatusPill value={registeredWebsite.status} /> : null}
                 </div>
 
-                <div
-                  style={{
-                    marginTop: 20,
-                    display: 'grid',
-                    gap: 16,
-                    gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-                  }}
-                >
-                  <div style={infoCardStyle}>
-                    <div style={infoLabelStyle}>Full Name</div>
-                    <div style={infoValueStyle}>{customer?.name || '-'}</div>
+                <div className="reader-dashboard-connection-grid">
+                  <div className="reader-dashboard-connection-card">
+                    <span className="reader-dashboard-card-label">REGISTERED WRITER</span>
+                    <strong>{registeredWriter?.name || 'Main marketplace signup'}</strong>
+                    <p>{registeredWriter?.email || 'No Writer connection'}</p>
+                    <Link to="/reader/messages">Message Writer</Link>
                   </div>
-
-                  <div style={infoCardStyle}>
-                    <div style={infoLabelStyle}>Email</div>
-                    <div style={{ ...infoValueStyle, wordBreak: 'break-word' }}>
-                      {customer?.email || '-'}
-                    </div>
-                  </div>
-
-                  <div style={infoCardStyle}>
-                    <div style={infoLabelStyle}>Role</div>
-                    <div style={infoValueStyle}>{customer?.role || 'customer'}</div>
-                  </div>
-
-                  <div style={infoCardStyle}>
-                    <div style={infoLabelStyle}>Status</div>
-                    <div style={infoValueStyle}>{customer?.status || '-'}</div>
+                  <div className="reader-dashboard-connection-card">
+                    <span className="reader-dashboard-card-label">WRITER SPACE</span>
+                    <strong>{registeredWebsite?.website_name || 'Main marketplace'}</strong>
+                    <p>{registeredWebsite?.slug || 'No connected Writer Space'}</p>
+                    <Link to={writerSpacePath} target={registeredWebsite?.slug ? '_blank' : undefined}>
+                      {registeredWebsite?.slug ? 'Open Writer Space' : 'Browse For You'}
+                    </Link>
                   </div>
                 </div>
-              </section>
+              </article>
 
-              <section
-                style={{
-                  borderRadius: 24,
-                  border: '1px solid #e5e7eb',
-                  background: '#ffffff',
-                  padding: 20,
-                  boxShadow: '0 18px 45px rgba(15, 23, 42, 0.05)',
-                }}
-              >
-                <div
-                  style={{
-                    fontSize: 24,
-                    fontWeight: 800,
-                    letterSpacing: '-0.03em',
-                    color: '#111827',
-                  }}
-                >
-                  Registration ownership
-                </div>
-
-                <div style={{ marginTop: 20, display: 'grid', gap: 16 }}>
-                  <div style={infoCardStyle}>
-                    <div style={infoLabelStyle}>Registered Under Affiliate</div>
-                    <div style={infoValueStyle}>
-                      {registeredAffiliate?.name || 'Main marketplace signup'}
-                    </div>
-                    <div style={infoSubTextStyle}>
-                      {registeredAffiliate?.email || 'No affiliate ownership'}
-                    </div>
+              <article className="reader-dashboard-panel">
+                <div className="reader-dashboard-panel-heading simple">
+                  <div>
+                    <span className="reader-dashboard-section-kicker">ACCOUNT</span>
+                    <h2>Account overview</h2>
                   </div>
-
-                  <div style={infoCardStyle}>
-                    <div style={infoLabelStyle}>Registered Storefront</div>
-                    <div style={infoValueStyle}>
-                      {registeredWebsite?.website_name || 'Main marketplace'}
-                    </div>
-                    <div style={infoSubTextStyle}>
-                      {registeredWebsite?.slug || '-'}
-                    </div>
-                  </div>
-
-                  <Link to="/customer/settings" style={secondaryFullBtnStyle}>
-                    Manage Settings
-                  </Link>
                 </div>
-              </section>
-            </div>
+                <div className="reader-dashboard-info-list">
+                  <InfoRow label="Status">
+                    <StatusPill value={customer?.status || 'active'} />
+                  </InfoRow>
+                  <InfoRow label="Role" value="Reader" />
+                  <InfoRow label="Reader access" value={customer?.email || 'Signed in'} />
+                </div>
+                <Link className="reader-dashboard-secondary-button full" to="/reader/settings">
+                  Manage Settings
+                </Link>
+              </article>
+            </section>
 
-            <section
-              id="customer-advertiser-section"
-              style={{
-                borderRadius: 28,
-                border: '1px solid #dbeafe',
-                background: 'linear-gradient(135deg, #eff6ff 0%, #ffffff 100%)',
-                padding: 24,
-                boxShadow: '0 22px 50px rgba(59, 130, 246, 0.06)',
-              }}
-            >
-              <div
-                style={{
-                  display: 'flex',
-                  gap: 16,
-                  justifyContent: 'space-between',
-                  alignItems: 'flex-end',
-                  flexWrap: 'wrap',
-                }}
-              >
+            <section className="reader-dashboard-section-block">
+              <div className="reader-dashboard-section-title">
                 <div>
-                  <div
-                    style={{
-                      display: 'inline-flex',
-                      padding: '6px 12px',
-                      borderRadius: 999,
-                      background: '#dbeafe',
-                      border: '1px solid #bfdbfe',
-                      color: '#1d4ed8',
-                      fontSize: 11,
-                      fontWeight: 800,
-                      letterSpacing: '0.16em',
-                      textTransform: 'uppercase',
-                    }}
-                  >
-                    Advertiser Account
-                  </div>
-
-                  <h2
-                    style={{
-                      margin: '14px 0 0',
-                      fontSize: 34,
-                      fontWeight: 800,
-                      letterSpacing: '-0.05em',
-                      lineHeight: 1.06,
-                      color: '#111827',
-                    }}
-                  >
-                    Run ads from your customer account
-                  </h2>
-
-                  <p
-                    style={{
-                      margin: '12px 0 0',
-                      maxWidth: 760,
-                      fontSize: 15,
-                      lineHeight: 1.8,
-                      color: '#6b7280',
-                    }}
-                  >
-                    Your advertiser profile is tied to this same customer account. You can fund wallet, create campaigns, add creatives, and submit campaigns for admin review from here.
-                  </p>
+                  <span className="reader-dashboard-section-kicker">QUICK ACCESS</span>
+                  <h2>Your Reader tools</h2>
                 </div>
-
-                <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-                  <Link to="/customer/advertiser" style={primaryBlueBtnStyle}>
-                    Open Advertiser Dashboard
-                  </Link>
-                  <Link to="/customer/advertiser/campaigns/create" style={secondaryBtnStyle}>
-                    Create Campaign
-                  </Link>
-                </div>
+                <Link to="/reader/feed">Open reading feed</Link>
+              </div>
+              <div className="reader-dashboard-quick-grid">
+                <QuickLink
+                  eyebrow="NETWORK"
+                  title="Following"
+                  description="See the Writers you follow and return to their work."
+                  to="/reader/following"
+                />
+                <QuickLink
+                  eyebrow="LEARNING"
+                  title="Courses"
+                  description="Continue Reader courses and learning activity."
+                  to="/reader/courses"
+                />
+                <QuickLink
+                  eyebrow="BALANCE"
+                  title="Credits"
+                  description="Review Reader credits available for supported actions."
+                  to="/reader/credits"
+                />
+                <QuickLink
+                  eyebrow="UPDATES"
+                  title="Notifications"
+                  description="See recent Reader notifications and account updates."
+                  to="/reader/notifications"
+                />
               </div>
             </section>
 
-            {advertiserError ? (
-              <div
-                style={{
-                  borderRadius: 20,
-                  border: '1px solid #fecaca',
-                  background: '#fff1f2',
-                  padding: '16px 18px',
-                  fontSize: 14,
-                  color: '#be123c',
-                }}
-              >
-                {advertiserError}
+          </main>
+      </ReaderUnifiedShell>
+    );
+  }
+  return (
+    <div className="reader-dashboard-screen">
+      <style>{readerDashboardCss}</style>
+
+      <div className="reader-dashboard-layout">
+        <ReaderSidebar customer={customer} onLogout={handleLogout} />
+
+        <div className="reader-dashboard-main-wrap">
+          <header className="reader-dashboard-desktop-topbar">
+            <h1>Overview</h1>
+            <span>Your Reader dashboard</span>
+          </header>
+
+          <header className="reader-dashboard-mobile-topbar">
+            <div className="reader-dashboard-mobile-brand">
+              <span className="reader-dashboard-brand-mark">B</span>
+              <strong>Reader</strong>
+            </div>
+            <button
+              type="button"
+              className="reader-dashboard-mobile-menu-button"
+              onClick={() => setMobileMenuOpen(true)}
+            >
+              <Menu size={15} />
+              <span>Menu</span>
+            </button>
+          </header>
+
+          <main className="reader-dashboard-main">
+            <section className="reader-dashboard-hero">
+              <div>
+                <span className="reader-dashboard-eyebrow">READER HOME</span>
+                <h1>Reader Dashboard</h1>
+                <p>
+                  Keep your saved content, Writer conversations, and reading tools organized
+                  in one clear place.
+                </p>
               </div>
-            ) : null}
+              <Link className="reader-dashboard-primary-button" to="/reader/feed">
+                Open For You
+              </Link>
+            </section>
 
-            {advertiserLoading ? (
-              <div
-                style={{
-                  borderRadius: 20,
-                  border: '1px solid #dbeafe',
-                  background: '#ffffff',
-                  padding: '18px 20px',
-                  fontSize: 14,
-                  color: '#6b7280',
-                }}
-              >
-                Loading advertiser summary...
+            {error ? <div className="reader-dashboard-alert error">{error}</div> : null}
+
+            <section className="reader-dashboard-metrics">
+              <MetricCard
+                label="Saved Posts"
+                value={loading ? '-' : Number(stats.saved_posts || 0)}
+                helper="Posts kept for later"
+                to="/reader/saved-posts"
+              />
+              <MetricCard
+                label="Saved Products"
+                value={loading ? '-' : Number(stats.saved_products || 0)}
+                helper="Products you bookmarked"
+                to="/reader/saved-products"
+              />
+              <MetricCard
+                label="Writer Chats"
+                value={loading ? '-' : Number(stats.affiliate_chats || 0)}
+                helper="Writer conversations"
+                to="/reader/messages"
+              />
+              <MetricCard
+                label="Admin Support"
+                value={loading ? '-' : Number(stats.admin_chats || 0)}
+                helper="Support conversations"
+                to="/reader/messages"
+              />
+            </section>
+
+            <section className="reader-dashboard-two-column">
+              <article className="reader-dashboard-panel reader-dashboard-connection-panel">
+                <div className="reader-dashboard-panel-heading">
+                  <div>
+                    <span className="reader-dashboard-section-kicker">CONNECTION</span>
+                    <h2>Writer &amp; Writer Space</h2>
+                    <p>Your signup connection and the Writer Space attached to this Reader account.</p>
+                  </div>
+                  {registeredWebsite?.status ? <StatusPill value={registeredWebsite.status} /> : null}
+                </div>
+
+                <div className="reader-dashboard-connection-grid">
+                  <div className="reader-dashboard-connection-card">
+                    <span className="reader-dashboard-card-label">REGISTERED WRITER</span>
+                    <strong>{registeredWriter?.name || 'Main marketplace signup'}</strong>
+                    <p>{registeredWriter?.email || 'No Writer connection'}</p>
+                    <Link to="/reader/messages">Message Writer</Link>
+                  </div>
+                  <div className="reader-dashboard-connection-card">
+                    <span className="reader-dashboard-card-label">WRITER SPACE</span>
+                    <strong>{registeredWebsite?.website_name || 'Main marketplace'}</strong>
+                    <p>{registeredWebsite?.slug || 'No connected Writer Space'}</p>
+                    <Link to={writerSpacePath} target={registeredWebsite?.slug ? '_blank' : undefined}>
+                      {registeredWebsite?.slug ? 'Open Writer Space' : 'Browse For You'}
+                    </Link>
+                  </div>
+                </div>
+              </article>
+
+              <article className="reader-dashboard-panel">
+                <div className="reader-dashboard-panel-heading simple">
+                  <div>
+                    <span className="reader-dashboard-section-kicker">ACCOUNT</span>
+                    <h2>Account overview</h2>
+                  </div>
+                </div>
+                <div className="reader-dashboard-info-list">
+                  <InfoRow label="Status">
+                    <StatusPill value={customer?.status || 'active'} />
+                  </InfoRow>
+                  <InfoRow label="Role" value="Reader" />
+                  <InfoRow label="Reader access" value={customer?.email || 'Signed in'} />
+                </div>
+                <Link className="reader-dashboard-secondary-button full" to="/reader/settings">
+                  Manage Settings
+                </Link>
+              </article>
+            </section>
+
+            <section className="reader-dashboard-section-block">
+              <div className="reader-dashboard-section-title">
+                <div>
+                  <span className="reader-dashboard-section-kicker">QUICK ACCESS</span>
+                  <h2>Your Reader tools</h2>
+                </div>
+                <Link to="/reader/feed">Open reading feed</Link>
               </div>
-            ) : null}
+              <div className="reader-dashboard-quick-grid">
+                <QuickLink
+                  eyebrow="NETWORK"
+                  title="Following"
+                  description="See the Writers you follow and return to their work."
+                  to="/reader/following"
+                />
+                <QuickLink
+                  eyebrow="LEARNING"
+                  title="Courses"
+                  description="Continue Reader courses and learning activity."
+                  to="/reader/courses"
+                />
+                <QuickLink
+                  eyebrow="BALANCE"
+                  title="Credits"
+                  description="Review Reader credits available for supported actions."
+                  to="/reader/credits"
+                />
+                <QuickLink
+                  eyebrow="UPDATES"
+                  title="Notifications"
+                  description="See recent Reader notifications and account updates."
+                  to="/reader/notifications"
+                />
+              </div>
+            </section>
 
-            <div id="customer-advertiser-summary" className="customer-advertiser-mini-grid">
-              <AdvertiserMiniCard
-                label="Wallet Balance"
-                value={formatMoney(
-                  advertiserWallet?.available_balance || 0,
-                  advertiserWallet?.currency_code || 'USD'
-                )}
-                subtext="Available amount for campaigns"
-              />
-              <AdvertiserMiniCard
-                label="Total Campaigns"
-                value={advertiserSummary.totalCampaigns}
-                subtext="All campaigns created on this account"
-              />
-              <AdvertiserMiniCard
-                label="Approved Campaigns"
-                value={advertiserSummary.approvedCampaigns}
-                subtext="Campaigns ready to run"
-              />
-              <AdvertiserMiniCard
-                label="Pending Review"
-                value={advertiserSummary.pendingCampaigns}
-                subtext="Campaigns waiting for admin review"
-              />
-            </div>
-
-            <div className="customer-advertiser-grid">
-              <section
-                style={{
-                  borderRadius: 24,
-                  border: '1px solid #e5e7eb',
-                  background: '#ffffff',
-                  padding: 20,
-                  boxShadow: '0 18px 45px rgba(15, 23, 42, 0.05)',
-                }}
-              >
-                <div
-                  style={{
-                    fontSize: 24,
-                    fontWeight: 800,
-                    letterSpacing: '-0.03em',
-                    color: '#111827',
-                  }}
-                >
-                  Advertiser profile
-                </div>
-
-                <div
-                  style={{
-                    marginTop: 20,
-                    display: 'grid',
-                    gap: 16,
-                    gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-                  }}
-                >
-                  <div style={infoCardStyle}>
-                    <div style={infoLabelStyle}>Business Name</div>
-                    <div style={infoValueStyle}>
-                      {advertiserProfile?.business_name || 'Not set yet'}
-                    </div>
-                  </div>
-
-                  <div style={infoCardStyle}>
-                    <div style={infoLabelStyle}>Brand Name</div>
-                    <div style={infoValueStyle}>
-                      {advertiserProfile?.brand_name || 'Not set yet'}
-                    </div>
-                  </div>
-
-                  <div style={infoCardStyle}>
-                    <div style={infoLabelStyle}>Business Type</div>
-                    <div style={infoValueStyle}>
-                      {advertiserProfile?.business_type || 'individual'}
-                    </div>
-                  </div>
-
-                  <div style={infoCardStyle}>
-                    <div style={infoLabelStyle}>Verification</div>
-                    <div style={infoValueStyle}>
-                      {advertiserProfile?.verification_status || 'unverified'}
-                    </div>
-                  </div>
-
-                  <div style={infoCardStyle}>
-                    <div style={infoLabelStyle}>Advertiser Contact</div>
-                    <div style={infoValueStyle}>
-                      {advertiserProfile?.contact_name || customer?.name || '-'}
-                    </div>
-                    <div style={infoSubTextStyle}>
-                      {advertiserProfile?.contact_email || customer?.email || '-'}
-                    </div>
-                  </div>
-
-                  <div style={infoCardStyle}>
-                    <div style={infoLabelStyle}>Website</div>
-                    <div style={{ ...infoValueStyle, wordBreak: 'break-word' }}>
-                      {advertiserProfile?.website_url || 'Not set yet'}
-                    </div>
-                  </div>
-                </div>
-
-                <div
-                  style={{
-                    marginTop: 16,
-                    display: 'flex',
-                    gap: 12,
-                    flexWrap: 'wrap',
-                  }}
-                >
-                  <Link to="/customer/advertiser/profile" style={secondaryBtnStyle}>
-                    Edit Advertiser Profile
-                  </Link>
-                </div>
-              </section>
-
-              <section
-                style={{
-                  borderRadius: 24,
-                  border: '1px solid #e5e7eb',
-                  background: '#ffffff',
-                  padding: 20,
-                  boxShadow: '0 18px 45px rgba(15, 23, 42, 0.05)',
-                }}
-              >
-                <div
-                  style={{
-                    fontSize: 24,
-                    fontWeight: 800,
-                    letterSpacing: '-0.03em',
-                    color: '#111827',
-                  }}
-                >
-                  Wallet and activity
-                </div>
-
-                <div style={{ marginTop: 20, display: 'grid', gap: 16 }}>
-                  <div style={infoCardStyle}>
-                    <div style={infoLabelStyle}>Available Balance</div>
-                    <div style={infoValueStyle}>
-                      {formatMoney(
-                        advertiserWallet?.available_balance || 0,
-                        advertiserWallet?.currency_code || 'USD'
-                      )}
-                    </div>
-                  </div>
-
-                  <div style={infoCardStyle}>
-                    <div style={infoLabelStyle}>Locked Balance</div>
-                    <div style={infoValueStyle}>
-                      {formatMoney(
-                        advertiserWallet?.locked_balance || 0,
-                        advertiserWallet?.currency_code || 'USD'
-                      )}
-                    </div>
-                  </div>
-
-                  <div style={infoCardStyle}>
-                    <div style={infoLabelStyle}>Total Funded</div>
-                    <div style={infoValueStyle}>
-                      {formatMoney(
-                        advertiserWallet?.total_funded || 0,
-                        advertiserWallet?.currency_code || 'USD'
-                      )}
-                    </div>
-                  </div>
-
-                  <div style={infoCardStyle}>
-                    <div style={infoLabelStyle}>Approved Payments</div>
-                    <div style={infoValueStyle}>{advertiserSummary.paidPayments}</div>
-                  </div>
-                </div>
-
-                <div
-                  style={{
-                    marginTop: 16,
-                    display: 'flex',
-                    gap: 12,
-                    flexWrap: 'wrap',
-                  }}
-                >
-                  <Link to="/customer/advertiser/wallet" style={secondaryBtnStyle}>
-                    Open Wallet
-                  </Link>
-                </div>
-              </section>
-            </div>
-
-            <div className="customer-advertiser-grid">
-              <section
-                style={{
-                  borderRadius: 24,
-                  border: '1px solid #e5e7eb',
-                  background: '#ffffff',
-                  padding: 20,
-                  boxShadow: '0 18px 45px rgba(15, 23, 42, 0.05)',
-                }}
-              >
-                <div
-                  style={{
-                    fontSize: 24,
-                    fontWeight: 800,
-                    letterSpacing: '-0.03em',
-                    color: '#111827',
-                  }}
-                >
-                  Recent campaigns
-                </div>
-
-                <div style={{ marginTop: 20, display: 'grid', gap: 14 }}>
-                  {advertiserCampaigns.length ? (
-                    advertiserCampaigns.slice(0, 5).map((campaign) => (
-                      <div
-                        key={campaign.id}
-                        style={{
-                          borderRadius: 18,
-                          border: '1px solid #e5e7eb',
-                          background: '#f8fafc',
-                          padding: 16,
-                        }}
-                      >
-                        <div
-                          style={{
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            gap: 12,
-                            flexWrap: 'wrap',
-                          }}
-                        >
-                          <div>
-                            <div style={infoValueStyle}>
-                              {campaign?.campaign_name || 'Untitled Campaign'}
-                            </div>
-                            <div style={infoSubTextStyle}>
-                              {campaign?.campaign_type || 'banner'} • {campaign?.buying_model || 'cpc'}
-                            </div>
-                          </div>
-
-                          <div
-                            style={{
-                              minHeight: 32,
-                              padding: '0 12px',
-                              borderRadius: 999,
-                              background:
-                                campaign?.approval_status === 'approved'
-                                  ? '#ecfdf5'
-                                  : campaign?.approval_status === 'pending'
-                                  ? '#eff6ff'
-                                  : campaign?.approval_status === 'rejected'
-                                  ? '#fff1f2'
-                                  : '#f3f4f6',
-                              color:
-                                campaign?.approval_status === 'approved'
-                                  ? '#166534'
-                                  : campaign?.approval_status === 'pending'
-                                  ? '#1d4ed8'
-                                  : campaign?.approval_status === 'rejected'
-                                  ? '#be123c'
-                                  : '#374151',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              fontSize: 12,
-                              fontWeight: 800,
-                              textTransform: 'uppercase',
-                              letterSpacing: '0.08em',
-                            }}
-                          >
-                            {campaign?.approval_status || 'draft'}
-                          </div>
-                        </div>
-
-                        <div
-                          style={{
-                            marginTop: 12,
-                            display: 'grid',
-                            gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
-                            gap: 12,
-                          }}
-                        >
-                          <div>
-                            <div style={infoLabelStyle}>Budget</div>
-                            <div style={infoValueStyle}>
-                              {formatMoney(
-                                campaign?.budget_total || 0,
-                                advertiserWallet?.currency_code || 'USD'
-                              )}
-                            </div>
-                          </div>
-
-                          <div>
-                            <div style={infoLabelStyle}>Spent</div>
-                            <div style={infoValueStyle}>
-                              {formatMoney(
-                                campaign?.spent_amount || 0,
-                                advertiserWallet?.currency_code || 'USD'
-                              )}
-                            </div>
-                          </div>
-
-                          <div>
-                            <div style={infoLabelStyle}>Clicks</div>
-                            <div style={infoValueStyle}>{campaign?.clicks_count || 0}</div>
-                          </div>
-
-                          <div>
-                            <div style={infoLabelStyle}>Impressions</div>
-                            <div style={infoValueStyle}>{campaign?.impressions_count || 0}</div>
-                          </div>
-                        </div>
-
-                        <div
-                          style={{
-                            marginTop: 14,
-                            display: 'flex',
-                            gap: 12,
-                            flexWrap: 'wrap',
-                          }}
-                        >
-                          <Link
-                            to={`/customer/advertiser/campaigns/${campaign.id}`}
-                            style={secondaryBtnStyle}
-                          >
-                            Open Campaign
-                          </Link>
-                          <Link
-                            to={`/customer/advertiser/campaigns/${campaign.id}/creatives`}
-                            style={secondaryBtnStyle}
-                          >
-                            Creatives
-                          </Link>
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <div
-                      style={{
-                        borderRadius: 18,
-                        border: '1px solid #e5e7eb',
-                        background: '#f8fafc',
-                        padding: 16,
-                        color: '#6b7280',
-                        fontSize: 14,
-                      }}
-                    >
-                      No campaigns yet.
-                    </div>
-                  )}
-                </div>
-
-                <div
-                  style={{
-                    marginTop: 16,
-                    display: 'flex',
-                    gap: 12,
-                    flexWrap: 'wrap',
-                  }}
-                >
-                  <Link to="/customer/advertiser/campaigns" style={secondaryBtnStyle}>
-                    View All Campaigns
-                  </Link>
-                </div>
-              </section>
-
-              <section
-                style={{
-                  borderRadius: 24,
-                  border: '1px solid #e5e7eb',
-                  background: '#ffffff',
-                  padding: 20,
-                  boxShadow: '0 18px 45px rgba(15, 23, 42, 0.05)',
-                }}
-              >
-                <div
-                  style={{
-                    fontSize: 24,
-                    fontWeight: 800,
-                    letterSpacing: '-0.03em',
-                    color: '#111827',
-                  }}
-                >
-                  Recent funding
-                </div>
-
-                <div style={{ marginTop: 20, display: 'grid', gap: 14 }}>
-                  {advertiserPayments.length ? (
-                    advertiserPayments.slice(0, 5).map((payment) => (
-                      <div
-                        key={payment.id}
-                        style={{
-                          borderRadius: 18,
-                          border: '1px solid #e5e7eb',
-                          background: '#f8fafc',
-                          padding: 16,
-                        }}
-                      >
-                        <div
-                          style={{
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            gap: 12,
-                            flexWrap: 'wrap',
-                          }}
-                        >
-                          <div>
-                            <div style={infoValueStyle}>
-                              {formatMoney(
-                                payment?.amount || 0,
-                                payment?.currency_code || advertiserWallet?.currency_code || 'USD'
-                              )}
-                            </div>
-                            <div style={infoSubTextStyle}>
-                              {payment?.provider_name || payment?.payment_method || 'manual'}
-                            </div>
-                          </div>
-
-                          <div
-                            style={{
-                              minHeight: 32,
-                              padding: '0 12px',
-                              borderRadius: 999,
-                              background:
-                                payment?.payment_status === 'paid'
-                                  ? '#ecfdf5'
-                                  : payment?.payment_status === 'pending'
-                                  ? '#eff6ff'
-                                  : payment?.payment_status === 'failed'
-                                  ? '#fff1f2'
-                                  : '#f3f4f6',
-                              color:
-                                payment?.payment_status === 'paid'
-                                  ? '#166534'
-                                  : payment?.payment_status === 'pending'
-                                  ? '#1d4ed8'
-                                  : payment?.payment_status === 'failed'
-                                  ? '#be123c'
-                                  : '#374151',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              fontSize: 12,
-                              fontWeight: 800,
-                              textTransform: 'uppercase',
-                              letterSpacing: '0.08em',
-                            }}
-                          >
-                            {payment?.payment_status || 'pending'}
-                          </div>
-                        </div>
-
-                        <div style={{ marginTop: 10, color: '#6b7280', fontSize: 13 }}>
-                          {payment?.provider_reference || 'No payment reference'}
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <div
-                      style={{
-                        borderRadius: 18,
-                        border: '1px solid #e5e7eb',
-                        background: '#f8fafc',
-                        padding: 16,
-                        color: '#6b7280',
-                        fontSize: 14,
-                      }}
-                    >
-                      No funding requests yet.
-                    </div>
-                  )}
-                </div>
-
-                <div
-                  style={{
-                    marginTop: 16,
-                    display: 'flex',
-                    gap: 12,
-                    flexWrap: 'wrap',
-                  }}
-                >
-                  <Link to="/customer/advertiser/wallet" style={secondaryBtnStyle}>
-                    View Wallet Activity
-                  </Link>
-                </div>
-              </section>
-            </div>
           </main>
         </div>
       </div>
+
+      {mobileMenuOpen ? (
+        <>
+          <button
+            type="button"
+            className="reader-dashboard-mobile-overlay"
+            onClick={() => setMobileMenuOpen(false)}
+            aria-label="Close Reader menu"
+          />
+          <aside className="reader-dashboard-mobile-drawer" aria-label="Reader menu">
+            <div className="reader-dashboard-mobile-drawer-head">
+              <div className="reader-dashboard-brand">
+                <span className="reader-dashboard-brand-mark">B</span>
+                <div className="reader-dashboard-brand-copy">
+                  <strong>Bloggad</strong>
+                  <small>Reader</small>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="reader-dashboard-mobile-close"
+                onClick={() => setMobileMenuOpen(false)}
+                aria-label="Close menu"
+              >
+                <X size={17} />
+              </button>
+            </div>
+
+            <ReaderNavigation onNavigate={() => setMobileMenuOpen(false)} />
+
+            <div className="reader-dashboard-reader-card">
+              <span className="reader-dashboard-avatar" aria-hidden="true">
+                {dashboardInitial(dashboardDisplayName(customer))}
+              </span>
+              <div className="reader-dashboard-reader-copy">
+                <strong>{dashboardDisplayName(customer)}</strong>
+                <small>Reader account</small>
+              </div>
+              <button
+                type="button"
+                className="reader-dashboard-logout"
+                onClick={handleLogout}
+                aria-label="Log out"
+              >
+                <LogOut size={15} />
+              </button>
+            </div>
+          </aside>
+        </>
+      ) : null}
     </div>
   );
 }
 
-const primaryBtnStyle = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  minHeight: 48,
-  padding: '0 18px',
-  borderRadius: 16,
-  background: '#111827',
-  color: '#ffffff',
-  fontSize: 14,
-  fontWeight: 700,
-  textDecoration: 'none',
-};
+const readerDashboardCss = `
+  .reader-dashboard-screen,
+  .reader-dashboard-screen * {
+    box-sizing: border-box;
+  }
 
-const primaryBlueBtnStyle = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  minHeight: 48,
-  padding: '0 18px',
-  borderRadius: 16,
-  background: '#2563eb',
-  color: '#ffffff',
-  fontSize: 14,
-  fontWeight: 700,
-  textDecoration: 'none',
-};
+  .reader-dashboard-screen {
+    min-height: 100vh;
+    background: #f5f6f8;
+    color: #1c1f24;
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
 
-const secondaryBtnStyle = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  minHeight: 48,
-  padding: '0 18px',
-  borderRadius: 16,
-  border: '1px solid #d1d5db',
-  background: '#ffffff',
-  color: '#111827',
-  fontSize: 14,
-  fontWeight: 700,
-  textDecoration: 'none',
-};
+  .reader-dashboard-layout {
+    min-height: 100vh;
+    display: grid;
+    grid-template-columns: 220px minmax(0, 1fr);
+  }
 
-const secondaryFullBtnStyle = {
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  minHeight: 48,
-  borderRadius: 16,
-  border: '1px solid #d1d5db',
-  background: '#ffffff',
-  color: '#111827',
-  fontSize: 14,
-  fontWeight: 700,
-  textDecoration: 'none',
-};
+  .reader-dashboard-sidebar {
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+    border-right: 1px solid #dfe3e6;
+    background: #ffffff;
+    padding: 22px 16px 18px;
+    display: flex;
+    flex-direction: column;
+  }
 
-const infoCardStyle = {
-  borderRadius: 18,
-  border: '1px solid #e5e7eb',
-  background: '#f8fafc',
-  padding: 16,
-};
+  .reader-dashboard-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 18px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+  }
 
-const infoLabelStyle = {
-  fontSize: 12,
-  textTransform: 'uppercase',
-  letterSpacing: '0.14em',
-  color: '#6b7280',
-  fontWeight: 800,
-};
+  .reader-dashboard-brand-mark {
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    background: #1c1f24;
+    display: grid;
+    place-items: center;
+  }
 
-const infoValueStyle = {
-  marginTop: 10,
-  fontSize: 15,
-  fontWeight: 600,
-  color: '#111827',
-};
+  .reader-dashboard-brand-mark i {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #ffffff;
+    display: block;
+  }
 
-const infoSubTextStyle = {
-  marginTop: 6,
-  fontSize: 14,
-  color: '#6b7280',
-};
+  .reader-dashboard-reader-card {
+    margin-top: 24px;
+    padding: 12px;
+    border: 1px solid #e4e7ea;
+    border-radius: 12px;
+    display: grid;
+    grid-template-columns: 36px minmax(0, 1fr);
+    gap: 10px;
+    align-items: center;
+  }
+
+  .reader-dashboard-reader-card strong,
+  .reader-dashboard-reader-card span {
+    display: block;
+    min-width: 0;
+  }
+
+  .reader-dashboard-reader-card strong {
+    font-size: 13px;
+    line-height: 1.35;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .reader-dashboard-reader-card span {
+    margin-top: 2px;
+    color: #6e7378;
+    font-size: 11px;
+    line-height: 1.35;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .reader-dashboard-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: #eef0f2;
+    display: grid;
+    place-items: center;
+    font-size: 13px;
+    font-weight: 800;
+  }
+
+  .reader-dashboard-nav {
+    margin-top: 22px;
+    display: grid;
+    gap: 20px;
+  }
+
+  .reader-dashboard-nav-group {
+    display: grid;
+    gap: 3px;
+  }
+
+  .reader-dashboard-nav-label,
+  .reader-dashboard-card-label,
+  .reader-dashboard-section-kicker,
+  .reader-dashboard-eyebrow {
+    color: #777d82;
+    font-size: 11px;
+    line-height: 1.35;
+    font-weight: 800;
+    letter-spacing: 0.09em;
+  }
+
+  .reader-dashboard-nav-label {
+    padding: 0 9px 5px;
+  }
+
+  .reader-dashboard-nav-link {
+    min-height: 34px;
+    padding: 7px 9px;
+    border-radius: 8px;
+    color: #51565b;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  .reader-dashboard-nav-link:hover,
+  .reader-dashboard-nav-link.active {
+    background: #f0f1f2;
+    color: #1c1f24;
+  }
+
+  .reader-dashboard-nav-arrow {
+    color: #9aa0a5;
+    font-size: 16px;
+    line-height: 1;
+  }
+
+  .reader-dashboard-logout {
+    margin-top: auto;
+    min-height: 38px;
+    width: 100%;
+    border: 1px solid #dfe3e6;
+    background: #ffffff;
+    color: #35393d;
+    border-radius: 9px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  .reader-dashboard-main-wrap {
+    min-width: 0;
+  }
+
+  .reader-dashboard-mobile-topbar {
+    display: none;
+  }
+
+  .reader-dashboard-main {
+    width: min(1180px, calc(100% - 48px));
+    margin: 0 auto;
+    padding: 42px 0 52px;
+    display: grid;
+    gap: 22px;
+  }
+
+  .reader-dashboard-hero {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 24px;
+  }
+
+  .reader-dashboard-hero h1 {
+    margin: 5px 0 7px;
+    font-size: 30px;
+    line-height: 1.15;
+    letter-spacing: -0.04em;
+  }
+
+  .reader-dashboard-hero p {
+    max-width: 700px;
+    margin: 0;
+    color: #666c71;
+    font-size: 13px;
+    line-height: 1.65;
+  }
+
+  .reader-dashboard-primary-button,
+  .reader-dashboard-secondary-button {
+    min-height: 40px;
+    padding: 0 15px;
+    border-radius: 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    font-size: 12px;
+    font-weight: 750;
+    white-space: nowrap;
+  }
+
+  .reader-dashboard-primary-button {
+    background: #1c1f24;
+    border: 1px solid #1c1f24;
+    color: #ffffff;
+  }
+
+  .reader-dashboard-secondary-button {
+    background: #ffffff;
+    border: 1px solid #d9dde0;
+    color: #2d3135;
+  }
+
+  .reader-dashboard-secondary-button.full {
+    width: 100%;
+    margin-top: 15px;
+  }
+
+  .reader-dashboard-alert {
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-size: 12px;
+    line-height: 1.5;
+  }
+
+  .reader-dashboard-alert.error {
+    border: 1px solid #efc8c8;
+    background: #fff7f7;
+    color: #8b2f2f;
+  }
+
+  .reader-dashboard-metrics,
+  .reader-dashboard-advertiser-metrics {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .reader-dashboard-metric {
+    min-width: 0;
+    min-height: 112px;
+    border: 1px solid #dfe3e6;
+    border-radius: 11px;
+    background: #ffffff;
+    padding: 15px 16px;
+    color: inherit;
+    text-decoration: none;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+
+  a.reader-dashboard-metric:hover {
+    border-color: #bec4c8;
+  }
+
+  .reader-dashboard-metric-label {
+    color: #6e7378;
+    font-size: 11px;
+    font-weight: 700;
+  }
+
+  .reader-dashboard-metric strong {
+    margin-top: 6px;
+    font-size: 25px;
+    line-height: 1.1;
+    letter-spacing: -0.03em;
+    overflow-wrap: anywhere;
+  }
+
+  .reader-dashboard-metric-helper {
+    margin-top: 6px;
+    color: #858b90;
+    font-size: 11px;
+    line-height: 1.4;
+  }
+
+  .reader-dashboard-two-column {
+    display: grid;
+    grid-template-columns: minmax(0, 1.65fr) minmax(280px, 0.85fr);
+    gap: 14px;
+  }
+
+  .reader-dashboard-panel,
+  .reader-dashboard-section-block,
+  .reader-dashboard-advertiser {
+    border: 1px solid #dfe3e6;
+    border-radius: 12px;
+    background: #ffffff;
+    padding: 20px;
+  }
+
+  .reader-dashboard-panel-heading,
+  .reader-dashboard-section-title,
+  .reader-dashboard-advertiser-head,
+  .reader-dashboard-subpanel-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+  }
+
+  .reader-dashboard-panel-heading h2,
+  .reader-dashboard-section-title h2,
+  .reader-dashboard-advertiser-head h2 {
+    margin: 5px 0 0;
+    font-size: 18px;
+    line-height: 1.25;
+    letter-spacing: -0.025em;
+  }
+
+  .reader-dashboard-panel-heading p,
+  .reader-dashboard-advertiser-head p {
+    margin: 7px 0 0;
+    color: #71777c;
+    font-size: 12px;
+    line-height: 1.55;
+  }
+
+  .reader-dashboard-pill {
+    display: inline-flex;
+    min-height: 24px;
+    align-items: center;
+    padding: 3px 8px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 750;
+    white-space: nowrap;
+    border: 1px solid #e0e3e5;
+    background: #f6f7f8;
+    color: #5b6065;
+  }
+
+  .reader-dashboard-pill.good {
+    border-color: #cfe2d6;
+    background: #f2f8f4;
+    color: #326144;
+  }
+
+  .reader-dashboard-pill.warn {
+    border-color: #eadbb9;
+    background: #fbf8f0;
+    color: #755d22;
+  }
+
+  .reader-dashboard-pill.bad {
+    border-color: #ebcccc;
+    background: #fbf3f3;
+    color: #884040;
+  }
+
+  .reader-dashboard-connection-grid {
+    margin-top: 16px;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .reader-dashboard-connection-card {
+    border: 1px solid #e3e6e8;
+    border-radius: 10px;
+    padding: 14px;
+    min-width: 0;
+  }
+
+  .reader-dashboard-connection-card strong,
+  .reader-dashboard-connection-card p,
+  .reader-dashboard-connection-card a {
+    display: block;
+  }
+
+  .reader-dashboard-connection-card strong {
+    margin-top: 9px;
+    font-size: 14px;
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+  }
+
+  .reader-dashboard-connection-card p {
+    margin: 5px 0 12px;
+    color: #747a7f;
+    font-size: 12px;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+  }
+
+  .reader-dashboard-connection-card a,
+  .reader-dashboard-section-title > a,
+  .reader-dashboard-subpanel-head > a {
+    color: #2f3337;
+    font-size: 12px;
+    font-weight: 750;
+    text-decoration: none;
+  }
+
+  .reader-dashboard-info-list {
+    margin-top: 13px;
+    border-top: 1px solid #eceeef;
+  }
+
+  .reader-dashboard-info-row {
+    min-height: 43px;
+    padding: 9px 0;
+    border-bottom: 1px solid #eceeef;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .reader-dashboard-info-row > span:first-child {
+    color: #777d82;
+    font-size: 12px;
+  }
+
+  .reader-dashboard-info-row strong {
+    max-width: 65%;
+    font-size: 12px;
+    line-height: 1.4;
+    text-align: right;
+    overflow-wrap: anywhere;
+  }
+
+  .reader-dashboard-section-title {
+    align-items: flex-end;
+  }
+
+  .reader-dashboard-quick-grid {
+    margin-top: 15px;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .reader-dashboard-quick-link {
+    min-height: 138px;
+    border: 1px solid #e1e4e6;
+    border-radius: 10px;
+    padding: 14px;
+    color: inherit;
+    text-decoration: none;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .reader-dashboard-quick-link > span {
+    color: #81878c;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+  }
+
+  .reader-dashboard-quick-link strong {
+    margin-top: 7px;
+    font-size: 14px;
+  }
+
+  .reader-dashboard-quick-link p {
+    margin: 6px 0 12px;
+    color: #747a7f;
+    font-size: 11px;
+    line-height: 1.45;
+  }
+
+  .reader-dashboard-quick-link b {
+    margin-top: auto;
+    font-size: 11px;
+  }
+
+  .reader-dashboard-advertiser {
+    background: #fbfbfc;
+  }
+
+  .reader-dashboard-advertiser-head {
+    align-items: flex-end;
+  }
+
+  .reader-dashboard-advertiser-head > div:first-child {
+    max-width: 650px;
+  }
+
+  .reader-dashboard-advertiser-actions {
+    display: flex;
+    gap: 8px;
+  }
+
+  .reader-dashboard-advertiser-metrics {
+    margin-top: 18px;
+  }
+
+  .reader-dashboard-advertiser-metrics .reader-dashboard-metric {
+    min-height: 101px;
+  }
+
+  .reader-dashboard-advertiser-metrics .reader-dashboard-metric strong {
+    font-size: 20px;
+  }
+
+  .reader-dashboard-advertiser-grid {
+    margin-top: 12px;
+    display: grid;
+    grid-template-columns: minmax(0, 1.45fr) minmax(300px, 0.85fr);
+    gap: 12px;
+  }
+
+  .reader-dashboard-subpanel {
+    min-width: 0;
+    border: 1px solid #dfe3e6;
+    border-radius: 11px;
+    background: #ffffff;
+    padding: 16px;
+  }
+
+  .reader-dashboard-subpanel-head {
+    align-items: flex-end;
+  }
+
+  .reader-dashboard-subpanel-head h3 {
+    margin: 5px 0 0;
+    font-size: 15px;
+    letter-spacing: -0.015em;
+  }
+
+  .reader-dashboard-campaign-list {
+    margin-top: 12px;
+    border-top: 1px solid #eceeef;
+  }
+
+  .reader-dashboard-campaign-row {
+    min-height: 64px;
+    padding: 10px 0;
+    border-bottom: 1px solid #eceeef;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+  }
+
+  .reader-dashboard-campaign-copy {
+    min-width: 0;
+  }
+
+  .reader-dashboard-campaign-copy strong,
+  .reader-dashboard-campaign-copy span {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .reader-dashboard-campaign-copy strong {
+    font-size: 12px;
+  }
+
+  .reader-dashboard-campaign-copy span {
+    margin-top: 4px;
+    color: #7c8287;
+    font-size: 11px;
+  }
+
+  .reader-dashboard-campaign-meta {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .reader-dashboard-campaign-meta > span:last-child {
+    color: #50555a;
+    font-size: 11px;
+    font-weight: 700;
+  }
+
+  .reader-dashboard-empty {
+    min-height: 110px;
+    margin-top: 12px;
+    border: 1px dashed #d9dde0;
+    border-radius: 9px;
+    display: grid;
+    place-content: center;
+    gap: 5px;
+    padding: 16px;
+    text-align: center;
+    color: #73797e;
+    font-size: 12px;
+  }
+
+  .reader-dashboard-empty strong {
+    color: #34383c;
+  }
+
+  .reader-dashboard-info-list.compact-list {
+    margin-top: 12px;
+  }
+
+  .reader-dashboard-footnote {
+    padding: 0 2px;
+    color: #7b8186;
+    font-size: 11px;
+    line-height: 1.55;
+  }
+
+  .reader-dashboard-mobile-overlay {
+    display: none;
+  }
+
+  @media (max-width: 1180px) {
+    .reader-dashboard-metrics,
+    .reader-dashboard-advertiser-metrics,
+    .reader-dashboard-quick-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .reader-dashboard-two-column,
+    .reader-dashboard-advertiser-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  @media (max-width: 820px) {
+    .reader-dashboard-layout {
+      display: block;
+    }
+
+    .reader-dashboard-sidebar {
+      display: none;
+    }
+
+    .reader-dashboard-mobile-topbar {
+      height: 58px;
+      padding: 0 12px;
+      border-bottom: 1px solid #dfe3e6;
+      background: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 20;
+    }
+
+    .reader-dashboard-brand.compact {
+      gap: 8px;
+    }
+
+    .reader-dashboard-brand.compact .reader-dashboard-brand-mark {
+      width: 27px;
+      height: 27px;
+    }
+
+    .reader-dashboard-brand.compact > div {
+      display: grid;
+    }
+
+    .reader-dashboard-brand.compact strong {
+      font-size: 14px;
+      line-height: 1.1;
+    }
+
+    .reader-dashboard-brand.compact > div > span {
+      color: #747a7f;
+      font-size: 10px;
+      font-weight: 600;
+      margin-top: 2px;
+    }
+
+    .reader-dashboard-mobile-topbar > button {
+      min-height: 34px;
+      padding: 0 12px;
+      border-radius: 8px;
+      border: 1px solid #d8dcdf;
+      background: #ffffff;
+      color: #2f3337;
+      font-size: 12px;
+      font-weight: 750;
+    }
+
+    .reader-dashboard-main {
+      width: 100%;
+      margin: 0;
+      padding: 22px 8px 30px;
+      gap: 14px;
+    }
+
+    .reader-dashboard-hero {
+      padding: 0 2px;
+      align-items: flex-start;
+    }
+
+    .reader-dashboard-hero h1 {
+      margin-top: 4px;
+      font-size: 24px;
+    }
+
+    .reader-dashboard-hero p {
+      font-size: 12px;
+      line-height: 1.55;
+    }
+
+    .reader-dashboard-hero .reader-dashboard-primary-button {
+      min-height: 36px;
+      padding: 0 11px;
+      font-size: 11px;
+    }
+
+    .reader-dashboard-panel,
+    .reader-dashboard-section-block,
+    .reader-dashboard-advertiser {
+      padding: 15px;
+      border-radius: 10px;
+    }
+
+    .reader-dashboard-panel-heading h2,
+    .reader-dashboard-section-title h2,
+    .reader-dashboard-advertiser-head h2 {
+      font-size: 17px;
+    }
+
+    .reader-dashboard-connection-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .reader-dashboard-advertiser-head {
+      align-items: stretch;
+      flex-direction: column;
+    }
+
+    .reader-dashboard-advertiser-actions {
+      width: 100%;
+    }
+
+    .reader-dashboard-advertiser-actions a {
+      flex: 1 1 0;
+    }
+
+    .reader-dashboard-mobile-overlay {
+      display: block;
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      background: rgba(28, 31, 36, 0.32);
+    }
+
+    .reader-dashboard-mobile-drawer {
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: min(330px, 88vw);
+      height: 100%;
+      overflow-y: auto;
+      background: #ffffff;
+      border-left: 1px solid #dfe3e6;
+      padding: 18px 14px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .reader-dashboard-mobile-drawer-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .reader-dashboard-mobile-drawer-head > div {
+      display: grid;
+      gap: 3px;
+    }
+
+    .reader-dashboard-mobile-drawer-head span {
+      color: #777d82;
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 0.09em;
+    }
+
+    .reader-dashboard-mobile-drawer-head strong {
+      font-size: 15px;
+    }
+
+    .reader-dashboard-mobile-drawer-head button {
+      min-height: 32px;
+      padding: 0 10px;
+      border: 1px solid #dfe3e6;
+      border-radius: 8px;
+      background: #ffffff;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .reader-dashboard-mobile-drawer .reader-dashboard-logout {
+      margin-top: 22px;
+    }
+  }
+
+  @media (max-width: 560px) {
+    .reader-dashboard-metrics,
+    .reader-dashboard-advertiser-metrics {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .reader-dashboard-metric {
+      min-height: 100px;
+      padding: 12px;
+    }
+
+    .reader-dashboard-metric strong {
+      font-size: 21px;
+    }
+
+    .reader-dashboard-metric-helper {
+      font-size: 10.5px;
+    }
+
+    .reader-dashboard-quick-grid {
+      grid-template-columns: 1fr;
+      gap: 8px;
+    }
+
+    .reader-dashboard-quick-link {
+      min-height: auto;
+      padding: 13px;
+    }
+
+    .reader-dashboard-quick-link p {
+      margin-bottom: 9px;
+      font-size: 12px;
+    }
+
+    .reader-dashboard-section-title {
+      align-items: flex-start;
+      flex-direction: column;
+    }
+
+    .reader-dashboard-campaign-row {
+      align-items: flex-start;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .reader-dashboard-campaign-meta {
+      width: 100%;
+      justify-content: space-between;
+    }
+
+    .reader-dashboard-info-row {
+      align-items: flex-start;
+    }
+
+    .reader-dashboard-info-row strong {
+      max-width: 62%;
+    }
+  }
+
+  @media (max-width: 390px) {
+    .reader-dashboard-advertiser-actions {
+      flex-direction: column;
+    }
+
+    .reader-dashboard-advertiser-actions a {
+      width: 100%;
+    }
+  }
+
+  /* Shared Reader shell standard - aligned with the approved For You / Saved Posts layout. */
+  .reader-dashboard-screen {
+    overflow-x: hidden;
+    background: #f7f8fa;
+    color: #111827;
+  }
+
+  .reader-dashboard-layout {
+    grid-template-columns: 236px minmax(0, 1fr);
+  }
+
+  .reader-dashboard-sidebar {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 20;
+    width: 236px;
+    height: 100vh;
+    min-height: 100vh;
+    overflow-y: auto;
+    padding: 24px 18px 18px;
+    border-right: 1px solid #e3e7ed;
+    background: #ffffff;
+  }
+
+  .reader-dashboard-brand {
+    gap: 10px;
+    min-width: 0;
+    font-size: inherit;
+    font-weight: inherit;
+    letter-spacing: normal;
+  }
+
+  .reader-dashboard-brand-mark {
+    width: 34px;
+    height: 34px;
+    flex: 0 0 34px;
+    border-radius: 10px;
+    background: #111827;
+    color: #ffffff;
+    font-size: 14px;
+    font-weight: 800;
+  }
+
+  .reader-dashboard-brand-copy {
+    min-width: 0;
+    display: grid;
+    gap: 2px;
+  }
+
+  .reader-dashboard-brand-copy strong {
+    color: #111827;
+    font-size: 14px;
+    line-height: 1.2;
+  }
+
+  .reader-dashboard-brand-copy small {
+    color: #6b7280;
+    font-size: 10px;
+    line-height: 1.2;
+  }
+
+  .reader-dashboard-nav {
+    margin-top: 28px;
+    display: grid;
+    gap: 24px;
+  }
+
+  .reader-dashboard-nav-group {
+    display: grid;
+    gap: 7px;
+  }
+
+  .reader-dashboard-nav-label {
+    padding: 0 1px;
+    color: #8a96a8;
+    font-size: 10px;
+    line-height: 1.2;
+    font-weight: 800;
+    letter-spacing: 0.035em;
+    text-transform: uppercase;
+  }
+
+  .reader-dashboard-nav-list {
+    display: grid;
+    gap: 4px;
+  }
+
+  .reader-dashboard-nav-link {
+    min-height: 42px;
+    padding: 0 14px;
+    border-radius: 9px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 12px;
+    color: #1f2937;
+    font-size: 13px;
+    line-height: 1.25;
+    font-weight: 550;
+    text-decoration: none;
+  }
+
+  .reader-dashboard-nav-link:hover {
+    background: #f3f5f7;
+    color: #1f2937;
+  }
+
+  .reader-dashboard-nav-link.active {
+    background: #111827;
+    color: #ffffff;
+    font-weight: 700;
+  }
+
+  .reader-dashboard-nav-icon {
+    width: 18px;
+    height: 18px;
+    flex: 0 0 18px;
+    display: grid;
+    place-items: center;
+    color: #738095;
+  }
+
+  .reader-dashboard-nav-link.active .reader-dashboard-nav-icon {
+    color: #ffffff;
+  }
+
+  .reader-dashboard-reader-card {
+    margin-top: auto;
+    min-height: 54px;
+    padding: 9px 10px;
+    border: 0;
+    border-radius: 12px;
+    display: grid;
+    grid-template-columns: 32px minmax(0, 1fr) 28px;
+    align-items: center;
+    gap: 9px;
+    background: #f3f4f6;
+  }
+
+  .reader-dashboard-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 999px;
+    background: #111827;
+    color: #ffffff;
+    font-size: 11px;
+    font-weight: 800;
+  }
+
+  .reader-dashboard-reader-copy {
+    min-width: 0;
+    display: grid;
+    gap: 2px;
+  }
+
+  .reader-dashboard-reader-copy strong,
+  .reader-dashboard-reader-copy small {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .reader-dashboard-reader-copy strong {
+    color: #111827;
+    font-size: 11px;
+  }
+
+  .reader-dashboard-reader-copy small {
+    color: #788396;
+    font-size: 9px;
+  }
+
+  .reader-dashboard-logout {
+    width: 28px;
+    height: 28px;
+    min-height: 28px;
+    margin-top: 0;
+    padding: 0;
+    display: grid;
+    place-items: center;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: #6b7280;
+  }
+
+  .reader-dashboard-logout:hover {
+    background: #ffffff;
+    color: #b42318;
+  }
+
+  .reader-dashboard-main-wrap {
+    grid-column: 2;
+    min-width: 0;
+  }
+
+  .reader-dashboard-desktop-topbar {
+    height: 72px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    padding: 0 32px;
+    border-bottom: 1px solid #e3e7ed;
+    background: rgba(255, 255, 255, 0.96);
+  }
+
+  .reader-dashboard-desktop-topbar h1 {
+    margin: 0;
+    font-size: 18px;
+    line-height: 1.2;
+    font-weight: 750;
+    letter-spacing: -0.02em;
+  }
+
+  .reader-dashboard-desktop-topbar span {
+    color: #667085;
+    font-size: 12px;
+  }
+
+  .reader-dashboard-mobile-topbar {
+    display: none;
+  }
+
+  .reader-dashboard-main {
+    width: 100%;
+    max-width: 1220px;
+    margin: 0 auto;
+    padding: 52px 32px 52px;
+  }
+
+  .reader-dashboard-mobile-overlay,
+  .reader-dashboard-mobile-drawer {
+    display: none;
+  }
+
+  @media (max-width: 991px) {
+    .reader-dashboard-layout {
+      display: block;
+      min-height: 100vh;
+    }
+
+    .reader-dashboard-sidebar,
+    .reader-dashboard-desktop-topbar {
+      display: none;
+    }
+
+    .reader-dashboard-mobile-topbar {
+      position: sticky;
+      top: 0;
+      z-index: 35;
+      height: 56px;
+      padding: 0 12px;
+      border-bottom: 1px solid #e3e7ed;
+      background: rgba(255, 255, 255, 0.98);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .reader-dashboard-mobile-brand {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .reader-dashboard-mobile-brand .reader-dashboard-brand-mark {
+      width: 28px;
+      height: 28px;
+      flex-basis: 28px;
+      border-radius: 8px;
+      font-size: 11px;
+    }
+
+    .reader-dashboard-mobile-brand strong {
+      color: #111827;
+      font-size: 12px;
+    }
+
+    .reader-dashboard-mobile-menu-button {
+      min-width: 48px;
+      height: 34px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      border: 1px solid #dfe4eb;
+      border-radius: 8px;
+      background: #ffffff;
+      color: #111827;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .reader-dashboard-main {
+      width: calc(100% - 16px);
+      max-width: none;
+      margin: 0 8px;
+      padding: 22px 0 30px;
+    }
+
+    .reader-dashboard-mobile-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 50;
+      display: block;
+      border: 0;
+      background: rgba(15, 23, 42, 0.34);
+    }
+
+    .reader-dashboard-mobile-drawer {
+      position: fixed;
+      inset: 0 auto 0 0;
+      z-index: 55;
+      width: min(320px, calc(100% - 40px));
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      padding: 16px;
+      overflow-y: auto;
+      border-right: 1px solid #e3e7ed;
+      background: #ffffff;
+      box-shadow: 18px 0 42px rgba(15, 23, 42, 0.12);
+    }
+
+    .reader-dashboard-mobile-drawer-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .reader-dashboard-mobile-close {
+      width: 36px;
+      height: 36px;
+      display: grid;
+      place-items: center;
+      border: 1px solid #e3e7ed;
+      border-radius: 9px;
+      background: #ffffff;
+      color: #111827;
+    }
+
+    .reader-dashboard-mobile-drawer .reader-dashboard-nav {
+      margin-top: 22px;
+    }
+
+    .reader-dashboard-mobile-drawer .reader-dashboard-reader-card {
+      margin-top: 24px;
+    }
+  }
+
+`;

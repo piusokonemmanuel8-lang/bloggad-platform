@@ -42,6 +42,15 @@ function getTypeIcon(type = '') {
   return LinkIcon;
 }
 
+function formatType(type = '') {
+  const value = String(type).toLowerCase();
+  if (value === 'custom') return 'Custom Link';
+  if (value === 'category') return 'Category';
+  if (value === 'home') return 'Home';
+  if (value === 'page') return 'Page';
+  return value || 'Item';
+}
+
 export default function AffiliateMenusPage() {
   const [menus, setMenus] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -59,8 +68,13 @@ export default function AffiliateMenusPage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
+  const isWriterRoute =
+    typeof window !== 'undefined' && window.location.pathname.startsWith('/writer/');
+
   const fetchData = async (isRefresh = false) => {
     try {
+      setError('');
+
       if (isRefresh) {
         setRefreshing(true);
       } else {
@@ -307,81 +321,95 @@ export default function AffiliateMenusPage() {
     };
   }, [menus.length, menuItems.length]);
 
+  const commandName = menuForm.name.trim() || (selectedMenuId ? 'Selected Menu' : 'New Menu');
+
   if (loading) {
     return (
-      <div className="affiliate-menus-page">
+      <div className="writer-menus-page">
         <style>{styles}</style>
-
-        <div className="affiliate-menus-loading-wrap">
-          <div className="affiliate-menus-loading-card">
-            <div className="affiliate-menus-spinner" />
-            <p>Loading menus...</p>
-          </div>
+        {isWriterRoute ? <div className="writer-menus-mobile-title">Menus</div> : null}
+        <div className="writer-menus-loading">
+          <div className="writer-menus-spinner" />
+          <span>Loading menus...</span>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="affiliate-menus-page">
+    <div className="writer-menus-page">
       <style>{styles}</style>
 
-      <section className="affiliate-menus-hero">
-        <div className="affiliate-menus-hero-copy">
-          <div className="affiliate-menus-badge">Navigation builder</div>
-          <h1 className="affiliate-menus-title">Menus</h1>
-          <p className="affiliate-menus-subtitle">
-            Build your storefront menus and control where each item links across header, footer,
-            sidebar, and mobile areas.
-          </p>
+      {isWriterRoute ? <div className="writer-menus-mobile-title">Menus</div> : null}
+
+      <section className="writer-menus-command">
+        <div className="writer-menus-command-copy">
+          <strong>{commandName}</strong>
+          <span>{menuForm.location || 'header'}</span>
         </div>
 
-        <div className="affiliate-menus-hero-actions">
+        <div className="writer-menus-command-actions">
           <button
-            className="affiliate-menus-btn secondary"
+            className="writer-menus-btn secondary"
             type="button"
             onClick={() => fetchData(true)}
             disabled={refreshing}
           >
-            <RefreshCw size={16} className={refreshing ? 'spin' : ''} />
+            <RefreshCw size={15} className={refreshing ? 'writer-menus-spin' : ''} />
             {refreshing ? 'Refreshing...' : 'Refresh'}
           </button>
 
-          <button className="affiliate-menus-btn primary" type="button" onClick={handleCreateNewMenu}>
-            <Plus size={16} />
+          <button
+            className="writer-menus-btn primary"
+            type="button"
+            onClick={handleCreateNewMenu}
+          >
+            <Plus size={15} />
             New Menu
           </button>
         </div>
       </section>
 
-      <section className="affiliate-menus-stats">
-        <div className="affiliate-menus-stat-card">
-          <span>Total Menus</span>
+      {error ? (
+        <div className="writer-menus-alert error">
+          <AlertCircle size={17} />
+          <span>{error}</span>
+        </div>
+      ) : null}
+
+      {success ? (
+        <div className="writer-menus-alert success">
+          <CheckCircle2 size={17} />
+          <span>{success}</span>
+        </div>
+      ) : null}
+
+      <section className="writer-menus-stats">
+        <div className="writer-menus-stat">
+          <span>Total menus</span>
           <strong>{selectedMenuStats.totalMenus}</strong>
         </div>
 
-        <div className="affiliate-menus-stat-card">
-          <span>Items In Editor</span>
+        <div className="writer-menus-stat">
+          <span>Items in editor</span>
           <strong>{selectedMenuStats.totalItems}</strong>
         </div>
 
-        <div className="affiliate-menus-stat-card">
-          <span>Current Location</span>
-          <strong>{menuForm.location || '-'}</strong>
+        <div className="writer-menus-stat">
+          <span>Current location</span>
+          <strong className="location">{menuForm.location || '-'}</strong>
         </div>
       </section>
 
-      <section className="affiliate-menus-grid">
-        <div className="affiliate-menus-panel">
-          <div className="affiliate-menus-panel-head">
-            <div>
-              <p className="affiliate-menus-panel-kicker">Menu list</p>
-              <h2 className="affiliate-menus-panel-title">Existing Menus</h2>
-            </div>
+      <section className="writer-menus-workspace">
+        <div className="writer-menus-list-panel">
+          <div className="writer-menus-panel-head">
+            <strong>Existing menus</strong>
+            <span>{menus.length} total</span>
           </div>
 
           {menus.length ? (
-            <div className="affiliate-menus-list">
+            <div className="writer-menus-menu-list">
               {menus.map((menu) => {
                 const active = String(selectedMenuId) === String(menu.id);
                 const LocationIcon = getLocationIcon(menu.location);
@@ -390,48 +418,51 @@ export default function AffiliateMenusPage() {
                   <button
                     key={menu.id}
                     type="button"
-                    className={`affiliate-menus-list-card${active ? ' active' : ''}`}
+                    className={`writer-menus-menu-card${active ? ' active' : ''}`}
                     onClick={() => handleSelectMenu(menu)}
                   >
-                    <div className="affiliate-menus-list-icon">
-                      <LocationIcon size={18} />
+                    <div className="writer-menus-menu-icon">
+                      <LocationIcon size={16} />
                     </div>
 
-                    <div className="affiliate-menus-list-main">
-                      <h3>{menu.name}</h3>
-                      <p>
-                        {menu.location} • {menu.items?.length || 0} item(s)
-                      </p>
+                    <div className="writer-menus-menu-copy">
+                      <strong>{menu.name}</strong>
+                      <span>
+                        {menu.location || 'header'} - {menu.items?.length || 0} items
+                      </span>
                     </div>
+
+                    {active ? <span className="writer-menus-selected">Selected</span> : null}
                   </button>
                 );
               })}
             </div>
           ) : (
-            <div className="affiliate-menus-empty-small">
-              <MenuSquare size={24} />
-              <p>No menus yet.</p>
+            <div className="writer-menus-empty">
+              <MenuSquare size={22} />
+              <strong>No menus yet.</strong>
+              <span>Create your first menu to begin.</span>
             </div>
           )}
+
+          {menus.length ? (
+            <p className="writer-menus-list-note">Select a menu to edit its details and items.</p>
+          ) : null}
         </div>
 
-        <div className="affiliate-menus-side-stack">
-          <div className="affiliate-menus-panel">
-            <div className="affiliate-menus-panel-head">
-              <div>
-                <p className="affiliate-menus-panel-kicker">Menu details</p>
-                <h2 className="affiliate-menus-panel-title">
-                  {selectedMenuId ? 'Edit Menu' : 'Create Menu'}
-                </h2>
-              </div>
+        <div className="writer-menus-editor">
+          <section className="writer-menus-panel writer-menus-details">
+            <div className="writer-menus-panel-head">
+              <strong>Menu details</strong>
+              <span>{selectedMenuId ? 'Editing' : 'New'}</span>
             </div>
 
-            <form className="affiliate-menus-form" onSubmit={handleCreateOrUpdateMenu}>
-              <div className="affiliate-menus-form-grid">
-                <label className="affiliate-menus-field">
-                  <span className="affiliate-menus-label">Menu name</span>
+            <form className="writer-menus-form" onSubmit={handleCreateOrUpdateMenu}>
+              <div className="writer-menus-form-grid">
+                <label className="writer-menus-field">
+                  <span>Menu name</span>
                   <input
-                    className="affiliate-menus-input"
+                    className="writer-menus-control"
                     name="name"
                     placeholder="Menu name"
                     value={menuForm.name}
@@ -439,10 +470,10 @@ export default function AffiliateMenusPage() {
                   />
                 </label>
 
-                <label className="affiliate-menus-field">
-                  <span className="affiliate-menus-label">Location</span>
+                <label className="writer-menus-field">
+                  <span>Location</span>
                   <select
-                    className="affiliate-menus-input"
+                    className="writer-menus-control"
                     name="location"
                     value={menuForm.location}
                     onChange={handleMenuFormChange}
@@ -455,61 +486,68 @@ export default function AffiliateMenusPage() {
                 </label>
               </div>
 
-              <div className="affiliate-menus-actions">
-                <button className="affiliate-menus-btn primary" type="submit" disabled={savingMenu}>
-                  <Save size={16} />
+              <div className="writer-menus-form-actions">
+                <button
+                  className="writer-menus-btn primary"
+                  type="submit"
+                  disabled={savingMenu}
+                >
+                  <Save size={15} />
                   {savingMenu ? 'Saving...' : selectedMenuId ? 'Update Menu' : 'Create Menu'}
                 </button>
               </div>
             </form>
-          </div>
+          </section>
 
-          <div className="affiliate-menus-panel">
-            <div className="affiliate-menus-panel-head">
-              <div>
-                <p className="affiliate-menus-panel-kicker">Menu items</p>
-                <h2 className="affiliate-menus-panel-title">Build Items</h2>
-              </div>
+          <section className="writer-menus-panel writer-menus-items-panel">
+            <div className="writer-menus-panel-head">
+              <strong>Build items</strong>
+              <span>{menuItems.length} items</span>
             </div>
 
-            <div className="affiliate-menus-items-list">
+            <div className="writer-menus-items-list">
               {menuItems.map((item, index) => {
                 const ItemIcon = getTypeIcon(item.type);
 
                 return (
-                  <div key={index} className="affiliate-menus-item-card">
-                    <div className="affiliate-menus-item-top">
-                      <div className="affiliate-menus-item-badge">
-                        <ItemIcon size={15} />
+                  <div key={index} className="writer-menus-item-card">
+                    <div className="writer-menus-item-head">
+                      <span className="writer-menus-item-badge">
+                        <ItemIcon size={13} />
                         Item {index + 1}
-                      </div>
+                      </span>
 
                       <button
-                        className="affiliate-menus-icon-btn"
+                        className="writer-menus-btn secondary compact"
                         type="button"
                         onClick={() => removeMenuItem(index)}
                       >
-                        <Trash2 size={15} />
+                        <Trash2 size={14} />
+                        Remove
                       </button>
                     </div>
 
-                    <div className="affiliate-menus-form-grid single-gap">
-                      <label className="affiliate-menus-field">
-                        <span className="affiliate-menus-label">Label</span>
+                    <div className="writer-menus-form-grid item-grid">
+                      <label className="writer-menus-field">
+                        <span>Label</span>
                         <input
-                          className="affiliate-menus-input"
+                          className="writer-menus-control"
                           placeholder="Label"
                           value={item.label}
-                          onChange={(e) => handleMenuItemChange(index, 'label', e.target.value)}
+                          onChange={(event) =>
+                            handleMenuItemChange(index, 'label', event.target.value)
+                          }
                         />
                       </label>
 
-                      <label className="affiliate-menus-field">
-                        <span className="affiliate-menus-label">Type</span>
+                      <label className="writer-menus-field">
+                        <span>Type</span>
                         <select
-                          className="affiliate-menus-input"
+                          className="writer-menus-control"
                           value={item.type}
-                          onChange={(e) => handleMenuItemChange(index, 'type', e.target.value)}
+                          onChange={(event) =>
+                            handleMenuItemChange(index, 'type', event.target.value)
+                          }
                         >
                           <option value="custom">Custom Link</option>
                           <option value="category">Category</option>
@@ -519,13 +557,17 @@ export default function AffiliateMenusPage() {
                       </label>
 
                       {item.type === 'category' ? (
-                        <label className="affiliate-menus-field full-width">
-                          <span className="affiliate-menus-label">Category</span>
+                        <label className="writer-menus-field full">
+                          <span>Category</span>
                           <select
-                            className="affiliate-menus-input"
+                            className="writer-menus-control"
                             value={item.linked_category_id}
-                            onChange={(e) =>
-                              handleMenuItemChange(index, 'linked_category_id', e.target.value)
+                            onChange={(event) =>
+                              handleMenuItemChange(
+                                index,
+                                'linked_category_id',
+                                event.target.value
+                              )
                             }
                           >
                             <option value="">Select category</option>
@@ -539,18 +581,27 @@ export default function AffiliateMenusPage() {
                       ) : null}
 
                       {item.type === 'custom' ? (
-                        <label className="affiliate-menus-field full-width">
-                          <span className="affiliate-menus-label">Custom URL</span>
+                        <label className="writer-menus-field full">
+                          <span>Custom URL</span>
                           <input
-                            className="affiliate-menus-input"
-                            placeholder="Custom URL (must be supgad.com)"
+                            className="writer-menus-control"
+                            placeholder="https://example.com/page"
                             value={item.custom_url}
-                            onChange={(e) => handleMenuItemChange(index, 'custom_url', e.target.value)}
+                            onChange={(event) =>
+                              handleMenuItemChange(index, 'custom_url', event.target.value)
+                            }
                           />
-                          <small className="affiliate-menus-help">
-                            Only supgad.com links are allowed.
+                          <small>
+                            External links are allowed and checked by Bloggad on save.
                           </small>
                         </label>
+                      ) : null}
+
+                      {item.type === 'home' || item.type === 'page' ? (
+                        <div className="writer-menus-type-note full">
+                          <span>{formatType(item.type)}</span>
+                          <small>No additional destination field is required for this item type.</small>
+                        </div>
                       ) : null}
                     </div>
                   </div>
@@ -558,37 +609,27 @@ export default function AffiliateMenusPage() {
               })}
             </div>
 
-            <div className="affiliate-menus-actions">
-              <button className="affiliate-menus-btn secondary" type="button" onClick={addMenuItem}>
-                <Plus size={16} />
+            <div className="writer-menus-item-actions">
+              <button
+                className="writer-menus-btn secondary"
+                type="button"
+                onClick={addMenuItem}
+              >
+                <Plus size={15} />
                 Add Item
               </button>
 
               <button
-                className="affiliate-menus-btn primary"
+                className="writer-menus-btn primary save-items"
                 type="button"
                 onClick={handleSaveItems}
                 disabled={savingItems}
               >
-                <Save size={16} />
+                <Save size={15} />
                 {savingItems ? 'Saving...' : 'Save Menu Items'}
               </button>
             </div>
-
-            {error ? (
-              <div className="affiliate-menus-alert error">
-                <AlertCircle size={18} />
-                <span>{error}</span>
-              </div>
-            ) : null}
-
-            {success ? (
-              <div className="affiliate-menus-alert success">
-                <CheckCircle2 size={18} />
-                <span>{success}</span>
-              </div>
-            ) : null}
-          </div>
+          </section>
         </div>
       </section>
     </div>
@@ -600,456 +641,622 @@ const styles = `
     box-sizing: border-box;
   }
 
-  .affiliate-menus-page {
+  .writer-menus-page {
     width: 100%;
+    color: #111827;
+    font-family: inherit;
+    padding: 18px 30px 34px;
   }
 
-  .affiliate-menus-loading-wrap {
-    min-height: 60vh;
+  .writer-menus-mobile-title {
+    display: none;
+  }
+
+  .writer-menus-command,
+  .writer-menus-stat,
+  .writer-menus-list-panel,
+  .writer-menus-panel,
+  .writer-menus-alert {
+    background: #ffffff;
+    border: 1px solid #dde3ea;
+  }
+
+  .writer-menus-command {
+    min-height: 58px;
+    border-radius: 14px;
+    padding: 8px 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+  }
+
+  .writer-menus-command-copy {
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .writer-menus-command-copy strong {
+    font-size: 13px;
+    line-height: 1.3;
+    font-weight: 700;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .writer-menus-command-copy span,
+  .writer-menus-panel-head span,
+  .writer-menus-selected,
+  .writer-menus-item-badge {
+    min-height: 24px;
+    border: 1px solid #e2e7ec;
+    background: #f7f8fa;
+    border-radius: 999px;
+    padding: 0 9px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #667085;
+    font-size: 10px;
+    line-height: 1;
+    font-weight: 600;
+    text-transform: capitalize;
+    flex-shrink: 0;
+  }
+
+  .writer-menus-command-actions,
+  .writer-menus-form-actions,
+  .writer-menus-item-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .writer-menus-btn {
+    min-height: 38px;
+    border-radius: 9px;
+    padding: 0 14px;
+    border: 1px solid #d5dce4;
+    background: #ffffff;
+    color: #161b22;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 650;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+
+  .writer-menus-btn.primary {
+    background: #1f2328;
+    border-color: #1f2328;
+    color: #ffffff;
+  }
+
+  .writer-menus-btn.compact {
+    min-height: 34px;
+    padding: 0 12px;
+    font-size: 11px;
+  }
+
+  .writer-menus-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  .writer-menus-alert {
+    margin-top: 10px;
+    min-height: 44px;
+    border-radius: 11px;
+    padding: 10px 12px;
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  .writer-menus-alert.error {
+    border-color: #f2c5b7;
+    background: #fff8f5;
+    color: #8f2d18;
+  }
+
+  .writer-menus-alert.success {
+    border-color: #b8e3c8;
+    background: #f5fbf7;
+    color: #17663a;
+  }
+
+  .writer-menus-stats {
+    margin-top: 12px;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .writer-menus-stat {
+    min-height: 82px;
+    border-radius: 14px;
+    padding: 15px 16px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 4px;
+  }
+
+  .writer-menus-stat span {
+    color: #667085;
+    font-size: 11px;
+    font-weight: 500;
+  }
+
+  .writer-menus-stat strong {
+    font-size: 23px;
+    line-height: 1.1;
+    font-weight: 750;
+  }
+
+  .writer-menus-stat strong.location {
+    font-size: 18px;
+    text-transform: capitalize;
+  }
+
+  .writer-menus-workspace {
+    margin-top: 12px;
+    display: grid;
+    grid-template-columns: 330px minmax(0, 1fr);
+    gap: 12px;
+    align-items: start;
+  }
+
+  .writer-menus-list-panel,
+  .writer-menus-panel {
+    border-radius: 14px;
+    padding: 14px;
+    min-width: 0;
+  }
+
+  .writer-menus-editor {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .writer-menus-panel-head {
+    min-height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+
+  .writer-menus-panel-head strong {
+    font-size: 13px;
+    font-weight: 700;
+  }
+
+  .writer-menus-menu-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .writer-menus-menu-card {
+    width: 100%;
+    min-height: 62px;
+    padding: 9px 10px;
+    border-radius: 11px;
+    border: 1px solid #e1e6ec;
+    background: #f7f8fa;
+    color: #111827;
+    font: inherit;
+    cursor: pointer;
+    text-align: left;
+    display: grid;
+    grid-template-columns: 34px minmax(0, 1fr) auto;
+    gap: 9px;
+    align-items: center;
+  }
+
+  .writer-menus-menu-card.active {
+    border-color: #1f2328;
+    background: #ffffff;
+    box-shadow: inset 0 0 0 1px #1f2328;
+  }
+
+  .writer-menus-menu-icon {
+    width: 34px;
+    height: 34px;
+    border-radius: 9px;
+    border: 1px solid #e2e7ec;
+    background: #ffffff;
     display: grid;
     place-items: center;
   }
 
-  .affiliate-menus-loading-card {
-    min-width: 260px;
-    background: #ffffff;
-    border: 1px solid #e5e7eb;
-    border-radius: 24px;
-    padding: 28px 22px;
+  .writer-menus-menu-copy {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .writer-menus-menu-copy strong {
+    font-size: 12px;
+    font-weight: 700;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  .writer-menus-menu-copy span,
+  .writer-menus-list-note,
+  .writer-menus-field small,
+  .writer-menus-type-note small {
+    color: #7b8491;
+    font-size: 10px;
+    line-height: 1.45;
+  }
+
+  .writer-menus-list-note {
+    margin: 12px 0 0;
+  }
+
+  .writer-menus-empty {
+    min-height: 150px;
+    border: 1px dashed #d5dce4;
+    background: #f8f9fb;
+    border-radius: 11px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
     text-align: center;
-    box-shadow: 0 18px 45px rgba(15, 23, 42, 0.06);
+    padding: 18px;
   }
 
-  .affiliate-menus-spinner {
-    width: 38px;
-    height: 38px;
-    border-radius: 999px;
-    border: 3px solid #e5e7eb;
-    border-top-color: #111827;
-    margin: 0 auto 12px;
-    animation: affiliateMenusSpin 0.8s linear infinite;
+  .writer-menus-empty strong {
+    font-size: 12px;
   }
 
-  @keyframes affiliateMenusSpin {
+  .writer-menus-empty span {
+    color: #7b8491;
+    font-size: 10px;
+  }
+
+  .writer-menus-form {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .writer-menus-form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .writer-menus-field {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .writer-menus-field.full,
+  .writer-menus-type-note.full {
+    grid-column: 1 / -1;
+  }
+
+  .writer-menus-field > span,
+  .writer-menus-type-note > span {
+    color: #667085;
+    font-size: 9px;
+    line-height: 1.2;
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+
+  .writer-menus-control {
+    width: 100%;
+    min-width: 0;
+    height: 42px;
+    border-radius: 9px;
+    border: 1px solid #ccd5df;
+    background: #ffffff;
+    color: #111827;
+    padding: 0 11px;
+    outline: none;
+    font: inherit;
+    font-size: 12px;
+  }
+
+  .writer-menus-control:focus {
+    border-color: #667085;
+    box-shadow: 0 0 0 2px rgba(31, 35, 40, 0.08);
+  }
+
+  .writer-menus-items-panel {
+    padding-bottom: 16px;
+  }
+
+  .writer-menus-items-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .writer-menus-item-card {
+    border: 1px solid #e1e6ec;
+    background: #f7f8fa;
+    border-radius: 11px;
+    padding: 10px;
+  }
+
+  .writer-menus-item-head {
+    min-height: 34px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 8px;
+  }
+
+  .writer-menus-item-badge {
+    gap: 5px;
+  }
+
+  .writer-menus-type-note {
+    min-height: 42px;
+    border: 1px dashed #d7dee6;
+    border-radius: 9px;
+    background: #ffffff;
+    padding: 8px 10px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 3px;
+  }
+
+  .writer-menus-item-actions {
+    margin-top: 10px;
+    justify-content: space-between;
+  }
+
+  .writer-menus-btn.save-items {
+    min-width: 160px;
+  }
+
+  .writer-menus-loading {
+    min-height: 320px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    color: #667085;
+    font-size: 12px;
+  }
+
+  .writer-menus-spinner {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    border: 2px solid #dde3ea;
+    border-top-color: #1f2328;
+    animation: writerMenusSpin 0.8s linear infinite;
+  }
+
+  .writer-menus-spin {
+    animation: writerMenusSpin 0.8s linear infinite;
+  }
+
+  @keyframes writerMenusSpin {
     to {
       transform: rotate(360deg);
     }
   }
 
-  .spin {
-    animation: affiliateMenusSpin 0.8s linear infinite;
-  }
-
-  .affiliate-menus-hero {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    gap: 18px;
-    background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
-    border: 1px solid #e5e7eb;
-    border-radius: 28px;
-    padding: 24px;
-    box-shadow: 0 18px 45px rgba(15, 23, 42, 0.05);
-    margin-bottom: 20px;
-  }
-
-  .affiliate-menus-badge {
-    display: inline-flex;
-    align-items: center;
-    padding: 8px 12px;
-    border-radius: 999px;
-    background: #111827;
-    color: #ffffff;
-    font-size: 12px;
-    font-weight: 800;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-    margin-bottom: 14px;
-  }
-
-  .affiliate-menus-title {
-    margin: 0;
-    font-size: 30px;
-    line-height: 1.1;
-    font-weight: 900;
-    color: #111827;
-  }
-
-  .affiliate-menus-subtitle {
-    margin: 12px 0 0;
-    max-width: 760px;
-    color: #6b7280;
-    font-size: 15px;
-    line-height: 1.7;
-  }
-
-  .affiliate-menus-hero-actions,
-  .affiliate-menus-actions {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    flex-wrap: wrap;
-  }
-
-  .affiliate-menus-btn {
-    height: 46px;
-    padding: 0 16px;
-    border-radius: 14px;
-    border: 1px solid #dbe2ea;
-    background: #ffffff;
-    color: #111827;
-    font-size: 14px;
-    font-weight: 800;
-    text-decoration: none;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    cursor: pointer;
-    transition: 0.2s ease;
-  }
-
-  .affiliate-menus-btn.primary {
-    background: #111827;
-    color: #ffffff;
-    border-color: #111827;
-  }
-
-  .affiliate-menus-btn:disabled {
-    opacity: 0.7;
-    cursor: not-allowed;
-  }
-
-  .affiliate-menus-stats {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 16px;
-    margin-bottom: 20px;
-  }
-
-  .affiliate-menus-stat-card {
-    background: #ffffff;
-    border: 1px solid #e5e7eb;
-    border-radius: 22px;
-    padding: 18px;
-    box-shadow: 0 16px 35px rgba(15, 23, 42, 0.04);
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
-
-  .affiliate-menus-stat-card span {
-    color: #6b7280;
-    font-size: 13px;
-    font-weight: 700;
-  }
-
-  .affiliate-menus-stat-card strong {
-    color: #111827;
-    font-size: 26px;
-    font-weight: 900;
-    text-transform: capitalize;
-  }
-
-  .affiliate-menus-grid {
-    display: grid;
-    grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.25fr);
-    gap: 20px;
-  }
-
-  .affiliate-menus-side-stack {
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
-  }
-
-  .affiliate-menus-panel {
-    background: #ffffff;
-    border: 1px solid #e5e7eb;
-    border-radius: 24px;
-    padding: 22px;
-    box-shadow: 0 16px 35px rgba(15, 23, 42, 0.04);
-  }
-
-  .affiliate-menus-panel-head {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 14px;
-    margin-bottom: 18px;
-  }
-
-  .affiliate-menus-panel-kicker {
-    margin: 0 0 6px;
-    font-size: 12px;
-    font-weight: 800;
-    color: #6b7280;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-  }
-
-  .affiliate-menus-panel-title {
-    margin: 0;
-    font-size: 22px;
-    font-weight: 900;
-    color: #111827;
-    line-height: 1.2;
-  }
-
-  .affiliate-menus-list {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-  }
-
-  .affiliate-menus-list-card {
-    width: 100%;
-    padding: 16px;
-    border-radius: 18px;
-    background: #f8fafc;
-    border: 1px solid #edf2f7;
-    cursor: pointer;
-    text-align: left;
-    transition: 0.2s ease;
-    display: flex;
-    gap: 12px;
-    align-items: flex-start;
-  }
-
-  .affiliate-menus-list-card.active {
-    border-color: #111827;
-    background: #ffffff;
-    box-shadow: inset 0 0 0 1px #111827;
-  }
-
-  .affiliate-menus-list-icon {
-    width: 42px;
-    height: 42px;
-    border-radius: 14px;
-    background: #ffffff;
-    border: 1px solid #e5e7eb;
-    display: grid;
-    place-items: center;
-    color: #111827;
-    flex-shrink: 0;
-  }
-
-  .affiliate-menus-list-main h3 {
-    margin: 0 0 6px;
-    font-size: 16px;
-    font-weight: 900;
-    color: #111827;
-  }
-
-  .affiliate-menus-list-main p {
-    margin: 0;
-    color: #6b7280;
-    font-size: 13px;
-    text-transform: capitalize;
-  }
-
-  .affiliate-menus-form {
-    display: flex;
-    flex-direction: column;
-    gap: 18px;
-  }
-
-  .affiliate-menus-form-grid {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 16px;
-  }
-
-  .affiliate-menus-form-grid.single-gap {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .affiliate-menus-field {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
-
-  .affiliate-menus-field.full-width {
-    grid-column: span 2;
-  }
-
-  .affiliate-menus-label {
-    font-size: 13px;
-    font-weight: 800;
-    color: #111827;
-  }
-
-  .affiliate-menus-input {
-    width: 100%;
-    min-height: 50px;
-    border-radius: 16px;
-    border: 1px solid #dbe2ea;
-    background: #ffffff;
-    padding: 0 14px;
-    font-size: 14px;
-    color: #111827;
-    outline: none;
-    transition: 0.2s ease;
-  }
-
-  .affiliate-menus-input:focus {
-    border-color: #111827;
-    box-shadow: 0 0 0 4px rgba(17, 24, 39, 0.06);
-  }
-
-  .affiliate-menus-help {
-    color: #6b7280;
-    font-size: 12px;
-    line-height: 1.5;
-  }
-
-  .affiliate-menus-items-list {
-    display: flex;
-    flex-direction: column;
-    gap: 14px;
-    margin-bottom: 16px;
-  }
-
-  .affiliate-menus-item-card {
-    padding: 16px;
-    border-radius: 18px;
-    background: #f8fafc;
-    border: 1px solid #edf2f7;
-  }
-
-  .affiliate-menus-item-top {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    margin-bottom: 14px;
-  }
-
-  .affiliate-menus-item-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    min-height: 34px;
-    padding: 0 12px;
-    border-radius: 999px;
-    background: #ffffff;
-    border: 1px solid #e5e7eb;
-    color: #111827;
-    font-size: 12px;
-    font-weight: 800;
-  }
-
-  .affiliate-menus-icon-btn {
-    width: 36px;
-    height: 36px;
-    border-radius: 12px;
-    border: 1px solid #e5e7eb;
-    background: #ffffff;
-    color: #111827;
-    display: grid;
-    place-items: center;
-    cursor: pointer;
-  }
-
-  .affiliate-menus-alert {
-    display: flex;
-    align-items: flex-start;
-    gap: 10px;
-    padding: 14px 16px;
-    border-radius: 16px;
-    font-size: 14px;
-    font-weight: 700;
-    margin-top: 16px;
-  }
-
-  .affiliate-menus-alert.error {
-    background: #fff7ed;
-    border: 1px solid #fed7aa;
-    color: #9a3412;
-  }
-
-  .affiliate-menus-alert.success {
-    background: #ecfdf3;
-    border: 1px solid #abefc6;
-    color: #027a48;
-  }
-
-  .affiliate-menus-empty-small {
-    min-height: 180px;
-    border: 1px dashed #dbe2ea;
-    background: #f8fafc;
-    border-radius: 20px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
-    text-align: center;
-    padding: 22px;
-  }
-
-  .affiliate-menus-empty-small p {
-    margin: 0;
-    color: #111827;
-    font-weight: 800;
-  }
-
   @media (max-width: 1100px) {
-    .affiliate-menus-grid {
-      grid-template-columns: 1fr;
+    .writer-menus-page {
+      padding-left: 18px;
+      padding-right: 18px;
+    }
+
+    .writer-menus-workspace {
+      grid-template-columns: 280px minmax(0, 1fr);
     }
   }
 
-  @media (max-width: 991px) {
-    .affiliate-menus-hero {
-      flex-direction: column;
-      padding: 20px;
-    }
-
-    .affiliate-menus-title {
-      font-size: 26px;
-    }
-
-    .affiliate-menus-stats {
+  @media (max-width: 900px) {
+    .writer-menus-workspace {
       grid-template-columns: 1fr;
     }
 
-    .affiliate-menus-panel {
-      padding: 18px;
+    .writer-menus-menu-list {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
     }
   }
 
   @media (max-width: 767px) {
-    .affiliate-menus-title {
-      font-size: 22px;
+    .writer-menus-page {
+      width: 100%;
+      max-width: none;
+      min-width: 0;
+      padding: 0 0 24px;
+      margin: 0;
     }
 
-    .affiliate-menus-subtitle {
-      font-size: 14px;
+    .writer-menus-command,
+    .writer-menus-stats,
+    .writer-menus-workspace,
+    .writer-menus-list-panel,
+    .writer-menus-editor,
+    .writer-menus-panel,
+    .writer-menus-items-panel,
+    .writer-menus-items-list,
+    .writer-menus-item-card {
+      width: 100%;
+      max-width: none;
+      min-width: 0;
     }
 
-    .affiliate-menus-hero-actions,
-    .affiliate-menus-actions,
-    .affiliate-menus-form-grid,
-    .affiliate-menus-form-grid.single-gap {
-      flex-direction: column;
-      grid-template-columns: 1fr;
+    .writer-menus-mobile-title {
+      min-height: 50px;
+      margin-bottom: 10px;
+      border: 1px solid #dde3ea;
+      border-radius: 10px;
+      background: #ffffff;
+      padding: 0 12px;
+      display: flex;
+      align-items: center;
+      font-size: 15px;
+      font-weight: 700;
+    }
+
+    .writer-menus-command {
+      min-height: auto;
+      padding: 8px;
       align-items: stretch;
+      flex-direction: column;
+      gap: 8px;
     }
 
-    .affiliate-menus-field.full-width {
-      grid-column: span 1;
+    .writer-menus-command-copy {
+      min-height: 30px;
+      justify-content: space-between;
     }
 
-    .affiliate-menus-btn {
+    .writer-menus-command-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+    }
+
+    .writer-menus-btn {
+      min-height: 38px;
+      padding: 0 10px;
+      font-size: 11px;
+    }
+
+    .writer-menus-stats {
+      gap: 7px;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .writer-menus-stat {
+      min-height: 72px;
+      padding: 10px;
+    }
+
+    .writer-menus-stat span {
+      font-size: 9px;
+    }
+
+    .writer-menus-stat strong {
+      font-size: 20px;
+    }
+
+    .writer-menus-stat strong.location {
+      font-size: 16px;
+    }
+
+    .writer-menus-workspace {
+      gap: 10px;
+    }
+
+    .writer-menus-list-panel,
+    .writer-menus-panel {
+      padding: 10px;
+      border-radius: 11px;
+    }
+
+    .writer-menus-menu-list {
+      display: flex;
+    }
+
+    .writer-menus-menu-card {
+      min-height: 56px;
+      grid-template-columns: minmax(0, 1fr) auto;
+      padding: 8px;
+    }
+
+    .writer-menus-menu-icon {
+      display: none;
+    }
+
+    .writer-menus-menu-copy strong {
+      font-size: 11px;
+    }
+
+    .writer-menus-menu-copy span {
+      font-size: 9px;
+    }
+
+    .writer-menus-list-note {
+      display: none;
+    }
+
+    .writer-menus-form-grid,
+    .writer-menus-form-grid.item-grid {
+      grid-template-columns: 1fr;
+      gap: 8px;
+    }
+
+    .writer-menus-field.full,
+    .writer-menus-type-note.full {
+      grid-column: auto;
+    }
+
+    .writer-menus-control {
+      height: 40px;
+      font-size: 11px;
+    }
+
+    .writer-menus-form-actions .writer-menus-btn {
       width: 100%;
     }
 
-    .affiliate-menus-list-card,
-    .affiliate-menus-item-top {
-      flex-direction: column;
-      align-items: flex-start;
+    .writer-menus-item-card {
+      padding: 8px;
+    }
+
+    .writer-menus-item-head {
+      margin-bottom: 6px;
+    }
+
+    .writer-menus-item-actions {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 7px;
+    }
+
+    .writer-menus-btn.save-items {
+      width: 100%;
+      min-width: 0;
+    }
+  }
+
+  @media (max-width: 390px) {
+    .writer-menus-command-copy strong {
+      max-width: 210px;
+    }
+
+    .writer-menus-stat {
+      padding: 9px 8px;
+    }
+
+    .writer-menus-stat strong.location {
+      font-size: 15px;
     }
   }
 `;

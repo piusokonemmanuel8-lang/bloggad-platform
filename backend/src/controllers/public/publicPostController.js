@@ -1,4 +1,7 @@
 const pool = require('../../config/db');
+const {
+  buildPublicPostAccessPayload,
+} = require('../../services/writerReaderAccessService');
 
 function sanitizePost(row) {
   if (!row) return null;
@@ -6,6 +9,7 @@ function sanitizePost(row) {
   return {
     id: row.id,
     product_id: row.product_id,
+    content_type: row.content_type || (row.product_id ? 'product_post' : 'article'),
     user_id: row.user_id,
     website_id: row.website_id,
     category_id: row.category_id,
@@ -19,6 +23,7 @@ function sanitizePost(row) {
     media_id: row.media_id,
     status: row.status,
     published_at: row.published_at,
+    scheduled_at: row.scheduled_at || null,
     created_at: row.created_at,
     updated_at: row.updated_at,
     website: {
@@ -122,6 +127,7 @@ async function getPublicPostBySlug(websiteSlug, postSlug) {
     SELECT
       pp.id,
       pp.product_id,
+      pp.content_type,
       pp.user_id,
       pp.website_id,
       pp.category_id,
@@ -135,6 +141,8 @@ async function getPublicPostBySlug(websiteSlug, postSlug) {
       pp.media_id,
       pp.status,
       pp.published_at,
+
+      pp.scheduled_at,
       pp.created_at,
       pp.updated_at,
 
@@ -236,6 +244,7 @@ async function getRelatedPosts(websiteId, currentPostId, categoryId, websiteSlug
     SELECT
       pp.id,
       pp.product_id,
+      pp.content_type,
       pp.user_id,
       pp.website_id,
       pp.category_id,
@@ -249,6 +258,8 @@ async function getRelatedPosts(websiteId, currentPostId, categoryId, websiteSlug
       pp.media_id,
       pp.status,
       pp.published_at,
+
+      pp.scheduled_at,
       pp.created_at,
       pp.updated_at,
 
@@ -329,11 +340,15 @@ async function getPublicPost(req, res) {
       getRelatedPosts(post.website_id, post.id, post.category_id, post.website_slug),
     ]);
 
+    const publicAccess = await buildPublicPostAccessPayload({
+      post: sanitizePost(post),
+      fields: template_fields,
+      ctaButtons: cta_buttons,
+    });
+
     return res.status(200).json({
       ok: true,
-      post: sanitizePost(post),
-      template_fields,
-      cta_buttons,
+      ...publicAccess,
       related_posts,
     });
   } catch (error) {
@@ -363,6 +378,7 @@ async function getWebsitePublishedPosts(req, res) {
       SELECT
         pp.id,
         pp.product_id,
+        pp.content_type,
         pp.user_id,
         pp.website_id,
         pp.category_id,
@@ -376,6 +392,8 @@ async function getWebsitePublishedPosts(req, res) {
         pp.media_id,
         pp.status,
         pp.published_at,
+
+        pp.scheduled_at,
         pp.created_at,
         pp.updated_at,
 

@@ -1,5 +1,9 @@
 const express = require('express');
 const {
+  getDomainRules,
+  createDomainRule,
+  updateDomainRule,
+  deleteDomainRule,
   getAllValidationLogs,
   getFailedValidationLogs,
   getPassedValidationLogs,
@@ -18,6 +22,11 @@ router.get('/health', (req, res) => {
     message: 'Admin link validation routes working',
   });
 });
+
+router.get('/domains', protect, adminOnly, getDomainRules);
+router.post('/domains', protect, adminOnly, createDomainRule);
+router.put('/domains/:ruleId', protect, adminOnly, updateDomainRule);
+router.delete('/domains/:ruleId', protect, adminOnly, deleteDomainRule);
 
 router.get('/', protect, adminOnly, getAllValidationLogs);
 router.get('/failed', protect, adminOnly, getFailedValidationLogs);

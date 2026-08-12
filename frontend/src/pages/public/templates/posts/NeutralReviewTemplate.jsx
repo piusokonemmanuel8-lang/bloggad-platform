@@ -1,3 +1,4 @@
+import PostVideoEmbed from '../../../../components/writer/PostVideoEmbed';
 import { Link } from 'react-router-dom';
 import {
   CalendarDays,
@@ -338,6 +339,8 @@ export default function NeutralReviewTemplate({
           }
         }
       `}</style>
+
+      <PostVideoEmbed url={fieldMap.bloggad_video_url} />
 
       <div className="neutral-review-page-wrap">
         <div

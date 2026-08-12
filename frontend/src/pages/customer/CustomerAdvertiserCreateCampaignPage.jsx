@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import ReaderUnifiedShell from '../../components/reader/ReaderUnifiedShell';
 
 const API_BASE =
   import.meta.env.VITE_API_BASE_URL ||
@@ -76,6 +77,24 @@ const CTA_OPTIONS = [
   'Download',
   'Contact Us',
 ];
+
+function Field({ label, children, className = '' }) {
+  return (
+    <label className={`reader-campaign-field ${className}`.trim()}>
+      <span className="reader-campaign-label">{label}</span>
+      {children}
+    </label>
+  );
+}
+
+function PreviewRow({ label, value }) {
+  return (
+    <div className="reader-campaign-preview-row">
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </div>
+  );
+}
 
 export default function CustomerAdvertiserCreateCampaignPage() {
   const navigate = useNavigate();
@@ -321,477 +340,276 @@ export default function CustomerAdvertiserCreateCampaignPage() {
   }
 
   const isSubmitting = submittingCampaign || submittingCreative;
+  const walletCurrency = wallet?.currency || 'USD';
+  const walletBalance = loadingWallet
+    ? 'Loading...'
+    : formatMoney(wallet?.available_balance || 0, walletCurrency);
+  const displayUrl = form.display_url.trim() || 'yourwebsite.com';
+  const previewTitle = form.headline.trim() || 'Your ad headline preview';
+  const previewDescription =
+    form.description_text.trim() || 'Your ad description will show here.';
 
   return (
-    <div
-      style={{
-        minHeight: '100vh',
-        background: '#f8fafc',
-        padding: '20px 16px',
-      }}
-    >
-      <style>{`
-        .customer-campaign-create-layout {
-          display: grid;
-          grid-template-columns: minmax(0, 1.1fr) 360px;
-          gap: 24px;
-        }
+    <ReaderUnifiedShell title="Create Campaign" subtitle="Advertiser">
+      <style>{styles}</style>
 
-        .customer-campaign-create-grid {
-          display: grid;
-          grid-template-columns: repeat(2, minmax(0, 1fr));
-          gap: 16px;
-        }
+      <main className="reader-campaign-create-page">
+        <section className="reader-campaign-context">
+          <div className="reader-campaign-context-copy">
+            <h1>Campaign setup</h1>
+            <p>Create the campaign first, then the creative is uploaded automatically.</p>
+          </div>
 
-        .customer-campaign-preview-card {
-          position: sticky;
-          top: 20px;
-        }
-
-        @media (max-width: 1100px) {
-          .customer-campaign-create-layout {
-            grid-template-columns: 1fr;
-          }
-
-          .customer-campaign-preview-card {
-            position: static;
-          }
-        }
-
-        @media (max-width: 760px) {
-          .customer-campaign-create-grid {
-            grid-template-columns: 1fr;
-          }
-        }
-      `}</style>
-
-      <div style={{ width: '100%', maxWidth: 1380, margin: '0 auto', display: 'grid', gap: 24 }}>
-        <section
-          style={{
-            borderRadius: 28,
-            border: '1px solid #e5e7eb',
-            background: 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)',
-            padding: 24,
-            boxShadow: '0 22px 50px rgba(15, 23, 42, 0.06)',
-          }}
-        >
-          <div
-            style={{
-              display: 'flex',
-              gap: 14,
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              flexWrap: 'wrap',
-            }}
-          >
-            <div>
-              <div
-                style={{
-                  display: 'inline-flex',
-                  padding: '6px 12px',
-                  borderRadius: 999,
-                  background: '#eff6ff',
-                  border: '1px solid #bfdbfe',
-                  color: '#1d4ed8',
-                  fontSize: 11,
-                  fontWeight: 800,
-                  letterSpacing: '0.16em',
-                  textTransform: 'uppercase',
-                }}
-              >
-                Advertiser Studio
-              </div>
-
-              <h1
-                style={{
-                  margin: '14px 0 0',
-                  fontSize: 'clamp(1.8rem, 3vw, 2.6rem)',
-                  lineHeight: 1.05,
-                  fontWeight: 900,
-                  letterSpacing: '-0.05em',
-                  color: '#111827',
-                }}
-              >
-                Create Campaign
-              </h1>
-
-              <p
-                style={{
-                  margin: '10px 0 0',
-                  maxWidth: 760,
-                  color: '#6b7280',
-                  lineHeight: 1.7,
-                  fontSize: 14,
-                }}
-              >
-                Create the campaign, upload the banner creative, preview it, and submit for admin approval.
-              </p>
+          <div className="reader-campaign-context-actions">
+            <div className="reader-campaign-wallet" aria-live="polite">
+              <span>Wallet</span>
+              <strong>{walletBalance}</strong>
             </div>
 
-            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-              <Link
-                to="/customer/advertiser/campaigns"
-                style={{
-                  minHeight: 46,
-                  padding: '0 18px',
-                  borderRadius: 14,
-                  background: '#ffffff',
-                  border: '1px solid #dbe1ea',
-                  color: '#111827',
-                  textDecoration: 'none',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontWeight: 800,
-                }}
-              >
-                Back to Campaigns
-              </Link>
-
-              <div
-                style={{
-                  minHeight: 46,
-                  padding: '0 18px',
-                  borderRadius: 14,
-                  background: '#eef2ff',
-                  color: '#3730a3',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontWeight: 800,
-                }}
-              >
-                {loadingWallet
-                  ? 'Wallet: Loading...'
-                  : `Wallet: ${formatMoney(wallet?.available_balance || 0, wallet?.currency || 'USD')}`}
-              </div>
-            </div>
+            <Link className="reader-campaign-back" to="/customer/advertiser/campaigns">
+              Back to campaigns
+            </Link>
           </div>
         </section>
 
         {error ? (
-          <div
-            style={{
-              borderRadius: 20,
-              border: '1px solid #fecdd3',
-              background: '#fff1f2',
-              padding: '16px 18px',
-              fontSize: 14,
-              color: '#be123c',
-            }}
-          >
+          <div className="reader-campaign-alert error" role="alert">
             {error}
           </div>
         ) : null}
 
         {success ? (
-          <div
-            style={{
-              borderRadius: 20,
-              border: '1px solid #bbf7d0',
-              background: '#ecfdf5',
-              padding: '16px 18px',
-              fontSize: 14,
-              color: '#166534',
-            }}
-          >
+          <div className="reader-campaign-alert success" role="status">
             {success}
           </div>
         ) : null}
 
-        <div className="customer-campaign-create-layout">
-          <form
-            onSubmit={handleSubmit}
-            style={{
-              borderRadius: 28,
-              border: '1px solid #e5e7eb',
-              background: '#ffffff',
-              padding: 22,
-              boxShadow: '0 18px 45px rgba(15, 23, 42, 0.05)',
-              display: 'grid',
-              gap: 22,
-            }}
-          >
-            <div>
-              <div
-                style={{
-                  fontSize: 13,
-                  color: '#6b7280',
-                  fontWeight: 800,
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.12em',
-                  marginBottom: 14,
-                }}
-              >
-                Campaign Setup
-              </div>
+        <div className="reader-campaign-layout">
+          <form className="reader-campaign-form-card" onSubmit={handleSubmit}>
+            <header className="reader-campaign-card-heading">
+              <h2>Campaign details</h2>
+              <p>Required fields match the live campaign creation flow.</p>
+            </header>
 
-              <div className="customer-campaign-create-grid">
-                <Field label="Campaign Name">
-                  <input
-                    value={form.campaign_name}
-                    onChange={(e) => updateField('campaign_name', e.target.value)}
-                    placeholder="Spring Home Banner Push"
-                    style={inputStyle}
-                  />
-                </Field>
+            <div className="reader-campaign-fields">
+              <Field label="Campaign Name">
+                <input
+                  value={form.campaign_name}
+                  onChange={(e) => updateField('campaign_name', e.target.value)}
+                  placeholder="Spring Home Banner Push"
+                  disabled={isSubmitting}
+                />
+              </Field>
 
-                <Field label="Campaign Type">
-                  <select
-                    value={form.campaign_type}
-                    onChange={(e) => updateField('campaign_type', e.target.value)}
-                    style={inputStyle}
-                  >
-                    <option value="banner">banner</option>
-                    <option value="image">image</option>
-                    <option value="native">native</option>
-                    <option value="text">text</option>
-                    <option value="html">html</option>
-                  </select>
-                </Field>
+              <Field label="Campaign Type">
+                <select
+                  value={form.campaign_type}
+                  onChange={(e) => updateField('campaign_type', e.target.value)}
+                  disabled={isSubmitting}
+                >
+                  <option value="banner">banner</option>
+                  <option value="image">image</option>
+                  <option value="native">native</option>
+                  <option value="text">text</option>
+                  <option value="html">html</option>
+                </select>
+              </Field>
 
-                <Field label="Buying Model">
-                  <select
-                    value={form.buying_model}
-                    onChange={(e) => updateField('buying_model', e.target.value)}
-                    style={inputStyle}
-                  >
-                    <option value="cpc">cpc</option>
-                    <option value="cpm">cpm</option>
-                    <option value="fixed">fixed</option>
-                  </select>
-                </Field>
+              <Field label="Buying Model">
+                <select
+                  value={form.buying_model}
+                  onChange={(e) => updateField('buying_model', e.target.value)}
+                  disabled={isSubmitting}
+                >
+                  <option value="cpc">cpc</option>
+                  <option value="cpm">cpm</option>
+                  <option value="fixed">fixed</option>
+                </select>
+              </Field>
 
-                <Field label="Objective">
-                  <select
-                    value={form.objective}
-                    onChange={(e) => updateField('objective', e.target.value)}
-                    style={inputStyle}
-                  >
-                    <option value="traffic">traffic</option>
-                    <option value="awareness">awareness</option>
-                    <option value="conversion">conversion</option>
-                    <option value="engagement">engagement</option>
-                  </select>
-                </Field>
+              <Field label="Objective">
+                <select
+                  value={form.objective}
+                  onChange={(e) => updateField('objective', e.target.value)}
+                  disabled={isSubmitting}
+                >
+                  <option value="traffic">traffic</option>
+                  <option value="awareness">awareness</option>
+                  <option value="conversion">conversion</option>
+                  <option value="engagement">engagement</option>
+                </select>
+              </Field>
 
-                <Field label="Destination URL">
-                  <input
-                    value={form.destination_url}
-                    onChange={(e) => updateField('destination_url', e.target.value)}
-                    placeholder="https://yourwebsite.com/product"
-                    style={inputStyle}
-                  />
-                </Field>
+              <Field label="Destination URL">
+                <input
+                  value={form.destination_url}
+                  onChange={(e) => updateField('destination_url', e.target.value)}
+                  placeholder="https://yourwebsite.com/product"
+                  disabled={isSubmitting}
+                />
+              </Field>
 
-                <Field label="Display URL">
-                  <input
-                    value={form.display_url}
-                    onChange={(e) => updateField('display_url', e.target.value)}
-                    placeholder="yourwebsite.com"
-                    style={inputStyle}
-                  />
-                </Field>
+              <Field label="Display URL">
+                <input
+                  value={form.display_url}
+                  onChange={(e) => updateField('display_url', e.target.value)}
+                  placeholder="yourwebsite.com"
+                  disabled={isSubmitting}
+                />
+              </Field>
 
-                <Field label="Headline">
-                  <input
-                    value={form.headline}
-                    onChange={(e) => updateField('headline', e.target.value)}
-                    placeholder="Upgrade your living room today"
-                    style={inputStyle}
-                  />
-                </Field>
+              <Field label="Headline">
+                <input
+                  value={form.headline}
+                  onChange={(e) => updateField('headline', e.target.value)}
+                  placeholder="Upgrade your living room today"
+                  disabled={isSubmitting}
+                />
+              </Field>
 
-                <Field label="Call To Action">
-                  <select
-                    value={form.call_to_action}
-                    onChange={(e) => updateField('call_to_action', e.target.value)}
-                    style={inputStyle}
-                  >
-                    {CTA_OPTIONS.map((item) => (
-                      <option key={item} value={item}>
-                        {item}
-                      </option>
-                    ))}
-                  </select>
-                </Field>
+              <Field label="Call To Action">
+                <select
+                  value={form.call_to_action}
+                  onChange={(e) => updateField('call_to_action', e.target.value)}
+                  disabled={isSubmitting}
+                >
+                  {CTA_OPTIONS.map((item) => (
+                    <option key={item} value={item}>
+                      {item}
+                    </option>
+                  ))}
+                </select>
+              </Field>
 
-                <Field label="Total Budget">
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={form.budget_total}
-                    onChange={(e) => updateField('budget_total', e.target.value)}
-                    placeholder="500"
-                    style={inputStyle}
-                  />
-                </Field>
+              <Field label="Total Budget">
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={form.budget_total}
+                  onChange={(e) => updateField('budget_total', e.target.value)}
+                  placeholder="500"
+                  disabled={isSubmitting}
+                />
+              </Field>
 
-                <Field label="Daily Budget">
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={form.budget_daily}
-                    onChange={(e) => updateField('budget_daily', e.target.value)}
-                    placeholder="25"
-                    style={inputStyle}
-                  />
-                </Field>
+              <Field label="Daily Budget">
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={form.budget_daily}
+                  onChange={(e) => updateField('budget_daily', e.target.value)}
+                  placeholder="25"
+                  disabled={isSubmitting}
+                />
+              </Field>
 
-                <Field label="Bid Amount">
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.0001"
-                    value={form.bid_amount}
-                    onChange={(e) => updateField('bid_amount', e.target.value)}
-                    placeholder="0.50"
-                    style={inputStyle}
-                  />
-                </Field>
+              <Field label="Bid Amount">
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={form.bid_amount}
+                  onChange={(e) => updateField('bid_amount', e.target.value)}
+                  placeholder="0.50"
+                  disabled={isSubmitting}
+                />
+              </Field>
 
-                <Field label="Start At">
-                  <input
-                    type="datetime-local"
-                    value={toDatetimeLocalInput(form.start_at)}
-                    onChange={(e) => updateField('start_at', e.target.value)}
-                    style={inputStyle}
-                  />
-                </Field>
+              <Field label="Start At">
+                <input
+                  type="datetime-local"
+                  value={toDatetimeLocalInput(form.start_at)}
+                  onChange={(e) => updateField('start_at', e.target.value)}
+                  disabled={isSubmitting}
+                />
+              </Field>
 
-                <Field label="End At">
-                  <input
-                    type="datetime-local"
-                    value={toDatetimeLocalInput(form.end_at)}
-                    onChange={(e) => updateField('end_at', e.target.value)}
-                    style={inputStyle}
-                  />
-                </Field>
+              <Field label="End At">
+                <input
+                  type="datetime-local"
+                  value={toDatetimeLocalInput(form.end_at)}
+                  onChange={(e) => updateField('end_at', e.target.value)}
+                  disabled={isSubmitting}
+                />
+              </Field>
 
-                <Field label="Creative Alt Text">
-                  <input
-                    value={creativeAltText}
-                    onChange={(e) => setCreativeAltText(e.target.value)}
-                    placeholder="Promotional banner alt text"
-                    style={inputStyle}
-                  />
-                </Field>
-              </div>
-
-              <div style={{ marginTop: 16 }}>
-                <Field label="Description Text">
-                  <textarea
-                    value={form.description_text}
-                    onChange={(e) => updateField('description_text', e.target.value)}
-                    placeholder="Write the supporting ad text people should see under the headline."
-                    style={{
-                      ...inputStyle,
-                      minHeight: 120,
-                      resize: 'vertical',
-                      paddingTop: 14,
-                    }}
-                  />
-                </Field>
-              </div>
+              <Field label="Creative Alt Text">
+                <input
+                  value={creativeAltText}
+                  onChange={(e) => setCreativeAltText(e.target.value)}
+                  placeholder="Promotional banner alt text"
+                  disabled={isSubmitting}
+                />
+              </Field>
             </div>
 
-            <div>
-              <div
-                style={{
-                  fontSize: 13,
-                  color: '#6b7280',
-                  fontWeight: 800,
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.12em',
-                  marginBottom: 14,
-                }}
-              >
-                Creative Upload
-              </div>
+            <Field label="Description Text" className="full">
+              <textarea
+                value={form.description_text}
+                onChange={(e) => updateField('description_text', e.target.value)}
+                placeholder="Write the supporting ad text people should see under the headline."
+                rows={4}
+                disabled={isSubmitting}
+              />
+            </Field>
 
-              <div
-                style={{
-                  borderRadius: 22,
-                  border: '1px dashed #cbd5e1',
-                  background: '#f8fafc',
-                  padding: 18,
-                  display: 'grid',
-                  gap: 14,
-                }}
-              >
+            <section className="reader-campaign-upload-section">
+              <h3>Creative upload</h3>
+
+              <label className={`reader-campaign-upload${isSubmitting ? ' disabled' : ''}`}>
                 <input
                   type="file"
                   accept="image/*"
                   onChange={handleCreativeFileChange}
-                  style={{
-                    width: '100%',
-                    minHeight: 52,
-                    padding: 12,
-                    borderRadius: 16,
-                    border: '1px solid #dbe1ea',
-                    background: '#fff',
-                  }}
+                  disabled={isSubmitting}
                 />
+                <span className="reader-campaign-upload-mark" aria-hidden="true">+</span>
+                <span className="reader-campaign-upload-copy">
+                  <strong>{creativeFile?.name || 'Choose banner image'}</strong>
+                  <small>
+                    {creativeFile
+                      ? 'Image selected. The creative uploads after the campaign is created.'
+                      : 'Image is required. The creative uploads after the campaign is created.'}
+                  </small>
+                </span>
+              </label>
 
+              <Field label="Admin Note" className="full">
                 <input
                   value={creativeNote}
                   onChange={(e) => setCreativeNote(e.target.value)}
                   placeholder="Optional note for admin"
-                  style={inputStyle}
+                  disabled={isSubmitting}
                 />
+              </Field>
+            </section>
 
-                <div
-                  style={{
-                    fontSize: 13,
-                    lineHeight: 1.7,
-                    color: '#64748b',
-                  }}
-                >
-                  Upload the actual banner/image people should see on the ad.
-                </div>
-              </div>
+            <div className="reader-campaign-workflow-note">
+              Campaign is saved first. Then the creative uploads. Successful submission opens the
+              campaign detail page.
             </div>
 
-            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+            <div className="reader-campaign-actions">
               <button
                 type="submit"
+                className="reader-campaign-primary"
                 disabled={isSubmitting}
-                style={{
-                  minHeight: 54,
-                  padding: '0 24px',
-                  borderRadius: 16,
-                  border: 'none',
-                  background: '#111827',
-                  color: '#ffffff',
-                  fontWeight: 800,
-                  fontSize: 15,
-                  cursor: isSubmitting ? 'not-allowed' : 'pointer',
-                  opacity: isSubmitting ? 0.7 : 1,
-                }}
               >
                 {submittingCampaign
                   ? 'Creating Campaign...'
                   : submittingCreative
-                  ? 'Uploading Creative...'
-                  : 'Create Campaign'}
+                    ? 'Uploading Creative...'
+                    : 'Create Campaign'}
               </button>
 
               <Link
+                className={`reader-campaign-secondary${isSubmitting ? ' disabled' : ''}`}
                 to="/customer/advertiser/campaigns"
-                style={{
-                  minHeight: 54,
-                  padding: '0 24px',
-                  borderRadius: 16,
-                  border: '1px solid #dbe1ea',
-                  background: '#fff',
-                  color: '#111827',
-                  textDecoration: 'none',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontWeight: 800,
+                aria-disabled={isSubmitting}
+                onClick={(event) => {
+                  if (isSubmitting) event.preventDefault();
                 }}
               >
                 Cancel
@@ -799,139 +617,35 @@ export default function CustomerAdvertiserCreateCampaignPage() {
             </div>
           </form>
 
-          <div
-            className="customer-campaign-preview-card"
-            style={{
-              borderRadius: 28,
-              border: '1px solid #e5e7eb',
-              background: '#ffffff',
-              padding: 22,
-              boxShadow: '0 18px 45px rgba(15, 23, 42, 0.05)',
-              display: 'grid',
-              gap: 18,
-            }}
-          >
-            <div
-              style={{
-                fontSize: 13,
-                color: '#6b7280',
-                fontWeight: 800,
-                textTransform: 'uppercase',
-                letterSpacing: '0.12em',
-              }}
-            >
-              Live Preview
-            </div>
+          <aside className="reader-campaign-preview-card" aria-label="Live campaign preview">
+            <header className="reader-campaign-preview-head">
+              <h2>Live preview</h2>
+              <span>DRAFT</span>
+            </header>
 
-            <div
-              style={{
-                borderRadius: 22,
-                overflow: 'hidden',
-                border: '1px solid #e5e7eb',
-                background: '#f8fafc',
-              }}
-            >
-              <div
-                style={{
-                  width: '100%',
-                  aspectRatio: '1.2 / 1',
-                  background: '#eef2f7',
-                  overflow: 'hidden',
-                }}
-              >
+            <div className="reader-campaign-ad-preview">
+              <div className="reader-campaign-preview-media">
                 {creativePreview ? (
                   <img
                     src={creativePreview}
                     alt={creativeAltText || form.headline || 'Creative preview'}
-                    style={{
-                      width: '100%',
-                      height: '100%',
-                      objectFit: 'cover',
-                      display: 'block',
-                    }}
                   />
                 ) : (
-                  <div
-                    style={{
-                      width: '100%',
-                      height: '100%',
-                      display: 'grid',
-                      placeItems: 'center',
-                      color: '#94a3b8',
-                      fontWeight: 700,
-                      fontSize: 14,
-                    }}
-                  >
-                    Banner preview will show here
-                  </div>
+                  <span>Banner preview</span>
                 )}
               </div>
 
-              <div style={{ padding: 18 }}>
-                <div
-                  style={{
-                    fontSize: 12,
-                    fontWeight: 800,
-                    color: '#64748b',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.08em',
-                    marginBottom: 8,
-                  }}
-                >
-                  {form.display_url || 'display-url.com'}
-                </div>
-
-                <div
-                  style={{
-                    fontSize: 22,
-                    lineHeight: 1.2,
-                    fontWeight: 900,
-                    color: '#111827',
-                  }}
-                >
-                  {form.headline || 'Your ad headline preview'}
-                </div>
-
-                <div
-                  style={{
-                    marginTop: 10,
-                    fontSize: 14,
-                    lineHeight: 1.7,
-                    color: '#6b7280',
-                    minHeight: 72,
-                  }}
-                >
-                  {form.description_text || 'Your ad description will show here.'}
-                </div>
-
-                <button
-                  type="button"
-                  style={{
-                    marginTop: 14,
-                    minHeight: 46,
-                    padding: '0 18px',
-                    borderRadius: 14,
-                    border: 'none',
-                    background: '#2563eb',
-                    color: '#fff',
-                    fontWeight: 800,
-                  }}
-                >
+              <div className="reader-campaign-preview-copy">
+                <small>{displayUrl.toUpperCase()}</small>
+                <h3>{previewTitle}</h3>
+                <p>{previewDescription}</p>
+                <button type="button" tabIndex={-1} aria-hidden="true">
                   {form.call_to_action || 'Learn More'}
                 </button>
               </div>
             </div>
 
-            <div
-              style={{
-                borderRadius: 20,
-                border: '1px solid #e5e7eb',
-                background: '#f8fafc',
-                padding: 16,
-                display: 'grid',
-                gap: 10,
-              }}
-            >
+            <div className="reader-campaign-preview-summary">
               <PreviewRow label="Type" value={form.campaign_type} />
               <PreviewRow label="Model" value={form.buying_model} />
               <PreviewRow label="Objective" value={form.objective} />
@@ -946,58 +660,732 @@ export default function CustomerAdvertiserCreateCampaignPage() {
               <PreviewRow label="Bid" value={form.bid_amount || '-'} />
               <PreviewRow label="Campaign ID" value={campaign?.id || '-'} />
             </div>
-          </div>
+
+            <p className="reader-campaign-preview-note">
+              Preview updates from the same campaign fields shown in the form.
+            </p>
+          </aside>
         </div>
-      </div>
-    </div>
+      </main>
+    </ReaderUnifiedShell>
   );
 }
 
-function Field({ label, children }) {
-  return (
-    <label style={{ display: 'grid', gap: 8 }}>
-      <span
-        style={{
-          fontSize: 13,
-          color: '#6b7280',
-          fontWeight: 800,
-          textTransform: 'uppercase',
-          letterSpacing: '0.12em',
-        }}
-      >
-        {label}
-      </span>
-      {children}
-    </label>
-  );
-}
+const styles = `
+  .reader-campaign-create-page,
+  .reader-campaign-create-page * {
+    box-sizing: border-box;
+  }
 
-function PreviewRow({ label, value }) {
-  return (
-    <div
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        gap: 12,
-      }}
-    >
-      <div style={{ fontSize: 13, color: '#64748b' }}>{label}</div>
-      <div style={{ fontSize: 14, fontWeight: 800, color: '#111827', textAlign: 'right' }}>
-        {value || '-'}
-      </div>
-    </div>
-  );
-}
+  .reader-campaign-create-page {
+    width: 100%;
+    max-width: 1204px;
+    margin: 0 auto;
+    padding: 24px 32px 48px;
+    color: #0f1421;
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
 
-const inputStyle = {
-  width: '100%',
-  minHeight: 56,
-  borderRadius: 16,
-  border: '1px solid #dbe1ea',
-  background: '#fff',
-  padding: '0 16px',
-  fontSize: 15,
-  outline: 'none',
-  color: '#111827',
-};
+  .reader-campaign-context {
+    min-height: 64px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+    padding: 12px 18px;
+    border: 1px solid #e3e8f0;
+    border-radius: 12px;
+    background: #ffffff;
+  }
+
+  .reader-campaign-context-copy {
+    min-width: 0;
+  }
+
+  .reader-campaign-context-copy h1 {
+    margin: 0;
+    font-size: 16px;
+    line-height: 1.25;
+    font-weight: 650;
+    color: #0f1421;
+  }
+
+  .reader-campaign-context-copy p {
+    margin: 4px 0 0;
+    font-size: 12px;
+    line-height: 1.4;
+    color: #6e7a91;
+  }
+
+  .reader-campaign-context-actions {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .reader-campaign-wallet {
+    min-width: 176px;
+    min-height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 0 12px;
+    border-radius: 8px;
+    background: #f6f7fb;
+    color: #333b4f;
+    font-size: 12px;
+    white-space: nowrap;
+  }
+
+  .reader-campaign-wallet span,
+  .reader-campaign-wallet strong {
+    font-weight: 650;
+  }
+
+  .reader-campaign-back,
+  .reader-campaign-secondary {
+    text-decoration: none;
+  }
+
+  .reader-campaign-back {
+    min-width: 146px;
+    min-height: 36px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 14px;
+    border: 1px solid #d6dbe5;
+    border-radius: 8px;
+    background: #ffffff;
+    color: #141a26;
+    font-size: 12px;
+    font-weight: 550;
+  }
+
+  .reader-campaign-alert {
+    margin-top: 14px;
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-size: 13px;
+    line-height: 1.45;
+  }
+
+  .reader-campaign-alert.error {
+    border: 1px solid #fecdd3;
+    background: #fff1f2;
+    color: #be123c;
+  }
+
+  .reader-campaign-alert.success {
+    border: 1px solid #bbf7d0;
+    background: #ecfdf5;
+    color: #166534;
+  }
+
+  .reader-campaign-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 752px) minmax(300px, 368px);
+    align-items: start;
+    gap: 20px;
+    margin-top: 20px;
+  }
+
+  .reader-campaign-form-card,
+  .reader-campaign-preview-card {
+    min-width: 0;
+    border: 1px solid #e3e8f0;
+    border-radius: 14px;
+    background: #ffffff;
+  }
+
+  .reader-campaign-form-card {
+    display: grid;
+    gap: 20px;
+    padding: 22px;
+  }
+
+  .reader-campaign-card-heading h2,
+  .reader-campaign-preview-head h2 {
+    margin: 0;
+    color: #0f1421;
+    font-weight: 650;
+  }
+
+  .reader-campaign-card-heading h2 {
+    font-size: 18px;
+    line-height: 1.25;
+  }
+
+  .reader-campaign-card-heading p {
+    margin: 4px 0 0;
+    color: #6e7a91;
+    font-size: 12px;
+    line-height: 1.4;
+  }
+
+  .reader-campaign-fields {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .reader-campaign-field {
+    min-width: 0;
+    display: grid;
+    gap: 7px;
+  }
+
+  .reader-campaign-field.full {
+    grid-column: 1 / -1;
+  }
+
+  .reader-campaign-label {
+    color: #20242c;
+    font-size: 14px;
+    line-height: 1.3;
+    font-weight: 500;
+  }
+
+  .reader-campaign-field input,
+  .reader-campaign-field select,
+  .reader-campaign-field textarea {
+    width: 100%;
+    border: 1px solid #d6dbe5;
+    border-radius: 8px;
+    background: #ffffff;
+    color: #141a26;
+    font: inherit;
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  .reader-campaign-field input,
+  .reader-campaign-field select {
+    min-height: 42px;
+    padding: 0 14px;
+  }
+
+  .reader-campaign-field textarea {
+    min-height: 82px;
+    padding: 12px 14px;
+    line-height: 1.45;
+    resize: vertical;
+  }
+
+  .reader-campaign-field input:focus,
+  .reader-campaign-field select:focus,
+  .reader-campaign-field textarea:focus {
+    border-color: #8fa6d3;
+    box-shadow: 0 0 0 3px rgba(84, 118, 181, 0.12);
+  }
+
+  .reader-campaign-field input:disabled,
+  .reader-campaign-field select:disabled,
+  .reader-campaign-field textarea:disabled {
+    cursor: not-allowed;
+    background: #f8fafc;
+    color: #7a8597;
+  }
+
+  .reader-campaign-field input::placeholder,
+  .reader-campaign-field textarea::placeholder {
+    color: #a7adb8;
+  }
+
+  .reader-campaign-upload-section {
+    display: grid;
+    gap: 12px;
+  }
+
+  .reader-campaign-upload-section h3 {
+    margin: 0;
+    color: #0f1421;
+    font-size: 16px;
+    line-height: 1.25;
+    font-weight: 650;
+  }
+
+  .reader-campaign-upload {
+    min-height: 94px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 16px;
+    border: 1px dashed #c7cfde;
+    border-radius: 10px;
+    background: #f9fafb;
+    cursor: pointer;
+  }
+
+  .reader-campaign-upload.disabled {
+    cursor: not-allowed;
+    opacity: 0.68;
+  }
+
+  .reader-campaign-upload input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .reader-campaign-upload-mark {
+    flex: 0 0 40px;
+    width: 40px;
+    height: 40px;
+    display: grid;
+    place-items: center;
+    border: 1px solid #d6dbe5;
+    border-radius: 8px;
+    background: #ffffff;
+    color: #2e384d;
+    font-size: 20px;
+    font-weight: 500;
+  }
+
+  .reader-campaign-upload-copy {
+    min-width: 0;
+    display: grid;
+    gap: 4px;
+  }
+
+  .reader-campaign-upload-copy strong {
+    overflow: hidden;
+    color: #141a26;
+    font-size: 13px;
+    font-weight: 650;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .reader-campaign-upload-copy small {
+    color: #738099;
+    font-size: 11px;
+    line-height: 1.35;
+  }
+
+  .reader-campaign-workflow-note {
+    min-height: 42px;
+    display: flex;
+    align-items: center;
+    padding: 10px 12px;
+    border: 1px solid #d1def5;
+    border-radius: 8px;
+    background: #f6f9fe;
+    color: #384d73;
+    font-size: 11px;
+    line-height: 1.4;
+  }
+
+  .reader-campaign-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .reader-campaign-primary,
+  .reader-campaign-secondary {
+    min-height: 48px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 9px;
+    font-size: 13px;
+    font-weight: 650;
+  }
+
+  .reader-campaign-primary {
+    min-width: 160px;
+    padding: 0 18px;
+    border: 1px solid #121726;
+    background: #121726;
+    color: #ffffff;
+    cursor: pointer;
+  }
+
+  .reader-campaign-primary:disabled {
+    cursor: not-allowed;
+    opacity: 0.65;
+  }
+
+  .reader-campaign-secondary {
+    min-width: 96px;
+    padding: 0 16px;
+    border: 1px solid #d6dbe5;
+    background: #ffffff;
+    color: #141a26;
+    font-weight: 550;
+  }
+
+  .reader-campaign-secondary.disabled {
+    pointer-events: none;
+    opacity: 0.6;
+  }
+
+  .reader-campaign-preview-card {
+    position: sticky;
+    top: 92px;
+    display: grid;
+    gap: 16px;
+    padding: 20px;
+  }
+
+  .reader-campaign-preview-head {
+    min-height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .reader-campaign-preview-head h2 {
+    font-size: 15px;
+  }
+
+  .reader-campaign-preview-head span {
+    min-width: 52px;
+    min-height: 24px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    background: #f5f6f9;
+    color: #66738c;
+    font-size: 9px;
+    font-weight: 750;
+    letter-spacing: 0.04em;
+  }
+
+  .reader-campaign-ad-preview {
+    overflow: hidden;
+    border: 1px solid #e0e5ed;
+    border-radius: 12px;
+    background: #ffffff;
+  }
+
+  .reader-campaign-preview-media {
+    height: 220px;
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+    background: #f2f5f9;
+    color: #8c96a8;
+    font-size: 13px;
+    font-weight: 500;
+  }
+
+  .reader-campaign-preview-media img {
+    width: 100%;
+    height: 100%;
+    display: block;
+    object-fit: cover;
+  }
+
+  .reader-campaign-preview-copy {
+    min-height: 190px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 16px;
+  }
+
+  .reader-campaign-preview-copy small {
+    max-width: 100%;
+    overflow: hidden;
+    color: #738099;
+    font-size: 9px;
+    font-weight: 750;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .reader-campaign-preview-copy h3 {
+    width: 100%;
+    margin: 0;
+    color: #0f1421;
+    font-size: 19px;
+    line-height: 1.2;
+    font-weight: 750;
+    overflow-wrap: anywhere;
+  }
+
+  .reader-campaign-preview-copy p {
+    min-height: 44px;
+    margin: 0;
+    color: #66738a;
+    font-size: 12px;
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+  }
+
+  .reader-campaign-preview-copy button {
+    min-width: 98px;
+    min-height: 34px;
+    padding: 0 12px;
+    border: 0;
+    border-radius: 7px;
+    background: #1a5cd4;
+    color: #ffffff;
+    font-size: 11px;
+    font-weight: 650;
+    pointer-events: none;
+  }
+
+  .reader-campaign-preview-summary {
+    display: grid;
+    gap: 4px;
+    padding: 10px 12px;
+    border: 1px solid #e3e8f0;
+    border-radius: 10px;
+    background: #f9fafb;
+  }
+
+  .reader-campaign-preview-row {
+    min-height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    border-bottom: 1px solid #f0f2f5;
+    font-size: 11px;
+  }
+
+  .reader-campaign-preview-row:last-child {
+    border-bottom: 0;
+  }
+
+  .reader-campaign-preview-row span {
+    color: #738099;
+  }
+
+  .reader-campaign-preview-row strong {
+    max-width: 58%;
+    overflow: hidden;
+    color: #141a26;
+    font-weight: 650;
+    text-align: right;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .reader-campaign-preview-note {
+    margin: 0;
+    color: #7a87a1;
+    font-size: 10px;
+    line-height: 1.4;
+  }
+
+  @media (max-width: 1100px) {
+    .reader-campaign-create-page {
+      padding-right: 24px;
+      padding-left: 24px;
+    }
+
+    .reader-campaign-layout {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .reader-campaign-preview-card {
+      position: static;
+    }
+  }
+
+  @media (max-width: 767px) {
+    .reader-campaign-create-page {
+      width: calc(100% - 16px);
+      margin: 0 8px;
+      padding: 16px 0 32px;
+    }
+
+    .reader-campaign-context {
+      min-height: 112px;
+      align-items: stretch;
+      flex-direction: column;
+      gap: 10px;
+      padding: 14px;
+    }
+
+    .reader-campaign-context-copy h1 {
+      font-size: 22px;
+      line-height: 1.18;
+      font-weight: 750;
+    }
+
+    .reader-campaign-context-copy p {
+      display: none;
+    }
+
+    .reader-campaign-context-actions {
+      width: 100%;
+      justify-content: space-between;
+    }
+
+    .reader-campaign-wallet {
+      min-width: 0;
+      min-height: 32px;
+      padding: 0 12px;
+      font-size: 11px;
+    }
+
+    .reader-campaign-back {
+      min-width: 0;
+      min-height: 32px;
+      padding: 0;
+      border: 0;
+      background: transparent;
+      color: #334f8c;
+      font-size: 11px;
+    }
+
+    .reader-campaign-alert {
+      margin-top: 10px;
+      border-radius: 9px;
+      padding: 11px 12px;
+      font-size: 12px;
+    }
+
+    .reader-campaign-layout {
+      gap: 16px;
+      margin-top: 16px;
+    }
+
+    .reader-campaign-form-card,
+    .reader-campaign-preview-card {
+      border-radius: 12px;
+    }
+
+    .reader-campaign-form-card {
+      gap: 14px;
+      padding: 16px;
+    }
+
+    .reader-campaign-card-heading h2 {
+      font-size: 16px;
+    }
+
+    .reader-campaign-card-heading p {
+      font-size: 11px;
+    }
+
+    .reader-campaign-fields {
+      grid-template-columns: minmax(0, 1fr);
+      gap: 12px;
+    }
+
+    .reader-campaign-label {
+      font-size: 13px;
+    }
+
+    .reader-campaign-field input,
+    .reader-campaign-field select {
+      min-height: 42px;
+      padding: 0 12px;
+      font-size: 13px;
+    }
+
+    .reader-campaign-field textarea {
+      min-height: 82px;
+      padding: 11px 12px;
+      font-size: 13px;
+    }
+
+    .reader-campaign-upload-section h3 {
+      font-size: 15px;
+    }
+
+    .reader-campaign-upload {
+      min-height: 106px;
+      align-items: flex-start;
+      flex-direction: column;
+      gap: 5px;
+      padding: 14px;
+    }
+
+    .reader-campaign-upload-mark {
+      display: none;
+    }
+
+    .reader-campaign-upload-copy {
+      width: 100%;
+      gap: 5px;
+    }
+
+    .reader-campaign-upload-copy strong {
+      font-size: 13px;
+    }
+
+    .reader-campaign-upload-copy small {
+      font-size: 10px;
+      white-space: normal;
+    }
+
+    .reader-campaign-workflow-note {
+      min-height: 58px;
+      font-size: 10px;
+    }
+
+    .reader-campaign-actions {
+      align-items: stretch;
+      flex-direction: column;
+    }
+
+    .reader-campaign-primary,
+    .reader-campaign-secondary {
+      width: 100%;
+    }
+
+    .reader-campaign-preview-card {
+      gap: 14px;
+      padding: 16px;
+    }
+
+    .reader-campaign-preview-media {
+      height: 180px;
+      font-size: 12px;
+    }
+
+    .reader-campaign-preview-copy {
+      min-height: 170px;
+      gap: 7px;
+      padding: 14px;
+    }
+
+    .reader-campaign-preview-copy small {
+      font-size: 8px;
+    }
+
+    .reader-campaign-preview-copy h3 {
+      font-size: 17px;
+    }
+
+    .reader-campaign-preview-copy p {
+      min-height: 36px;
+      font-size: 11px;
+    }
+
+    .reader-campaign-preview-copy button {
+      min-width: 94px;
+      min-height: 32px;
+      font-size: 10px;
+    }
+
+    .reader-campaign-preview-summary {
+      gap: 2px;
+      padding: 9px 11px;
+    }
+
+    .reader-campaign-preview-row {
+      min-height: 19px;
+      font-size: 10px;
+    }
+
+    .reader-campaign-preview-note {
+      display: none;
+    }
+  }
+`;

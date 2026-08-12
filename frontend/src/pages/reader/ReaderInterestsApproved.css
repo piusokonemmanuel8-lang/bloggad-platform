@@ -1,0 +1,351 @@
+.reader-interests-page,
+.reader-interests-page * {
+  box-sizing: border-box;
+}
+
+.reader-interests-page {
+  width: min(760px, calc(100% - 64px));
+  margin: 48px 0 64px 114px;
+  color: #12171f;
+  font-family: Inter, Arial, sans-serif;
+}
+
+.reader-interests-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.reader-interests-heading h1 {
+  margin: 0;
+  color: #12171f;
+  font-size: 34px;
+  font-weight: 700;
+  line-height: 1.08;
+  letter-spacing: -0.035em;
+}
+
+.reader-interests-heading p {
+  max-width: 720px;
+  margin: 10px 0 0;
+  color: #636b78;
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.reader-interests-mobile-copy {
+  display: none;
+}
+
+.reader-interests-count {
+  display: none;
+}
+
+.reader-interests-alert {
+  min-height: 70px;
+  margin-top: 24px;
+  padding: 14px 16px;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  border-radius: 12px;
+  background: #f5f6f7;
+}
+
+.reader-interests-alert-icon {
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #e3e5e8;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #12171f;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.reader-interests-alert > div {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.reader-interests-alert strong {
+  color: #12171f;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.reader-interests-alert span:not(.reader-interests-alert-icon) {
+  color: #636b78;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.reader-interests-alert.is-warning {
+  background: #fff7f7;
+}
+
+.reader-interests-alert.is-warning .reader-interests-alert-icon {
+  border-color: #fecaca;
+  color: #b42318;
+}
+
+.reader-interests-alert.is-success {
+  background: #edf7f1;
+}
+
+.reader-interests-alert.is-success .reader-interests-alert-icon {
+  border-color: #cce9d8;
+  color: #1f6b47;
+}
+
+.reader-interests-topics {
+  margin-top: 24px;
+}
+
+.reader-interests-groups {
+  display: grid;
+}
+
+.reader-interests-group {
+  padding: 0 0 20px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid #e3e5e8;
+}
+
+.reader-interests-group:last-child {
+  margin-bottom: 0;
+}
+
+.reader-interests-group h2 {
+  margin: 0 0 13px;
+  color: #12171f;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.reader-interests-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.reader-interests-option {
+  min-height: 36px;
+  padding: 9px 14px;
+  border: 1px solid #e3e5e8;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #12171f;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.2;
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
+}
+
+.reader-interests-option:hover {
+  border-color: #b9bec6;
+  background: #fafafa;
+}
+
+.reader-interests-option.is-selected {
+  border-color: #0e1217;
+  background: #0e1217;
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.reader-interests-option:focus-visible,
+.reader-interests-save:focus-visible {
+  outline: 2px solid #12171f;
+  outline-offset: 2px;
+}
+
+.reader-interests-state {
+  padding: 22px 0;
+  color: #636b78;
+  font-size: 13px;
+}
+
+.reader-interests-save-card {
+  min-height: 72px;
+  margin-top: 24px;
+  padding: 12px 12px 12px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  border: 1px solid #e3e5e8;
+  border-radius: 14px;
+  background: #ffffff;
+}
+
+.reader-interests-save-copy {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.reader-interests-save-copy strong {
+  color: #12171f;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.reader-interests-save-copy span {
+  color: #636b78;
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.reader-interests-save {
+  width: 150px;
+  min-height: 44px;
+  flex: 0 0 150px;
+  border: 0;
+  border-radius: 10px;
+  background: #0e1217;
+  color: #ffffff;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.reader-interests-save:hover:not(:disabled) {
+  background: #1b2027;
+}
+
+.reader-interests-save:disabled {
+  cursor: wait;
+  opacity: 0.62;
+}
+
+@media (max-width: 1180px) and (min-width: 768px) {
+  .reader-interests-page {
+    width: min(760px, calc(100% - 64px));
+    margin-left: 32px;
+  }
+}
+
+@media (max-width: 767px) {
+  .reader-interests-page {
+    width: auto;
+    margin: 0;
+    padding: 28px 8px 32px;
+  }
+
+  .reader-interests-heading {
+    display: block;
+  }
+
+  .reader-interests-heading h1 {
+    font-size: 28px;
+    line-height: 1.08;
+    letter-spacing: -0.03em;
+  }
+
+  .reader-interests-heading p {
+    margin-top: 8px;
+    font-size: 12px;
+    line-height: 1.45;
+  }
+
+  .reader-interests-desktop-copy {
+    display: none;
+  }
+
+  .reader-interests-mobile-copy {
+    display: block;
+  }
+
+  .reader-interests-count {
+    width: fit-content;
+    min-height: 29px;
+    margin-top: 16px;
+    padding: 7px 11px;
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    background: #f1f2f4;
+    color: #636b78;
+    font-size: 11px;
+    font-weight: 600;
+  }
+
+  .reader-interests-count.is-ready {
+    background: #edf7f1;
+    color: #1f6b47;
+  }
+
+  .reader-interests-alert {
+    min-height: 0;
+    margin-top: 18px;
+    padding: 13px 14px;
+    border-radius: 11px;
+  }
+
+  .reader-interests-alert-icon {
+    display: none;
+  }
+
+  .reader-interests-alert strong {
+    font-size: 12px;
+  }
+
+  .reader-interests-alert span:not(.reader-interests-alert-icon) {
+    font-size: 11px;
+  }
+
+  .reader-interests-topics {
+    margin-top: 18px;
+  }
+
+  .reader-interests-group {
+    padding-bottom: 18px;
+    margin-bottom: 18px;
+  }
+
+  .reader-interests-group h2 {
+    margin-bottom: 11px;
+    font-size: 14px;
+  }
+
+  .reader-interests-options {
+    gap: 7px;
+  }
+
+  .reader-interests-option {
+    min-height: 36px;
+    padding: 9px 14px;
+    font-size: 13px;
+  }
+
+  .reader-interests-save-card {
+    min-height: 0;
+    margin-top: 18px;
+    padding: 0;
+    display: block;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+  }
+
+  .reader-interests-save-copy {
+    display: none;
+  }
+
+  .reader-interests-save {
+    width: 100%;
+    min-height: 48px;
+    border-radius: 10px;
+  }
+}

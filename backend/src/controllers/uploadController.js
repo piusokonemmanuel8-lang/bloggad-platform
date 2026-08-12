@@ -1,19 +1,11 @@
-const fs = require('fs');
-const path = require('path');
+const { getUploadDir } = require('../config/uploads');
 
 function ensureUploadsDir() {
-  const uploadDir = path.join(process.cwd(), 'uploads', 'template-images');
-
-  if (!fs.existsSync(uploadDir)) {
-    fs.mkdirSync(uploadDir, { recursive: true });
-  }
-
-  return uploadDir;
+  return getUploadDir('template-images');
 }
 
-function buildPublicFileUrl(req, fileName) {
-  const baseUrl = `${req.protocol}://${req.get('host')}`;
-  return `${baseUrl}/uploads/template-images/${fileName}`;
+function buildPublicFileUrl(_req, fileName) {
+  return `/uploads/template-images/${fileName}`;
 }
 
 async function uploadTemplateImage(req, res) {

@@ -3,13 +3,11 @@ const path = require('path');
 const multer = require('multer');
 const { protect } = require('../middleware/authMiddleware');
 const {
-  ensureUploadsDir,
   uploadTemplateImage,
 } = require('../controllers/uploadController');
+const { createS3MulterStorage } = require('../config/s3Storage');
 
 const router = express.Router();
-
-const uploadDir = ensureUploadsDir();
 
 const allowedExtensions = [
   '.jpg',
@@ -66,13 +64,9 @@ function buildSafeFileName(originalName = 'upload-file') {
   return `${Date.now()}-${base}${safeExt}`;
 }
 
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, uploadDir);
-  },
-  filename: (req, file, cb) => {
-    cb(null, buildSafeFileName(file.originalname));
-  },
+const storage = createS3MulterStorage({
+  prefix: 'template-images',
+  filenameBuilder: buildSafeFileName,
 });
 
 const fileFilter = (req, file, cb) => {
@@ -119,9 +113,8 @@ const uploadImageOnly = multer({
   },
 });
 
-function buildFileUrl(req, filename) {
-  const baseUrl = `${req.protocol}://${req.get('host')}`;
-  return `${baseUrl}/uploads/template-images/${filename}`;
+function buildFileUrl(_req, filename) {
+  return `/uploads/template-images/${filename}`;
 }
 
 router.get('/health', (req, res) => {
@@ -161,7 +154,7 @@ router.post(
       message: 'File uploaded successfully',
       url: fileUrl,
       file_url: fileUrl,
-      path: `/uploads/${req.file.filename}`,
+      path: `/uploads/template-images/${req.file.filename}`,
       filename: req.file.filename,
       original_name: req.file.originalname,
       mime_type: req.file.mimetype,

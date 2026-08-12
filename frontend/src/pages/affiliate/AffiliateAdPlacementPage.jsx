@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import api from '../../api/axios';
 
 function cardStyle() {
@@ -195,12 +196,15 @@ function previewBlock(background, color, text) {
 }
 
 export default function AffiliateAdPlacementPage() {
+  const location = useLocation();
+  const writerRouteMode = location.pathname === '/writer/monetization/ad-placement';
   const [form, setForm] = useState(initialForm);
   const [saveMessage, setSaveMessage] = useState('');
   const [saveError, setSaveError] = useState('');
   const [loadError, setLoadError] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [previewMode, setPreviewMode] = useState('storefront');
 
   const placementGroups = useMemo(
     () => [
@@ -331,6 +335,578 @@ export default function AffiliateAdPlacementPage() {
   }
 
   const isPlatformMode = form.monetization_mode === 'platform';
+  const activePlacementCount = [
+    form.storefront_top_enabled,
+    form.storefront_sidebar_enabled,
+    form.storefront_bottom_enabled,
+    form.post_top_enabled,
+    form.post_middle_enabled,
+    form.post_bottom_enabled,
+    form.post_sidebar_enabled,
+  ].filter((value) => Number(value) === 1).length;
+  const templateLabel =
+    {
+      'current-template': 'Current active template',
+      'minimal-template': 'Minimal template',
+      'electronics-template': 'Electronics template',
+    }[form.selected_template] || 'Current active template';
+
+  if (writerRouteMode) {
+    return (
+      <form className="writer-ad-placement-page" onSubmit={handleSave}>
+        <style>{String.raw`
+          .writer-ad-placement-page,
+          .writer-ad-placement-page * { box-sizing: border-box; }
+          .writer-ad-placement-page {
+            width: 100%;
+            color: #1d2025;
+            font-family: inherit;
+          }
+          .writer-ad-placement-head {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 24px;
+            margin-bottom: 16px;
+          }
+          .writer-ad-placement-eyebrow {
+            margin: 0 0 6px;
+            color: #8a929d;
+            font-size: 11px;
+            line-height: 1.2;
+            font-weight: 800;
+            letter-spacing: .06em;
+            text-transform: uppercase;
+          }
+          .writer-ad-placement-head h2 {
+            margin: 0;
+            color: #1d2025;
+            font-size: 24px;
+            line-height: 1.2;
+            font-weight: 800;
+          }
+          .writer-ad-placement-subtitle {
+            max-width: 760px;
+            margin: 6px 0 0;
+            color: #6f7782;
+            font-size: 14px;
+            line-height: 1.5;
+          }
+          .writer-ad-placement-save {
+            min-width: 152px;
+            height: 40px;
+            padding: 0 18px;
+            border: 0;
+            border-radius: 8px;
+            background: #1c1f24;
+            color: #fff;
+            font: inherit;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+          }
+          .writer-ad-placement-save:disabled { opacity: .55; cursor: not-allowed; }
+          .writer-ad-placement-feedback {
+            margin: 6px 0 0;
+            font-size: 13px;
+            line-height: 1.4;
+            font-weight: 600;
+          }
+          .writer-ad-placement-feedback.ok { color: #237447; }
+          .writer-ad-placement-feedback.error { color: #b42318; }
+          .writer-ad-placement-alert {
+            margin-bottom: 14px;
+            padding: 12px 14px;
+            border: 1px solid #f0c7c2;
+            border-radius: 8px;
+            background: #fff4f2;
+            color: #a3362b;
+            font-size: 13px;
+            line-height: 1.45;
+            font-weight: 600;
+          }
+          .writer-ad-placement-stats {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 12px;
+            margin-bottom: 16px;
+          }
+          .writer-ad-placement-stat,
+          .writer-ad-placement-card {
+            border: 1px solid #dfe3e6;
+            background: #fff;
+            border-radius: 10px;
+          }
+          .writer-ad-placement-stat { min-height: 78px; padding: 14px; }
+          .writer-ad-placement-stat span {
+            display: block;
+            color: #737c87;
+            font-size: 12px;
+            line-height: 1.3;
+            font-weight: 600;
+          }
+          .writer-ad-placement-stat strong {
+            display: block;
+            margin-top: 4px;
+            color: #1d2025;
+            font-size: 18px;
+            line-height: 1.25;
+            font-weight: 800;
+          }
+          .writer-ad-placement-stat small {
+            display: block;
+            margin-top: 2px;
+            color: #89919b;
+            font-size: 12px;
+            line-height: 1.35;
+          }
+          .writer-ad-placement-grid {
+            display: grid;
+            grid-template-columns: minmax(0, 1.62fr) minmax(340px, .9fr);
+            gap: 16px;
+            align-items: start;
+          }
+          .writer-ad-placement-left,
+          .writer-ad-placement-right { display: grid; gap: 16px; min-width: 0; }
+          .writer-ad-placement-right { position: sticky; top: 86px; }
+          .writer-ad-placement-card { padding: 16px; }
+          .writer-ad-placement-card h3 {
+            margin: 0;
+            color: #1d2025;
+            font-size: 17px;
+            line-height: 1.3;
+            font-weight: 800;
+          }
+          .writer-ad-placement-card-copy {
+            margin: 5px 0 0;
+            color: #727b86;
+            font-size: 13px;
+            line-height: 1.45;
+          }
+          .writer-ad-placement-setup-grid {
+            display: grid;
+            grid-template-columns: 1fr 1.2fr 1fr;
+            gap: 12px;
+            margin-top: 16px;
+          }
+          .writer-ad-placement-field label {
+            display: block;
+            margin: 0 0 7px;
+            color: #606975;
+            font-size: 12px;
+            line-height: 1.3;
+            font-weight: 600;
+          }
+          .writer-ad-placement-field select,
+          .writer-ad-placement-field input {
+            width: 100%;
+            height: 42px;
+            padding: 0 12px;
+            border: 1px solid #d8dde2;
+            border-radius: 8px;
+            background: #fff;
+            color: #1d2025;
+            font: inherit;
+            font-size: 13px;
+            outline: none;
+          }
+          .writer-ad-placement-field select:focus,
+          .writer-ad-placement-field input:focus { border-color: #89919b; }
+          .writer-ad-placement-group-head { margin-bottom: 12px; }
+          .writer-ad-placement-toggle-list { display: grid; gap: 7px; }
+          .writer-ad-placement-toggle-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            min-height: 66px;
+            padding: 10px 12px;
+            border: 1px solid #dfe3e6;
+            border-radius: 8px;
+            background: #fff;
+          }
+          .writer-ad-placement-toggle-copy { min-width: 0; }
+          .writer-ad-placement-toggle-copy strong {
+            display: block;
+            color: #1d2025;
+            font-size: 14px;
+            line-height: 1.35;
+            font-weight: 700;
+          }
+          .writer-ad-placement-toggle-copy span {
+            display: block;
+            margin-top: 3px;
+            color: #737c87;
+            font-size: 12px;
+            line-height: 1.4;
+          }
+          .writer-ad-placement-switch {
+            position: relative;
+            width: 42px;
+            height: 24px;
+            flex: 0 0 42px;
+            padding: 0;
+            border: 0;
+            border-radius: 999px;
+            background: #d6dce2;
+            cursor: pointer;
+          }
+          .writer-ad-placement-switch::after {
+            content: '';
+            position: absolute;
+            top: 3px;
+            left: 3px;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #fff;
+            box-shadow: 0 1px 2px rgba(0,0,0,.16);
+            transition: left .15s ease;
+          }
+          .writer-ad-placement-switch.on { background: #1c1f24; }
+          .writer-ad-placement-switch.on::after { left: 21px; }
+          .writer-ad-placement-preview-tabs {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-top: 12px;
+          }
+          .writer-ad-placement-preview-tab {
+            height: 34px;
+            border: 1px solid #dfe3e6;
+            border-radius: 7px;
+            background: #fff;
+            color: #1d2025;
+            font: inherit;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+          }
+          .writer-ad-placement-preview-tab.active {
+            border-color: #1c1f24;
+            background: #1c1f24;
+            color: #fff;
+          }
+          .writer-ad-placement-preview-canvas { margin-top: 14px; }
+          .writer-ad-placement-preview-label {
+            margin-bottom: 8px;
+            color: #8a929d;
+            font-size: 11px;
+            line-height: 1.3;
+            font-weight: 800;
+            text-transform: uppercase;
+          }
+          .writer-ad-placement-preview-slot {
+            display: grid;
+            place-items: center;
+            min-height: 54px;
+            padding: 10px;
+            border-radius: 7px;
+            background: #1c1f24;
+            color: #fff;
+            text-align: center;
+            font-size: 12px;
+            line-height: 1.35;
+            font-weight: 600;
+          }
+          .writer-ad-placement-preview-slot.soft {
+            border: 1px solid #dfe3e6;
+            background: #edf4fc;
+            color: #265c9e;
+          }
+          .writer-ad-placement-preview-slot.off {
+            border: 1px solid #dfe3e6;
+            background: #fff;
+            color: #9aa2ac;
+          }
+          .writer-ad-placement-preview-row {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 94px;
+            gap: 9px;
+            margin-top: 9px;
+          }
+          .writer-ad-placement-preview-stack { display: grid; gap: 9px; }
+          .writer-ad-placement-rule-list {
+            display: grid;
+            gap: 10px;
+            margin: 14px 0 0;
+            padding: 0;
+            list-style: none;
+          }
+          .writer-ad-placement-rule-list li {
+            position: relative;
+            padding-left: 18px;
+            color: #3f4751;
+            font-size: 12px;
+            line-height: 1.45;
+          }
+          .writer-ad-placement-rule-list li::before {
+            content: '';
+            position: absolute;
+            top: 7px;
+            left: 0;
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: #a5adb6;
+          }
+          .writer-ad-placement-rule-list li:first-child::before { background: #1c1f24; }
+          .writer-ad-placement-loading {
+            margin-top: 12px;
+            color: #68717d;
+            font-size: 13px;
+            font-weight: 600;
+          }
+          @media (max-width: 1180px) {
+            .writer-ad-placement-grid { grid-template-columns: minmax(0, 1.35fr) minmax(310px, .9fr); }
+            .writer-ad-placement-setup-grid { grid-template-columns: 1fr 1fr; }
+            .writer-ad-placement-field:first-child { grid-column: 1 / -1; }
+          }
+          @media (max-width: 991px) {
+            .writer-ad-placement-page {
+              width: calc(100% + 18px);
+              margin-left: -9px;
+              margin-right: -9px;
+            }
+            .writer-ad-placement-head { gap: 12px; margin-bottom: 14px; }
+            .writer-ad-placement-eyebrow { display: none; }
+            .writer-ad-placement-head h2 { font-size: 20px; }
+            .writer-ad-placement-subtitle { margin-top: 5px; font-size: 12px; line-height: 1.4; }
+            .writer-ad-placement-save { min-width: 68px; height: 38px; padding: 0 14px; font-size: 13px; }
+            .writer-ad-placement-stats { grid-template-columns: 1fr 1fr; gap: 10px; }
+            .writer-ad-placement-stat { min-height: 82px; padding: 12px; }
+            .writer-ad-placement-stat.template { display: none; }
+            .writer-ad-placement-stat span { font-size: 12px; }
+            .writer-ad-placement-stat strong { font-size: 18px; }
+            .writer-ad-placement-stat small { font-size: 12px; }
+            .writer-ad-placement-grid { display: block; }
+            .writer-ad-placement-left,
+            .writer-ad-placement-right { gap: 12px; }
+            .writer-ad-placement-right { position: static; margin-top: 12px; }
+            .writer-ad-placement-card { padding: 12px; border-radius: 9px; }
+            .writer-ad-placement-card h3 { font-size: 16px; }
+            .writer-ad-placement-card-copy { font-size: 12px; line-height: 1.45; }
+            .writer-ad-placement-setup-grid { grid-template-columns: 1fr 110px; gap: 9px; margin-top: 14px; }
+            .writer-ad-placement-field:first-child { grid-column: 1 / -1; }
+            .writer-ad-placement-field label { font-size: 12px; }
+            .writer-ad-placement-field select,
+            .writer-ad-placement-field input { height: 42px; font-size: 13px; }
+            .writer-ad-placement-toggle-list { gap: 7px; }
+            .writer-ad-placement-toggle-row { min-height: 68px; padding: 10px 12px; }
+            .writer-ad-placement-toggle-copy strong { font-size: 14px; }
+            .writer-ad-placement-toggle-copy span { font-size: 12px; }
+            .writer-ad-placement-preview-row { grid-template-columns: minmax(0, 1fr) 94px; }
+            .writer-ad-placement-rule-list li { font-size: 12px; }
+          }
+          @media (max-width: 420px) {
+            .writer-ad-placement-page { width: calc(100% + 18px); }
+            .writer-ad-placement-head h2 { font-size: 19px; }
+            .writer-ad-placement-subtitle { max-width: 235px; }
+          }
+        `}</style>
+
+        <div className="writer-ad-placement-head">
+          <div>
+            <p className="writer-ad-placement-eyebrow">Monetization</p>
+            <h2>Ad placement</h2>
+            <p className="writer-ad-placement-subtitle">
+              Choose where ads can appear across your storefront and post pages. Changes are saved to your current monetization settings.
+            </p>
+            {saveMessage ? <p className="writer-ad-placement-feedback ok">{saveMessage}</p> : null}
+            {saveError ? <p className="writer-ad-placement-feedback error">{saveError}</p> : null}
+          </div>
+          <button className="writer-ad-placement-save" type="submit" disabled={saving || loading}>
+            {saving ? 'Saving...' : 'Save placement'}
+          </button>
+        </div>
+
+        {loadError ? <div className="writer-ad-placement-alert">{loadError}</div> : null}
+
+        <div className="writer-ad-placement-stats">
+          <div className="writer-ad-placement-stat">
+            <span>Current mode</span>
+            <strong>{isPlatformMode ? 'Platform monetization' : 'Individual monetization'}</strong>
+            <small>{isPlatformMode ? 'Bloggad managed ads' : 'Your own ad setup'}</small>
+          </div>
+          <div className="writer-ad-placement-stat">
+            <span>Active placements</span>
+            <strong>{activePlacementCount} / 7</strong>
+            <small>
+              {activePlacementCount === 7
+                ? 'All placement slots enabled'
+                : String(7 - activePlacementCount) + ' placement slots off'}
+            </small>
+          </div>
+          <div className="writer-ad-placement-stat template">
+            <span>Template preview</span>
+            <strong>{templateLabel}</strong>
+            <small>Preview follows supported slots</small>
+          </div>
+        </div>
+
+        <div className="writer-ad-placement-grid">
+          <div className="writer-ad-placement-left">
+            <section className="writer-ad-placement-card">
+              <h3>Placement setup</h3>
+              <p className="writer-ad-placement-card-copy">
+                Set the monetization mode and preview context before choosing individual ad slots.
+              </p>
+              {loading ? <div className="writer-ad-placement-loading">Loading your saved placement settings...</div> : null}
+              <div className="writer-ad-placement-setup-grid">
+                <div className="writer-ad-placement-field">
+                  <label>Monetization mode</label>
+                  <select
+                    value={form.monetization_mode}
+                    onChange={(event) => updateField('monetization_mode', event.target.value)}
+                    disabled={loading}
+                  >
+                    <option value="individual">Individual monetization</option>
+                    <option value="platform">Platform monetization</option>
+                  </select>
+                </div>
+                <div className="writer-ad-placement-field">
+                  <label>Selected template</label>
+                  <select
+                    value={form.selected_template}
+                    onChange={(event) => updateField('selected_template', event.target.value)}
+                    disabled={loading}
+                  >
+                    <option value="current-template">Current active template</option>
+                    <option value="minimal-template">Minimal template</option>
+                    <option value="electronics-template">Electronics template</option>
+                  </select>
+                </div>
+                <div className="writer-ad-placement-field">
+                  <label>Middle insert after</label>
+                  <input
+                    value={form.post_middle_insert_after}
+                    onChange={(event) => updateField('post_middle_insert_after', event.target.value)}
+                    placeholder="2"
+                    disabled={loading}
+                  />
+                </div>
+              </div>
+            </section>
+
+            {placementGroups.map((group) => (
+              <section className="writer-ad-placement-card" key={group.title}>
+                <div className="writer-ad-placement-group-head">
+                  <h3>{group.title}</h3>
+                  <p className="writer-ad-placement-card-copy">
+                    {group.title === 'Storefront placements'
+                      ? 'Control positions on the storefront homepage. Unsupported template slots remain hidden.'
+                      : 'Choose positions inside detailed blog posts. The middle slot uses the selected paragraph insertion point when supported.'}
+                  </p>
+                </div>
+                <div className="writer-ad-placement-toggle-list">
+                  {group.items.map((item) => {
+                    const enabled = Number(form[item.key]) === 1;
+                    return (
+                      <div className="writer-ad-placement-toggle-row" key={item.key}>
+                        <div className="writer-ad-placement-toggle-copy">
+                          <strong>{item.label}</strong>
+                          <span>{item.helper}</span>
+                        </div>
+                        <button
+                          className={'writer-ad-placement-switch' + (enabled ? ' on' : '')}
+                          type="button"
+                          role="switch"
+                          aria-checked={enabled}
+                          aria-label={item.label}
+                          onClick={() => updateField(item.key, enabled ? 0 : 1)}
+                          disabled={loading}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              </section>
+            ))}
+          </div>
+
+          <div className="writer-ad-placement-right">
+            <section className="writer-ad-placement-card">
+              <h3>Placement preview</h3>
+              <p className="writer-ad-placement-card-copy">
+                A guide to where enabled slots can appear. Actual placement depends on template support.
+              </p>
+              <div className="writer-ad-placement-preview-tabs">
+                <button
+                  className={'writer-ad-placement-preview-tab' + (previewMode === 'storefront' ? ' active' : '')}
+                  type="button"
+                  onClick={() => setPreviewMode('storefront')}
+                >
+                  Storefront
+                </button>
+                <button
+                  className={'writer-ad-placement-preview-tab' + (previewMode === 'post' ? ' active' : '')}
+                  type="button"
+                  onClick={() => setPreviewMode('post')}
+                >
+                  Post detail
+                </button>
+              </div>
+
+              {previewMode === 'storefront' ? (
+                <div className="writer-ad-placement-preview-canvas">
+                  <div className="writer-ad-placement-preview-label">Storefront</div>
+                  <div className={'writer-ad-placement-preview-slot' + (Number(form.storefront_top_enabled) ? '' : ' off')}>
+                    {Number(form.storefront_top_enabled) ? 'Storefront top slot' : 'Storefront top off'}
+                  </div>
+                  <div className="writer-ad-placement-preview-row">
+                    <div className="writer-ad-placement-preview-slot soft">Main storefront content</div>
+                    <div className={'writer-ad-placement-preview-slot' + (Number(form.storefront_sidebar_enabled) ? ' soft' : ' off')}>
+                      {Number(form.storefront_sidebar_enabled) ? 'Sidebar slot' : 'Sidebar off'}
+                    </div>
+                  </div>
+                  <div
+                    className={'writer-ad-placement-preview-slot' + (Number(form.storefront_bottom_enabled) ? ' soft' : ' off')}
+                    style={{ marginTop: 9 }}
+                  >
+                    {Number(form.storefront_bottom_enabled) ? 'Storefront bottom slot' : 'Storefront bottom off'}
+                  </div>
+                </div>
+              ) : (
+                <div className="writer-ad-placement-preview-canvas">
+                  <div className="writer-ad-placement-preview-label">Post detail</div>
+                  <div className={'writer-ad-placement-preview-slot' + (Number(form.post_top_enabled) ? '' : ' off')}>
+                    {Number(form.post_top_enabled) ? 'Post top slot' : 'Post top off'}
+                  </div>
+                  <div className="writer-ad-placement-preview-stack" style={{ marginTop: 9 }}>
+                    <div className="writer-ad-placement-preview-slot soft">Article content</div>
+                    <div className={'writer-ad-placement-preview-slot' + (Number(form.post_middle_enabled) ? ' soft' : ' off')}>
+                      {Number(form.post_middle_enabled)
+                        ? 'Post middle after paragraph ' + form.post_middle_insert_after
+                        : 'Post middle off'}
+                    </div>
+                    <div className="writer-ad-placement-preview-slot soft">Article content continues</div>
+                    <div className={'writer-ad-placement-preview-slot' + (Number(form.post_bottom_enabled) ? ' soft' : ' off')}>
+                      {Number(form.post_bottom_enabled) ? 'Post bottom slot' : 'Post bottom off'}
+                    </div>
+                    <div className={'writer-ad-placement-preview-slot' + (Number(form.post_sidebar_enabled) ? ' soft' : ' off')}>
+                      {Number(form.post_sidebar_enabled) ? 'Post sidebar slot' : 'Post sidebar off'}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </section>
+
+            <section className="writer-ad-placement-card">
+              <h3>Slot rules</h3>
+              <p className="writer-ad-placement-card-copy">These rules come from the current placement behavior.</p>
+              <ul className="writer-ad-placement-rule-list">
+                <li>Storefront slots appear only on storefront pages.</li>
+                <li>Post slots appear only on detailed blog post pages.</li>
+                <li>Post middle uses the chosen paragraph insertion point when supported.</li>
+                <li>Only positions supported by the current template can display an ad.</li>
+                <li>Saved settings determine which approved ads may show in each slot.</li>
+              </ul>
+            </section>
+          </div>
+        </div>
+      </form>
+    );
+  }
 
   return (
     <div style={{ display: 'grid', gap: 24 }}>

@@ -48,4 +48,58 @@ api.interceptors.response.use(
   (error) => Promise.reject(error)
 );
 
+
+let bloggadGlobalPendingRequests = 0;
+
+function emitBloggadGlobalLoading() {
+  if (typeof window === 'undefined') return;
+
+  window.dispatchEvent(
+    new CustomEvent('bloggad:global-loading', {
+      detail: { pending: bloggadGlobalPendingRequests },
+    })
+  );
+}
+
+function beginBloggadGlobalLoading(config) {
+  const method = String(config?.method || 'get').toLowerCase();
+  const shouldTrack =
+    method === 'get' &&
+    config?.skipGlobalLoader !== true &&
+    config?.headers?.['x-bloggad-skip-global-loader'] !== '1';
+
+  if (!shouldTrack) return config;
+
+  bloggadGlobalPendingRequests += 1;
+  config.__bloggadGlobalLoaderTracked = true;
+  emitBloggadGlobalLoading();
+
+  return config;
+}
+
+function endBloggadGlobalLoading(config) {
+  if (!config?.__bloggadGlobalLoaderTracked) return;
+
+  bloggadGlobalPendingRequests = Math.max(0, bloggadGlobalPendingRequests - 1);
+  emitBloggadGlobalLoading();
+}
+
+api.interceptors.request.use(
+  (config) => beginBloggadGlobalLoading(config),
+  (error) => {
+    endBloggadGlobalLoading(error?.config);
+    return Promise.reject(error);
+  }
+);
+
+api.interceptors.response.use(
+  (response) => {
+    endBloggadGlobalLoading(response?.config);
+    return response;
+  },
+  (error) => {
+    endBloggadGlobalLoading(error?.config);
+    return Promise.reject(error);
+  }
+);
 export default api;

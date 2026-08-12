@@ -16,6 +16,7 @@ import {
   PanelsTopLeft,
 } from 'lucide-react';
 import api from '../../api/axios';
+import './AffiliateWebsiteApproved.css';
 
 function buildPublicWebsiteUrl(slug) {
   if (!slug) return '';
@@ -302,6 +303,48 @@ export default function AffiliateWebsitePage() {
         </div>
       </section>
 
+
+      <section className="writer-storefront-command" aria-label="Storefront controls">
+        <div className="writer-storefront-command-copy">
+          <div className="writer-storefront-command-status">
+            <span className={statusClass}>{form.status || 'draft'}</span>
+          </div>
+          <div className="writer-storefront-command-text">
+            <strong>{website?.website_name || form.website_name || 'Your Storefront'}</strong>
+            <span>
+              {publicUrl || 'Choose a Storefront URL to create your public address.'}
+            </span>
+          </div>
+        </div>
+
+        <div className="writer-storefront-command-actions">
+          <a
+            className="writer-storefront-command-button secondary"
+            href={publicUrl || undefined}
+            target="_blank"
+            rel="noreferrer"
+            aria-disabled={!publicUrl}
+            onClick={(event) => {
+              if (!publicUrl) event.preventDefault();
+            }}
+          >
+            Preview
+          </a>
+          <button
+            className="writer-storefront-command-button primary"
+            type="submit"
+            form="writer-storefront-settings-form"
+            disabled={saving}
+          >
+            {saving ? 'Saving...' : website ? 'Save changes' : 'Create Storefront'}
+          </button>
+        </div>
+      </section>
+
+      <div className="writer-storefront-plan-note">
+        Storefront publishing is available with an active paid Writer plan.
+      </div>
+
       <section className="affiliate-website-grid">
         <div className="affiliate-website-main-stack">
           <div className="affiliate-website-panel affiliate-website-panel-main">
@@ -314,7 +357,7 @@ export default function AffiliateWebsitePage() {
               </div>
             </div>
 
-            <form className="affiliate-website-form" onSubmit={handleSubmit}>
+            <form id="writer-storefront-settings-form" className="affiliate-website-form" onSubmit={handleSubmit}>
               <div className="affiliate-website-form-grid">
                 <label className="affiliate-website-field">
                   <span className="affiliate-website-label">

@@ -1,0 +1,638 @@
+
+/*
+  Approved Writer Storefront redesign.
+  Scope is intentionally limited to /writer/website through the
+  dashboard-redesign ancestor. The legacy /affiliate/website presentation
+  keeps its existing styles and behavior.
+*/
+
+.dashboard-redesign .affiliate-website-page {
+  width: 100%;
+  max-width: 1480px;
+  min-height: 100%;
+  margin: 0 auto;
+  padding: 28px 30px 64px;
+  background: #f5f6f8;
+  color: #20242a;
+  font-family: Inter, Arial, sans-serif;
+}
+
+.dashboard-redesign .affiliate-website-page *,
+.dashboard-redesign .affiliate-website-page *::before,
+.dashboard-redesign .affiliate-website-page *::after {
+  box-sizing: border-box;
+}
+
+.dashboard-redesign .affiliate-website-loading-wrap {
+  min-height: 420px;
+  display: grid;
+  place-items: center;
+}
+
+.dashboard-redesign .affiliate-website-loading-card {
+  width: min(360px, calc(100% - 32px));
+  padding: 30px;
+  border: 1px solid #e2e6eb;
+  border-radius: 14px;
+  background: #fff;
+  color: #6f7888;
+  text-align: center;
+  box-shadow: none;
+}
+
+.dashboard-redesign .affiliate-website-spinner {
+  width: 28px;
+  height: 28px;
+  margin: 0 auto 12px;
+  border: 3px solid #e5e9ee;
+  border-top-color: #20242a;
+  border-radius: 50%;
+}
+
+.dashboard-redesign .affiliate-website-hero {
+  display: none;
+}
+
+.dashboard-redesign .writer-storefront-command {
+  min-height: 76px;
+  margin: 0 0 10px;
+  padding: 14px 16px;
+  border: 1px solid #e0e5ea;
+  border-radius: 12px;
+  background: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.dashboard-redesign .writer-storefront-command-copy {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.dashboard-redesign .writer-storefront-command-status {
+  flex: 0 0 auto;
+}
+
+.dashboard-redesign .writer-storefront-command-text {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.dashboard-redesign .writer-storefront-command-text strong {
+  color: #20242a;
+  font-size: 14px;
+  line-height: 1.25;
+  font-weight: 760;
+}
+
+.dashboard-redesign .writer-storefront-command-text span {
+  max-width: 640px;
+  overflow: hidden;
+  color: #7a8493;
+  font-size: 11px;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dashboard-redesign .writer-storefront-command-actions {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dashboard-redesign .writer-storefront-command-button {
+  min-height: 38px;
+  border: 1px solid #d7dde5;
+  border-radius: 9px;
+  padding: 0 15px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #252a31;
+  background: #fff;
+  font: inherit;
+  font-size: 11px;
+  line-height: 1;
+  font-weight: 730;
+  text-decoration: none;
+  cursor: pointer;
+  box-shadow: none;
+}
+
+.dashboard-redesign .writer-storefront-command-button.primary {
+  border-color: #20242a;
+  background: #20242a;
+  color: #fff;
+}
+
+.dashboard-redesign .writer-storefront-command-button:hover {
+  border-color: #bcc4cf;
+}
+
+.dashboard-redesign .writer-storefront-command-button.primary:hover {
+  border-color: #111419;
+  background: #111419;
+}
+
+.dashboard-redesign .writer-storefront-command-button[aria-disabled="true"],
+.dashboard-redesign .writer-storefront-command-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.52;
+}
+
+.dashboard-redesign .writer-storefront-plan-note {
+  margin: 0 0 18px;
+  color: #838c9a;
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+.dashboard-redesign .affiliate-website-grid {
+  width: 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.dashboard-redesign .affiliate-website-main-stack {
+  min-width: 0;
+  display: grid;
+  gap: 18px;
+}
+
+.dashboard-redesign .affiliate-website-panel {
+  min-width: 0;
+  padding: 22px;
+  border: 1px solid #e0e5ea;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: none;
+}
+
+.dashboard-redesign .affiliate-website-panel-head {
+  margin: 0 0 20px;
+  padding: 0 0 16px;
+  border-bottom: 1px solid #edf0f3;
+}
+
+.dashboard-redesign .affiliate-website-panel-kicker {
+  margin: 0 0 5px;
+  color: #8b94a2;
+  font-size: 10px;
+  line-height: 1.2;
+  font-weight: 760;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.dashboard-redesign .affiliate-website-panel-title {
+  margin: 0;
+  color: #20242a;
+  font-size: 18px;
+  line-height: 1.28;
+  font-weight: 760;
+  letter-spacing: -0.25px;
+}
+
+.dashboard-redesign .affiliate-website-panel-head p:last-child,
+.dashboard-redesign .affiliate-website-panel-head > div > p:last-child {
+  margin: 6px 0 0;
+  color: #7d8795;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.dashboard-redesign .affiliate-website-form {
+  width: 100%;
+}
+
+.dashboard-redesign .affiliate-website-form-grid {
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.dashboard-redesign .affiliate-website-field {
+  min-width: 0;
+  margin: 0;
+  display: grid;
+  align-content: start;
+  gap: 7px;
+}
+
+.dashboard-redesign .affiliate-website-field-full {
+  grid-column: 1 / -1;
+}
+
+.dashboard-redesign .affiliate-website-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #5d6674;
+  font-size: 11px;
+  line-height: 1.25;
+  font-weight: 690;
+}
+
+.dashboard-redesign .affiliate-website-label svg {
+  width: 14px;
+  height: 14px;
+  color: #8e97a4;
+  stroke-width: 1.7;
+}
+
+.dashboard-redesign .affiliate-website-input {
+  width: 100%;
+  min-width: 0;
+  min-height: 42px;
+  margin: 0;
+  border: 1px solid #d7dde5;
+  border-radius: 9px;
+  outline: 0;
+  background: #fff;
+  color: #20242a;
+  padding: 0 12px;
+  font: inherit;
+  font-size: 12px;
+  line-height: 1.4;
+  box-shadow: none;
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+
+.dashboard-redesign textarea.affiliate-website-input,
+.dashboard-redesign .affiliate-website-textarea {
+  min-height: 98px;
+  padding-top: 11px;
+  padding-bottom: 11px;
+  resize: vertical;
+}
+
+.dashboard-redesign .affiliate-website-input::placeholder {
+  color: #a1a9b4;
+}
+
+.dashboard-redesign .affiliate-website-input:focus {
+  border-color: #929cab;
+  box-shadow: 0 0 0 3px rgba(31, 35, 41, 0.05);
+}
+
+.dashboard-redesign .affiliate-website-help {
+  color: #9098a4;
+  font-size: 9px;
+  line-height: 1.4;
+}
+
+.dashboard-redesign .affiliate-website-checkbox-row {
+  min-height: 46px;
+  padding: 11px 12px;
+  border: 1px solid #e1e5ea;
+  border-radius: 9px;
+  background: #fafbfc;
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  color: #4f5865;
+  font-size: 11px;
+  line-height: 1.45;
+  cursor: pointer;
+}
+
+.dashboard-redesign .affiliate-website-checkbox-row input[type="checkbox"] {
+  width: 15px;
+  height: 15px;
+  margin: 1px 0 0;
+  accent-color: #20242a;
+}
+
+.dashboard-redesign .affiliate-website-alert {
+  margin: 14px 0 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 10px;
+  line-height: 1.45;
+  font-weight: 600;
+}
+
+.dashboard-redesign .affiliate-website-alert.error {
+  border: 1px solid #f0c7c3;
+  background: #fff6f5;
+  color: #a23b32;
+}
+
+.dashboard-redesign .affiliate-website-alert.success {
+  border: 1px solid #c8e1d3;
+  background: #f3fbf6;
+  color: #347052;
+}
+
+.dashboard-redesign .affiliate-website-actions {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid #edf0f3;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.dashboard-redesign .affiliate-website-panel-main .affiliate-website-actions {
+  display: none;
+}
+
+.dashboard-redesign .affiliate-website-save-btn,
+.dashboard-redesign .affiliate-website-preview-btn {
+  min-height: 38px;
+  border: 1px solid #20242a;
+  border-radius: 9px;
+  background: #20242a;
+  color: #fff;
+  padding: 0 15px;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 730;
+  cursor: pointer;
+  box-shadow: none;
+}
+
+.dashboard-redesign .affiliate-email-panel .affiliate-website-save-btn {
+  min-width: 148px;
+}
+
+.dashboard-redesign .affiliate-website-save-btn:hover {
+  border-color: #111419;
+  background: #111419;
+}
+
+.dashboard-redesign .affiliate-website-save-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.52;
+}
+
+.dashboard-redesign .affiliate-website-status {
+  min-height: 25px;
+  padding: 0 9px;
+  border: 1px solid #d7dde5;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #697281;
+  background: #f7f8fa;
+  font-size: 9px;
+  line-height: 1;
+  font-weight: 760;
+  text-transform: capitalize;
+}
+
+.dashboard-redesign .affiliate-website-status.active {
+  border-color: #bad7c6;
+  background: #eff8f3;
+  color: #367055;
+}
+
+.dashboard-redesign .affiliate-website-status.inactive {
+  border-color: #d8dde4;
+  background: #f5f6f8;
+  color: #6f7885;
+}
+
+.dashboard-redesign .affiliate-website-status.suspended {
+  border-color: #efc4c0;
+  background: #fff4f3;
+  color: #a0443b;
+}
+
+.dashboard-redesign .affiliate-website-status.draft {
+  border-color: #d8dce3;
+  background: #f8f9fa;
+  color: #737c88;
+}
+
+.dashboard-redesign .affiliate-email-panel {
+  position: relative;
+}
+
+.dashboard-redesign .affiliate-email-panel::before {
+  content: "EMAIL CAPTURE";
+  position: absolute;
+  top: 22px;
+  right: 22px;
+  color: #a1a8b2;
+  font-size: 8px;
+  line-height: 1;
+  font-weight: 760;
+  letter-spacing: 0.08em;
+}
+
+@media (max-width: 1100px) {
+  .dashboard-redesign .affiliate-website-page {
+    padding-left: 22px;
+    padding-right: 22px;
+  }
+}
+
+@media (max-width: 767px) {
+  .dashboard-redesign .affiliate-layout-content:has(.affiliate-website-page) {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+
+  .dashboard-redesign .affiliate-website-page {
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    padding: 0 0 36px;
+    background: #f4f5f7;
+  }
+
+  .dashboard-redesign .affiliate-website-loading-wrap {
+    min-height: 360px;
+  }
+
+  .dashboard-redesign .writer-storefront-command {
+    min-height: 0;
+    margin: 0;
+    padding: 14px 16px;
+    border-top: 0;
+    border-left: 0;
+    border-right: 0;
+    border-radius: 0;
+    align-items: stretch;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .dashboard-redesign .writer-storefront-command-copy {
+    align-items: flex-start;
+  }
+
+  .dashboard-redesign .writer-storefront-command-text {
+    flex: 1;
+  }
+
+  .dashboard-redesign .writer-storefront-command-text strong {
+    font-size: 13px;
+  }
+
+  .dashboard-redesign .writer-storefront-command-text span {
+    max-width: 100%;
+    font-size: 10px;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .dashboard-redesign .writer-storefront-command-actions {
+    width: 100%;
+    display: grid;
+    grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+    gap: 8px;
+  }
+
+  .dashboard-redesign .writer-storefront-command-button {
+    width: 100%;
+    min-width: 0;
+    min-height: 40px;
+    padding: 0 10px;
+    font-size: 10px;
+  }
+
+  .dashboard-redesign .writer-storefront-plan-note {
+    margin: 0;
+    padding: 9px 16px 11px;
+    border-bottom: 1px solid #e1e5ea;
+    background: #fff;
+    font-size: 9px;
+  }
+
+  .dashboard-redesign .affiliate-website-grid,
+  .dashboard-redesign .affiliate-website-main-stack {
+    gap: 10px;
+  }
+
+  .dashboard-redesign .affiliate-website-panel {
+    padding: 18px 16px;
+    border-left: 0;
+    border-right: 0;
+    border-radius: 0;
+  }
+
+  .dashboard-redesign .affiliate-website-panel-head {
+    margin-bottom: 16px;
+    padding-bottom: 13px;
+  }
+
+  .dashboard-redesign .affiliate-website-panel-title {
+    font-size: 16px;
+  }
+
+  .dashboard-redesign .affiliate-website-form-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+  }
+
+  .dashboard-redesign .affiliate-website-field-full,
+  .dashboard-redesign .affiliate-website-form-grid > * {
+    grid-column: auto !important;
+  }
+
+  .dashboard-redesign .affiliate-website-input {
+    min-height: 42px;
+    font-size: 11px;
+  }
+
+  .dashboard-redesign textarea.affiliate-website-input,
+  .dashboard-redesign .affiliate-website-textarea {
+    min-height: 88px;
+  }
+
+  .dashboard-redesign .affiliate-website-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .dashboard-redesign .affiliate-email-panel .affiliate-website-save-btn,
+  .dashboard-redesign .affiliate-website-actions .affiliate-website-save-btn {
+    width: 100%;
+    min-height: 40px;
+  }
+
+  .dashboard-redesign .affiliate-email-panel::before {
+    top: 18px;
+    right: 16px;
+  }
+}
+
+@media (max-width: 420px) {
+  .dashboard-redesign .writer-storefront-command-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-redesign .affiliate-website-panel {
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+
+  .dashboard-redesign .writer-storefront-command,
+  .dashboard-redesign .writer-storefront-plan-note {
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+}
+
+/* Mobile width seal: keep the approved end-to-end layout inside the viewport. */
+@media (max-width: 767px) {
+  .dashboard-redesign .affiliate-layout-content:has(.affiliate-website-page) {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    overflow-x: hidden !important;
+  }
+
+  .dashboard-redesign .affiliate-website-page {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    overflow-x: hidden;
+  }
+
+  .dashboard-redesign .writer-storefront-command,
+  .dashboard-redesign .writer-storefront-plan-note,
+  .dashboard-redesign .affiliate-website-grid,
+  .dashboard-redesign .affiliate-website-main-stack,
+  .dashboard-redesign .affiliate-website-panel,
+  .dashboard-redesign .affiliate-website-form,
+  .dashboard-redesign .affiliate-website-form-grid,
+  .dashboard-redesign .affiliate-website-field,
+  .dashboard-redesign .affiliate-website-actions,
+  .dashboard-redesign .writer-storefront-command-copy,
+  .dashboard-redesign .writer-storefront-command-actions {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .dashboard-redesign .affiliate-website-input,
+  .dashboard-redesign .writer-storefront-command-button,
+  .dashboard-redesign .affiliate-website-save-btn {
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .dashboard-redesign .writer-storefront-command-text,
+  .dashboard-redesign .affiliate-website-panel-head,
+  .dashboard-redesign .affiliate-website-panel-head > *,
+  .dashboard-redesign .affiliate-website-field > * {
+    max-width: 100%;
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+}

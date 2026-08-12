@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import {
   Package,
   Save,
@@ -21,7 +21,9 @@ import validateSupgadUrl from '../../utils/validateSupgadUrl';
 
 export default function AffiliateEditProductPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { id } = useParams();
+  const routeRoot = location.pathname.startsWith('/writer/') ? '/writer' : '/affiliate';
 
   const [categories, setCategories] = useState([]);
   const [form, setForm] = useState({
@@ -258,7 +260,7 @@ export default function AffiliateEditProductPage() {
           <button
             className="affiliate-edit-product-btn secondary"
             type="button"
-            onClick={() => navigate(`/affiliate/products/${id}/posts`)}
+            onClick={() => navigate(`${routeRoot}/products/${id}/posts`)}
           >
             <FileText size={16} />
             Manage Posts
@@ -482,7 +484,7 @@ export default function AffiliateEditProductPage() {
                   onChange={handleChange}
                 />
                 <small className="affiliate-edit-product-help">
-                  Only supgad.com links are allowed.
+                  External links are allowed and checked by Bloggad on save.
                 </small>
               </label>
 
@@ -546,7 +548,7 @@ export default function AffiliateEditProductPage() {
               <button
                 className="affiliate-edit-product-btn secondary"
                 type="button"
-                onClick={() => navigate(`/affiliate/products/${id}/posts`)}
+                onClick={() => navigate(`${routeRoot}/products/${id}/posts`)}
               >
                 <ArrowRight size={16} />
                 Manage Product Posts
@@ -623,7 +625,7 @@ export default function AffiliateEditProductPage() {
 
               <div className="affiliate-edit-product-tip">
                 <span className="dot" />
-                <p>Only supgad.com affiliate links are allowed on the platform.</p>
+                <p>Legitimate external links are allowed. Bloggad records and reviews outbound destinations for safety.</p>
               </div>
             </div>
           </div>

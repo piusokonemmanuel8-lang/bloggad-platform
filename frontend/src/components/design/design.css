@@ -845,3 +845,637 @@
 .affiliate-design-builder-wrap [class*='upload'] label {
   color: #ffffff !important;
 }
+
+/* BLOGGAD WRITER DESIGN FIGMA APPROVED V1 START */
+.writer-design-redesign {
+  width: 100%;
+  max-width: none;
+  color: #111827;
+}
+
+.writer-design-redesign .affiliate-design-command {
+  min-height: 58px;
+  margin: 0 0 12px;
+  padding: 10px 14px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.writer-design-redesign .affiliate-design-command-current {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.writer-design-redesign .affiliate-design-command-current strong {
+  min-width: 0;
+  max-width: 620px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  line-height: 1.3;
+  font-weight: 700;
+  color: #111827;
+}
+
+.writer-design-redesign .affiliate-design-selection-pill {
+  flex: 0 0 auto;
+  min-height: 24px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid #bbf7d0;
+  background: #ecfdf3;
+  color: #166534;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  font-weight: 800;
+}
+
+.writer-design-redesign .affiliate-design-hero-actions {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: nowrap;
+}
+
+.writer-design-redesign .affiliate-design-btn {
+  height: 38px;
+  min-height: 38px;
+  padding: 0 14px;
+  border-radius: 10px;
+  border: 1px solid #d1d5db;
+  background: #ffffff;
+  color: #111827;
+  box-shadow: none;
+  font-size: 11px;
+  line-height: 1;
+  font-weight: 700;
+  gap: 6px;
+}
+
+.writer-design-redesign .affiliate-design-btn.primary {
+  background: #1b1f25;
+  border-color: #1b1f25;
+  color: #ffffff;
+}
+
+.writer-design-redesign .affiliate-design-command .affiliate-design-btn svg {
+  display: none;
+}
+
+.writer-design-redesign .affiliate-design-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0 0 12px;
+}
+
+.writer-design-redesign .affiliate-design-stat-card {
+  min-height: 82px;
+  padding: 14px 16px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  box-shadow: none;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  gap: 6px;
+}
+
+.writer-design-redesign .affiliate-design-stat-card span {
+  color: #6b7280;
+  font-size: 10px;
+  line-height: 1.2;
+  font-weight: 600;
+}
+
+.writer-design-redesign .affiliate-design-stat-card strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #111827;
+  font-size: 23px;
+  line-height: 1.15;
+  font-weight: 800;
+}
+
+.writer-design-redesign .affiliate-design-alert {
+  margin: 0 0 12px;
+  padding: 11px 13px;
+  border-radius: 11px;
+  font-size: 11px;
+}
+
+.writer-design-redesign .affiliate-design-tabs {
+  min-height: 46px;
+  margin: 0 0 12px;
+  padding: 5px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: nowrap;
+}
+
+.writer-design-redesign .affiliate-design-tab {
+  min-width: 128px;
+  min-height: 36px;
+  height: 36px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: #4b5563;
+  font-size: 10px;
+  line-height: 1;
+  font-weight: 700;
+  justify-content: center;
+}
+
+.writer-design-redesign .affiliate-design-tab.active {
+  background: #1b1f25;
+  border-color: #1b1f25;
+  color: #ffffff;
+}
+
+.writer-design-redesign .affiliate-design-tab svg {
+  display: none;
+}
+
+.writer-design-redesign .affiliate-design-tab-label.mobile {
+  display: none;
+}
+
+.writer-design-redesign .affiliate-design-body {
+  width: 100%;
+  margin: 0;
+  padding: 14px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  box-shadow: none;
+}
+
+.writer-design-redesign .affiliate-design-library-section,
+.writer-design-redesign .affiliate-design-panel-section {
+  width: 100%;
+}
+
+.writer-design-redesign .affiliate-design-section-head {
+  min-height: 32px;
+  margin: 0 0 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.writer-design-redesign .affiliate-design-section-head h2 {
+  margin: 0;
+  color: #111827;
+  font-size: 13px;
+  line-height: 1.25;
+  font-weight: 800;
+}
+
+.writer-design-redesign .affiliate-design-section-head > span {
+  min-height: 24px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid #e5e7eb;
+  background: #f8fafc;
+  color: #6b7280;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.writer-design-redesign .affiliate-design-template-list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  align-items: stretch;
+}
+
+.writer-design-redesign .affiliate-design-template-card {
+  min-width: 0;
+  min-height: 0;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: #f8fafc;
+  box-shadow: none;
+  overflow: hidden;
+}
+
+.writer-design-redesign .affiliate-design-template-card.active {
+  border-color: #111827;
+  background: #ffffff;
+  box-shadow: inset 0 0 0 1px #111827;
+}
+
+.writer-design-redesign .affiliate-design-template-mainbtn.writer {
+  width: 100%;
+  padding: 8px 8px 0;
+}
+
+.writer-design-redesign .affiliate-design-template-preview {
+  width: 100%;
+  height: 104px;
+  border: 0;
+  border-radius: 10px;
+  background: #eef2f6;
+  overflow: hidden;
+}
+
+.writer-design-redesign .affiliate-design-template-image {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+  object-position: top center;
+}
+
+.writer-design-redesign .affiliate-design-template-image-empty {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  padding: 12px;
+  border: 0;
+  background: #eef2f6;
+  color: #94a3b8;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  font-size: 9px;
+}
+
+.writer-design-redesign .affiliate-design-template-body.writer {
+  padding: 10px 10px 8px;
+}
+
+.writer-design-redesign .affiliate-design-template-title-row {
+  min-width: 0;
+  margin: 0 0 6px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.writer-design-redesign .affiliate-design-template-title-row h3 {
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #111827;
+  font-size: 12px;
+  line-height: 1.3;
+  font-weight: 800;
+}
+
+.writer-design-redesign .affiliate-design-template-tier {
+  flex: 0 0 auto;
+  min-height: 24px;
+  padding: 0 9px;
+  border-radius: 999px;
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
+  color: #6b7280;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  font-size: 8px;
+  font-weight: 700;
+}
+
+.writer-design-redesign .affiliate-design-template-tier svg {
+  display: none;
+}
+
+.writer-design-redesign .affiliate-design-template-body.writer > p {
+  min-height: 24px;
+  margin: 0 0 7px;
+  color: #6b7280;
+  font-size: 9px;
+  line-height: 1.35;
+}
+
+.writer-design-redesign .affiliate-design-template-meta {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+
+.writer-design-redesign .affiliate-design-template-meta span {
+  min-height: 23px;
+  padding: 0 9px;
+  border-radius: 999px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  color: #6b7280;
+  font-size: 8px;
+  line-height: 1;
+  font-weight: 600;
+}
+
+.writer-design-redesign .affiliate-design-template-meta .affiliate-design-template-selected {
+  border-color: #bbf7d0;
+  background: #ecfdf3;
+  color: #166534;
+}
+
+.writer-design-redesign .affiliate-design-template-meta .affiliate-design-template-selected svg {
+  display: none;
+}
+
+.writer-design-redesign .affiliate-design-template-actions-inline.writer {
+  margin-top: auto;
+  padding: 0 10px 10px;
+  display: grid;
+  grid-template-columns: minmax(78px, 0.72fr) minmax(116px, 1.28fr);
+  gap: 8px;
+  flex-wrap: nowrap;
+}
+
+.writer-design-redesign .affiliate-design-template-actions-inline.writer .affiliate-design-btn {
+  width: 100%;
+  min-width: 0;
+  height: 36px;
+  min-height: 36px;
+  padding: 0 10px;
+}
+
+.writer-design-redesign .affiliate-design-template-actions-inline.writer .affiliate-design-btn svg {
+  display: none;
+}
+
+.writer-design-redesign .affiliate-design-builder-wrap {
+  width: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.writer-design-redesign .affiliate-design-builder-grid,
+.writer-design-redesign .affiliate-design-builder-stack {
+  gap: 12px;
+}
+
+.writer-design-redesign .affiliate-design-builder-card,
+.writer-design-redesign .affiliate-design-subsection,
+.writer-design-redesign .affiliate-design-section {
+  padding: 14px;
+  border-radius: 12px;
+  border-color: #e5e7eb;
+  box-shadow: none;
+  gap: 12px;
+}
+
+.writer-design-redesign .affiliate-design-form-grid {
+  gap: 12px;
+}
+
+.writer-design-redesign .affiliate-design-field {
+  gap: 6px;
+}
+
+.writer-design-redesign .affiliate-design-label,
+.writer-design-redesign .affiliate-design-field > span {
+  color: #374151;
+  font-size: 10px;
+  line-height: 1.25;
+  font-weight: 700;
+}
+
+.writer-design-redesign .affiliate-design-input {
+  min-height: 42px;
+  height: auto;
+  padding: 0 12px;
+  border-radius: 10px;
+  border-color: #d1d5db;
+  box-shadow: none;
+  font-size: 11px;
+}
+
+.writer-design-redesign .affiliate-design-textarea {
+  min-height: 110px;
+  padding: 11px 12px;
+  border-radius: 10px;
+  border-color: #d1d5db;
+  box-shadow: none;
+  font-size: 11px;
+}
+
+.writer-design-redesign .affiliate-design-textarea.small {
+  min-height: 82px;
+}
+
+.writer-design-redesign .affiliate-design-toggle {
+  min-height: 42px;
+  padding: 0 12px;
+  border-radius: 10px;
+  border-color: #d1d5db;
+}
+
+.writer-design-redesign .affiliate-design-toggle span {
+  font-size: 11px;
+}
+
+.writer-design-redesign .affiliate-design-empty-builder,
+.writer-design-redesign .affiliate-design-empty-small {
+  min-height: 160px;
+  border-radius: 12px;
+  padding: 18px;
+}
+
+.writer-design-redesign .affiliate-design-empty-builder h3 {
+  font-size: 14px;
+}
+
+.writer-design-redesign .affiliate-design-empty-builder p,
+.writer-design-redesign .affiliate-design-empty-small p {
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.writer-design-redesign .affiliate-design-empty-builder-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+}
+
+@media (max-width: 900px) {
+  .writer-design-redesign .affiliate-design-template-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 767px) {
+  .writer-design-redesign .affiliate-design-command {
+    min-height: 88px;
+    padding: 9px;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .writer-design-redesign .affiliate-design-command-current {
+    min-height: 28px;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .writer-design-redesign .affiliate-design-command-current strong {
+    max-width: 240px;
+    font-size: 11px;
+  }
+
+  .writer-design-redesign .affiliate-design-hero-actions {
+    width: 100%;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.35fr);
+    gap: 8px;
+  }
+
+  .writer-design-redesign .affiliate-design-command .affiliate-design-btn {
+    width: 100%;
+    padding: 0 10px;
+    font-size: 10px;
+  }
+
+  .writer-design-redesign .affiliate-design-stats {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .writer-design-redesign .affiliate-design-stat-card {
+    min-height: 72px;
+    padding: 9px;
+    border-radius: 13px;
+    gap: 4px;
+  }
+
+  .writer-design-redesign .affiliate-design-stat-card span {
+    font-size: 8px;
+  }
+
+  .writer-design-redesign .affiliate-design-stat-card strong {
+    font-size: 18px;
+  }
+
+  .writer-design-redesign .affiliate-design-tabs {
+    min-height: 46px;
+    padding: 5px;
+    gap: 5px;
+  }
+
+  .writer-design-redesign .affiliate-design-tab {
+    flex: 1 1 0;
+    min-width: 0;
+    padding: 0 7px;
+    font-size: 9px;
+  }
+
+  .writer-design-redesign .affiliate-design-tab-label.desktop {
+    display: none;
+  }
+
+  .writer-design-redesign .affiliate-design-tab-label.mobile {
+    display: inline;
+  }
+
+  .writer-design-redesign .affiliate-design-body {
+    padding: 10px;
+  }
+
+  .writer-design-redesign .affiliate-design-section-head {
+    min-height: 30px;
+    margin-bottom: 8px;
+  }
+
+  .writer-design-redesign .affiliate-design-section-head h2 {
+    font-size: 12px;
+  }
+
+  .writer-design-redesign .affiliate-design-template-list {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .writer-design-redesign .affiliate-design-template-mainbtn.writer {
+    padding: 8px 8px 0;
+  }
+
+  .writer-design-redesign .affiliate-design-template-preview {
+    height: 96px;
+  }
+
+  .writer-design-redesign .affiliate-design-template-body.writer {
+    padding: 9px 10px 8px;
+  }
+
+  .writer-design-redesign .affiliate-design-template-title-row h3 {
+    font-size: 11px;
+  }
+
+  .writer-design-redesign .affiliate-design-template-body.writer > p {
+    min-height: 0;
+    font-size: 8px;
+  }
+
+  .writer-design-redesign .affiliate-design-template-actions-inline.writer {
+    grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.4fr);
+    padding: 0 10px 10px;
+  }
+
+  .writer-design-redesign .affiliate-design-form-grid,
+  .writer-design-redesign .affiliate-design-toggle-grid {
+    grid-template-columns: 1fr;
+    gap: 9px;
+  }
+
+  .writer-design-redesign .affiliate-design-field-full {
+    grid-column: auto;
+  }
+
+  .writer-design-redesign .affiliate-design-builder-card,
+  .writer-design-redesign .affiliate-design-subsection,
+  .writer-design-redesign .affiliate-design-section {
+    padding: 11px;
+    border-radius: 11px;
+  }
+
+  .writer-design-redesign .affiliate-design-input {
+    min-height: 40px;
+    font-size: 11px;
+  }
+
+  .writer-design-redesign .affiliate-design-textarea {
+    min-height: 96px;
+  }
+}
+/* BLOGGAD WRITER DESIGN FIGMA APPROVED V1 END */

@@ -330,8 +330,149 @@ async function getHomepageStats() {
   };
 }
 
+function sanitizeHomepageStory(row) {
+  if (!row) return null;
+
+  return {
+    id: row.id,
+    user_id: row.user_id,
+    title: row.title,
+    slug: row.slug,
+    excerpt: row.excerpt,
+    featured_image: safeImageUrl(row.featured_image),
+    content_type: row.content_type || 'story',
+    published_at: row.published_at,
+    created_at: row.created_at,
+    website_id: row.website_id,
+    website_name: row.website_name,
+    website_slug: row.website_slug,
+    writer_name: row.writer_name || row.website_name || 'Writer',
+    writer_page_slug: row.writer_page_slug || null,
+    writer_avatar_url: safeImageUrl(
+      row.writer_page_logo_url || row.writer_avatar_url || null
+    ),
+  };
+}
+
+async function getHomepageStories(limit = 40) {
+  const safeLimit =
+    Number.isInteger(Number(limit)) && Number(limit) > 0
+      ? Math.min(Number(limit), 80)
+      : 40;
+
+  try {
+    const [rows] = await pool.query(
+      `
+      SELECT
+        pp.id,
+        pp.user_id,
+        pp.website_id,
+        pp.title,
+        pp.slug,
+        pp.excerpt,
+        pp.featured_image,
+        pp.content_type,
+        pp.published_at,
+        pp.created_at,
+
+        aw.website_name,
+        aw.slug AS website_slug,
+
+        u.name AS writer_name,
+
+        (
+          SELECT wp.slug
+          FROM writer_pages wp
+          WHERE wp.user_id = pp.user_id
+          ORDER BY wp.is_primary DESC, wp.id DESC
+          LIMIT 1
+        ) AS writer_page_slug,
+
+        (
+          SELECT wp.logo_url
+          FROM writer_pages wp
+          WHERE wp.user_id = pp.user_id
+          ORDER BY wp.is_primary DESC, wp.id DESC
+          LIMIT 1
+        ) AS writer_page_logo_url,
+
+        (
+          SELECT wrp.avatar_url
+          FROM writer_profiles wrp
+          WHERE wrp.user_id = pp.user_id
+            AND wrp.status = 'active'
+          ORDER BY wrp.id DESC
+          LIMIT 1
+        ) AS writer_avatar_url
+
+      FROM product_posts pp
+      INNER JOIN affiliate_websites aw
+        ON aw.id = pp.website_id
+       AND aw.status = 'active'
+      INNER JOIN users u
+        ON u.id = pp.user_id
+       AND u.status = 'active'
+      WHERE pp.status = 'published'
+      ORDER BY COALESCE(pp.published_at, pp.created_at) DESC, pp.id DESC
+      LIMIT ?
+      `,
+      [safeLimit]
+    );
+
+    return rows.map(sanitizeHomepageStory);
+  } catch (error) {
+    const [rows] = await pool.query(
+      `
+      SELECT
+        pp.id,
+        pp.user_id,
+        pp.website_id,
+        pp.title,
+        pp.slug,
+        pp.excerpt,
+        pp.featured_image,
+        pp.content_type,
+        pp.published_at,
+        pp.created_at,
+
+        aw.website_name,
+        aw.slug AS website_slug,
+
+        u.name AS writer_name,
+
+        NULL AS writer_page_slug,
+
+        NULL AS writer_page_logo_url,
+
+        (
+          SELECT wrp.avatar_url
+          FROM writer_profiles wrp
+          WHERE wrp.user_id = pp.user_id
+            AND wrp.status = 'active'
+          ORDER BY wrp.id DESC
+          LIMIT 1
+        ) AS writer_avatar_url
+
+      FROM product_posts pp
+      INNER JOIN affiliate_websites aw
+        ON aw.id = pp.website_id
+       AND aw.status = 'active'
+      INNER JOIN users u
+        ON u.id = pp.user_id
+       AND u.status = 'active'
+      WHERE pp.status = 'published'
+      ORDER BY COALESCE(pp.published_at, pp.created_at) DESC, pp.id DESC
+      LIMIT ?
+      `,
+      [safeLimit]
+    );
+
+    return rows.map(sanitizeHomepageStory);
+  }
+}
 async function getHomepage(req, res) {
   try {
+    const posts = await getHomepageStories();
     const products = await getHomepageProducts();
     const categories = await getHomepageCategories();
     const featured_websites = await getHomepageFeaturedWebsites();
@@ -346,6 +487,7 @@ async function getHomepage(req, res) {
       stats,
       categories,
       featured_websites,
+      posts,
       products,
     });
   } catch (error) {
@@ -370,6 +512,7 @@ async function getHomepageFeaturedProducts(req, res) {
 
     return res.status(200).json({
       ok: true,
+      posts,
       products,
     });
   } catch (error) {

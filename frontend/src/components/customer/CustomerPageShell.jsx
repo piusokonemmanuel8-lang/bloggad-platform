@@ -16,17 +16,26 @@ function getStoredUser() {
 }
 
 const links = [
-  { label: 'Overview', to: '/customer/dashboard' },
-  { label: 'Saved Posts', to: '/customer/saved-posts' },
-  { label: 'Saved Products', to: '/customer/saved-products' },
-  { label: 'Messages', to: '/customer/messages' },
-  { label: 'Settings', to: '/customer/settings' },
+  { label: 'Overview', to: '/reader/dashboard' },
+  { label: 'For You', to: '/reader/feed' },
+  { label: 'Interests', to: '/reader/interests' },
+  { label: 'Reading Controls', to: '/reader/reading-controls' },
+  { label: 'Saved Posts', to: '/reader/saved-posts' },
+  { label: 'Saved Products', to: '/reader/saved-products' },
+  { label: 'Following', to: '/reader/following' },
+  { label: 'Courses', to: '/reader/courses' },
+  { label: 'Credits', to: '/reader/credits' },
+  { label: 'Appreciations', to: '/reader/appreciations' },
+  { label: 'Premium', to: '/reader/premium' },
+  { label: 'Notifications', to: '/reader/notifications' },
+  { label: 'Messages', to: '/reader/messages' },
+  { label: 'Settings', to: '/reader/settings' },
 ];
 
 export default function CustomerPageShell({
   currentPath,
-  badge = 'Customer Area',
-  title = 'Customer Dashboard',
+  badge = 'Reader Area',
+  title = 'Reader Dashboard',
   subtitle = '',
   headerRight = null,
   children,
@@ -34,6 +43,7 @@ export default function CustomerPageShell({
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
   const customer = useMemo(() => getStoredUser(), []);
+  const normalizedCurrentPath = String(currentPath || '').replace(/^\/customer/, '/reader');
 
   function handleLogout() {
     localStorage.removeItem('token');
@@ -42,7 +52,7 @@ export default function CustomerPageShell({
     localStorage.removeItem('user');
     localStorage.removeItem('customerUser');
     localStorage.removeItem('customerLoginContext');
-    navigate('/customer/login', { replace: true });
+    navigate('/reader/login', { replace: true });
   }
 
   const sidebar = (
@@ -74,7 +84,7 @@ export default function CustomerPageShell({
             marginBottom: 8,
           }}
         >
-          Customer Dashboard
+          Reader Dashboard
         </div>
 
         <div
@@ -86,7 +96,7 @@ export default function CustomerPageShell({
             letterSpacing: '-0.03em',
           }}
         >
-          {customer?.name || 'Customer'}
+          {customer?.name || 'Reader'}
         </div>
 
         <div
@@ -103,7 +113,7 @@ export default function CustomerPageShell({
 
       <nav style={{ marginTop: 18, display: 'grid', gap: 8 }}>
         {links.map((item) => {
-          const active = currentPath === item.to;
+          const active = normalizedCurrentPath === item.to;
 
           return (
             <Link
@@ -130,6 +140,47 @@ export default function CustomerPageShell({
         })}
       </nav>
 
+      <div
+        style={{
+          marginTop: 18,
+          paddingTop: 14,
+          borderTop: '1px solid #eef2f7',
+        }}
+      >
+        <div
+          style={{
+            marginBottom: 8,
+            color: '#8a96a8',
+            fontSize: 10,
+            fontWeight: 800,
+            letterSpacing: '0.06em',
+            textTransform: 'uppercase',
+          }}
+        >
+          Advertiser
+        </div>
+
+        <Link
+          to="/customer/advertiser/campaigns/create"
+          onClick={() => setMobileOpen(false)}
+          style={{
+            minHeight: 42,
+            borderRadius: 9,
+            border: '1px solid #111827',
+            background: '#111827',
+            color: '#ffffff',
+            textDecoration: 'none',
+            fontSize: 12,
+            fontWeight: 750,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '0 14px',
+          }}
+        >
+          Create Campaign
+        </Link>
+      </div>
       <button
         type="button"
         onClick={handleLogout}
@@ -211,7 +262,7 @@ export default function CustomerPageShell({
                 fontWeight: 800,
               }}
             >
-              Customer Menu
+              Reader Menu
             </div>
             <div
               style={{
@@ -221,7 +272,7 @@ export default function CustomerPageShell({
                 color: '#111827',
               }}
             >
-              {customer?.name || 'Customer'}
+              {customer?.name || 'Reader'}
             </div>
           </div>
 

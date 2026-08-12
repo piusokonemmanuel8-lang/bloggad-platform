@@ -23,8 +23,9 @@ function validateSupgadUrl(value, options = {}) {
     required = false,
     allowEmpty = true,
     fieldName = 'URL',
-    allowExternalLinks = false,
-    allowedDomains = ['supgad.com'],
+    allowExternalLinks = true,
+    allowedDomains = [],
+    blockedDomains = [],
   } = options;
 
   const rawValue = normalizeUrlInput(value);
@@ -65,7 +66,7 @@ function validateSupgadUrl(value, options = {}) {
   const hostname = String(parsedUrl.hostname || '').toLowerCase();
   const normalizedAllowedDomains = Array.isArray(allowedDomains)
     ? allowedDomains.map((item) => String(item || '').toLowerCase()).filter(Boolean)
-    : ['supgad.com'];
+    : [];
 
   if (!['http:', 'https:'].includes(protocol)) {
     return {
@@ -77,6 +78,25 @@ function validateSupgadUrl(value, options = {}) {
     };
   }
 
+  const normalizedBlockedDomains = Array.isArray(blockedDomains)
+    ? blockedDomains.map((item) => String(item || '').toLowerCase().trim()).filter(Boolean)
+    : [];
+
+  const blocked = normalizedBlockedDomains.some(
+    (domain) => hostname === domain || hostname.endsWith(`.${domain}`)
+  );
+
+  if (blocked) {
+    return {
+      ok: false,
+      message: `${fieldName} points to a domain blocked by Bloggad link policy`,
+      submitted_link: rawValue,
+      detected_host: hostname || null,
+      normalized_url: parsedUrl.toString(),
+      allow_external_links: true,
+    };
+  }
+
   if (allowExternalLinks) {
     return {
       ok: true,
@@ -84,7 +104,7 @@ function validateSupgadUrl(value, options = {}) {
       submitted_link: rawValue,
       detected_host: hostname,
       normalized_url: parsedUrl.toString(),
-      is_external_link: !normalizedAllowedDomains.includes(hostname),
+      is_external_link: true,
       allow_external_links: true,
     };
   }

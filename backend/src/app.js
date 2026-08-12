@@ -6,6 +6,8 @@ const cookieParser = require('cookie-parser');
 const rateLimit = require('express-rate-limit');
 const fs = require('fs');
 const path = require('path');
+const { getUploadsRoot, getLegacyUploadRoots } = require('./config/uploads');
+const { serveS3TemplateImage } = require('./config/s3Storage');
 
 const { notFound } = require('./middleware/notFoundMiddleware');
 const { errorHandler } = require('./middleware/errorMiddleware');
@@ -68,28 +70,30 @@ function createApp() {
   app.use(cookieParser());
   app.use(morgan('dev'));
 
+  const canonicalUploadsRoot = getUploadsRoot();
+
+  app.get('/uploads/template-images/:filename', serveS3TemplateImage);
+
   const uploadStaticDirs = [
-    path.join(process.cwd(), 'uploads'),
-    path.join(__dirname, 'uploads'),
-    path.join(__dirname, '..', 'uploads'),
-  ];
+    canonicalUploadsRoot,
+    ...getLegacyUploadRoots(),
+  ].filter((dir, index, all) => fs.existsSync(dir) && all.indexOf(dir) === index);
 
-  uploadStaticDirs.forEach((dir) => {
-    if (fs.existsSync(dir)) {
-      app.use(
-        '/uploads',
-        express.static(dir, {
-          acceptRanges: true,
-          maxAge: '1d',
-          setHeaders: (res) => {
-            res.setHeader('Access-Control-Allow-Origin', '*');
-            res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
-          },
-        })
-      );
+  uploadStaticDirs.forEach((dir, index) => {
+    app.use(
+      '/uploads',
+      express.static(dir, {
+        acceptRanges: true,
+        maxAge: '1d',
+        setHeaders: (res) => {
+          res.setHeader('Access-Control-Allow-Origin', '*');
+          res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+        },
+      })
+    );
 
-      console.log(`[app] Serving uploads from ${dir}`);
-    }
+    const storageType = index === 0 ? 'persistent' : 'legacy';
+    console.log(`[app] Serving ${storageType} uploads from ${dir}`);
   });
 
   const apiLimiter = rateLimit({
@@ -139,6 +143,10 @@ function createApp() {
   mount(app, '/api/affiliate/posts', 'affiliatePostRoutes', [
     './routes/affiliate/affiliatePostRoutes',
     './routes/affiliate/affiliatePostsRoutes',
+  ]);
+
+  mount(app, '/api/affiliate/series', 'writerSeriesRoutes', [
+    './routes/affiliate/writerSeriesRoutes',
   ]);
 
   mount(app, '/api/affiliate/subscription', 'affiliateSubscriptionRoutes', [
@@ -232,6 +240,10 @@ function createApp() {
     './routes/admin/adminCategoryRoutes',
   ]);
 
+  mount(app, '/api/admin/reading', 'adminReadingCoreRoutes', [
+    './routes/admin/adminReadingCoreRoutes',
+  ]);
+
   mount(app, '/api/admin/templates', 'adminTemplatesRoutes', [
     './routes/admin/adminTemplatesRoutes',
     './routes/admin/adminTemplateRoutes',
@@ -264,6 +276,14 @@ function createApp() {
     './routes/admin/adminBlogPulseRoutes',
   ]);
 
+  mount(app, '/api/admin/writer-finance', 'adminWriterReaderFinanceRoutes', [
+    './routes/admin/adminWriterReaderFinanceRoutes',
+  ]);
+
+  mount(app, '/api/admin/writer-reader-access', 'adminWriterReaderAccessRoutes', [
+    './routes/admin/adminWriterReaderAccessRoutes',
+  ]);
+
   mount(app, '/api/admin/advertiser-campaigns', 'adminAdvertiserCampaignRoutes', [
     './routes/admin/adminAdvertiserCampaignRoutes',
   ]);
@@ -291,6 +311,10 @@ function createApp() {
     './routes/public/publicCategoriesRoutes',
   ]);
 
+  mount(app, '/api/public/reading', 'publicReadingCoreRoutes', [
+    './routes/public/publicReadingCoreRoutes',
+  ]);
+
   mount(app, '/api/public/products', 'publicProductRoutes', [
     './routes/public/publicProductRoutes',
     './routes/public/publicProductsRoutes',
@@ -299,6 +323,22 @@ function createApp() {
   mount(app, '/api/public/posts', 'publicPostRoutes', [
     './routes/public/publicPostRoutes',
     './routes/public/publicPostsRoutes',
+  ]);
+
+  mount(app, '/api/public/social', 'publicWriterReaderSocialRoutes', [
+    './routes/public/publicWriterReaderSocialRoutes',
+  ]);
+
+  mount(app, '/api/public/access', 'publicWriterAccessRoutes', [
+    './routes/public/publicWriterAccessRoutes',
+  ]);
+
+  mount(app, '/api/public/writer-pages', 'publicWriterPageRoutes', [
+    './routes/public/publicWriterPageRoutes',
+  ]);
+
+  mount(app, '/api/public/courses', 'publicCourseRoutes', [
+    './routes/public/publicCourseRoutes',
   ]);
 
   mount(app, '/api/public/ads', 'publicAdRoutes', [
@@ -328,6 +368,50 @@ function createApp() {
 
   mount(app, '/api/customer', 'customerRoutes', [
     './routes/customerRoutes',
+  ]);
+
+  mount(app, '/api/reader/social', 'readerSocialRoutes', [
+    './routes/readerSocialRoutes',
+  ]);
+
+  mount(app, '/api/reader/credits', 'readerCreditRoutes', [
+    './routes/readerCreditRoutes',
+  ]);
+
+  mount(app, '/api/reader/access', 'readerAccessRoutes', [
+    './routes/readerAccessRoutes',
+  ]);
+
+  mount(app, '/api/reader/courses', 'readerCourseRoutes', [
+    './routes/readerCourseRoutes',
+  ]);
+
+  mount(app, '/api/reader/reading', 'readerReadingCoreRoutes', [
+    './routes/readerReadingCoreRoutes',
+  ]);
+
+  mount(app, '/api/writer/social', 'writerSocialRoutes', [
+    './routes/writerSocialRoutes',
+  ]);
+
+  mount(app, '/api/writer/wallet', 'writerWalletRoutes', [
+    './routes/writerWalletRoutes',
+  ]);
+
+  mount(app, '/api/writer/access', 'writerAccessRoutes', [
+    './routes/writerAccessRoutes',
+  ]);
+
+  mount(app, '/api/writer/courses', 'writerCourseRoutes', [
+    './routes/writerCourseRoutes',
+  ]);
+
+  mount(app, '/api/writer/reading', 'writerReadingCoreRoutes', [
+    './routes/writerReadingCoreRoutes',
+  ]);
+
+  mount(app, '/api/writer/pages', 'writerPageRoutes', [
+    './routes/writerPageRoutes',
   ]);
 
   mount(app, '/api/customer/saved', 'customerSavedRoutes', [

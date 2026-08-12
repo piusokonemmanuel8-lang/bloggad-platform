@@ -1,3 +1,4 @@
+const { getCurrentPaidWriterSubscription } = require('../../services/writerReaderAccessService');
 const slugify = require('slugify');
 const pool = require('../../config/db');
 
@@ -136,6 +137,11 @@ async function createOrUpdateAffiliateWebsite(req, res) {
       : existingWebsite?.status || 'draft';
 
     if (!existingWebsite) {
+      const paidWriterPlan = await getCurrentPaidWriterSubscription(req.user.id);
+      if (!paidWriterPlan) {
+        return res.status(403).json({ ok:false,message:'An active paid Writer plan is required to create a Storefront.' });
+      }
+
       const [result] = await pool.query(
         `
         INSERT INTO affiliate_websites

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import api from '../../api/axios';
 
 function cardStyle() {
@@ -160,6 +161,28 @@ function toggleRow(label, value, onChange, helper = '') {
   );
 }
 
+function WriterPlacementToggle({ label, helper, value, onChange }) {
+  const enabled = Number(value) === 1;
+
+  return (
+    <div className="writer-myads-placement-row">
+      <div className="writer-myads-placement-copy">
+        <strong>{label}</strong>
+        <span>{helper}</span>
+      </div>
+
+      <button
+        type="button"
+        className={`writer-myads-switch ${enabled ? 'is-on' : ''}`}
+        aria-pressed={enabled}
+        onClick={() => onChange(enabled ? 0 : 1)}
+      >
+        <span />
+      </button>
+    </div>
+  );
+}
+
 const initialForm = {
   monetization_mode: 'individual',
 
@@ -273,6 +296,7 @@ function formatDateTime(value) {
 }
 
 export default function AffiliateMyAdsPage() {
+  const location = useLocation();
   const [form, setForm] = useState(initialForm);
   const [saveMessage, setSaveMessage] = useState('');
   const [submitMessage, setSubmitMessage] = useState('');
@@ -285,6 +309,7 @@ export default function AffiliateMyAdsPage() {
 
   const isIndividualMode = form.monetization_mode === 'individual';
   const statusMeta = useMemo(() => getStatusMeta(form.review_status), [form.review_status]);
+  const isWriterRoute = location.pathname === '/writer/monetization/my-ads';
 
   useEffect(() => {
     let ignore = false;
@@ -407,6 +432,368 @@ export default function AffiliateMyAdsPage() {
     }
   }
 
+
+  if (isWriterRoute) {
+    const individualSteps = [
+      'Choose individual monetization if you already have your own ad account.',
+      'Enter your provider details and paste your approved code.',
+      'Choose where those ads should display.',
+      'Save your setup, then submit it for admin review.',
+      'After approval, your review status updates here.',
+    ];
+
+    const platformSteps = [
+      'Choose platform monetization if you want BlogPulse ads on your pages.',
+      'No provider name, publisher ID, or ad code is required.',
+      'Choose where platform ads should display.',
+      'Save your platform placement preferences.',
+      'Your metrics and earnings appear in your monetization pages.',
+    ];
+
+    const steps = isIndividualMode ? individualSteps : platformSteps;
+
+    return (
+      <form className="writer-myads-page" onSubmit={handleSave}>
+        <style>{writerMyAdsStyles}</style>
+
+        <div className="writer-myads-mobile-title">My Ads</div>
+
+        <section className="writer-myads-command">
+          <div className="writer-myads-mode-area">
+            <span className="writer-myads-eyebrow">Monetization mode</span>
+
+            <div className="writer-myads-mode-row">
+              <div className="writer-myads-mode-buttons">
+                <button
+                  type="button"
+                  className={`writer-myads-mode-button ${isIndividualMode ? 'active' : ''}`}
+                  onClick={() => updateField('monetization_mode', 'individual')}
+                >
+                  Individual
+                </button>
+
+                <button
+                  type="button"
+                  className={`writer-myads-mode-button ${!isIndividualMode ? 'active' : ''}`}
+                  onClick={() => updateField('monetization_mode', 'platform')}
+                >
+                  Platform
+                </button>
+              </div>
+
+              <span className="writer-myads-mode-helper">
+                {isIndividualMode
+                  ? 'Use your own approved ad account'
+                  : 'Use BlogPulse platform monetization'}
+              </span>
+            </div>
+          </div>
+
+          <div className="writer-myads-command-actions">
+            <span className={`writer-myads-status-pill ${statusMeta.tone}`}>
+              {statusMeta.label}
+            </span>
+
+            <button type="submit" className="writer-myads-primary-button" disabled={saving}>
+              {saving ? 'Saving...' : 'Save My Ads'}
+            </button>
+
+            {isIndividualMode ? (
+              <button
+                type="button"
+                className="writer-myads-secondary-button"
+                onClick={handleSubmitForReview}
+                disabled={submitting || form.review_status === 'pending'}
+              >
+                {submitting
+                  ? 'Submitting...'
+                  : form.review_status === 'pending'
+                    ? 'Submitted For Review'
+                    : 'Submit For Review'}
+              </button>
+            ) : null}
+          </div>
+        </section>
+
+        {loadError ? <div className="writer-myads-message error">{loadError}</div> : null}
+        {saveMessage ? <div className="writer-myads-message success">{saveMessage}</div> : null}
+        {submitMessage ? <div className="writer-myads-message success">{submitMessage}</div> : null}
+        {saveError ? <div className="writer-myads-message error">{saveError}</div> : null}
+        {submitError ? <div className="writer-myads-message error">{submitError}</div> : null}
+
+        <div className="writer-myads-layout">
+          <div className="writer-myads-main-column">
+            <section className="writer-myads-card writer-myads-setup-card">
+              <div className="writer-myads-section-heading">
+                <strong>Monetization Setup</strong>
+                <span>
+                  {isIndividualMode
+                    ? 'Your own provider pays you directly in Individual mode.'
+                    : 'BlogPulse handles ad serving in Platform mode.'}
+                </span>
+              </div>
+
+              {loading ? (
+                <div className="writer-myads-loading">Loading your saved settings...</div>
+              ) : null}
+
+              <div className="writer-myads-inline-review">
+                <span className={`writer-myads-status-pill ${statusMeta.tone}`}>
+                  {statusMeta.label}
+                </span>
+                <strong>{statusMeta.helper}</strong>
+              </div>
+
+              <div className="writer-myads-fields-grid">
+                <label className="writer-myads-field">
+                  <span>MONETIZATION MODE</span>
+                  <select
+                    value={form.monetization_mode}
+                    onChange={(event) => updateField('monetization_mode', event.target.value)}
+                  >
+                    <option value="individual">Individual monetization</option>
+                    <option value="platform">Platform monetization</option>
+                  </select>
+                </label>
+
+                {isIndividualMode ? (
+                  <>
+                    <label className="writer-myads-field">
+                      <span>PROVIDER NAME</span>
+                      <input
+                        value={form.provider_name}
+                        onChange={(event) => updateField('provider_name', event.target.value)}
+                        placeholder="Google AdSense"
+                      />
+                    </label>
+
+                    <label className="writer-myads-field">
+                      <span>PROVIDER TYPE</span>
+                      <select
+                        value={form.provider_type}
+                        onChange={(event) => updateField('provider_type', event.target.value)}
+                      >
+                        <option value="adsense">AdSense</option>
+                        <option value="generic">Generic network</option>
+                        <option value="manual">Manual / direct ad</option>
+                      </select>
+                    </label>
+
+                    <label className="writer-myads-field">
+                      <span>PUBLISHER ID</span>
+                      <input
+                        value={form.publisher_id}
+                        onChange={(event) => updateField('publisher_id', event.target.value)}
+                        placeholder="pub-xxxxxxxxxxxxxxxx"
+                      />
+                    </label>
+                  </>
+                ) : null}
+              </div>
+
+              {isIndividualMode ? (
+                <>
+                  <label className="writer-myads-field writer-myads-field-full">
+                    <span>HEAD CODE</span>
+                    <textarea
+                      className="writer-myads-code"
+                      value={form.head_code}
+                      onChange={(event) => updateField('head_code', event.target.value)}
+                      placeholder="<script async src='...'></script>"
+                    />
+                  </label>
+
+                  <label className="writer-myads-field writer-myads-field-full">
+                    <span>NOTES</span>
+                    <textarea
+                      className="writer-myads-notes"
+                      value={form.notes}
+                      onChange={(event) => updateField('notes', event.target.value)}
+                      placeholder="Optional note about your ad setup..."
+                    />
+                  </label>
+                </>
+              ) : (
+                <div className="writer-myads-platform-note">
+                  BlogPulse platform monetization does not require provider name, publisher ID, or ad
+                  code. Once approved, the platform handles ad serving. Choose only where platform
+                  ads should appear.
+                </div>
+              )}
+            </section>
+
+            <section className="writer-myads-card writer-myads-positions-card">
+              <div className="writer-myads-section-heading">
+                <strong>Ad Positions</strong>
+                <span>Choose where ads should appear.</span>
+              </div>
+
+              <div className="writer-myads-position-groups">
+                <div>
+                  <span className="writer-myads-group-label">STOREFRONT</span>
+
+                  <WriterPlacementToggle
+                    label="Storefront top ad"
+                    helper="Near the top of your storefront."
+                    value={form.storefront_top_enabled}
+                    onChange={(value) => updateField('storefront_top_enabled', value)}
+                  />
+
+                  <WriterPlacementToggle
+                    label="Storefront sidebar ad"
+                    helper="Where your template supports a sidebar."
+                    value={form.storefront_sidebar_enabled}
+                    onChange={(value) => updateField('storefront_sidebar_enabled', value)}
+                  />
+
+                  <WriterPlacementToggle
+                    label="Storefront bottom ad"
+                    helper="Lower on your storefront page."
+                    value={form.storefront_bottom_enabled}
+                    onChange={(value) => updateField('storefront_bottom_enabled', value)}
+                  />
+                </div>
+
+                <div>
+                  <span className="writer-myads-group-label">POST PAGES</span>
+
+                  <WriterPlacementToggle
+                    label="Post top ad"
+                    helper="Near the top of a detailed post."
+                    value={form.post_top_enabled}
+                    onChange={(value) => updateField('post_top_enabled', value)}
+                  />
+
+                  <WriterPlacementToggle
+                    label="Post middle ad"
+                    helper="Inside article body where supported."
+                    value={form.post_middle_enabled}
+                    onChange={(value) => updateField('post_middle_enabled', value)}
+                  />
+
+                  <WriterPlacementToggle
+                    label="Post bottom ad"
+                    helper="Near the end of a blog post."
+                    value={form.post_bottom_enabled}
+                    onChange={(value) => updateField('post_bottom_enabled', value)}
+                  />
+
+                  <WriterPlacementToggle
+                    label="Post sidebar ad"
+                    helper="Where the selected template supports it."
+                    value={form.post_sidebar_enabled}
+                    onChange={(value) => updateField('post_sidebar_enabled', value)}
+                  />
+                </div>
+              </div>
+
+              <div className="writer-myads-desktop-actions">
+                <button type="submit" className="writer-myads-primary-button" disabled={saving}>
+                  {saving ? 'Saving...' : 'Save My Ads'}
+                </button>
+
+                {isIndividualMode ? (
+                  <button
+                    type="button"
+                    className="writer-myads-secondary-button"
+                    onClick={handleSubmitForReview}
+                    disabled={submitting || form.review_status === 'pending'}
+                  >
+                    {submitting
+                      ? 'Submitting...'
+                      : form.review_status === 'pending'
+                        ? 'Submitted For Review'
+                        : 'Submit For Review'}
+                  </button>
+                ) : null}
+              </div>
+            </section>
+
+            <section className="writer-myads-card writer-myads-mobile-actions">
+              <button type="submit" className="writer-myads-primary-button" disabled={saving}>
+                {saving ? 'Saving...' : 'Save My Ads'}
+              </button>
+
+              {isIndividualMode ? (
+                <button
+                  type="button"
+                  className="writer-myads-secondary-button"
+                  onClick={handleSubmitForReview}
+                  disabled={submitting || form.review_status === 'pending'}
+                >
+                  {submitting
+                    ? 'Submitting...'
+                    : form.review_status === 'pending'
+                      ? 'Submitted For Review'
+                      : 'Submit For Review'}
+                </button>
+              ) : null}
+            </section>
+          </div>
+
+          <aside className="writer-myads-side-column">
+            <section className="writer-myads-card writer-myads-review-card">
+              <h3>Review Status</h3>
+              <span className={`writer-myads-status-pill ${statusMeta.tone}`}>
+                {statusMeta.label}
+              </span>
+              <p>{statusMeta.helper}</p>
+
+              <div className="writer-myads-review-times">
+                <span>
+                  Submitted: {form.submitted_at ? formatDateTime(form.submitted_at) : '--'}
+                </span>
+                <span>
+                  Reviewed: {form.reviewed_at ? formatDateTime(form.reviewed_at) : '--'}
+                </span>
+              </div>
+
+              {form.admin_review_note ? (
+                <div className="writer-myads-admin-note">
+                  <strong>Admin note:</strong> {form.admin_review_note}
+                </div>
+              ) : null}
+            </section>
+
+            <section className="writer-myads-card writer-myads-how-card">
+              <h3>How this works</h3>
+
+              <div className="writer-myads-steps">
+                {steps.map((text, index) => (
+                  <div className="writer-myads-step" key={text}>
+                    <span>{index + 1}</span>
+                    <p>
+                      <b>{index + 1}</b>
+                      {text}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            <section className="writer-myads-card writer-myads-important-card">
+              <h3>Important Note</h3>
+              <div>
+                {isIndividualMode
+                  ? 'Your provider pays you directly in Individual mode. BlogPulse wallet earnings do not apply to this mode.'
+                  : 'BlogPulse platform monetization uses platform-managed ads and platform earnings rules.'}
+              </div>
+            </section>
+
+            <section className="writer-myads-card writer-myads-type-card">
+              <span>Monetization Type</span>
+              <strong>{isIndividualMode ? 'Individual Ads' : 'Platform Monetization'}</strong>
+              <p>
+                {isIndividualMode
+                  ? 'Provider details and approval are required before your own code can go live.'
+                  : 'The platform manages ad serving after approval.'}
+              </p>
+            </section>
+          </aside>
+        </div>
+      </form>
+    );
+  }
   return (
     <div style={{ display: 'grid', gap: 24 }}>
       <section
@@ -965,3 +1352,777 @@ export default function AffiliateMyAdsPage() {
     </div>
   );
 }
+
+const writerMyAdsStyles = `
+  * {
+    box-sizing: border-box;
+  }
+
+  .writer-myads-page {
+    width: 100%;
+    min-width: 0;
+    margin: 0;
+    color: #161a20;
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+
+  .writer-myads-page button,
+  .writer-myads-page input,
+  .writer-myads-page select,
+  .writer-myads-page textarea {
+    font: inherit;
+  }
+
+  .writer-myads-mobile-title,
+  .writer-myads-mobile-actions {
+    display: none;
+  }
+
+  .writer-myads-command,
+  .writer-myads-card,
+  .writer-myads-message {
+    background: #ffffff;
+    border: 1px solid #e3e6ea;
+    border-radius: 12px;
+  }
+
+  .writer-myads-command {
+    position: relative;
+    min-height: 70px;
+    margin-bottom: 12px;
+    padding: 10px 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+  }
+
+  .writer-myads-mode-area {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .writer-myads-eyebrow {
+    color: #68707c;
+    font-size: 12px;
+    line-height: 1.2;
+    font-weight: 600;
+  }
+
+  .writer-myads-mode-row {
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .writer-myads-mode-buttons {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .writer-myads-mode-button {
+    min-width: 92px;
+    height: 30px;
+    padding: 0 12px;
+    border: 1px solid #e3e6ea;
+    border-radius: 999px;
+    background: #f7f8fa;
+    color: #68707c;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .writer-myads-mode-button.active {
+    border-color: #1e2329;
+    background: #1e2329;
+    color: #ffffff;
+  }
+
+  .writer-myads-mode-helper {
+    min-width: 0;
+    color: #68707c;
+    font-size: 12px;
+    line-height: 1.35;
+  }
+
+  .writer-myads-command-actions,
+  .writer-myads-desktop-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .writer-myads-status-pill {
+    min-height: 30px;
+    padding: 0 12px;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid #eaecf0;
+    background: #f9fafb;
+    color: #344054;
+    font-size: 11px;
+    line-height: 1;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+
+  .writer-myads-status-pill.warning {
+    border-color: #fedf89;
+    background: #fffaeb;
+    color: #b54708;
+  }
+
+  .writer-myads-status-pill.success {
+    border-color: #abefc6;
+    background: #ecfdf3;
+    color: #027a48;
+  }
+
+  .writer-myads-status-pill.info {
+    border-color: #b2ddff;
+    background: #eff8ff;
+    color: #175cd3;
+  }
+
+  .writer-myads-status-pill.danger {
+    border-color: #fecdca;
+    background: #fef3f2;
+    color: #b42318;
+  }
+
+  .writer-myads-primary-button,
+  .writer-myads-secondary-button {
+    min-height: 40px;
+    padding: 0 16px;
+    border-radius: 9px;
+    font-size: 12px;
+    line-height: 1;
+    font-weight: 700;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+
+  .writer-myads-primary-button {
+    border: 1px solid #1e2329;
+    background: #1e2329;
+    color: #ffffff;
+  }
+
+  .writer-myads-secondary-button {
+    border: 1px solid #d1d5db;
+    background: #ffffff;
+    color: #161a20;
+  }
+
+  .writer-myads-primary-button:disabled,
+  .writer-myads-secondary-button:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+  }
+
+  .writer-myads-message {
+    margin-bottom: 12px;
+    padding: 11px 13px;
+    font-size: 12px;
+    line-height: 1.45;
+    font-weight: 600;
+  }
+
+  .writer-myads-message.success {
+    border-color: #abefc6;
+    background: #ecfdf3;
+    color: #027a48;
+  }
+
+  .writer-myads-message.error {
+    border-color: #fecdca;
+    background: #fef3f2;
+    color: #b42318;
+  }
+
+  .writer-myads-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 2.06fr) minmax(320px, 0.98fr);
+    gap: 12px;
+    align-items: start;
+  }
+
+  .writer-myads-main-column,
+  .writer-myads-side-column {
+    min-width: 0;
+    display: grid;
+    gap: 12px;
+  }
+
+  .writer-myads-card {
+    min-width: 0;
+    padding: 14px;
+  }
+
+  .writer-myads-section-heading {
+    margin-bottom: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  .writer-myads-section-heading > strong {
+    color: #161a20;
+    font-size: 15px;
+    line-height: 1.3;
+    font-weight: 700;
+  }
+
+  .writer-myads-section-heading > span {
+    color: #68707c;
+    font-size: 12px;
+    line-height: 1.4;
+  }
+
+  .writer-myads-loading {
+    margin-bottom: 12px;
+    padding: 11px 12px;
+    border: 1px solid #e3e6ea;
+    border-radius: 9px;
+    background: #f7f8fa;
+    color: #68707c;
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  .writer-myads-inline-review {
+    min-height: 66px;
+    margin-bottom: 14px;
+    padding: 12px;
+    border: 1px solid #e3e6ea;
+    border-radius: 10px;
+    background: #f8fafc;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .writer-myads-inline-review > strong {
+    color: #374151;
+    font-size: 12px;
+    line-height: 1.45;
+    font-weight: 600;
+  }
+
+  .writer-myads-fields-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px 16px;
+  }
+
+  .writer-myads-field {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .writer-myads-field > span,
+  .writer-myads-group-label {
+    color: #667085;
+    font-size: 11px;
+    line-height: 1.2;
+    font-weight: 700;
+  }
+
+  .writer-myads-field input,
+  .writer-myads-field select,
+  .writer-myads-field textarea {
+    width: 100%;
+    min-width: 0;
+    border: 1px solid #ccd5df;
+    border-radius: 9px;
+    background: #ffffff;
+    color: #111827;
+    outline: none;
+    font-size: 12px;
+    line-height: 1.45;
+  }
+
+  .writer-myads-field input,
+  .writer-myads-field select {
+    height: 42px;
+    padding: 0 11px;
+  }
+
+  .writer-myads-field textarea {
+    padding: 10px 11px;
+    resize: vertical;
+    font-family: inherit;
+  }
+
+  .writer-myads-field-full {
+    margin-top: 12px;
+  }
+
+  .writer-myads-code {
+    min-height: 78px;
+  }
+
+  .writer-myads-notes {
+    min-height: 66px;
+  }
+
+  .writer-myads-platform-note {
+    margin-top: 14px;
+    padding: 13px;
+    border: 1px solid #b2ddff;
+    border-radius: 10px;
+    background: #eff8ff;
+    color: #175cd3;
+    font-size: 12px;
+    line-height: 1.5;
+    font-weight: 600;
+  }
+
+  .writer-myads-position-groups {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 32px;
+  }
+
+  .writer-myads-group-label {
+    display: block;
+    margin-bottom: 4px;
+    color: #9aa1aa;
+  }
+
+  .writer-myads-placement-row {
+    min-height: 70px;
+    padding: 10px 0;
+    border-bottom: 1px solid #edf0f2;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+  }
+
+  .writer-myads-placement-copy {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .writer-myads-placement-copy > strong {
+    color: #161a20;
+    font-size: 12px;
+    line-height: 1.35;
+    font-weight: 600;
+  }
+
+  .writer-myads-placement-copy > span {
+    color: #7b8491;
+    font-size: 11px;
+    line-height: 1.35;
+  }
+
+  .writer-myads-switch {
+    position: relative;
+    flex: 0 0 auto;
+    width: 44px;
+    height: 24px;
+    padding: 0;
+    border: 0;
+    border-radius: 999px;
+    background: #d5dbe2;
+    cursor: pointer;
+  }
+
+  .writer-myads-switch > span {
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #ffffff;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.18);
+    transition: left 0.18s ease;
+  }
+
+  .writer-myads-switch.is-on {
+    background: #1e2329;
+  }
+
+  .writer-myads-switch.is-on > span {
+    left: 23px;
+  }
+
+  .writer-myads-desktop-actions {
+    margin-top: 14px;
+  }
+
+  .writer-myads-review-card h3,
+  .writer-myads-how-card h3,
+  .writer-myads-important-card h3 {
+    margin: 0 0 12px;
+    color: #161a20;
+    font-size: 14px;
+    line-height: 1.3;
+    font-weight: 700;
+  }
+
+  .writer-myads-review-card > p {
+    margin: 10px 0 0;
+    color: #68707c;
+    font-size: 12px;
+    line-height: 1.45;
+  }
+
+  .writer-myads-review-times {
+    margin-top: 16px;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .writer-myads-review-times > span {
+    color: #8a929c;
+    font-size: 11px;
+    line-height: 1.35;
+  }
+
+  .writer-myads-admin-note {
+    margin-top: 12px;
+    padding: 10px;
+    border: 1px solid #e3e6ea;
+    border-radius: 9px;
+    background: #f8fafc;
+    color: #374151;
+    font-size: 11px;
+    line-height: 1.45;
+  }
+
+  .writer-myads-steps {
+    display: grid;
+    gap: 14px;
+  }
+
+  .writer-myads-step {
+    display: grid;
+    grid-template-columns: 28px minmax(0, 1fr);
+    gap: 10px;
+    align-items: start;
+  }
+
+  .writer-myads-step > span {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: #1e2329;
+    color: #ffffff;
+    display: grid;
+    place-items: center;
+    font-size: 11px;
+    line-height: 1;
+    font-weight: 700;
+  }
+
+  .writer-myads-step > p {
+    margin: 2px 0 0;
+    color: #374151;
+    font-size: 12px;
+    line-height: 1.45;
+  }
+
+  .writer-myads-step > p > b {
+    display: none;
+  }
+
+  .writer-myads-important-card > div {
+    padding: 12px;
+    border: 1px solid #b2ddff;
+    border-radius: 10px;
+    background: #eff8ff;
+    color: #175cd3;
+    font-size: 12px;
+    line-height: 1.45;
+    font-weight: 600;
+  }
+
+  .writer-myads-type-card {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+  }
+
+  .writer-myads-type-card > span {
+    color: #68707c;
+    font-size: 12px;
+    line-height: 1.3;
+    font-weight: 600;
+  }
+
+  .writer-myads-type-card > strong {
+    color: #161a20;
+    font-size: 22px;
+    line-height: 1.2;
+    font-weight: 700;
+  }
+
+  .writer-myads-type-card > p {
+    margin: 0;
+    color: #68707c;
+    font-size: 11px;
+    line-height: 1.45;
+  }
+
+  @media (max-width: 900px) {
+    .writer-myads-layout {
+      grid-template-columns: minmax(0, 1.55fr) minmax(280px, 1fr);
+    }
+  }
+
+  @media (max-width: 767px) {
+    .writer-myads-mobile-title {
+      min-height: 46px;
+      margin-bottom: 10px;
+      padding: 0 11px;
+      display: flex;
+      align-items: center;
+      border: 1px solid #e3e6ea;
+      border-radius: 10px;
+      background: #ffffff;
+      color: #161a20;
+      font-size: 13px;
+      line-height: 1.2;
+      font-weight: 600;
+    }
+
+    .writer-myads-command {
+      min-height: 114px;
+      margin-bottom: 10px;
+      padding: 10px;
+      border-radius: 10px;
+      align-items: stretch;
+    }
+
+    .writer-myads-eyebrow {
+      font-size: 10px;
+    }
+
+    .writer-myads-mode-area {
+      width: 100%;
+    }
+
+    .writer-myads-mode-row {
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .writer-myads-mode-button {
+      min-width: 92px;
+      height: 30px;
+      font-size: 11px;
+    }
+
+    .writer-myads-mode-helper {
+      width: 100%;
+      font-size: 10px;
+    }
+
+    .writer-myads-command-actions {
+      position: absolute;
+      right: 20px;
+      margin-top: 28px;
+    }
+
+    .writer-myads-command-actions .writer-myads-primary-button,
+    .writer-myads-command-actions .writer-myads-secondary-button {
+      display: none;
+    }
+
+    .writer-myads-status-pill {
+      min-height: 28px;
+      padding: 0 10px;
+      font-size: 10px;
+    }
+
+    .writer-myads-layout {
+      display: block;
+    }
+
+    .writer-myads-main-column,
+    .writer-myads-side-column {
+      display: block;
+    }
+
+    .writer-myads-card {
+      margin-bottom: 10px;
+      padding: 10px;
+      border-radius: 10px;
+    }
+
+    .writer-myads-section-heading {
+      margin-bottom: 12px;
+    }
+
+    .writer-myads-section-heading > strong {
+      font-size: 13px;
+    }
+
+    .writer-myads-section-heading > span {
+      font-size: 10px;
+    }
+
+    .writer-myads-inline-review {
+      display: none;
+    }
+
+    .writer-myads-fields-grid {
+      display: block;
+    }
+
+    .writer-myads-field {
+      margin-bottom: 10px;
+      gap: 5px;
+    }
+
+    .writer-myads-field > span,
+    .writer-myads-group-label {
+      font-size: 10px;
+    }
+
+    .writer-myads-field input,
+    .writer-myads-field select {
+      height: 40px;
+      font-size: 11px;
+    }
+
+    .writer-myads-field textarea {
+      font-size: 11px;
+    }
+
+    .writer-myads-field-full {
+      margin-top: 0;
+    }
+
+    .writer-myads-code {
+      min-height: 82px;
+    }
+
+    .writer-myads-notes {
+      min-height: 70px;
+    }
+
+    .writer-myads-position-groups {
+      display: block;
+    }
+
+    .writer-myads-position-groups > div + div {
+      margin-top: 0;
+    }
+
+    .writer-myads-group-label {
+      display: none;
+    }
+
+    .writer-myads-placement-row {
+      min-height: 64px;
+      padding: 9px 0;
+    }
+
+    .writer-myads-placement-copy > strong {
+      font-size: 11px;
+    }
+
+    .writer-myads-placement-copy > span {
+      font-size: 9px;
+    }
+
+    .writer-myads-desktop-actions {
+      display: none;
+    }
+
+    .writer-myads-mobile-actions {
+      display: grid;
+      gap: 6px;
+    }
+
+    .writer-myads-mobile-actions .writer-myads-primary-button,
+    .writer-myads-mobile-actions .writer-myads-secondary-button {
+      width: 100%;
+      min-height: 38px;
+    }
+
+    .writer-myads-side-column {
+      margin-top: 0;
+    }
+
+    .writer-myads-review-card h3,
+    .writer-myads-how-card h3,
+    .writer-myads-important-card h3 {
+      margin-bottom: 10px;
+      font-size: 12px;
+    }
+
+    .writer-myads-review-card > p {
+      font-size: 10px;
+    }
+
+    .writer-myads-review-times,
+    .writer-myads-admin-note {
+      display: none;
+    }
+
+    .writer-myads-how-card .writer-myads-steps {
+      gap: 4px;
+    }
+
+    .writer-myads-step {
+      display: block;
+    }
+
+    .writer-myads-step > span {
+      display: none;
+    }
+
+    .writer-myads-step > p {
+      margin: 0;
+      color: #68707c;
+      font-size: 9px;
+      line-height: 1.35;
+    }
+
+    .writer-myads-step > p > b {
+      display: inline;
+      margin-right: 8px;
+      color: #68707c;
+      font-weight: 600;
+    }
+
+    .writer-myads-important-card > div {
+      padding: 0;
+      border: 0;
+      background: transparent;
+      font-size: 10px;
+      line-height: 1.4;
+    }
+
+    .writer-myads-type-card {
+      display: none;
+    }
+
+    .writer-myads-platform-note {
+      font-size: 10px;
+    }
+
+    .writer-myads-message {
+      margin-bottom: 10px;
+      font-size: 10px;
+    }
+  }
+`;

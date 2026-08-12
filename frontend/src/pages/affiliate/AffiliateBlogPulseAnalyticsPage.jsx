@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import api from '../../api/axios';
+import './AffiliateBlogPulseAnalyticsApproved.css';
 
 function cardStyle() {
   return {
@@ -561,7 +563,7 @@ function tableCellStyle() {
   };
 }
 
-export default function AffiliateBlogPulseAnalyticsPage() {
+function AffiliateBlogPulseAnalyticsLegacyPage() {
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
   const [earningsData, setEarningsData] = useState(null);
@@ -1059,4 +1061,461 @@ export default function AffiliateBlogPulseAnalyticsPage() {
       </section>
     </div>
   );
+}
+
+function WriterBlogPulseMetric({ label, value, hint, badge, tone = 'default', className = '' }) {
+  return (
+    <article className={`bpw-metric-card ${tone} ${className}`.trim()}>
+      <div className="bpw-metric-head">
+        <span>{label}</span>
+        {badge ? <span className={`bpw-mini-badge ${badge.toLowerCase()}`}>{badge}</span> : null}
+      </div>
+      <strong>{value}</strong>
+      <small>{hint}</small>
+    </article>
+  );
+}
+
+function WriterBlogPulseAnalyticsPage() {
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [earningsData, setEarningsData] = useState(null);
+  const [tableMode, setTableMode] = useState('revenue');
+  const [reloadKey, setReloadKey] = useState(0);
+
+  useEffect(() => {
+    let ignore = false;
+
+    async function loadEarnings() {
+      if (reloadKey === 0) setLoading(true);
+      setErrorMessage('');
+
+      try {
+        const { data } = await api.get('/api/affiliate/blogpulse-earnings');
+
+        if (!data?.ok || !data?.earnings) {
+          throw new Error(data?.message || 'Failed to load BlogPulse earnings.');
+        }
+
+        if (!ignore) {
+          setEarningsData(data.earnings);
+        }
+      } catch (error) {
+        if (!ignore) {
+          setErrorMessage(
+            error?.response?.data?.message ||
+              error.message ||
+              'Failed to load BlogPulse earnings.'
+          );
+        }
+      } finally {
+        if (!ignore) {
+          setLoading(false);
+          setRefreshing(false);
+        }
+      }
+    }
+
+    loadEarnings();
+
+    return () => {
+      ignore = true;
+    };
+  }, [reloadKey]);
+
+  const monetization = earningsData?.monetization || {};
+  const overview = earningsData?.overview || {};
+  const sponsoredAds = earningsData?.sponsored_ads || {};
+  const chart = Array.isArray(earningsData?.chart) ? earningsData.chart : [];
+  const summaryTable = earningsData?.summary_table || {};
+  const topPosts = Array.isArray(earningsData?.top_posts) ? earningsData.top_posts : [];
+
+  const monetizationApproved =
+    monetization?.monetization_mode === 'platform' &&
+    Number(monetization?.platform_enabled || 0) === 1;
+
+  const chartPoints = useMemo(
+    () =>
+      chart.map((item) => {
+        const platformEstimate = Number(
+          item.platform_estimated_revenue ??
+            Number(item.post_views || 0) * Number(monetization?.rate_per_view || 0)
+        );
+        const sponsored = Number(item.sponsored_earnings || 0);
+        return {
+          label: item.label || '',
+          date: item.date || '',
+          views: Number(item.post_views || 0),
+          platformEstimate,
+          sponsored,
+          value: Number(item.total_estimated_earnings ?? platformEstimate + sponsored),
+        };
+      }),
+    [chart, monetization]
+  );
+
+  const maxTrend = Math.max(...chartPoints.map((item) => Number(item.value || 0)), 0);
+
+  const summaryRows = useMemo(() => {
+    const rows = [];
+
+    if (summaryTable?.today) {
+      rows.push({
+        period: summaryTable.today.label || 'Today',
+        tracked_post_views: Number(summaryTable.today.tracked_post_views || 0),
+        platform_estimated_revenue: Number(summaryTable.today.platform_estimated_revenue || 0),
+        sponsored_earnings: Number(summaryTable.today.sponsored_earnings || 0),
+        estimated_revenue: Number(summaryTable.today.estimated_revenue || 0),
+      });
+    }
+
+    if (summaryTable?.last_7_days) {
+      rows.push({
+        period: summaryTable.last_7_days.label || 'Last 7 Days',
+        tracked_post_views: Number(summaryTable.last_7_days.tracked_post_views || 0),
+        platform_estimated_revenue: Number(
+          summaryTable.last_7_days.platform_estimated_revenue || 0
+        ),
+        sponsored_earnings: Number(summaryTable.last_7_days.sponsored_earnings || 0),
+        estimated_revenue: Number(summaryTable.last_7_days.estimated_revenue || 0),
+      });
+    }
+
+    rows.push({
+      period: 'All tracked',
+      tracked_post_views: Number(overview?.tracked_post_views || 0),
+      platform_estimated_revenue: Number(overview?.platform_estimated_revenue || 0),
+      sponsored_earnings: Number(overview?.sponsored_total_revenue || 0),
+      estimated_revenue: Number(overview?.estimated_revenue || 0),
+    });
+
+    return rows;
+  }, [summaryTable, overview]);
+
+  const refresh = () => {
+    if (refreshing) return;
+    setRefreshing(true);
+    setReloadKey((value) => value + 1);
+  };
+
+  return (
+    <div className="bp-writer-page">
+      <section className="bpw-overview-card">
+        <div className="bpw-overview-copy">
+          <span className="bpw-kicker">MONETIZATION PERFORMANCE</span>
+          <h2>Earnings overview</h2>
+          <p>Track BlogPulse revenue, sponsored publisher earnings, valid views, and top earning posts.</p>
+        </div>
+        <div className="bpw-actions">
+          <button type="button" className="bpw-button secondary" onClick={refresh} disabled={refreshing}>
+            {refreshing ? 'Refreshing...' : 'Refresh'}
+          </button>
+          <button type="button" className="bpw-button primary" onClick={() => navigate('/writer/wallet')}>
+            Open Wallet
+          </button>
+        </div>
+      </section>
+
+      <section
+        className={`bpw-status-banner ${monetizationApproved ? 'approved' : 'pending'}`}
+        aria-live="polite"
+      >
+        <span className="bpw-status-dot" />
+        <div>
+          <strong>
+            {monetizationApproved
+              ? 'Platform monetization approved'
+              : 'Platform monetization awaiting approval'}
+          </strong>
+          <p>
+            {monetizationApproved
+              ? 'BlogPulse earnings and sponsored publisher revenue are active for eligible traffic.'
+              : 'Your earnings workspace becomes fully active after platform monetization approval.'}
+          </p>
+        </div>
+      </section>
+
+      {loading ? (
+        <section className="bpw-state-card">
+          <strong>Loading BlogPulse earnings...</strong>
+          <span>Fetching your latest monetization totals and post performance.</span>
+        </section>
+      ) : null}
+
+      {errorMessage ? (
+        <section className="bpw-state-card error">
+          <strong>BlogPulse earnings could not be loaded.</strong>
+          <span>{errorMessage}</span>
+          <button type="button" className="bpw-button secondary" onClick={refresh}>
+            Try again
+          </button>
+        </section>
+      ) : null}
+
+      <section className="bpw-primary-metrics" aria-label="BlogPulse earnings summary">
+        <WriterBlogPulseMetric
+          label="Estimated revenue"
+          value={formatMoney(overview?.estimated_revenue || 0)}
+          hint="Platform + sponsored estimate"
+          badge="Live"
+          tone="revenue"
+        />
+        <WriterBlogPulseMetric
+          label="Available estimate"
+          value={formatMoney(overview?.wallet_available_estimate || 0)}
+          hint="Platform + settled sponsored"
+          badge="Live"
+          tone="available"
+        />
+        <WriterBlogPulseMetric
+          label="Sponsored total"
+          value={formatMoney(overview?.sponsored_total_revenue || 0)}
+          hint="Publisher sponsored placements"
+          tone="default"
+        />
+        <WriterBlogPulseMetric
+          label="Sponsored pending"
+          value={formatMoney(overview?.sponsored_pending_revenue || 0)}
+          hint="Awaiting settlement"
+          badge="Pending"
+          tone="pending"
+        />
+        <WriterBlogPulseMetric
+          label="Withdrawal threshold"
+          value={formatMoney(monetization?.withdrawal_threshold || 0)}
+          hint="Current BlogPulse threshold"
+          tone="threshold"
+          className="bpw-threshold-card"
+        />
+      </section>
+
+      <section className="bpw-main-grid">
+        <article className="bpw-panel bpw-trend-panel">
+          <header className="bpw-panel-head">
+            <div>
+              <span className="bpw-kicker">LAST 7 DAYS</span>
+              <h3>Earnings trend</h3>
+              <p>Tracked post-view estimate plus sponsored publisher earnings.</p>
+            </div>
+            <span className="bpw-pill">Revenue</span>
+          </header>
+
+          {chartPoints.length ? (
+            <>
+              <div className="bpw-bars" aria-label="Seven day earnings chart">
+                {chartPoints.map((point, index) => {
+                  const height = maxTrend > 0 ? Math.max(8, (point.value / maxTrend) * 100) : 8;
+                  const isLast = index === chartPoints.length - 1;
+                  return (
+                    <div className="bpw-bar-column" key={`${point.date}-${index}`}>
+                      <div className="bpw-bar-track">
+                        <div
+                          className={`bpw-bar ${isLast ? 'active' : ''}`}
+                          style={{ height: `${height}%` }}
+                          title={`${point.date}: ${formatMoney(point.value)} from ${formatNumber(point.views)} tracked views`}
+                        />
+                      </div>
+                      <span>{point.label || point.date}</span>
+                    </div>
+                  );
+                })}
+              </div>
+              <footer className="bpw-chart-foot">
+                <span className="bpw-legend platform">Platform estimate</span>
+                <span className="bpw-legend sponsored">Sponsored earnings</span>
+                <small>
+                  7-day estimated total {formatMoney(
+                    chartPoints.reduce((sum, point) => sum + Number(point.value || 0), 0)
+                  )}
+                </small>
+              </footer>
+            </>
+          ) : (
+            <div className="bpw-empty">No earnings trend is available yet.</div>
+          )}
+        </article>
+
+        <article className="bpw-panel bpw-program-card">
+          <header className="bpw-panel-head compact">
+            <div>
+              <span className="bpw-kicker">PROGRAM</span>
+              <h3>BlogPulse Platform</h3>
+              <p>Current rules used for this estimate.</p>
+            </div>
+          </header>
+          <dl className="bpw-program-list">
+            <div>
+              <dt>Rate per valid post view</dt>
+              <dd>{formatMoney(monetization?.rate_per_view || 0)}</dd>
+            </div>
+            <div>
+              <dt>Withdrawal threshold</dt>
+              <dd>{formatMoney(monetization?.withdrawal_threshold || 0)}</dd>
+            </div>
+            <div>
+              <dt>Tracked post views</dt>
+              <dd>{formatNumber(overview?.tracked_post_views || 0)}</dd>
+            </div>
+            <div>
+              <dt>Sponsored views</dt>
+              <dd>{formatNumber(sponsoredAds?.total_views || 0)}</dd>
+            </div>
+            <div>
+              <dt>Sponsored clicks</dt>
+              <dd>{formatNumber(sponsoredAds?.total_clicks || 0)}</dd>
+            </div>
+            <div>
+              <dt>Settled sponsored</dt>
+              <dd>{formatMoney(sponsoredAds?.settled_earnings || 0)}</dd>
+            </div>
+            <div>
+              <dt>Rejected sponsored</dt>
+              <dd>{formatMoney(sponsoredAds?.rejected_earnings || 0)}</dd>
+            </div>
+          </dl>
+        </article>
+      </section>
+
+      <section className="bpw-operational-metrics" aria-label="Tracked monetization activity">
+        <WriterBlogPulseMetric
+          label="Tracked post views"
+          value={formatNumber(overview?.tracked_post_views || 0)}
+          hint="Monetizable story views"
+        />
+        <WriterBlogPulseMetric
+          label="Tracked product views"
+          value={formatNumber(overview?.tracked_product_views || 0)}
+          hint="Storefront product views"
+        />
+        <WriterBlogPulseMetric
+          label="Product clicks"
+          value={formatNumber(overview?.tracked_product_clicks || 0)}
+          hint="Tracked product clicks"
+        />
+        <WriterBlogPulseMetric
+          label="Slider clicks"
+          value={formatNumber(overview?.tracked_slider_clicks || 0)}
+          hint="Tracked slider clicks"
+        />
+        <WriterBlogPulseMetric
+          label="Published posts"
+          value={formatNumber(overview?.total_posts || 0)}
+          hint="Available for tracking"
+        />
+      </section>
+
+      <section className="bpw-panel bpw-summary-panel">
+        <header className="bpw-panel-head">
+          <div>
+            <span className="bpw-kicker">SUMMARY</span>
+            <h3>Earnings summary</h3>
+            <p>Real monetization totals by reporting period.</p>
+          </div>
+          <div className="bpw-segmented" role="tablist" aria-label="Earnings summary view">
+            <button
+              type="button"
+              className={tableMode === 'revenue' ? 'active' : ''}
+              aria-selected={tableMode === 'revenue'}
+              onClick={() => setTableMode('revenue')}
+            >
+              Revenue
+            </button>
+            <button
+              type="button"
+              className={tableMode === 'views' ? 'active' : ''}
+              aria-selected={tableMode === 'views'}
+              onClick={() => setTableMode('views')}
+            >
+              Tracked Views
+            </button>
+          </div>
+        </header>
+
+        <div className="bpw-table-wrap">
+          <table className="bpw-table">
+            <thead>
+              <tr>
+                <th>Period</th>
+                <th>Tracked Post Views</th>
+                {tableMode === 'revenue' ? (
+                  <>
+                    <th>Platform Estimate</th>
+                    <th>Sponsored</th>
+                    <th>Estimated Revenue</th>
+                  </>
+                ) : null}
+              </tr>
+            </thead>
+            <tbody>
+              {summaryRows.map((row) => (
+                <tr key={row.period}>
+                  <td data-label="Period">{row.period}</td>
+                  <td data-label="Tracked Post Views">{formatNumber(row.tracked_post_views)}</td>
+                  {tableMode === 'revenue' ? (
+                    <>
+                      <td data-label="Platform Estimate">
+                        {formatMoney(row.platform_estimated_revenue)}
+                      </td>
+                      <td data-label="Sponsored">{formatMoney(row.sponsored_earnings)}</td>
+                      <td data-label="Estimated Revenue">{formatMoney(row.estimated_revenue)}</td>
+                    </>
+                  ) : null}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section className="bpw-panel bpw-posts-panel">
+        <header className="bpw-panel-head">
+          <div>
+            <span className="bpw-kicker">CONTENT</span>
+            <h3>Top earning posts</h3>
+            <p>Posts ranked by tracked views and estimated BlogPulse earnings.</p>
+          </div>
+          <span className="bpw-pill">Posts</span>
+        </header>
+
+        {topPosts.length ? (
+          <div className="bpw-table-wrap">
+            <table className="bpw-table bpw-posts-table">
+              <thead>
+                <tr>
+                  <th>Post Title</th>
+                  <th>Slug</th>
+                  <th>Tracked Views</th>
+                  <th>Estimated Earnings</th>
+                </tr>
+              </thead>
+              <tbody>
+                {topPosts.slice(0, 8).map((post) => (
+                  <tr key={post.id}>
+                    <td data-label="Post Title"><strong>{post.title}</strong></td>
+                    <td data-label="Slug">{post.slug}</td>
+                    <td data-label="Tracked Views">{formatNumber(post.total_views || 0)}</td>
+                    <td data-label="Estimated Earnings">{formatMoney(post.estimated_earnings || 0)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="bpw-empty">No post earnings data is available yet.</div>
+        )}
+      </section>
+    </div>
+  );
+}
+
+export default function AffiliateBlogPulseAnalyticsPage() {
+  const location = useLocation();
+
+  if (location.pathname === '/writer/monetization/blogpulse-analytics') {
+    return <WriterBlogPulseAnalyticsPage />;
+  }
+
+  return <AffiliateBlogPulseAnalyticsLegacyPage />;
 }

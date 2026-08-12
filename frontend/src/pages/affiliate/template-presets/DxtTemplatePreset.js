@@ -8,7 +8,7 @@ function makeLepresiumSentence(minWords, maxWords) {
 }
 
 function makeLepresiumUrl() {
-  return 'https://supgad.com/lepresium';
+  return '';
 }
 
 function buildField({
@@ -67,6 +67,17 @@ function buildButton({
 
 export default function createDxtTemplatePreset() {
   const fields = [
+    buildField({
+      field_key: 'bloggad_video_url',
+      field_type: 'url',
+      label: 'Video URL',
+      section: 'Video',
+      helper_text: 'Optional YouTube, Vimeo, MP4, WebM, or OGG video link.',
+      required: false,
+      default_value: '',
+      placeholder: 'https://www.youtube.com/watch?v=...',
+      sort_order: 9999,
+    }),
     buildField({
       field_key: 'top_bar_title',
       field_type: 'text',

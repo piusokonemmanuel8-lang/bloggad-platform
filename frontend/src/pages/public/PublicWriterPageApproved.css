@@ -1,0 +1,985 @@
+.public-writer-page {
+  --pwp-blue: #0866ff;
+  --pwp-bg: #f0f2f5;
+  --pwp-border: #dfe3e8;
+  --pwp-muted: #65676b;
+  --pwp-text: #050505;
+  min-height: 100vh;
+  background: var(--pwp-bg);
+  color: var(--pwp-text);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+.public-writer-page *,
+.public-writer-page *::before,
+.public-writer-page *::after {
+  box-sizing: border-box;
+}
+
+.pwp-status {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 32px 20px;
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+.pwp-profile-shell {
+  background: #fff;
+}
+
+.pwp-cover {
+  width: min(1000px, 100%);
+  height: 350px;
+  margin: 0 auto;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: #d9dde3;
+  color: #5f6368;
+  font-size: 14px;
+}
+
+.pwp-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.pwp-profile-row {
+  position: relative;
+  width: min(1000px, calc(100% - 32px));
+  min-height: 128px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 190px minmax(0, 1fr) auto;
+  gap: 18px;
+  align-items: center;
+}
+
+.pwp-profile-avatar-wrap {
+  position: relative;
+  align-self: start;
+  height: 1px;
+}
+
+.pwp-profile-avatar {
+  position: absolute;
+  left: 16px;
+  top: -84px;
+  width: 168px;
+  height: 168px;
+  border: 4px solid #fff;
+  border-radius: 50%;
+}
+
+.pwp-avatar-image {
+  display: block;
+  object-fit: cover;
+  background: #eef1f5;
+}
+
+.pwp-avatar-fallback {
+  display: grid;
+  place-items: center;
+  background: #111827;
+  color: #fff;
+  font-weight: 800;
+}
+
+.pwp-profile-copy {
+  min-width: 0;
+  padding: 18px 0 10px;
+}
+
+.pwp-profile-copy h1 {
+  margin: 0;
+  font-size: 32px;
+  line-height: 1.08;
+  letter-spacing: -0.5px;
+}
+
+.pwp-byline {
+  margin-top: 6px;
+  color: var(--pwp-muted);
+  font-size: 14px;
+}
+
+.pwp-header-summary {
+  margin-top: 8px;
+  color: #4b4f56;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.pwp-profile-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.pwp-profile-actions button,
+.pwp-profile-actions a {
+  min-height: 40px;
+  border: 0;
+  border-radius: 7px;
+  padding: 0 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.pwp-profile-actions button:disabled {
+  cursor: wait;
+  opacity: 0.68;
+}
+
+.pwp-action-primary {
+  min-width: 116px;
+  background: var(--pwp-blue);
+  color: #fff;
+}
+
+.pwp-action-secondary {
+  background: #e4e6eb;
+  color: #050505;
+}
+
+.pwp-more-action {
+  width: 48px;
+  padding: 0 !important;
+}
+
+.pwp-tabs {
+  width: min(1000px, calc(100% - 32px));
+  margin: 0 auto;
+  min-height: 66px;
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  border-top: 1px solid var(--pwp-border);
+}
+
+.pwp-tabs button {
+  position: relative;
+  min-width: 88px;
+  border: 0;
+  background: transparent;
+  color: #65676b;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.pwp-tabs button.active {
+  color: var(--pwp-blue);
+}
+
+.pwp-tabs button.active::after {
+  content: "";
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: 0;
+  height: 3px;
+  border-radius: 2px 2px 0 0;
+  background: var(--pwp-blue);
+}
+
+.pwp-content {
+  width: min(1000px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 16px 0 48px;
+}
+
+.pwp-tab-posts {
+  display: grid;
+  grid-template-columns: 360px minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.pwp-sidebar {
+  display: grid;
+  gap: 16px;
+  position: sticky;
+  top: 16px;
+}
+
+.pwp-side-card,
+.pwp-tab-card,
+.pwp-empty-card {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
+.pwp-side-card {
+  padding: 16px;
+}
+
+.pwp-side-card h2,
+.pwp-tab-card h2 {
+  margin: 0;
+  font-size: 20px;
+  line-height: 1.2;
+}
+
+.pwp-side-card > p,
+.pwp-about-card > p {
+  margin: 12px 0 0;
+  color: var(--pwp-muted);
+  font-size: 14px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+}
+
+.pwp-stat-list {
+  margin-top: 18px;
+  display: grid;
+  gap: 12px;
+}
+
+.pwp-stat-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #1c1e21;
+  font-size: 14px;
+}
+
+.pwp-stat-icon {
+  width: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #62666d;
+}
+
+.pwp-stat-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.pwp-stat-dot-blue {
+  background: #1877f2;
+}
+
+.pwp-stat-dot-green {
+  background: #31a24c;
+}
+
+.pwp-stat-dot-red {
+  background: #f55368;
+}
+
+.pwp-side-link {
+  margin-top: 20px;
+  display: inline-block;
+  color: var(--pwp-blue);
+  font-size: 14px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.pwp-details-card {
+  display: grid;
+  gap: 16px;
+}
+
+.pwp-details-card h2 {
+  margin-bottom: 2px;
+}
+
+.pwp-details-card > div,
+.pwp-more-details > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  font-size: 13px;
+}
+
+.pwp-details-card span,
+.pwp-more-details span {
+  color: var(--pwp-muted);
+}
+
+.pwp-details-card strong,
+.pwp-more-details strong {
+  text-align: right;
+}
+
+.pwp-active-text {
+  color: #2f9e44;
+}
+
+.pwp-feed {
+  min-width: 0;
+  display: grid;
+  gap: 14px;
+}
+
+.pwp-post-card {
+  overflow: hidden;
+  background: #fff;
+  border: 1px solid #e2e5e9;
+  border-radius: 8px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+
+.pwp-post-head {
+  padding: 14px 14px 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.pwp-post-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  flex: 0 0 44px;
+  font-size: 12px;
+}
+
+.pwp-post-author {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.pwp-post-author strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+}
+
+.pwp-post-author span {
+  color: var(--pwp-muted);
+  font-size: 11px;
+}
+
+.pwp-post-title {
+  margin: 18px 14px 0;
+  display: block;
+  color: var(--pwp-text);
+  font-size: 22px;
+  font-weight: 800;
+  line-height: 1.16;
+  text-decoration: none;
+}
+
+.pwp-post-excerpt {
+  margin: 7px 14px 0;
+  color: var(--pwp-muted);
+  font-size: 14px;
+  line-height: 1.42;
+}
+
+.pwp-post-media-link {
+  margin: 16px 14px 0;
+  display: block;
+}
+
+.pwp-post-media {
+  width: 100%;
+  max-height: 430px;
+  display: block;
+  object-fit: cover;
+  background: #d9dde3;
+}
+
+.pwp-post-counts {
+  margin: 14px 14px 0;
+  min-height: 34px;
+  padding-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  border-bottom: 1px solid #e4e6eb;
+  color: var(--pwp-muted);
+  font-size: 13px;
+}
+
+.pwp-post-counts span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pwp-post-actions {
+  margin: 0 14px;
+  min-height: 48px;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  border-bottom: 1px solid #e4e6eb;
+}
+
+.pwp-post-actions button,
+.pwp-post-actions a {
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: #4b4f56;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.pwp-post-actions button:hover,
+.pwp-post-actions a:hover {
+  background: #f2f2f2;
+}
+
+.pwp-post-actions button:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+
+.pwp-read-link {
+  margin: 13px 14px 15px;
+  display: inline-block;
+  color: var(--pwp-blue);
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.pwp-empty-card {
+  padding: 28px;
+  color: var(--pwp-muted);
+}
+
+.pwp-tab-card {
+  width: min(760px, 100%);
+  margin: 0 auto;
+  padding: 22px;
+}
+
+.pwp-more-card {
+  display: grid;
+  gap: 18px;
+}
+
+.pwp-more-card .pwp-stat-list {
+  margin-top: 0;
+}
+
+.pwp-more-details {
+  display: grid;
+  gap: 12px;
+  padding-top: 16px;
+  border-top: 1px solid #e4e6eb;
+}
+
+.pwp-membership-note {
+  padding: 14px;
+  display: grid;
+  gap: 6px;
+  background: #f7f8fa;
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+.pwp-membership-note span {
+  color: var(--pwp-muted);
+}
+
+.pwp-membership-note a {
+  color: var(--pwp-blue);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.pwp-icon {
+  flex: 0 0 auto;
+  stroke: currentColor;
+}
+
+.pwp-notice {
+  position: fixed;
+  z-index: 1200;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: calc(100% - 32px);
+  border: 1px solid #d8dde5;
+  border-radius: 8px;
+  padding: 10px 14px;
+  background: #fff;
+  color: #1c1e21;
+  box-shadow: 0 8px 26px rgba(0, 0, 0, 0.18);
+  font: inherit;
+  cursor: pointer;
+}
+
+.pwp-modal-backdrop {
+  position: fixed;
+  z-index: 1300;
+  inset: 0;
+  padding: 20px;
+  display: grid;
+  place-items: center;
+  background: rgba(0, 0, 0, 0.52);
+}
+
+.pwp-message-modal {
+  width: min(520px, 100%);
+  max-height: calc(100vh - 40px);
+  overflow: auto;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.24);
+}
+
+.pwp-message-modal-head {
+  padding: 16px 18px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  border-bottom: 1px solid #e4e6eb;
+}
+
+.pwp-message-modal-head > div {
+  display: grid;
+  gap: 4px;
+}
+
+.pwp-message-modal-head strong {
+  font-size: 18px;
+}
+
+.pwp-message-modal-head span {
+  color: var(--pwp-muted);
+  font-size: 12px;
+}
+
+.pwp-message-modal-head button {
+  border: 0;
+  background: transparent;
+  color: #4b4f56;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.pwp-message-modal form {
+  padding: 18px;
+}
+
+.pwp-message-modal textarea {
+  width: 100%;
+  resize: vertical;
+  border: 1px solid #ccd0d5;
+  border-radius: 8px;
+  padding: 12px;
+  font: inherit;
+  line-height: 1.5;
+  outline: none;
+}
+
+.pwp-message-modal textarea:focus {
+  border-color: var(--pwp-blue);
+  box-shadow: 0 0 0 2px rgba(8, 102, 255, 0.12);
+}
+
+.pwp-message-error {
+  margin-top: 10px;
+  color: #b42318;
+  font-size: 13px;
+}
+
+.pwp-message-actions {
+  margin-top: 14px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.pwp-message-actions button {
+  min-height: 38px;
+  border: 0;
+  border-radius: 7px;
+  padding: 0 16px;
+  background: #e4e6eb;
+  color: #050505;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.pwp-message-actions button.primary {
+  background: var(--pwp-blue);
+  color: #fff;
+}
+
+.pwp-message-actions button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+
+.pwp-photos-head {
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.pwp-photos-head h2 { margin: 0; }
+.pwp-photos-head button {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--pwp-blue);
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+.pwp-photo-grid,
+.pwp-photo-modal-grid {
+  display: grid;
+  grid-template-columns: repeat(3,minmax(0,1fr));
+  gap: 3px;
+}
+.pwp-photo-grid { overflow: hidden; border-radius: 7px; }
+.pwp-photo-tile,
+.pwp-photo-modal-grid a {
+  aspect-ratio: 1;
+  min-width: 0;
+  overflow: hidden;
+  background: #e4e6eb;
+}
+.pwp-photo-tile img,
+.pwp-photo-modal-grid img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+}
+.pwp-photo-empty {
+  min-height: 90px;
+  display: grid;
+  place-items: center;
+  border-radius: 7px;
+  background: #f7f8fa;
+  color: var(--pwp-muted);
+  font-size: 13px;
+}
+.pwp-photo-modal {
+  width: min(760px,100%);
+  max-height: calc(100vh - 40px);
+  overflow: auto;
+  border-radius: 10px;
+  background: #fff;
+}
+.pwp-photo-modal-head {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  padding: 16px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #e4e6eb;
+  background: #fff;
+}
+.pwp-photo-modal-head button {
+  border: 0;
+  background: transparent;
+  color: var(--pwp-blue);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+.pwp-photo-modal-grid { padding: 10px; gap: 4px; }
+
+.pwp-tabs {
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+}
+
+.pwp-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.pwp-tabs button {
+  flex: 0 0 auto;
+  padding: 0 14px;
+  white-space: nowrap;
+}
+
+.pwp-course-tab {
+  width: min(760px, 100%);
+  margin: 0 auto;
+}
+
+.pwp-course-tab-head {
+  margin: 0 0 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.pwp-course-tab-head h2 {
+  margin: 0;
+  font-size: 22px;
+}
+
+.pwp-course-tab-head span {
+  color: var(--pwp-muted);
+  font-size: 13px;
+}
+
+.pwp-course-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.pwp-course-card {
+  padding: 18px;
+  background: #fff;
+  border: 1px solid #e2e5e9;
+  border-radius: 8px;
+  box-shadow: 0 1px 2px rgba(0,0,0,.06);
+}
+
+.pwp-course-card-label {
+  color: var(--pwp-blue);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .04em;
+}
+
+.pwp-course-card h3 {
+  margin: 8px 0 0;
+  font-size: 20px;
+  line-height: 1.2;
+}
+
+.pwp-course-card p {
+  margin: 8px 0 0;
+  color: var(--pwp-muted);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.pwp-course-meta {
+  margin-top: 14px;
+  display: flex;
+  gap: 16px;
+  color: var(--pwp-muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+@media (min-width: 768px) {
+  .pwp-tab-posts {
+    min-height: 0;
+    overflow: visible;
+  }
+
+  .pwp-sidebar {
+    position: sticky;
+    top: 16px;
+    align-self: start;
+    height: fit-content;
+    max-height: none;
+    overflow: visible;
+  }
+
+  .pwp-feed {
+    height: auto;
+    max-height: calc(100vh - 32px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+    padding-right: 4px;
+    padding-bottom: 24px;
+  }
+}
+@media (max-width: 767px) {
+  .pwp-cover {
+    height: 180px;
+  }
+
+  .pwp-profile-row {
+    width: 100%;
+    min-height: auto;
+    padding: 0 14px 16px;
+    display: block;
+  }
+
+  .pwp-profile-avatar-wrap {
+    height: 58px;
+  }
+
+  .pwp-profile-avatar {
+    left: 0;
+    top: -40px;
+    width: 92px;
+    height: 92px;
+    border-width: 3px;
+  }
+
+  .pwp-profile-copy {
+    padding: 12px 0 0;
+  }
+
+  .pwp-profile-copy h1 {
+    font-size: 25px;
+    letter-spacing: -0.25px;
+  }
+
+  .pwp-byline {
+    font-size: 13px;
+  }
+
+  .pwp-header-summary {
+    font-size: 13px;
+    line-height: 1.4;
+  }
+
+  .pwp-profile-actions {
+    margin-top: 14px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 48px;
+    gap: 7px;
+  }
+
+  .pwp-profile-actions button,
+  .pwp-profile-actions a {
+    width: 100%;
+    min-width: 0;
+    padding: 0 10px;
+    font-size: 13px;
+  }
+
+  .pwp-store-action {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
+  .pwp-tabs {
+    width: 100%;
+    min-height: 52px;
+    padding: 0 8px;
+  }
+
+  .pwp-tabs button {
+    min-width: 74px;
+    font-size: 13px;
+  }
+
+  .pwp-content {
+    width: 100%;
+    padding: 14px 8px 34px;
+  }
+
+  .pwp-tab-posts {
+    display: block;
+  }
+
+  .pwp-sidebar {
+    display: none;
+  }
+
+  .pwp-feed {
+    gap: 12px;
+  }
+
+  .pwp-post-card {
+    border-radius: 7px;
+  }
+
+  .pwp-post-head {
+    padding: 12px 11px 0;
+  }
+
+  .pwp-post-avatar {
+    width: 38px;
+    height: 38px;
+    flex-basis: 38px;
+  }
+
+  .pwp-post-title {
+    margin: 16px 11px 0;
+    font-size: 18px;
+    line-height: 1.14;
+  }
+
+  .pwp-post-excerpt {
+    margin: 6px 11px 0;
+    font-size: 12px;
+  }
+
+  .pwp-post-media-link {
+    margin: 14px 11px 0;
+  }
+
+  .pwp-post-media {
+    min-height: 260px;
+    max-height: 420px;
+  }
+
+  .pwp-post-counts {
+    margin: 12px 11px 0;
+    gap: 18px;
+    font-size: 11px;
+  }
+
+  .pwp-post-actions {
+    margin: 0 11px;
+    min-height: 44px;
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .pwp-post-actions button,
+  .pwp-post-actions a {
+    font-size: 11px;
+  }
+
+  .pwp-post-actions > :nth-child(4) {
+    display: none;
+  }
+
+  .pwp-read-link {
+    margin: 12px 11px 14px;
+    font-size: 12px;
+  }
+
+  .pwp-tab-card {
+    width: 100%;
+    padding: 18px 14px;
+  }
+
+  .pwp-modal-backdrop {
+    padding: 10px 8px;
+    align-items: end;
+  }
+
+  .pwp-message-modal {
+    width: 100%;
+    max-height: 88vh;
+    border-radius: 14px 14px 0 0;
+  }
+}

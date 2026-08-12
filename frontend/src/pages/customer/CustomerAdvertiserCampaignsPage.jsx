@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import ReaderUnifiedShell from '../../components/reader/ReaderUnifiedShell';
 
 const API_BASE =
   import.meta.env.VITE_API_BASE_URL ||
@@ -290,109 +291,90 @@ export default function CustomerAdvertiserCampaignsPage() {
   }
 
   return (
-    <div
-      style={{
-        minHeight: '100vh',
-        background: '#f8fafc',
-        padding: '20px 16px',
-      }}
-    >
+    <ReaderUnifiedShell title="Campaigns" subtitle="Advertiser">
+      <div className="reader-advertiser-campaigns-page">
       <style>{`
+        .reader-advertiser-campaigns-page {
+          width: min(1220px, calc(100% - 64px));
+          margin: 0 auto;
+          padding: 24px 0 48px;
+        }
+
         .customer-advertiser-campaigns-layout {
           display: grid;
-          grid-template-columns: 280px minmax(0, 1fr);
-          gap: 24px;
+          grid-template-columns: minmax(0, 1fr);
+          gap: 0;
           align-items: start;
         }
 
-        .customer-advertiser-campaigns-top {
+        .customer-advertiser-campaigns-list-head {
           display: flex;
-          gap: 16px;
+          align-items: center;
           justify-content: space-between;
-          align-items: flex-end;
+          gap: 16px;
           flex-wrap: wrap;
         }
 
-        @media (max-width: 991px) {
-          .customer-advertiser-campaigns-layout {
-            grid-template-columns: 1fr;
+        .customer-advertiser-campaigns-list-actions {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          flex-wrap: wrap;
+        }
+
+        .customer-advertiser-campaigns-back-link {
+          min-height: 38px;
+          padding: 0 4px;
+          display: inline-flex;
+          align-items: center;
+          color: #64748b;
+          font-size: 13px;
+          font-weight: 700;
+          text-decoration: none;
+        }
+
+        .customer-advertiser-campaigns-create-link {
+          min-height: 38px;
+          padding: 0 15px;
+          border-radius: 10px;
+          background: #111827;
+          color: #ffffff;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 13px;
+          font-weight: 700;
+          text-decoration: none;
+          box-shadow: 0 8px 18px rgba(15, 23, 42, 0.12);
+        }
+
+        @media (max-width: 767px) {
+          .reader-advertiser-campaigns-page {
+            width: calc(100% - 16px);
+            margin: 0 8px;
+            padding: 16px 0 32px;
+          }
+
+          .customer-advertiser-campaigns-list-head {
+            align-items: flex-start;
+          }
+
+          .customer-advertiser-campaigns-list-actions {
+            width: 100%;
+            justify-content: space-between;
+          }
+
+          .customer-advertiser-campaigns-create-link {
+            min-height: 40px;
+            padding: 0 14px;
           }
         }
       `}</style>
 
       <div style={{ width: '100%', maxWidth: 1280, margin: '0 auto' }}>
         <div className="customer-advertiser-campaigns-layout">
-          <CustomerSidebar
-            customer={storedUser}
-            onLogout={handleLogout}
-            currentPath="/customer/advertiser/campaigns"
-          />
 
           <main style={{ display: 'grid', gap: 24 }}>
-            <section
-              style={{
-                borderRadius: 28,
-                border: '1px solid #dbeafe',
-                background: 'linear-gradient(135deg, #eff6ff 0%, #ffffff 100%)',
-                padding: 24,
-                boxShadow: '0 22px 50px rgba(59, 130, 246, 0.06)',
-              }}
-            >
-              <div className="customer-advertiser-campaigns-top">
-                <div>
-                  <div
-                    style={{
-                      display: 'inline-flex',
-                      padding: '6px 12px',
-                      borderRadius: 999,
-                      background: '#dbeafe',
-                      border: '1px solid #bfdbfe',
-                      color: '#1d4ed8',
-                      fontSize: 11,
-                      fontWeight: 800,
-                      letterSpacing: '0.16em',
-                      textTransform: 'uppercase',
-                    }}
-                  >
-                    Advertiser Campaigns
-                  </div>
-
-                  <h1
-                    style={{
-                      margin: '14px 0 0',
-                      fontSize: 40,
-                      fontWeight: 800,
-                      letterSpacing: '-0.05em',
-                      lineHeight: 1.04,
-                      color: '#111827',
-                    }}
-                  >
-                    Manage all your campaigns
-                  </h1>
-
-                  <p
-                    style={{
-                      margin: '12px 0 0',
-                      maxWidth: 760,
-                      fontSize: 15,
-                      lineHeight: 1.8,
-                      color: '#6b7280',
-                    }}
-                  >
-                    View campaign status, spending, impressions, clicks, and open any campaign for creatives and review actions.
-                  </p>
-                </div>
-
-                <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-                  <Link to="/customer/advertiser" style={secondaryBtnStyle}>
-                    Back to Advertiser
-                  </Link>
-                  <Link to="/customer/advertiser/campaigns/create" style={primaryBtnStyle}>
-                    Create Campaign
-                  </Link>
-                </div>
-              </div>
-            </section>
 
             {error ? (
               <div
@@ -433,15 +415,33 @@ export default function CustomerAdvertiserCampaignsPage() {
                 boxShadow: '0 18px 45px rgba(15, 23, 42, 0.05)',
               }}
             >
-              <div
-                style={{
-                  fontSize: 24,
-                  fontWeight: 800,
-                  letterSpacing: '-0.03em',
-                  color: '#111827',
-                }}
-              >
-                Campaign list
+              <div className="customer-advertiser-campaigns-list-head">
+                <div
+                  style={{
+                    fontSize: 24,
+                    fontWeight: 800,
+                    letterSpacing: '-0.03em',
+                    color: '#111827',
+                  }}
+                >
+                  Campaign list
+                </div>
+
+                <div className="customer-advertiser-campaigns-list-actions">
+                  <Link
+                    to="/customer/advertiser"
+                    className="customer-advertiser-campaigns-back-link"
+                  >
+                    Back to Advertiser
+                  </Link>
+
+                  <Link
+                    to="/customer/advertiser/campaigns/create"
+                    className="customer-advertiser-campaigns-create-link"
+                  >
+                    + Create Campaign
+                  </Link>
+                </div>
               </div>
 
               <div style={{ marginTop: 20, display: 'grid', gap: 14 }}>
@@ -566,7 +566,8 @@ export default function CustomerAdvertiserCampaignsPage() {
           </main>
         </div>
       </div>
-    </div>
+      </div>
+    </ReaderUnifiedShell>
   );
 }
 
