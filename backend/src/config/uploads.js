@@ -25,8 +25,17 @@ function resolveUploadsRoot() {
 
   if (!configured) {
     if (nodeEnv === 'production') {
+      const home = String(process.env.HOME || '').trim();
+      const fallback = home
+        ? path.join(home, 'domains', 'bloggad.com', 'uploads')
+        : null;
+
+      if (fallback && !isPathInside(BACKEND_ROOT, fallback)) {
+        return fallback;
+      }
+
       throw new Error(
-        'BLOGGAD_UPLOADS_ROOT is required in production and must point to persistent storage outside the deployed backend directory.'
+        'BLOGGAD_UPLOADS_ROOT is required in production when the persistent Bloggad uploads path cannot be resolved.'
       );
     }
 
