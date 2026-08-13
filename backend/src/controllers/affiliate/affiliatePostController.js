@@ -267,7 +267,7 @@ function getSpecificityHits(value, productTitle = '') {
   let hits = 0;
 
   if (/\d/.test(text)) hits += 1;
-  if (/%|\$|â‚¦|Â£|â‚¬/.test(text)) hits += 1;
+  if (/%|\$|\u20A6|\u00A3|\u20AC/.test(text)) hits += 1;
   if (/:/.test(text)) hits += 1;
   if (/\bfor example\b|\bsuch as\b|\bfor instance\b|\bespecially\b/i.test(text)) hits += 1;
   if (/[A-Z][a-z]+/.test(text.replace(/^[A-Z]/, ''))) hits += 1;
