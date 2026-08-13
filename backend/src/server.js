@@ -1,4 +1,23 @@
-require('dotenv').config();
+const fs = require('fs');
+const path = require('path');
+
+const sharedHostingerEnv =
+  process.env.HOME
+    ? path.join(
+        process.env.HOME,
+        'domains',
+        'bloggad.com',
+        'hbuilds',
+        'config',
+        '.env'
+      )
+    : '';
+
+if (sharedHostingerEnv && fs.existsSync(sharedHostingerEnv)) {
+  require('dotenv').config({ path: sharedHostingerEnv });
+} else {
+  require('dotenv').config();
+}
 
 const http = require('http');
 const pool = require('./config/db');
