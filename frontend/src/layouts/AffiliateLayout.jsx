@@ -30,6 +30,7 @@ import {
   Trophy,
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
+import RoleSwitcher from '../components/shared/RoleSwitcher';
 
 function extractFirstName(user) {
   if (!user) return 'Writer';
@@ -377,6 +378,8 @@ export default function AffiliateLayout() {
                 <strong>Bloggad</strong>
               </div>
 
+              <RoleSwitcher currentRole="writer" iconOnly />
+
               <div className="dashboard-mobile-avatar">
                 {firstName.charAt(0).toUpperCase()}
               </div>
@@ -388,6 +391,7 @@ export default function AffiliateLayout() {
             </div>
 
             <div className="dashboard-account">
+              <RoleSwitcher currentRole="writer" compact />
               <div className="dashboard-account-avatar">
                 {firstName.charAt(0).toUpperCase()}
               </div>
@@ -419,6 +423,7 @@ export default function AffiliateLayout() {
             </div>
 
             <div className="affiliate-layout-user-card">
+              <RoleSwitcher currentRole="writer" compact />
               <div className="affiliate-layout-user-avatar">
                 {firstName.charAt(0).toUpperCase()}
               </div>
@@ -1002,7 +1007,7 @@ const styles = `
     .dashboard-redesign .dashboard-mobile-bar {
       width: 100%;
       display: grid;
-      grid-template-columns: 36px 1fr 34px;
+      grid-template-columns: 36px 1fr 34px 34px;
       align-items: center;
       gap: 10px;
     }

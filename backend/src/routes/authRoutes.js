@@ -1,6 +1,7 @@
 const express = require('express');
 const { protect } = require('../middleware/authMiddleware');
 const authController = require('../controllers/authController');
+const supgadSsoController = require('../controllers/supgadSsoController');
 
 const router = express.Router();
 
@@ -45,6 +46,12 @@ router.get('/test', (req, res) => {
 
 router.post('/register', registerHandler);
 router.post('/login', loginHandler);
+router.post('/supgad', supgadSsoController.verifySupgadSso);
 router.get('/me', protect, getMeHandler);
+router.post(
+  '/switch-role',
+  protect,
+  authController.switchRole || missingHandler('switchRole')
+);
 
 module.exports = router;

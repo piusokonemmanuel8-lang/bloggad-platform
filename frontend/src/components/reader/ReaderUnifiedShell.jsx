@@ -18,6 +18,7 @@ import {
   X,
 } from 'lucide-react';
 import api from '../../api/axios';
+import RoleSwitcher from '../shared/RoleSwitcher';
 import './ReaderUnifiedShell.css';
 
 const readerGroups = [
@@ -294,7 +295,10 @@ export default function ReaderUnifiedShell({
       <div className="reader-unified-main">
         <header className="reader-unified-desktop-bar">
           <h1>{title}</h1>
-          <span>{subtitle}</span>
+          <div className="reader-unified-desktop-actions">
+            <span className="reader-unified-desktop-subtitle">{subtitle}</span>
+            <RoleSwitcher currentRole="reader" compact />
+          </div>
         </header>
 
         <header className="reader-unified-mobile-bar">
@@ -315,6 +319,8 @@ export default function ReaderUnifiedShell({
               <small>Reader</small>
             </span>
           </div>
+
+          <RoleSwitcher currentRole="reader" iconOnly />
 
           <span className="reader-unified-mobile-avatar" aria-label={readerName}>
             {initialFor(readerName)}

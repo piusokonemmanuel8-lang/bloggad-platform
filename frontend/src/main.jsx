@@ -23,9 +23,11 @@ import AdminLayout from './layouts/AdminLayout';
 import PublicLayout from './layouts/PublicLayout';
 
 import LoginPage from './pages/auth/LoginPage';
+import AdminLoginPage from './pages/auth/AdminLoginPage';
 import RegisterPage from './pages/auth/RegisterPage';
 import CustomerLoginPage from './pages/auth/CustomerLoginPage';
 import CustomerRegisterPage from './pages/auth/CustomerRegisterPage';
+import SupgadSsoPage from './pages/auth/SupgadSsoPage';
 
 import AffiliateDashboardPage from './pages/affiliate/AffiliateDashboardPage';
 import AffiliateWebsitePage from './pages/affiliate/AffiliateWebsitePage';
@@ -75,6 +77,7 @@ import AdminCampaignModerationDetailsPage from './pages/admin/AdminCampaignModer
 import AdminPaymentModerationPage from './pages/admin/AdminPaymentModerationPage';
 import AdminPaymentModerationDetailsPage from './pages/admin/AdminPaymentModerationDetailsPage';
 import AdminPaymentGatewaysPage from './pages/admin/AdminPaymentGatewaysPage';
+import AdminSupgadIntegrationPage from './pages/admin/AdminSupgadIntegrationPage';
 import AdminNotificationsPage from './pages/admin/AdminNotificationsPage';
 import AdminAffiliateAdsPage from './pages/admin/AdminAffiliateAdsPage';
 import AdminAffiliateAdsSettingsPage from './pages/admin/AdminAffiliateAdsSettingsPage';
@@ -181,6 +184,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
 
           <Route element={<AuthLayout />}>
             <Route path="/login" element={<LoginPage />} />
+            <Route path="/admin/login" element={<AdminLoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
             <Route path="/customer/login" element={<CustomerLoginPage />} />
             <Route path="/customer/register" element={<CustomerRegisterPage />} />
@@ -188,6 +192,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
             <Route path="/reader/register" element={<CustomerRegisterPage />} />
             <Route path="/writer/login" element={<LoginPage />} />
             <Route path="/writer/register" element={<RegisterPage />} />
+            <Route path="/auth/supgad" element={<SupgadSsoPage />} />
           </Route>
 
           <Route element={<AffiliateLayout />}>
@@ -315,6 +320,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
               element={<AdminPaymentModerationDetailsPage />}
             />
             <Route path="/admin/payment-gateways" element={<AdminPaymentGatewaysPage />} />
+              <Route path="/admin/supgad-integration" element={<AdminSupgadIntegrationPage />} />
           </Route>
 
           <Route

@@ -1,0 +1,178 @@
+.admin-supgad-page {
+  width: 100%;
+  max-width: 1040px;
+  margin: 0 auto;
+  padding: 28px;
+  color: #101828;
+}
+
+.admin-supgad-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 22px;
+}
+
+.admin-supgad-heading h1 {
+  margin: 4px 0 6px;
+  font-size: 28px;
+  line-height: 1.2;
+}
+
+.admin-supgad-heading p {
+  margin: 0;
+  color: #667085;
+}
+
+.admin-supgad-eyebrow {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.admin-supgad-status-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.admin-supgad-status-card,
+.admin-supgad-card {
+  border: 1px solid #e4e7ec;
+  border-radius: 14px;
+  background: #ffffff;
+}
+
+.admin-supgad-status-card {
+  padding: 18px;
+}
+
+.admin-supgad-status-card span,
+.admin-supgad-status-card small {
+  display: block;
+  color: #667085;
+}
+
+.admin-supgad-status-card strong {
+  display: block;
+  margin: 6px 0;
+  font-size: 16px;
+}
+
+.admin-supgad-card {
+  padding: 24px;
+}
+
+.admin-supgad-section {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.8fr) minmax(320px, 1.2fr);
+  gap: 28px;
+  align-items: start;
+}
+
+.admin-supgad-section h2 {
+  margin: 0 0 6px;
+  font-size: 18px;
+}
+
+.admin-supgad-section p {
+  margin: 0;
+  color: #667085;
+  line-height: 1.55;
+}
+
+.admin-supgad-section label {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 16px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.admin-supgad-section input {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid #d0d5dd;
+  border-radius: 10px;
+  background: #ffffff;
+  color: #101828;
+  outline: none;
+}
+
+.admin-supgad-section input:focus {
+  border-color: #98a2b3;
+  box-shadow: 0 0 0 3px rgba(152, 162, 179, 0.14);
+}
+
+.admin-supgad-section small {
+  color: #667085;
+  font-weight: 400;
+}
+
+.admin-supgad-divider {
+  height: 1px;
+  margin: 24px 0;
+  background: #eaecf0;
+}
+
+.admin-supgad-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 22px;
+}
+
+.admin-supgad-actions button {
+  min-height: 42px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 10px;
+  background: #101828;
+  color: #ffffff;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.admin-supgad-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.admin-supgad-message {
+  margin-top: 18px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  font-size: 13px;
+}
+
+.admin-supgad-message.success {
+  background: #ecfdf3;
+  color: #067647;
+}
+
+.admin-supgad-message.error {
+  background: #fef3f2;
+  color: #b42318;
+}
+
+@media (max-width: 760px) {
+  .admin-supgad-page {
+    padding: 16px;
+  }
+
+  .admin-supgad-status-grid,
+  .admin-supgad-section {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-supgad-heading h1 {
+    font-size: 24px;
+  }
+
+  .admin-supgad-card {
+    padding: 18px;
+  }
+}

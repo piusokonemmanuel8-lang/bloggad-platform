@@ -296,6 +296,10 @@ function createApp() {
     './routes/admin/adminCurrencyRoutes',
   ]);
 
+mount(app, '/api/admin/supgad-integration', 'adminSupgadIntegrationRoutes', [
+  './routes/admin/adminSupgadIntegrationRoutes',
+]);
+
   // public
   mount(app, '/api/public/home', 'publicHomeRoutes', [
     './routes/public/publicHomeRoutes',

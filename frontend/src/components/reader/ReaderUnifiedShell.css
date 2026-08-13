@@ -243,9 +243,18 @@
   letter-spacing: -0.02em;
 }
 
-.reader-unified-desktop-bar span {
+.reader-unified-desktop-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 14px;
+  min-width: 0;
+}
+
+.reader-unified-desktop-subtitle {
   color: #667085;
   font-size: 12px;
+  white-space: nowrap;
 }
 
 .reader-unified-mobile-bar {
@@ -287,7 +296,7 @@
     z-index: 30;
     height: 60px;
     display: grid;
-    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-columns: auto minmax(0, 1fr) 34px auto;
     align-items: center;
     gap: 11px;
     padding: 0 8px;

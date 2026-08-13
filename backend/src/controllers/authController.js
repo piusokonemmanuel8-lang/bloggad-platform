@@ -238,6 +238,105 @@ async function getMe(req, res) {
   }
 }
 
+async function switchRole(req, res) {
+  try {
+    const requestedRole = String(req.body?.role || '').trim().toLowerCase();
+
+    if (!['reader', 'writer'].includes(requestedRole)) {
+      return res.status(400).json({
+        ok: false,
+        message: 'Role must be reader or writer.',
+      });
+    }
+
+    const [currentUsers] = await pool.query(
+      `
+      SELECT id, name, email, role, status, email_verified_at, last_login_at, created_at, updated_at
+      FROM users
+      WHERE id = ?
+      LIMIT 1
+      `,
+      [req.user.id]
+    );
+
+    const currentUser = currentUsers[0] || null;
+
+    if (!currentUser) {
+      return res.status(404).json({
+        ok: false,
+        message: 'User not found.',
+      });
+    }
+
+    if (currentUser.role === 'admin') {
+      return res.status(403).json({
+        ok: false,
+        message: 'Admin accounts cannot switch into Reader or Writer mode.',
+      });
+    }
+
+    if (!['customer', 'affiliate'].includes(currentUser.role)) {
+      return res.status(403).json({
+        ok: false,
+        message: 'This account cannot switch Reader/Writer role.',
+      });
+    }
+
+    const nextLegacyRole = requestedRole === 'writer' ? 'affiliate' : 'customer';
+
+    if (currentUser.role !== nextLegacyRole) {
+      await pool.query(
+        `
+        UPDATE users
+        SET role = ?, updated_at = NOW()
+        WHERE id = ?
+        `,
+        [nextLegacyRole, currentUser.id]
+      );
+    }
+
+    const [freshUsers] = await pool.query(
+      `
+      SELECT id, name, email, role, status, email_verified_at, last_login_at, created_at, updated_at
+      FROM users
+      WHERE id = ?
+      LIMIT 1
+      `,
+      [currentUser.id]
+    );
+
+    const freshUser = freshUsers[0];
+
+    const token = generateToken({
+      id: freshUser.id,
+      email: freshUser.email,
+      role: freshUser.role,
+    });
+
+    setAuthCookie(res, token);
+
+    return res.status(200).json({
+      ok: true,
+      message: requestedRole === 'writer'
+        ? 'Switched to Writer.'
+        : 'Switched to Reader.',
+      token,
+      user: sanitizeUser(freshUser),
+      active_role: requestedRole,
+      redirect_to: requestedRole === 'writer'
+        ? '/writer/dashboard'
+        : '/reader/dashboard',
+    });
+  } catch (error) {
+    console.error('switchRole error:', error);
+
+    return res.status(500).json({
+      ok: false,
+      message: 'Failed to switch role.',
+      error: error.message,
+    });
+  }
+}
 async function logoutUser(req, res) {
   try {
     res.clearCookie(COOKIE_NAME, {
@@ -265,5 +364,6 @@ module.exports = {
   registerAffiliate,
   loginUser,
   getMe,
+  switchRole,
   logoutUser,
 };

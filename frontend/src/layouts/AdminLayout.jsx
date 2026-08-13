@@ -45,6 +45,7 @@ const adminMenu = [
   { label: 'Campaign Moderation', to: '/admin/campaign-moderation', icon: Megaphone },
   { label: 'Payment Moderation', to: '/admin/payment-moderation', icon: Wallet },
   { label: 'Payment Gateways', to: '/admin/payment-gateways', icon: CreditCard },
+  { label: 'Supgad Integration', to: '/admin/supgad-integration', icon: ShieldCheck },
   { label: 'Products', to: '/admin/products', icon: Box },
   { label: 'Posts', to: '/admin/posts', icon: FileText },
   { label: 'Chats', to: '/admin/chats', icon: MessageSquare },
@@ -102,7 +103,7 @@ export default function AdminLayout() {
   }
 
   if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/admin/login" replace />;
   }
 
   if (!isAdmin) {
