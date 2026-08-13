@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Navigate, NavLink, Outlet, useLocation } from 'react-router-dom';
+import { Link, Navigate, NavLink, Outlet, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard,
   Globe,
@@ -31,6 +31,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import RoleSwitcher from '../components/shared/RoleSwitcher';
+import { getSupgadReturnUrl } from '../utils/supgadReturn';
 
 function extractFirstName(user) {
   if (!user) return 'Writer';
@@ -116,7 +117,7 @@ const navItems = [
 
 const dashboardGroups = ['Overview', 'Publish', 'Audience', 'Store', 'Insights', 'Account'];
 
-function StandardNavigation({ onNavigate }) {
+function StandardNavigation({ onNavigate, supgadReturnUrl }) {
   return (
     <div className="affiliate-layout-sidebar-menu">
       <div className="affiliate-layout-menu-label">Main Menu</div>
@@ -143,12 +144,26 @@ function StandardNavigation({ onNavigate }) {
             </NavLink>
           );
         })}
+
+        {supgadReturnUrl ? (
+          <a
+            href={supgadReturnUrl}
+            className="affiliate-layout-nav-item"
+            onClick={onNavigate}
+          >
+            <div className="affiliate-layout-nav-left">
+              <Globe size={19} />
+              <span>Supgad</span>
+            </div>
+            <ChevronRight size={16} />
+          </a>
+        ) : null}
       </nav>
     </div>
   );
 }
 
-function DashboardNavigation({ onNavigate }) {
+function DashboardNavigation({ onNavigate, supgadReturnUrl }) {
   return (
     <div className="dashboard-nav-scroll">
       {dashboardGroups.map((group) => {
@@ -182,6 +197,24 @@ function DashboardNavigation({ onNavigate }) {
           </div>
         );
       })}
+
+      {supgadReturnUrl ? (
+        <div className="dashboard-nav-group">
+          <div className="dashboard-nav-label">Platform</div>
+          <nav className="dashboard-nav-list" aria-label="Platform navigation">
+            <a
+              href={supgadReturnUrl}
+              className="dashboard-nav-item"
+              onClick={onNavigate}
+            >
+              <span className="dashboard-nav-icon">
+                <Globe size={16} strokeWidth={1.8} />
+              </span>
+              <span className="dashboard-nav-text">Supgad</span>
+            </a>
+          </nav>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -193,6 +226,7 @@ export default function AffiliateLayout() {
 
   const firstName = useMemo(() => extractFirstName(user), [user]);
   const greeting = useMemo(() => getGreeting(firstName), [firstName]);
+  const supgadReturnUrl = useMemo(() => getSupgadReturnUrl(), []);
 
   const connectedWriterShellMode =
   location.pathname === '/writer/plan' ||
@@ -320,14 +354,27 @@ export default function AffiliateLayout() {
       >
         <div className="affiliate-layout-sidebar-top">
           <div className="affiliate-layout-brand">
-            <div className="affiliate-layout-brand-logo">
-              {dashboardMode ? <span className="dashboard-brand-dot" /> : 'BG'}
-            </div>
+            <Link
+              to="/"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 12,
+                color: 'inherit',
+                textDecoration: 'none',
+              }}
+              aria-label="Go to Bloggad homepage"
+              onClick={() => setMobileOpen(false)}
+            >
+              <div className="affiliate-layout-brand-logo">
+                {dashboardMode ? <span className="dashboard-brand-dot" /> : 'BG'}
+              </div>
 
-            <div className="affiliate-layout-brand-copy">
-              <h2>Bloggad</h2>
-              <p>Writer Studio</p>
-            </div>
+              <div className="affiliate-layout-brand-copy">
+                <h2>Bloggad</h2>
+                <p>Writer Studio</p>
+              </div>
+            </Link>
 
             {dashboardMode ? (
               <button
@@ -343,9 +390,15 @@ export default function AffiliateLayout() {
         </div>
 
         {dashboardMode ? (
-          <DashboardNavigation onNavigate={() => setMobileOpen(false)} />
+          <DashboardNavigation
+            onNavigate={() => setMobileOpen(false)}
+            supgadReturnUrl={supgadReturnUrl}
+          />
         ) : (
-          <StandardNavigation onNavigate={() => setMobileOpen(false)} />
+          <StandardNavigation
+            onNavigate={() => setMobileOpen(false)}
+            supgadReturnUrl={supgadReturnUrl}
+          />
         )}
       </aside>
 
@@ -371,12 +424,17 @@ export default function AffiliateLayout() {
                 {mobileOpen ? <X size={19} /> : <Menu size={19} />}
               </button>
 
-              <div className="dashboard-mobile-brand">
+              <Link
+                to="/"
+                className="dashboard-mobile-brand"
+                style={{ color: 'inherit', textDecoration: 'none' }}
+                aria-label="Go to Bloggad homepage"
+              >
                 <span className="dashboard-mobile-brand-mark">
                   <span />
                 </span>
                 <strong>Bloggad</strong>
-              </div>
+              </Link>
 
               <RoleSwitcher currentRole="writer" iconOnly />
 

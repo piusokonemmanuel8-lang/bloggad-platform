@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 
 const BLOCK_OPTIONS = [
   { type: 'paragraph', label: 'Paragraph' },
@@ -34,6 +34,446 @@ function encodeLinkValue(value) {
   });
 }
 
+
+const RICH_TEXT_TYPE = 'bloggad_rich_text_v1';
+const DEFAULT_INLINE_LINK_COLOR = '#2563eb';
+
+function normalizeInlineLinkColor(value) {
+  const color = String(value || '').trim();
+  return /^#[0-9a-f]{6}$/i.test(color)
+    ? color.toLowerCase()
+    : DEFAULT_INLINE_LINK_COLOR;
+}
+
+function isHttpUrl(value) {
+  try {
+    const parsed = new URL(String(value || '').trim());
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+  } catch (error) {
+    return false;
+  }
+}
+
+export function parseSimpleWriterRichText(value) {
+  const raw = String(value || '');
+
+  if (!raw.trim().startsWith('{')) {
+    return {
+      rich: false,
+      text: raw,
+      links: [],
+    };
+  }
+
+  try {
+    const parsed = JSON.parse(raw);
+
+    if (
+      parsed?.type !== RICH_TEXT_TYPE ||
+      typeof parsed?.text !== 'string' ||
+      !Array.isArray(parsed?.links)
+    ) {
+      return {
+        rich: false,
+        text: raw,
+        links: [],
+      };
+    }
+
+    const text = parsed.text;
+    const links = parsed.links
+      .map((link) => ({
+        start: Number(link?.start),
+        end: Number(link?.end),
+        url: String(link?.url || '').trim(),
+        color: normalizeInlineLinkColor(link?.color),
+      }))
+      .filter(
+        (link) =>
+          Number.isInteger(link.start) &&
+          Number.isInteger(link.end) &&
+          link.start >= 0 &&
+          link.end > link.start &&
+          link.end <= text.length &&
+          isHttpUrl(link.url)
+      )
+      .sort((a, b) => a.start - b.start || a.end - b.end);
+
+    return {
+      rich: true,
+      text,
+      links,
+    };
+  } catch (error) {
+    return {
+      rich: false,
+      text: raw,
+      links: [],
+    };
+  }
+}
+
+export function getSimpleWriterPlainText(value) {
+  return parseSimpleWriterRichText(value).text;
+}
+
+function encodeSimpleWriterRichText(text, links = []) {
+  const cleanText = String(text || '');
+  const cleanLinks = links
+    .map((link) => ({
+      start: Number(link.start),
+      end: Number(link.end),
+      url: String(link.url || '').trim(),
+      color: normalizeInlineLinkColor(link.color),
+    }))
+    .filter(
+      (link) =>
+        Number.isInteger(link.start) &&
+        Number.isInteger(link.end) &&
+        link.start >= 0 &&
+        link.end > link.start &&
+        link.end <= cleanText.length &&
+        isHttpUrl(link.url)
+    )
+    .sort((a, b) => a.start - b.start || a.end - b.end);
+
+  if (!cleanLinks.length) {
+    return cleanText;
+  }
+
+  return JSON.stringify({
+    type: RICH_TEXT_TYPE,
+    text: cleanText,
+    links: cleanLinks,
+  });
+}
+
+function adjustInlineLinksAfterTextEdit(oldText, newText, links) {
+  if (oldText === newText) return links;
+
+  let prefix = 0;
+  const prefixLimit = Math.min(oldText.length, newText.length);
+
+  while (
+    prefix < prefixLimit &&
+    oldText.charAt(prefix) === newText.charAt(prefix)
+  ) {
+    prefix += 1;
+  }
+
+  let suffix = 0;
+
+  while (
+    suffix < oldText.length - prefix &&
+    suffix < newText.length - prefix &&
+    oldText.charAt(oldText.length - 1 - suffix) ===
+      newText.charAt(newText.length - 1 - suffix)
+  ) {
+    suffix += 1;
+  }
+
+  const oldChangeEnd = oldText.length - suffix;
+  const newChangeEnd = newText.length - suffix;
+  const delta = newChangeEnd - oldChangeEnd;
+
+  return links
+    .map((link) => {
+      if (link.end <= prefix) {
+        return link;
+      }
+
+      if (link.start >= oldChangeEnd) {
+        return {
+          ...link,
+          start: link.start + delta,
+          end: link.end + delta,
+        };
+      }
+
+      return null;
+    })
+    .filter(Boolean);
+}
+
+function RichParagraphEditor({ block, disabled, onChange }) {
+  const textareaRef = useRef(null);
+  const parsed = useMemo(
+    () => parseSimpleWriterRichText(block?.field_value),
+    [block?.field_value]
+  );
+
+  const [selection, setSelection] = useState({
+    start: 0,
+    end: 0,
+  });
+  const [linkDraft, setLinkDraft] = useState(null);
+  const [linkError, setLinkError] = useState('');
+
+  const selectedText =
+    selection.end > selection.start
+      ? parsed.text.slice(selection.start, selection.end)
+      : '';
+
+  const updateSelection = (event) => {
+    setSelection({
+      start: Number(event.currentTarget.selectionStart || 0),
+      end: Number(event.currentTarget.selectionEnd || 0),
+    });
+  };
+
+  const handleTextChange = (event) => {
+    const nextText = event.target.value;
+    const nextLinks = adjustInlineLinksAfterTextEdit(
+      parsed.text,
+      nextText,
+      parsed.links
+    );
+
+    onChange(encodeSimpleWriterRichText(nextText, nextLinks));
+
+    setSelection({
+      start: Number(event.target.selectionStart || 0),
+      end: Number(event.target.selectionEnd || 0),
+    });
+  };
+
+  const beginInlineLink = () => {
+    if (!selectedText) {
+      setLinkError('Select the words you want to link first.');
+      return;
+    }
+
+    setLinkError('');
+    setLinkDraft({
+      start: selection.start,
+      end: selection.end,
+      text: selectedText,
+      url: '',
+      color: DEFAULT_INLINE_LINK_COLOR,
+    });
+  };
+
+  const applyInlineLink = () => {
+    if (!linkDraft) return;
+
+    if (!isHttpUrl(linkDraft.url)) {
+      setLinkError('Enter a valid http or https URL.');
+      return;
+    }
+
+    const nextLink = {
+      start: linkDraft.start,
+      end: linkDraft.end,
+      url: String(linkDraft.url || '').trim(),
+      color: normalizeInlineLinkColor(linkDraft.color),
+    };
+
+    const withoutOverlap = parsed.links.filter(
+      (link) =>
+        link.end <= nextLink.start ||
+        link.start >= nextLink.end
+    );
+
+    onChange(
+      encodeSimpleWriterRichText(
+        parsed.text,
+        [...withoutOverlap, nextLink]
+      )
+    );
+
+    setLinkDraft(null);
+    setLinkError('');
+  };
+
+  const removeInlineLink = (removeIndex) => {
+    const nextLinks = parsed.links.filter(
+      (_, index) => index !== removeIndex
+    );
+
+    onChange(
+      encodeSimpleWriterRichText(parsed.text, nextLinks)
+    );
+  };
+
+  return (
+    <div style={{ display: 'grid', gap: 10 }}>
+      <textarea
+        ref={textareaRef}
+        rows={8}
+        value={parsed.text}
+        placeholder="Write your paragraph..."
+        onChange={handleTextChange}
+        onSelect={updateSelection}
+        onKeyUp={updateSelection}
+        onMouseUp={updateSelection}
+        disabled={disabled}
+        style={{ width: '100%', resize: 'vertical' }}
+      />
+
+      <div
+        style={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          alignItems: 'center',
+          gap: 8,
+        }}
+      >
+        <button
+          type="button"
+          disabled={disabled || !selectedText}
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={beginInlineLink}
+        >
+          Link selected text
+        </button>
+
+        <span
+          style={{
+            color: '#64748b',
+            fontSize: 12,
+          }}
+        >
+          {selectedText
+            ? `Selected: ${selectedText}`
+            : 'Highlight words in the paragraph first.'}
+        </span>
+      </div>
+
+      {linkDraft ? (
+        <div
+          style={{
+            display: 'grid',
+            gap: 10,
+            padding: 12,
+            border: '1px solid #cbd5e1',
+            borderRadius: 12,
+            background: '#f8fafc',
+          }}
+        >
+          <strong style={{ fontSize: 13 }}>
+            Link "{linkDraft.text}"
+          </strong>
+
+          <input
+            type="url"
+            value={linkDraft.url}
+            placeholder="https://example.com"
+            onChange={(event) =>
+              setLinkDraft((current) => ({
+                ...current,
+                url: event.target.value,
+              }))
+            }
+            disabled={disabled}
+          />
+
+          <label
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+              fontSize: 13,
+              fontWeight: 700,
+            }}
+          >
+            Text color
+            <input
+              type="color"
+              value={linkDraft.color}
+              onChange={(event) =>
+                setLinkDraft((current) => ({
+                  ...current,
+                  color: event.target.value,
+                }))
+              }
+              disabled={disabled}
+              aria-label="Linked text color"
+            />
+            <span style={{ color: linkDraft.color }}>
+              {linkDraft.text}
+            </span>
+          </label>
+
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button
+              type="button"
+              disabled={disabled}
+              onClick={applyInlineLink}
+            >
+              Apply link
+            </button>
+            <button
+              type="button"
+              disabled={disabled}
+              onClick={() => {
+                setLinkDraft(null);
+                setLinkError('');
+              }}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {linkError ? (
+        <div
+          role="alert"
+          style={{
+            color: '#991b1b',
+            fontSize: 12,
+          }}
+        >
+          {linkError}
+        </div>
+      ) : null}
+
+      {parsed.links.length ? (
+        <div style={{ display: 'grid', gap: 8 }}>
+          {parsed.links.map((link, index) => (
+            <div
+              key={`${link.start}-${link.end}-${index}`}
+              style={{
+                display: 'flex',
+                flexWrap: 'wrap',
+                alignItems: 'center',
+                gap: 8,
+                padding: '8px 10px',
+                border: '1px solid #e2e8f0',
+                borderRadius: 10,
+              }}
+            >
+              <strong
+                style={{
+                  color: link.color,
+                  fontSize: 13,
+                }}
+              >
+                {parsed.text.slice(link.start, link.end)}
+              </strong>
+              <span
+                style={{
+                  color: '#64748b',
+                  fontSize: 12,
+                  overflowWrap: 'anywhere',
+                }}
+              >
+                {link.url}
+              </span>
+              <button
+                type="button"
+                disabled={disabled}
+                onClick={() => removeInlineLink(index)}
+              >
+                Remove
+              </button>
+            </div>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
 function isVideoBlock(block) {
   return String(block?.field_key || '')
     .toLowerCase()
@@ -456,14 +896,20 @@ export default function SimpleWriterWorkroom({
                 disabled={disabled}
                 style={{ width: '100%' }}
               />
-            ) : (
+            ) : type === 'quote' ? (
               <textarea
-                rows={type === 'quote' ? 4 : 8}
+                rows={4}
                 value={block.field_value || ''}
-                placeholder={type === 'quote' ? 'Quote or highlighted passage' : 'Write your paragraph...'}
+                placeholder="Quote or highlighted passage"
                 onChange={(event) => updateBlock(index, event.target.value)}
                 disabled={disabled}
                 style={{ width: '100%', resize: 'vertical' }}
+              />
+            ) : (
+              <RichParagraphEditor
+                block={block}
+                disabled={disabled}
+                onChange={(value) => updateBlock(index, value)}
               />
             )}
           </div>

@@ -1,5 +1,6 @@
 import { createContext, useEffect, useMemo, useState } from 'react';
 import api from '../api/axios';
+import { clearSupgadReturnRole } from '../utils/supgadReturn';
 
 export const AuthContext = createContext(null);
 
@@ -62,6 +63,7 @@ export function AuthProvider({ children }) {
 
         localStorage.setItem(STORAGE_KEYS.token, nextToken);
         localStorage.setItem(STORAGE_KEYS.user, JSON.stringify(nextUser));
+        clearSupgadReturnRole();
 
         return data;
       }
@@ -87,6 +89,7 @@ export function AuthProvider({ children }) {
 
         localStorage.setItem(STORAGE_KEYS.token, nextToken);
         localStorage.setItem(STORAGE_KEYS.user, JSON.stringify(nextUser));
+        clearSupgadReturnRole();
 
         return data;
       }
@@ -102,6 +105,7 @@ export function AuthProvider({ children }) {
     setUser(null);
     localStorage.removeItem(STORAGE_KEYS.token);
     localStorage.removeItem(STORAGE_KEYS.user);
+    clearSupgadReturnRole();
   };
 
   const value = useMemo(

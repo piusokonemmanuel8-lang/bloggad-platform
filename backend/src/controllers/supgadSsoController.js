@@ -11,6 +11,15 @@ const {
 const PROVIDER = 'supgad';
 const COOKIE_NAME = 'bloggad_token';
 const SSO_TOKEN_TYPE = 'supgad_bloggad_sso';
+const SUPGAD_RETURN_ROLES = new Set([
+  'vendor',
+  'affiliate',
+  'affiliate_manager',
+  'freelancer',
+  'employer',
+  'customer',
+  'admin',
+]);
 
 function cleanText(value, maxLength) {
   return String(value ?? '')
@@ -20,6 +29,14 @@ function cleanText(value, maxLength) {
 
 function cleanEmail(value) {
   return cleanText(value, 190).toLowerCase();
+}
+
+function cleanSupgadRole(value) {
+  const role = cleanText(value, 64)
+    .toLowerCase()
+    .replace(/-/g, '_');
+
+  return SUPGAD_RETURN_ROLES.has(role) ? role : '';
 }
 
 function isValidEmail(value) {
@@ -93,6 +110,7 @@ async function verifySupgadSso(req, res) {
   const email = cleanEmail(claims?.email);
   const fullName = cleanText(claims?.full_name, 150);
   const avatar = cleanText(claims?.avatar, 500);
+  const supgadActiveRole = cleanSupgadRole(claims?.supgad_active_role);
 
   if (
     claims?.token_type !== SSO_TOKEN_TYPE ||
@@ -352,6 +370,7 @@ async function verifySupgadSso(req, res) {
       token,
       user: sanitizeUser(freshUser),
       active_role: 'reader',
+      supgad_active_role: supgadActiveRole || null,
       redirect_to: '/reader/dashboard',
       provisioned_from: 'supgad',
     });

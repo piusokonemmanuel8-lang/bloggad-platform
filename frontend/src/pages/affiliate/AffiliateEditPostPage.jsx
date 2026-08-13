@@ -1,6 +1,9 @@
 import WriterTopicSelector from '../../components/writer/WriterTopicSelector';
 import WriterPlacementSelector from '../../components/writer/WriterPlacementSelector';
-import SimpleWriterWorkroom, { buildInitialSimpleWriterBlocks } from '../../components/writer/SimpleWriterWorkroom';
+import SimpleWriterWorkroom, {
+  buildInitialSimpleWriterBlocks,
+  getSimpleWriterPlainText,
+} from '../../components/writer/SimpleWriterWorkroom';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -34,7 +37,7 @@ function getStatusClass(status = '') {
 }
 
 function normalizeText(value) {
-  return String(value || '')
+  return getSimpleWriterPlainText(value)
     .replace(/\s+/g, ' ')
     .trim();
 }

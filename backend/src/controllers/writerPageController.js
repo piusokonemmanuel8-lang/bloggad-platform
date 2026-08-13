@@ -130,7 +130,7 @@ async function loadPublicPage(slug) {
     `SELECT pg.*,u.name AS account_name,wp.display_name,wp.pen_name,wp.tagline AS writer_tagline,
             wp.bio AS writer_bio,wp.avatar_url AS writer_avatar_url,wp.cover_url AS writer_cover_url
      FROM writer_pages pg
-     INNER JOIN users u ON u.id=pg.user_id AND u.role='affiliate' AND u.status='active'
+     INNER JOIN users u ON u.id=pg.user_id AND u.status='active'
      LEFT JOIN writer_profiles wp ON wp.user_id=pg.user_id AND wp.status='active'
      WHERE pg.slug=? AND pg.status='active' LIMIT 1`,[slug]
   );

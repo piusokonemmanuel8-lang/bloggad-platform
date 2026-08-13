@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { Link, NavLink, useNavigate } from 'react-router-dom';
 import {
   Bell,
   Bookmark,
@@ -7,6 +7,7 @@ import {
   Crown,
   GraduationCap,
   Home,
+  ExternalLink,
   LogOut,
   Menu,
   MessageCircle,
@@ -19,6 +20,10 @@ import {
 } from 'lucide-react';
 import api from '../../api/axios';
 import RoleSwitcher from '../shared/RoleSwitcher';
+import {
+  clearSupgadReturnRole,
+  getSupgadReturnUrl,
+} from '../../utils/supgadReturn';
 import './ReaderUnifiedShell.css';
 
 const readerGroups = [
@@ -80,7 +85,7 @@ function initialFor(value) {
   return clean ? clean.charAt(0).toUpperCase() : 'R';
 }
 
-function ReaderNavigation({ onNavigate }) {
+function ReaderNavigation({ onNavigate, supgadReturnUrl }) {
   return (
     <nav className="reader-unified-nav" aria-label="Reader navigation">
       {readerGroups.map((group) => (
@@ -109,6 +114,24 @@ function ReaderNavigation({ onNavigate }) {
           </div>
         </div>
       ))}
+
+      {supgadReturnUrl ? (
+        <div className="reader-unified-nav-group">
+          <div className="reader-unified-nav-label">Platform</div>
+          <div className="reader-unified-nav-list">
+            <a
+              href={supgadReturnUrl}
+              onClick={onNavigate}
+              className="reader-unified-nav-item"
+            >
+              <span className="reader-unified-nav-icon" aria-hidden="true">
+                <ExternalLink size={16} strokeWidth={1.9} />
+              </span>
+              <span>Supgad</span>
+            </a>
+          </div>
+        </div>
+      ) : null}
     </nav>
   );
 }
@@ -121,6 +144,7 @@ export default function ReaderUnifiedShell({
   const navigate = useNavigate();
   const user = useMemo(() => getStoredUser(), []);
   const readerName = useMemo(() => displayName(user), [user]);
+  const supgadReturnUrl = useMemo(() => getSupgadReturnUrl(), []);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [readerTier, setReaderTier] = useState('');
 
@@ -151,20 +175,30 @@ export default function ReaderUnifiedShell({
     localStorage.removeItem('user');
     localStorage.removeItem('customerUser');
     localStorage.removeItem('customerLoginContext');
+    clearSupgadReturnRole();
     navigate('/reader/login', { replace: true });
   }
 
   const sidebarContent = (
     <>
-      <div className="reader-unified-brand">
+      <Link
+        to="/"
+        className="reader-unified-brand"
+        style={{ color: 'inherit', textDecoration: 'none' }}
+        aria-label="Go to Bloggad homepage"
+        onClick={() => setMobileOpen(false)}
+      >
         <span className="reader-unified-brand-mark" aria-hidden="true">B</span>
         <span className="reader-unified-brand-copy">
           <strong>Bloggad</strong>
           <small>Reader</small>
         </span>
-      </div>
+      </Link>
 
-      <ReaderNavigation onNavigate={() => setMobileOpen(false)} />
+      <ReaderNavigation
+        onNavigate={() => setMobileOpen(false)}
+        supgadReturnUrl={supgadReturnUrl}
+      />
 
       <div
         style={{
@@ -312,13 +346,18 @@ export default function ReaderUnifiedShell({
             <span>Menu</span>
           </button>
 
-          <div className="reader-unified-mobile-brand">
+          <Link
+            to="/"
+            className="reader-unified-mobile-brand"
+            style={{ color: 'inherit', textDecoration: 'none' }}
+            aria-label="Go to Bloggad homepage"
+          >
             <span className="reader-unified-brand-mark" aria-hidden="true">B</span>
             <span className="reader-unified-brand-copy">
               <strong>Bloggad</strong>
               <small>Reader</small>
             </span>
-          </div>
+          </Link>
 
           <RoleSwitcher currentRole="reader" iconOnly />
 

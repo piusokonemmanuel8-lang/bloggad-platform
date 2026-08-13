@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import api from '../../api/axios';
+import { saveSupgadReturnRole } from '../../utils/supgadReturn';
 
 const TOKEN_KEYS = [
   'bloggad_token',
@@ -15,7 +16,7 @@ const USER_KEYS = [
   'customerUser',
 ];
 
-function saveBloggadSession(token, user) {
+function saveBloggadSession(token, user, supgadActiveRole) {
   for (const key of TOKEN_KEYS) {
     localStorage.setItem(key, token);
   }
@@ -27,6 +28,7 @@ function saveBloggadSession(token, user) {
   }
 
   localStorage.setItem('bloggad_active_role', 'reader');
+  saveSupgadReturnRole(supgadActiveRole);
 }
 
 export default function SupgadSsoPage() {
@@ -62,7 +64,11 @@ export default function SupgadSsoPage() {
           throw new Error(data?.message || 'Supgad sign-in failed.');
         }
 
-        saveBloggadSession(data.token, data.user);
+        saveBloggadSession(
+          data.token,
+          data.user,
+          data.supgad_active_role
+        );
         window.location.replace(data.redirect_to || '/reader/dashboard');
       } catch (error) {
         const message =

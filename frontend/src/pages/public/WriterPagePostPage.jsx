@@ -56,6 +56,113 @@ function fieldKey(field) {
   ).trim().toLowerCase();
 }
 
+function parseStoredLinkValue(value) {
+  const raw = String(value || '').trim();
+
+  if (!raw) {
+    return { label: '', url: '' };
+  }
+
+  if (raw.startsWith('{')) {
+    try {
+      const parsed = JSON.parse(raw);
+
+      return {
+        label: String(parsed?.label || '').trim(),
+        url: String(parsed?.url || '').trim(),
+      };
+    } catch (error) {}
+  }
+
+  return { label: raw, url: raw };
+}
+
+
+const RICH_TEXT_FIELD_TYPE = 'bloggad_rich_text_v1';
+const DEFAULT_INLINE_LINK_COLOR = '#2563eb';
+
+function parseStoredRichText(value) {
+  const raw = String(value || '').trim();
+  if (!raw.startsWith('{')) return null;
+
+  try {
+    const parsed = JSON.parse(raw);
+
+    if (
+      parsed?.type !== RICH_TEXT_FIELD_TYPE ||
+      typeof parsed?.text !== 'string' ||
+      !Array.isArray(parsed?.links)
+    ) {
+      return null;
+    }
+
+    const links = parsed.links
+      .map((link) => ({
+        start: Number(link?.start),
+        end: Number(link?.end),
+        url: String(link?.url || '').trim(),
+        color: /^#[0-9a-f]{6}$/i.test(String(link?.color || '').trim())
+          ? String(link.color).trim()
+          : DEFAULT_INLINE_LINK_COLOR,
+      }))
+      .filter(
+        (link) =>
+          Number.isInteger(link.start) &&
+          Number.isInteger(link.end) &&
+          link.start >= 0 &&
+          link.end > link.start &&
+          link.end <= parsed.text.length &&
+          /^https?:\/\//i.test(link.url)
+      )
+      .sort((a, b) => a.start - b.start || a.end - b.end);
+
+    return {
+      text: parsed.text,
+      links,
+    };
+  } catch (error) {
+    return null;
+  }
+}
+
+function renderRichTextNodes(richText, keyPrefix) {
+  const nodes = [];
+  let cursor = 0;
+
+  richText.links.forEach((link, index) => {
+    if (link.start < cursor) return;
+
+    if (link.start > cursor) {
+      nodes.push(
+        richText.text.slice(cursor, link.start)
+      );
+    }
+
+    nodes.push(
+      <a
+        key={`${keyPrefix}-link-${index}`}
+        href={link.url}
+        target="_blank"
+        rel="sponsored noopener noreferrer"
+        style={{
+          color: link.color,
+          textDecoration: 'none',
+          cursor: 'pointer',
+        }}
+      >
+        {richText.text.slice(link.start, link.end)}
+      </a>
+    );
+
+    cursor = link.end;
+  });
+
+  if (cursor < richText.text.length) {
+    nodes.push(richText.text.slice(cursor));
+  }
+
+  return nodes;
+}
 function stripMarkup(value) {
   return String(value || '')
     .replace(/<br\s*\/?>/gi, '\n')
@@ -91,6 +198,49 @@ function ArticleField({ field, index }) {
         url={raw}
         title="Post video"
       />
+    );
+  }
+
+  const isLinkField = key.startsWith('simple_writer_link_');
+
+  if (isLinkField && String(raw || '').trim()) {
+    const link = parseStoredLinkValue(raw);
+
+    if (/^https?:\/\//i.test(link.url)) {
+      return (
+        <p className="wpp-body-copy">
+          <a
+            href={link.url}
+            target="_blank"
+            rel="sponsored noopener noreferrer"
+            style={{
+              color: '#111827',
+              fontWeight: 750,
+              textDecoration: 'underline',
+              textUnderlineOffset: 3,
+            }}
+          >
+            {link.label || link.url}
+          </a>
+        </p>
+      );
+    }
+  }
+
+  const richText = key.startsWith('simple_writer_paragraph_')
+    ? parseStoredRichText(raw)
+    : null;
+
+  if (richText) {
+    if (!richText.text.trim()) return null;
+
+    return (
+      <p
+        className="wpp-body-copy"
+        style={{ whiteSpace: 'pre-wrap' }}
+      >
+        {renderRichTextNodes(richText, `rich-${index}`)}
+      </p>
     );
   }
 

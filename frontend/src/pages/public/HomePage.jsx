@@ -358,7 +358,9 @@ export default function HomePage() {
 
     async function loadPersonalizedHomeFeed() {
       try {
-        const { data } = await api.get('/api/reader/reading/feed');
+        const { data } = await api.get('/api/reader/reading/feed', {
+          skipGlobalLoader: true,
+        });
 
         if (!active) return;
 
@@ -424,7 +426,10 @@ const allPosts = useMemo(() => {
     return list;
   }, [activeTab, allPosts, search]);
 
-  const visiblePosts = filteredPosts.slice(0, visibleCount);
+  const visiblePosts = useMemo(
+    () => filteredPosts.slice(0, visibleCount),
+    [filteredPosts, visibleCount]
+  );
 
   useEffect(() => {
     const ids = visiblePosts
@@ -438,7 +443,9 @@ const allPosts = useMemo(() => {
     Promise.all(
       ids.map((id) =>
         api
-          .get(`/api/public/social/posts/${id}`)
+          .get(`/api/public/social/posts/${id}`, {
+            skipGlobalLoader: true,
+          })
           .then(({ data }) => ({ id, data }))
           .catch(() => ({ id, data: null }))
       )
@@ -521,7 +528,9 @@ const allPosts = useMemo(() => {
     Promise.all(
       visiblePosts.map((post) =>
         api
-          .get(`/api/reader/social/posts/${Number(post?.id || 0)}`)
+          .get(`/api/reader/social/posts/${Number(post?.id || 0)}`, {
+            skipGlobalLoader: true,
+          })
           .then(({ data }) => ({ post, data }))
           .catch(() => ({ post, data: null }))
       )

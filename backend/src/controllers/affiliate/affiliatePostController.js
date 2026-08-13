@@ -143,8 +143,70 @@ function isLikelyLinkField(field = {}) {
   );
 }
 
+
+const RICH_TEXT_FIELD_TYPE = 'bloggad_rich_text_v1';
+const DEFAULT_INLINE_LINK_COLOR = '#2563eb';
+
+function normalizeInlineLinkColor(value) {
+  const color = String(value || '').trim();
+
+  return /^#[0-9a-f]{6}$/i.test(color)
+    ? color.toLowerCase()
+    : DEFAULT_INLINE_LINK_COLOR;
+}
+
+function parseRichTextFieldValue(value) {
+  if (typeof value !== 'string') return null;
+
+  const raw = value.trim();
+  if (!raw.startsWith('{')) return null;
+
+  try {
+    const parsed = JSON.parse(raw);
+
+    if (
+      parsed?.type !== RICH_TEXT_FIELD_TYPE ||
+      typeof parsed?.text !== 'string' ||
+      !Array.isArray(parsed?.links)
+    ) {
+      return null;
+    }
+
+    const text = parsed.text;
+    const links = parsed.links
+      .map((link) => ({
+        start: Number(link?.start),
+        end: Number(link?.end),
+        url: String(link?.url || '').trim(),
+        color: normalizeInlineLinkColor(link?.color),
+      }))
+      .filter(
+        (link) =>
+          Number.isInteger(link.start) &&
+          Number.isInteger(link.end) &&
+          link.start >= 0 &&
+          link.end > link.start &&
+          link.end <= text.length &&
+          /^https?:\/\//i.test(link.url)
+      )
+      .sort((a, b) => a.start - b.start || a.end - b.end);
+
+    return {
+      type: RICH_TEXT_FIELD_TYPE,
+      text,
+      links,
+    };
+  } catch (error) {
+    return null;
+  }
+}
+
+function getPlainQualityText(value) {
+  const richText = parseRichTextFieldValue(value);
+  return richText ? richText.text : String(value || '');
+}
 function normalizeText(value) {
-  return String(value || '')
+  return getPlainQualityText(value)
     .replace(/\s+/g, ' ')
     .trim();
 }
@@ -205,7 +267,7 @@ function getSpecificityHits(value, productTitle = '') {
   let hits = 0;
 
   if (/\d/.test(text)) hits += 1;
-  if (/%|\$|₦|£|€/.test(text)) hits += 1;
+  if (/%|\$|â‚¦|Â£|â‚¬/.test(text)) hits += 1;
   if (/:/.test(text)) hits += 1;
   if (/\bfor example\b|\bsuch as\b|\bfor instance\b|\bespecially\b/i.test(text)) hits += 1;
   if (/[A-Z][a-z]+/.test(text.replace(/^[A-Z]/, ''))) hits += 1;
@@ -822,8 +884,56 @@ async function normalizeTemplateFieldsWithValidatedLinks({
     const field = fields[index] || {};
     const nextField = { ...field };
 
+    const fieldKey = normalizeNullable(field.field_key || field.key) || 'field';
+    const rawStoredValue = field.field_value ?? field.value;
+    const richText = parseRichTextFieldValue(
+      typeof rawStoredValue === 'string'
+        ? rawStoredValue
+        : ''
+    );
+
+    if (richText) {
+      const validatedLinks = [];
+
+      for (let linkIndex = 0; linkIndex < richText.links.length; linkIndex += 1) {
+        const link = richText.links[linkIndex];
+
+        const result = await assertAndLogSupgadUrl({
+          value: link.url,
+          fieldName: `Inline text link (${fieldKey})`,
+          required: true,
+          allowEmpty: false,
+          userId,
+          websiteId,
+          sourceType: 'template_field',
+          sourceId: postId,
+          allowExternalLinks,
+        });
+
+        validatedLinks.push({
+          ...link,
+          url: result.normalized_url || result.submitted_link,
+          color: normalizeInlineLinkColor(link.color),
+        });
+      }
+
+      const normalizedRichText = JSON.stringify({
+        type: RICH_TEXT_FIELD_TYPE,
+        text: richText.text,
+        links: validatedLinks,
+      });
+
+      if (field.field_value !== undefined) {
+        nextField.field_value = normalizedRichText;
+      } else {
+        nextField.value = normalizedRichText;
+      }
+
+      normalizedFields.push(nextField);
+      continue;
+    }
+
     if (isLikelyLinkField(field)) {
-      const fieldKey = normalizeNullable(field.field_key || field.key) || 'field';
       const rawValue = normalizeNullable(field.field_value ?? field.value);
 
       if (rawValue) {
@@ -968,20 +1078,51 @@ async function getPreviousPostOverallCandidates(userId, currentPostId) {
     SELECT
       pp.id,
       pp.title,
-      GROUP_CONCAT(COALESCE(ptf.field_value, '') ORDER BY ptf.sort_order ASC SEPARATOR ' ') AS combined_text
+      ptf.field_type,
+      ptf.field_value,
+      ptf.sort_order
     FROM product_posts pp
     LEFT JOIN post_template_fields ptf
       ON ptf.post_id = pp.id
     WHERE pp.user_id = ?
       AND pp.id <> ?
-    GROUP BY pp.id, pp.title
-    ORDER BY pp.id DESC
-    LIMIT 25
+    ORDER BY pp.id DESC, ptf.sort_order ASC, ptf.id ASC
+    LIMIT 1000
     `,
     [userId, currentPostId]
   );
 
-  return rows;
+  const grouped = new Map();
+
+  rows.forEach((row) => {
+    if (!grouped.has(row.id)) {
+      if (grouped.size >= 25) return;
+
+      grouped.set(row.id, {
+        id: row.id,
+        title: row.title,
+        parts: [],
+      });
+    }
+
+    const current = grouped.get(row.id);
+    if (!current) return;
+
+    const type = String(row.field_type || '').toLowerCase();
+
+    if (
+      ['text', 'textarea', 'heading', 'quote'].includes(type) &&
+      row.field_value
+    ) {
+      current.parts.push(normalizeText(row.field_value));
+    }
+  });
+
+  return Array.from(grouped.values()).map((item) => ({
+    id: item.id,
+    title: item.title,
+    combined_text: item.parts.join(' '),
+  }));
 }
 
 async function clearPostQualityArtifacts(postId) {
@@ -1032,7 +1173,9 @@ async function runPostQualityReview({
   await clearPostQualityArtifacts(postId);
 
   const overallCandidates = await getPreviousPostOverallCandidates(userId, postId);
-  const combinedCurrentText = textFields.map((field) => field.field_value || '').join(' ');
+  const combinedCurrentText = textFields
+    .map((field) => normalizeText(field.field_value || ''))
+    .join(' ');
 
   let bestOverallSimilarity = 0;
   let bestOverallSourcePostId = null;
