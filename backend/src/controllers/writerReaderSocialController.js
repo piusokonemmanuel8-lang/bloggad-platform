@@ -25,8 +25,13 @@ async function getPublishedPost(postId) {
     FROM product_posts pp
     INNER JOIN users u
       ON u.id = pp.user_id
-     AND u.role = 'affiliate'
      AND u.status = 'active'
+     AND EXISTS (
+       SELECT 1
+       FROM writer_pages writer_page
+       WHERE writer_page.user_id = u.id
+         AND writer_page.status = 'active'
+     )
     LEFT JOIN affiliate_websites aw ON aw.id = pp.website_id
      AND aw.status = 'active'
     WHERE pp.id = ?
@@ -67,8 +72,16 @@ async function getActiveWriter(writerId) {
       ON wp.user_id = u.id
      AND wp.status = 'active'
     WHERE u.id = ?
-      AND u.role = 'affiliate'
       AND u.status = 'active'
+      AND (
+        wp.id IS NOT NULL
+        OR EXISTS (
+          SELECT 1
+          FROM writer_pages writer_page
+          WHERE writer_page.user_id = u.id
+            AND writer_page.status = 'active'
+        )
+      )
     LIMIT 1
     `,
     [writerId]
@@ -155,6 +168,20 @@ async function getCommentCount(postId) {
     FROM post_comments
     WHERE post_id = ?
       AND status = 'active'
+    `,
+    [postId]
+  );
+
+  return Number(rows[0]?.total || 0);
+}
+
+async function getGiftCount(postId) {
+  const [rows] = await pool.query(
+    `
+    SELECT COUNT(*) AS total
+    FROM writer_appreciations
+    WHERE post_id = ?
+      AND status = 'completed'
     `,
     [postId]
   );
@@ -260,10 +287,17 @@ async function getPublicPostSocial(req, res) {
       });
     }
 
-    const [reactionCounts, followerCount, commentCount, comments] = await Promise.all([
+    const [
+      reactionCounts,
+      followerCount,
+      commentCount,
+      giftCount,
+      comments,
+    ] = await Promise.all([
       getReactionCounts(post.id),
       getFollowerCount(post.writer_id),
       getCommentCount(post.id),
+      getGiftCount(post.id),
       getPublicComments(post.id),
     ]);
 
@@ -283,6 +317,7 @@ async function getPublicPostSocial(req, res) {
         love: reactionCounts.love_count,
         applaud: reactionCounts.applaud_count,
         comments: commentCount,
+        gifts: giftCount,
         followers: followerCount,
       },
       comments,
@@ -407,7 +442,15 @@ async function getReaderPostState(req, res) {
       });
     }
 
-    const [followRows, reactionRows, reactionCounts, followerCount, commentCount, comments] =
+    const [
+      followRows,
+      reactionRows,
+      reactionCounts,
+      followerCount,
+      commentCount,
+      giftCount,
+      comments,
+    ] =
       await Promise.all([
         pool.query(
           `
@@ -431,6 +474,7 @@ async function getReaderPostState(req, res) {
         getReactionCounts(post.id),
         getFollowerCount(post.writer_id),
         getCommentCount(post.id),
+        getGiftCount(post.id),
         getPublicComments(post.id),
       ]);
 
@@ -451,6 +495,7 @@ async function getReaderPostState(req, res) {
         love: reactionCounts.love_count,
         applaud: reactionCounts.applaud_count,
         comments: commentCount,
+        gifts: giftCount,
         followers: followerCount,
       },
       comments,

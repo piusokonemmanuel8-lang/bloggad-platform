@@ -732,7 +732,7 @@ async function verifyPayPal({
 async function getReaderIdentity(readerUserId) {
   const [rows] = await pool.query(
     `
-    SELECT id, email, name, username, role, status
+    SELECT id, email, name, role, status
     FROM users
     WHERE id = ?
     LIMIT 1
@@ -758,7 +758,7 @@ async function getReaderIdentity(readerUserId) {
     id: Number(user.id),
     email: String(user.email).trim(),
     name:
-      String(user.name || user.username || user.email || 'Reader').trim() ||
+      String(user.name || user.email || 'Reader').trim() ||
       'Reader',
   };
 }

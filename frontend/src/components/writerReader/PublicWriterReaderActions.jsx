@@ -23,12 +23,14 @@ function safeParse(value) {
 function getReaderSession() {
   const customerUser = safeParse(localStorage.getItem('customerUser'));
   const generalUser = safeParse(localStorage.getItem('user'));
-  const user =
-    customerUser?.role === 'customer'
-      ? customerUser
-      : generalUser?.role === 'customer'
-      ? generalUser
-      : null;
+  const isReaderCapableRole = (userValue) =>
+    userValue?.role === 'customer' || userValue?.role === 'affiliate';
+
+  const user = isReaderCapableRole(generalUser)
+    ? generalUser
+    : isReaderCapableRole(customerUser)
+    ? customerUser
+    : null;
 
   if (!user) return null;
 

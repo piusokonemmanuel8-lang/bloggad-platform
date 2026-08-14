@@ -912,7 +912,9 @@ async function reconcileReaderSubscriptionPurchase(
   }
 
   if (
-    verification.amountCents !== expectedCents ||
+    verification.amountCents === null ||
+    expectedCents === null ||
+    verification.amountCents < expectedCents ||
     verification.currency !== 'USD' ||
     verification.merchantReference !== purchase.merchant_reference
   ) {
@@ -1018,4 +1020,12 @@ module.exports = {
   reconcileReaderSubscriptionPurchase,
   getReaderSubscriptionPurchaseStatus,
   markReaderSubscriptionPurchaseCancelled,
+  getGatewayCredentials,
+  verifyPaystack,
+  verifyFlutterwave,
+  verifyPayPal,
+  fetchJson,
+  paypalJson,
+  moneyString,
+  decimalToCents,
 };

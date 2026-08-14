@@ -219,6 +219,52 @@ function DashboardNavigation({ onNavigate, supgadReturnUrl }) {
   );
 }
 
+// BLOGGAD_WRITER_MOBILE_BOTTOM_NAV_V1
+const writerMobileBottomItems = [
+  { label: 'Dashboard', to: '/writer/dashboard', icon: LayoutDashboard, end: true },
+  { label: 'Posts', to: '/writer/posts', icon: FileText, end: true },
+  { label: 'Write', to: '/writer/posts/create', icon: SquarePen, end: true, primary: true },
+  { label: 'Analytics', to: '/writer/analytics', icon: BarChart3, end: true },
+];
+
+function WriterMobileBottomNav({ onMenu, menuOpen }) {
+  return (
+    <nav className="writer-mobile-bottom-nav" aria-label="Writer mobile navigation">
+      {writerMobileBottomItems.map((item) => {
+        const Icon = item.icon;
+
+        return (
+          <NavLink
+            key={item.to}
+            to={item.to}
+            end={item.end}
+            className={({ isActive }) =>
+              `writer-mobile-bottom-item${item.primary ? ' writer-write' : ''}${isActive ? ' active' : ''}`
+            }
+          >
+            <span className="writer-mobile-bottom-icon" aria-hidden="true">
+              <Icon size={item.primary ? 21 : 20} strokeWidth={1.9} />
+            </span>
+            <span>{item.label}</span>
+          </NavLink>
+        );
+      })}
+
+      <button
+        type="button"
+        className={`writer-mobile-bottom-item${menuOpen ? ' active' : ''}`}
+        onClick={onMenu}
+        aria-label="Open Writer menu"
+        aria-expanded={menuOpen}
+      >
+        <span className="writer-mobile-bottom-icon" aria-hidden="true">
+          <Menu size={20} strokeWidth={1.9} />
+        </span>
+        <span>Menu</span>
+      </button>
+    </nav>
+  );
+}
 export default function AffiliateLayout() {
   const { isAuthenticated, isAffiliate, bootstrapping, user } = useAuth();
   const location = useLocation();
@@ -343,7 +389,7 @@ export default function AffiliateLayout() {
 
   return (
     <div
-      className={`affiliate-layout-shell${dashboardMode ? ' dashboard-redesign' : ''}`}
+      className={`affiliate-layout-shell${dashboardMode ? ' dashboard-redesign' : ''}${location.pathname.startsWith('/writer/') ? ' writer-mobile-nav-enabled' : ''}`}
     >
       <style>{styles}</style>
 
@@ -497,6 +543,13 @@ export default function AffiliateLayout() {
         <main className="affiliate-layout-content">
           <Outlet />
         </main>
+
+        {location.pathname.startsWith('/writer/') ? (
+          <WriterMobileBottomNav
+            onMenu={() => setMobileOpen(true)}
+            menuOpen={mobileOpen}
+          />
+        ) : null}
       </div>
     </div>
   );
@@ -1148,6 +1201,91 @@ const styles = `
     .dashboard-redesign .dashboard-layout-topbar {
       flex-direction: row;
       align-items: center;
+    }
+  }
+  /* BLOGGAD_WRITER_MOBILE_BOTTOM_NAV_V1 */
+  .writer-mobile-bottom-nav {
+    display: none;
+  }
+
+  @media (max-width: 767px) {
+    .writer-mobile-nav-enabled .affiliate-layout-content {
+      padding-bottom: 108px;
+    }
+
+    .writer-mobile-bottom-nav {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      z-index: 50;
+      min-height: 82px;
+      padding: 8px 8px calc(8px + env(safe-area-inset-bottom));
+      border-top: 1px solid #e2e5e8;
+      background: rgba(255, 255, 255, 0.98);
+      backdrop-filter: blur(14px);
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      align-items: start;
+      box-shadow: 0 -8px 24px rgba(15, 23, 42, 0.05);
+    }
+
+    .writer-mobile-bottom-item {
+      min-width: 0;
+      min-height: 58px;
+      padding: 5px 2px 3px;
+      border: 0;
+      border-radius: 10px;
+      background: transparent;
+      color: #7a828d;
+      text-decoration: none;
+      font: inherit;
+      font-size: 10px;
+      line-height: 1.15;
+      font-weight: 650;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      gap: 5px;
+      cursor: pointer;
+    }
+
+    .writer-mobile-bottom-item:hover,
+    .writer-mobile-bottom-item.active {
+      color: #17191f;
+    }
+
+    .writer-mobile-bottom-icon {
+      width: 31px;
+      height: 31px;
+      border-radius: 10px;
+      display: grid;
+      place-items: center;
+    }
+
+    .writer-mobile-bottom-item.active:not(.writer-write) .writer-mobile-bottom-icon {
+      background: #f0f2f4;
+    }
+
+    .writer-mobile-bottom-item.writer-write {
+      position: relative;
+      margin-top: -12px;
+      color: #17191f;
+      font-weight: 750;
+    }
+
+    .writer-mobile-bottom-item.writer-write .writer-mobile-bottom-icon {
+      width: 43px;
+      height: 43px;
+      border-radius: 999px;
+      background: #17191f;
+      color: #ffffff;
+      box-shadow: 0 8px 18px rgba(23, 25, 31, 0.2);
+    }
+
+    .writer-mobile-bottom-item.writer-write.active .writer-mobile-bottom-icon {
+      background: #000000;
     }
   }
 `;

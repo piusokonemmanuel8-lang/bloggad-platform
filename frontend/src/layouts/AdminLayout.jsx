@@ -44,6 +44,7 @@ const adminMenu = [
   { label: 'BlogPulse', to: '/admin/blogpulse', icon: CircleDollarSign },
   { label: 'Campaign Moderation', to: '/admin/campaign-moderation', icon: Megaphone },
   { label: 'Payment Moderation', to: '/admin/payment-moderation', icon: Wallet },
+  { label: 'Writer Withdrawals', to: '/admin/writer-withdrawals', icon: Wallet },
   { label: 'Payment Gateways', to: '/admin/payment-gateways', icon: CreditCard },
   { label: 'Supgad Integration', to: '/admin/supgad-integration', icon: ShieldCheck },
   { label: 'Products', to: '/admin/products', icon: Box },

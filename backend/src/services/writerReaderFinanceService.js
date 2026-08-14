@@ -578,16 +578,33 @@ async function appreciateWriter({
 
     const [[writer]] = await connection.query(
       `
-      SELECT id, role, status, name
-      FROM users
-      WHERE id = ?
+      SELECT
+        u.id,
+        u.role,
+        u.status,
+        u.name,
+        EXISTS(
+          SELECT 1
+          FROM writer_pages pg
+          WHERE pg.user_id = u.id
+            AND pg.status = 'active'
+          LIMIT 1
+        ) AS has_active_writer_page
+      FROM users u
+      WHERE u.id = ?
       LIMIT 1
       FOR UPDATE
       `,
       [writerUserId]
     );
 
-    if (!writer || writer.role !== 'affiliate' || writer.status !== 'active') {
+    const hasActiveWriterPage =
+      Number(writer?.has_active_writer_page || 0) === 1;
+
+    const qualifiesAsWriter =
+      writer?.role === 'affiliate' || hasActiveWriterPage;
+
+    if (!writer || writer.status !== 'active' || !qualifiesAsWriter) {
       throw new Error('Active Writer account required.');
     }
 

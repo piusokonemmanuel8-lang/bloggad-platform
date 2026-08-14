@@ -76,6 +76,7 @@ import AdminCampaignModerationPage from './pages/admin/AdminCampaignModerationPa
 import AdminCampaignModerationDetailsPage from './pages/admin/AdminCampaignModerationDetailsPage';
 import AdminPaymentModerationPage from './pages/admin/AdminPaymentModerationPage';
 import AdminPaymentModerationDetailsPage from './pages/admin/AdminPaymentModerationDetailsPage';
+import AdminWriterWithdrawalsPage from './pages/admin/AdminWriterWithdrawalsPage';
 import AdminPaymentGatewaysPage from './pages/admin/AdminPaymentGatewaysPage';
 import AdminSupgadIntegrationPage from './pages/admin/AdminSupgadIntegrationPage';
 import AdminNotificationsPage from './pages/admin/AdminNotificationsPage';
@@ -123,6 +124,7 @@ import ReaderCreditsPage from './pages/reader/ReaderCreditsPage';
 import ReaderPremiumPage from './pages/reader/ReaderPremiumPage';
 import ReaderCoursesPage from './pages/reader/ReaderCoursesPage';
 import ReaderAppreciationsPage from './pages/reader/ReaderAppreciationsPage';
+import SharedProfilePage from './pages/shared/SharedProfilePage';
 
 function CustomerProtectedRoute({ children }) {
   const token =
@@ -194,6 +196,10 @@ ReactDOM.createRoot(document.getElementById('root')).render(
             <Route path="/writer/register" element={<RegisterPage />} />
             <Route path="/auth/supgad" element={<SupgadSsoPage />} />
           </Route>
+
+          <Route path="/profile" element={<SharedProfilePage />} />
+          <Route path="/reader/profile" element={<SharedProfilePage />} />
+          <Route path="/writer/profile" element={<SharedProfilePage />} />
 
           <Route element={<AffiliateLayout />}>
             <Route path="/writer/dashboard" element={<AffiliateDashboardPage />} />
@@ -319,6 +325,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
               path="/admin/payment-moderation/:paymentId"
               element={<AdminPaymentModerationDetailsPage />}
             />
+            <Route path="/admin/writer-withdrawals" element={<AdminWriterWithdrawalsPage />} />
             <Route path="/admin/payment-gateways" element={<AdminPaymentGatewaysPage />} />
               <Route path="/admin/supgad-integration" element={<AdminSupgadIntegrationPage />} />
           </Route>

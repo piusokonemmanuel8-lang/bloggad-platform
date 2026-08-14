@@ -212,10 +212,52 @@ function StoryCard({
               className="bh-gift-action"
               title="Gift this Writer"
               aria-label="Gift this Writer"
-              onClick={() => onGift(post)}
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                onGift(post);
+              }}
             >
               <Gift size={17} />
-              <span className="bh-action-label">Gift</span>
+              <span
+                className="bh-action-label"
+                style={{
+                  position: 'relative',
+                  display: 'inline-block',
+                }}
+              >
+                Gift
+                {Number(stats?.gifts || 0) > 0 ? (
+                  <span
+                    aria-label={String(Number(stats?.gifts || 0)) + ' Gifts'}
+                    style={{
+                      position: 'absolute',
+                      top: -10,
+                      right: -6,
+                      minWidth: 13,
+                      height: 13,
+                      padding: '0 2px',
+                      borderRadius: 999,
+                      border: '1.5px solid #ffffff',
+                      background: '#9a6700',
+                      color: '#ffffff',
+                      fontSize: 8,
+                      fontWeight: 900,
+                      lineHeight: '11px',
+                      textAlign: 'center',
+                      boxSizing: 'border-box',
+                      boxShadow: '0 1px 2px rgba(17, 24, 39, 0.18)',
+                      pointerEvents: 'none',
+                      transform: 'translate(0, 0)',
+                      zIndex: 1,
+                    }}
+                  >
+                    {Number(stats?.gifts || 0) > 99
+                      ? '99+'
+                      : Number(stats?.gifts || 0)}
+                  </span>
+                ) : null}
+              </span>
             </button>
           </div>
 
@@ -460,6 +502,8 @@ const allPosts = useMemo(() => {
             love: Number(data?.counts?.love || 0),
             applaud: Number(data?.counts?.applaud || 0),
             comments: Number(data?.counts?.comments || 0),
+            gifts: Number(data?.counts?.gifts || 0),
+            writer_id: Number(data?.writer?.id || 0),
           };
         });
 
@@ -659,26 +703,78 @@ const allPosts = useMemo(() => {
   }
 
   async function openHomepageGift(post) {
-    const writerId = Number(post?.user_id || 0);
     const postId = Number(post?.id || 0);
-    if (!writerId || !postId) return;
+
+    if (!postId) return;
+
+    let writerId = Number(
+      post?.user_id ||
+        post?.writer_user_id ||
+        post?.writer_id ||
+        post?.author_user_id ||
+        post?.writer_page_user_id ||
+        postStats[postId]?.writer_id ||
+        0
+    );
+
+    setGiftPost({
+      ...(post || {}),
+      __gift_writer_user_id: writerId,
+    });
+    setGiftWallet(null);
+    setGiftAmount('');
+    setGiftError('');
+    setGiftNotice('');
+    giftRequestKeyRef.current = '';
 
     try {
       setGiftBusy('load');
-      setGiftError('');
-      setGiftNotice('');
+
+      if (!writerId) {
+        const { data: socialData } = await api.get(
+          '/api/public/social/posts/' + postId,
+          { skipGlobalLoader: true }
+        );
+
+        writerId = Number(socialData?.writer?.id || 0);
+
+        setPostStats((current) => ({
+          ...current,
+          [postId]: {
+            ...(current[postId] || {}),
+            writer_id: writerId,
+          },
+        }));
+
+        setGiftPost((current) =>
+          current
+            ? {
+                ...current,
+                __gift_writer_user_id: writerId,
+              }
+            : current
+        );
+      }
+
+      if (!writerId) {
+        setGiftError('Could not resolve the Writer account for this post.');
+        return;
+      }
 
       const { data } = await api.get('/api/reader/credits');
       const settings = data?.appreciation_settings || {};
       const minimum = Math.max(1, Number(settings?.minimum_credits || 1));
 
-      setGiftPost(post);
-      setGiftWallet(data || null);
+      setGiftWallet({
+        ...(data?.wallet || {}),
+        appreciation_settings: settings,
+      });
       setGiftAmount(String(minimum));
-      giftRequestKeyRef.current = '';
     } catch (actionError) {
       if (!authRedirect(actionError)) {
-        setGiftError(actionError?.response?.data?.message || 'Could not open Gift.');
+        setGiftError(
+          actionError?.response?.data?.message || 'Could not load Gift.'
+        );
       }
     } finally {
       setGiftBusy('');
@@ -698,7 +794,16 @@ const allPosts = useMemo(() => {
   async function submitHomepageGift(event) {
     event.preventDefault();
 
-    const writerId = Number(giftPost?.user_id || 0);
+    const writerId = Number(
+      giftPost?.__gift_writer_user_id ||
+        giftPost?.user_id ||
+        giftPost?.writer_user_id ||
+        giftPost?.writer_id ||
+        giftPost?.author_user_id ||
+        giftPost?.writer_page_user_id ||
+        postStats[Number(giftPost?.id || 0)]?.writer_id ||
+        0
+    );
     const postId = Number(giftPost?.id || 0);
     const credits = Number(giftAmount);
     const settings = giftWallet?.appreciation_settings || {};
@@ -721,6 +826,15 @@ const allPosts = useMemo(() => {
       return;
     }
 
+    const availableCredits = Number(giftWallet?.available_credits || 0);
+
+    if (credits > availableCredits) {
+      setGiftError(
+        `You have ${availableCredits.toLocaleString()} available Reader credits.`
+      );
+      return;
+    }
+
     try {
       setGiftBusy('send');
       setGiftError('');
@@ -737,7 +851,7 @@ const allPosts = useMemo(() => {
         {
           writer_user_id: writerId,
           post_id: postId,
-          credits_amount: credits,
+          credits,
           idempotency_key: idempotencyKey,
         },
         {
@@ -756,7 +870,28 @@ const allPosts = useMemo(() => {
         }));
       }
 
-      setGiftNotice(data?.message || 'Gift sent to the Writer.');
+      const writerWalletCredit = Number(
+        data?.appreciation?.writer_wallet_credit_usd ||
+          data?.appreciation?.writer_net_usd ||
+          0
+      );
+
+      setGiftNotice(
+        writerWalletCredit > 0
+          ? `Gift sent. The Writer received $${writerWalletCredit.toFixed(2)} in withdrawable earnings.`
+          : data?.message || 'Gift sent to the Writer.'
+      );
+
+      if (!data?.appreciation?.idempotent_replay) {
+        setPostStats((current) => ({
+          ...current,
+          [postId]: {
+            ...(current[postId] || {}),
+            gifts: Number(current[postId]?.gifts || 0) + 1,
+          },
+        }));
+      }
+
       giftRequestKeyRef.current = '';
     } catch (actionError) {
       if (!authRedirect(actionError)) {

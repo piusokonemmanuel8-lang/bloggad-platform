@@ -43,6 +43,13 @@ function displayAmount(value) {
   return formatCurrency(Number(value));
 }
 
+function gatewayLabel(provider) {
+  if (provider === 'paystack') return 'Paystack';
+  if (provider === 'flutterwave') return 'Flutterwave';
+  if (provider === 'paypal') return 'PayPal';
+  return provider || 'payment';
+}
+
 function WriterPlanPage() {
   const [overview, setOverview] = useState(null);
   const [history, setHistory] = useState([]);
@@ -50,6 +57,8 @@ function WriterPlanPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [actionPlanId, setActionPlanId] = useState('');
   const [startingTrial, setStartingTrial] = useState(false);
+  const [gateways, setGateways] = useState([]);
+  const [selectedProvider, setSelectedProvider] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
@@ -63,9 +72,10 @@ function WriterPlanPage() {
     setError('');
 
     try {
-      const [overviewRes, historyRes] = await Promise.all([
+      const [overviewRes, historyRes, checkoutRes] = await Promise.all([
         api.get('/api/affiliate/subscription'),
         api.get('/api/affiliate/subscription/history'),
+        api.get('/api/affiliate/subscription/checkout/options'),
       ]);
 
       setOverview({
@@ -73,6 +83,19 @@ function WriterPlanPage() {
         available_plans: overviewRes?.data?.available_plans || [],
       });
       setHistory(historyRes?.data?.subscriptions || []);
+
+      const nextGateways = Array.isArray(checkoutRes?.data?.gateways)
+        ? checkoutRes.data.gateways
+        : [];
+
+      setGateways(nextGateways);
+      setSelectedProvider((current) => {
+        if (nextGateways.some((item) => item.provider === current)) {
+          return current;
+        }
+
+        return nextGateways[0]?.provider || '';
+      });
     } catch (err) {
       setError(err?.response?.data?.message || 'Failed to load Writer plan data.');
     } finally {
@@ -86,6 +109,77 @@ function WriterPlanPage() {
 
   useEffect(() => {
     fetchSubscriptionData();
+  }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const paymentStatus = String(
+      params.get('writer_subscription_payment') || ''
+    ).toLowerCase();
+    const reference = String(params.get('purchase_ref') || '').trim();
+
+    if (!paymentStatus && !reference) {
+      return;
+    }
+
+    let active = true;
+
+    async function refreshAfterPayment() {
+      try {
+        if (reference) {
+          const response = await api.get(
+            `/api/affiliate/subscription/checkout/status/${encodeURIComponent(reference)}`
+          );
+
+          if (!active) return;
+
+          const purchase = response?.data?.purchase || {};
+          const status = String(purchase.status || paymentStatus).toLowerCase();
+
+          if (status === 'paid') {
+            setSuccess(
+              `${purchase.plan_name || 'Writer plan'} payment verified. Your Writer plan is active.`
+            );
+            await fetchSubscriptionData(true);
+          } else if (status === 'cancelled') {
+            setSuccess('Checkout was cancelled. No Writer plan was activated.');
+          } else if (status === 'failed') {
+            setError(
+              purchase.failure_reason ||
+                'Payment could not be verified. No Writer plan was activated.'
+            );
+          } else {
+            setSuccess(
+              'Payment is still pending verification. Refresh this page after the gateway confirms it.'
+            );
+          }
+        } else if (paymentStatus === 'cancelled') {
+          setSuccess('Checkout was cancelled. No Writer plan was activated.');
+        }
+      } catch (err) {
+        if (active) {
+          setError(
+            err?.response?.data?.message ||
+              'Unable to confirm the Writer subscription payment.'
+          );
+        }
+      }
+
+      const url = new URL(window.location.href);
+      url.searchParams.delete('writer_subscription_payment');
+      url.searchParams.delete('purchase_ref');
+      window.history.replaceState(
+        {},
+        '',
+        `${url.pathname}${url.search}${url.hash}`
+      );
+    }
+
+    refreshAfterPayment();
+
+    return () => {
+      active = false;
+    };
   }, []);
 
   const currentSubscription = overview?.current_subscription || null;
@@ -120,22 +214,41 @@ function WriterPlanPage() {
   };
 
   const handleChangePlan = async (planId) => {
-    if (!currentSubscription || actionPlanId) return;
+    if (
+      !currentSubscription ||
+      actionPlanId ||
+      !selectedProvider ||
+      gateways.length === 0
+    ) {
+      return;
+    }
 
     setActionPlanId(String(planId));
     setError('');
     setSuccess('');
 
     try {
-      const { data } = await api.post('/api/affiliate/subscription/change-plan', {
-        plan_id: planId,
-      });
+      const { data } = await api.post(
+        '/api/affiliate/subscription/checkout/initialize',
+        {
+          plan_id: planId,
+          provider: selectedProvider,
+        }
+      );
 
-      await fetchSubscriptionData(true);
-      setSuccess(data?.message || 'Writer plan changed successfully.');
+      const checkoutUrl = data?.checkout_url;
+
+      if (!checkoutUrl) {
+        throw new Error('Payment gateway did not return a checkout URL.');
+      }
+
+      window.location.assign(checkoutUrl);
     } catch (err) {
-      setError(err?.response?.data?.message || 'Failed to change Writer plan.');
-    } finally {
+      setError(
+        err?.response?.data?.message ||
+          err?.message ||
+          'Failed to open secure Writer plan checkout.'
+      );
       setActionPlanId('');
     }
   };
@@ -289,6 +402,56 @@ function WriterPlanPage() {
         </article>
       </section>
 
+      {currentSubscription ? (
+        <section
+          className="writer-plan-card"
+          style={{ marginBottom: 20 }}
+          aria-label="Writer plan payment method"
+        >
+          <div className="writer-plan-card-head">
+            <div>
+              <span className="writer-plan-kicker">Payment</span>
+              <h3>Payment method</h3>
+              <p>
+                Choose one of the payment gateways enabled by Bloggad. The active
+                test or live mode is controlled securely by Admin.
+              </p>
+            </div>
+          </div>
+
+          {gateways.length ? (
+            <div
+              style={{
+                display: 'flex',
+                flexWrap: 'wrap',
+                gap: 10,
+                marginTop: 14,
+              }}
+            >
+              {gateways.map((gateway) => (
+                <button
+                  key={gateway.provider}
+                  type="button"
+                  className={`writer-plan-btn ${
+                    selectedProvider === gateway.provider
+                      ? 'writer-plan-btn-primary'
+                      : 'writer-plan-btn-secondary'
+                  }`}
+                  onClick={() => setSelectedProvider(gateway.provider)}
+                  aria-pressed={selectedProvider === gateway.provider}
+                >
+                  {gatewayLabel(gateway.provider)}
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div className="writer-plan-empty-small" style={{ marginTop: 14 }}>
+              <p>No payment gateway is currently configured and enabled.</p>
+            </div>
+          )}
+        </section>
+      ) : null}
+
       <section className="writer-plan-available-section">
         <div className="writer-plan-subhead">
           <div>
@@ -301,7 +464,10 @@ function WriterPlanPage() {
         {availablePlans.length ? (
           <div className="writer-plan-plans-grid">
             {availablePlans.map((plan) => {
-              const isCurrent = currentPlanId && String(plan.id) === currentPlanId;
+              const isCurrent =
+                currentPlanId &&
+                String(plan.id) === currentPlanId &&
+                String(currentSubscription?.status || '').toLowerCase() === 'active';
               const isAction = String(actionPlanId) === String(plan.id);
 
               return (
@@ -339,7 +505,13 @@ function WriterPlanPage() {
                     className={`writer-plan-btn writer-plan-plan-btn ${
                       isCurrent ? 'writer-plan-btn-secondary' : 'writer-plan-btn-primary'
                     }`}
-                    disabled={isCurrent || !!actionPlanId || !currentSubscription}
+                    disabled={
+                      isCurrent ||
+                      !!actionPlanId ||
+                      !currentSubscription ||
+                      !selectedProvider ||
+                      gateways.length === 0
+                    }
                     onClick={() => handleChangePlan(plan.id)}
                   >
                     {isCurrent
@@ -347,8 +519,10 @@ function WriterPlanPage() {
                       : !currentSubscription
                         ? 'Start trial first'
                         : isAction
-                          ? 'Changing...'
-                          : 'Choose Plan'}
+                          ? 'Opening checkout...'
+                          : selectedProvider
+                            ? `Pay with ${gatewayLabel(selectedProvider)}`
+                            : 'Select payment method'}
                   </button>
                 </article>
               );

@@ -403,98 +403,11 @@ async function startFreeTrial(req, res) {
 }
 
 async function requestPlanChange(req, res) {
-  try {
-    const userId = req.user.id;
-    const { plan_id } = req.body;
-
-    const planId = Number(plan_id);
-
-    if (!Number.isInteger(planId) || planId <= 0) {
-      return res.status(400).json({
-        ok: false,
-        message: 'Valid plan id is required',
-      });
-    }
-
-    const [plans] = await pool.query(
-      `
-      SELECT
-        id,
-        name,
-        price,
-        billing_cycle,
-        status
-      FROM subscription_plans
-      WHERE id = ?
-      LIMIT 1
-      `,
-      [planId]
-    );
-
-    if (!plans.length || plans[0].status !== 'active') {
-      return res.status(404).json({
-        ok: false,
-        message: 'Selected plan not found or inactive',
-      });
-    }
-
-    const currentSubscription = await getLatestSubscriptionByUserId(userId);
-
-    if (!currentSubscription) {
-      return res.status(400).json({
-        ok: false,
-        message: 'Start free trial first before changing plan',
-      });
-    }
-
-    await pool.query(
-      `
-      INSERT INTO affiliate_subscriptions
-      (
-        user_id,
-        plan_id,
-        trial_start,
-        trial_end,
-        start_date,
-        end_date,
-        status,
-        amount_paid,
-        created_at,
-        updated_at
-      )
-      VALUES
-      (
-        ?,
-        ?,
-        NULL,
-        NULL,
-        NOW(),
-        DATE_ADD(NOW(), INTERVAL 1 YEAR),
-        'active',
-        ?,
-        NOW(),
-        NOW()
-      )
-      `,
-      [userId, planId, Number(plans[0].price || 0)]
-    );
-
-    const updatedSubscription = await getLatestSubscriptionByUserId(userId);
-
-    return res.status(201).json({
-      ok: true,
-      message: 'Plan changed successfully',
-      subscription: await sanitizeSubscription(updatedSubscription),
-    });
-  } catch (error) {
-    console.error('requestPlanChange error:', error);
-
-    return res.status(500).json({
-      ok: false,
-      message: 'Failed to change subscription plan',
-      error: error.message,
-    });
-  }
+  return res.status(400).json({
+    ok: false,
+    message:
+      'Paid Writer plan changes require verified checkout. Use /api/affiliate/subscription/checkout/initialize.',
+  });
 }
 
 module.exports = {

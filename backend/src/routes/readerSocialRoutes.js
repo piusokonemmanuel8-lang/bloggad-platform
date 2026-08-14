@@ -1,6 +1,7 @@
 const express = require('express');
 const {
   protect,
+  authorize,
   customerOnly,
 } = require('../middleware/authMiddleware');
 const {
@@ -15,6 +16,7 @@ const {
 } = require('../controllers/writerReaderSocialController');
 
 const router = express.Router();
+const readerOrWriterSocial = authorize('customer', 'affiliate');
 
 router.get('/health', (req, res) => {
   res.status(200).json({
@@ -23,16 +25,16 @@ router.get('/health', (req, res) => {
   });
 });
 
-router.get('/posts/:postId', protect, customerOnly, getReaderPostState);
-router.get('/following', protect, customerOnly, getReaderFollowing);
-router.post('/writers/:writerId/follow', protect, customerOnly, toggleWriterFollow);
+router.get('/posts/:postId', protect, readerOrWriterSocial, getReaderPostState);
+router.get('/following', protect, readerOrWriterSocial, getReaderFollowing);
+router.post('/writers/:writerId/follow', protect, readerOrWriterSocial, toggleWriterFollow);
 router.post(
   '/posts/:postId/reactions/:reactionType',
   protect,
-  customerOnly,
+  readerOrWriterSocial,
   togglePostReaction
 );
-router.post('/posts/:postId/comments', protect, customerOnly, createReaderComment);
+router.post('/posts/:postId/comments', protect, readerOrWriterSocial, createReaderComment);
 
 router.get('/notifications', protect, customerOnly, getMyNotifications);
 router.patch(

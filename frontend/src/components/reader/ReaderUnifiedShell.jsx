@@ -136,6 +136,55 @@ function ReaderNavigation({ onNavigate, supgadReturnUrl }) {
   );
 }
 
+// BLOGGAD_READER_MOBILE_BOTTOM_NAV_V1
+const readerMobileBottomItems = [
+  { label: 'Home', to: '/reader/dashboard', icon: Home, end: true },
+  { label: 'For You', to: '/reader/feed', icon: Sparkles, end: true },
+  { label: 'Saved', to: '/reader/saved-posts', icon: Bookmark, end: true },
+  { label: 'Notifications', to: '/reader/notifications', icon: Bell, end: true },
+];
+
+function ReaderMobileBottomNav({ onMenu, menuOpen }) {
+  return (
+    <nav
+      className="reader-unified-mobile-bottom-nav"
+      aria-label="Reader mobile navigation"
+    >
+      {readerMobileBottomItems.map((item) => {
+        const Icon = item.icon;
+
+        return (
+          <NavLink
+            key={item.to}
+            to={item.to}
+            end={item.end}
+            className={({ isActive }) =>
+              `reader-unified-mobile-bottom-item${isActive ? ' active' : ''}`
+            }
+          >
+            <span className="reader-unified-mobile-bottom-icon" aria-hidden="true">
+              <Icon size={20} strokeWidth={1.9} />
+            </span>
+            <span>{item.label}</span>
+          </NavLink>
+        );
+      })}
+
+      <button
+        type="button"
+        className={`reader-unified-mobile-bottom-item${menuOpen ? ' active' : ''}`}
+        onClick={onMenu}
+        aria-label="Open Reader menu"
+        aria-expanded={menuOpen}
+      >
+        <span className="reader-unified-mobile-bottom-icon" aria-hidden="true">
+          <Menu size={20} strokeWidth={1.9} />
+        </span>
+        <span>Menu</span>
+      </button>
+    </nav>
+  );
+}
 export default function ReaderUnifiedShell({
   title = 'Reader',
   subtitle = 'Reader workspace',
@@ -367,6 +416,11 @@ export default function ReaderUnifiedShell({
         </header>
 
         <div className="reader-unified-content">{children}</div>
+
+        <ReaderMobileBottomNav
+          onMenu={() => setMobileOpen(true)}
+          menuOpen={mobileOpen}
+        />
       </div>
     </div>
   );

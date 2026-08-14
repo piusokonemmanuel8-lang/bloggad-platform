@@ -97,7 +97,7 @@ export default function ReaderCreditsPage() {
           />
           <CreditStat
             label="Available value"
-            value={`$${money(wallet.available_value_usd, 6)}`}
+            value={`$${money(wallet.available_value_usd, 2)}`}
             note="USD value of current credits"
           />
           <CreditStat
@@ -142,7 +142,7 @@ export default function ReaderCreditsPage() {
                     <div className="reader-credits-activity-copy">
                       <strong>{item.transaction_type}</strong>
                       <span>
-                        ${money(item.usd_value, 6)} <b aria-hidden="true">|</b> {formatDateTime(item.created_at)}
+                        ${money(item.usd_value, 2)} <b aria-hidden="true">|</b> {formatDateTime(item.created_at)}
                       </span>
                     </div>
                     <div className={`reader-credits-activity-amount ${directionClass}`}>

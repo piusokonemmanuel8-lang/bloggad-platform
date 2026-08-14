@@ -198,7 +198,8 @@ export default function AdminPaymentGatewaysPage() {
           <h1>Payment Gateways</h1>
           <p>
             Manage Reader credit pricing and secure test/live gateway
-            credentials.
+            credentials for Reader subscriptions, Reader credit purchases, and
+            Writer plan payments.
           </p>
         </div>
       </header>
