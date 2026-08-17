@@ -1,9 +1,12 @@
 const fs = require('fs');
 const path = require('path');
 
-const sharedHostingerEnv =
-  process.env.HOME
-    ? path.join(
+function resolveSharedHostingerEnv() {
+  const candidates = [];
+
+  if (process.env.HOME) {
+    candidates.push(
+      path.join(
         process.env.HOME,
         'domains',
         'bloggad.com',
@@ -11,9 +14,28 @@ const sharedHostingerEnv =
         'config',
         '.env'
       )
-    : '';
+    );
+  }
 
-if (sharedHostingerEnv && fs.existsSync(sharedHostingerEnv)) {
+  let current = __dirname;
+
+  for (let depth = 0; depth < 12; depth += 1) {
+    if (path.basename(current) === 'hbuilds') {
+      candidates.push(path.join(current, 'config', '.env'));
+      break;
+    }
+
+    const parent = path.dirname(current);
+    if (parent === current) break;
+    current = parent;
+  }
+
+  return candidates.find((candidate) => fs.existsSync(candidate)) || '';
+}
+
+const sharedHostingerEnv = resolveSharedHostingerEnv();
+
+if (sharedHostingerEnv) {
   require('dotenv').config({ path: sharedHostingerEnv });
 } else {
   require('dotenv').config();

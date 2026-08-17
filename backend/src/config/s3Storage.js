@@ -58,6 +58,9 @@ class S3MulterStorage {
 
   _handleFile(req, file, cb) {
     let filename;
+    let bucket;
+    let key;
+    let s3;
 
     try {
       if (typeof this.filenameBuilder !== 'function') {
@@ -65,13 +68,14 @@ class S3MulterStorage {
       }
 
       filename = this.filenameBuilder(file.originalname);
+      bucket = getBucketName();
+      key = buildObjectKey(this.prefix, filename);
+      s3 = getS3Client();
     } catch (error) {
       cb(error);
       return;
     }
 
-    const bucket = getBucketName();
-    const key = buildObjectKey(this.prefix, filename);
     let size = 0;
 
     const counter = new Transform({
@@ -84,7 +88,7 @@ class S3MulterStorage {
     file.stream.pipe(counter);
 
     const upload = new Upload({
-      client: getS3Client(),
+      client: s3,
       params: {
         Bucket: bucket,
         Key: key,
