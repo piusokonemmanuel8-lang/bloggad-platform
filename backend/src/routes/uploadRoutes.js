@@ -12,9 +12,14 @@ const router = express.Router();
 const allowedExtensions = [
   '.jpg',
   '.jpeg',
+  '.jfif',
+  '.pjpeg',
+  '.pjp',
   '.png',
   '.webp',
   '.gif',
+  '.avif',
+  '.bmp',
   '.mp4',
   '.webm',
   '.mov',
@@ -32,6 +37,9 @@ const allowedMimeTypes = [
   'image/png',
   'image/webp',
   'image/gif',
+  'image/avif',
+  'image/bmp',
+  'image/x-ms-bmp',
 
   'video/mp4',
   'video/webm',
@@ -98,9 +106,23 @@ const uploadImageOnly = multer({
       'image/png',
       'image/webp',
       'image/gif',
+      'image/avif',
+      'image/bmp',
+      'image/x-ms-bmp',
     ];
 
-    const allowedImageExtensions = ['.jpg', '.jpeg', '.png', '.webp', '.gif'];
+    const allowedImageExtensions = [
+      '.jpg',
+      '.jpeg',
+      '.jfif',
+      '.pjpeg',
+      '.pjp',
+      '.png',
+      '.webp',
+      '.gif',
+      '.avif',
+      '.bmp',
+    ];
 
     if (!allowedImageMimeTypes.includes(file.mimetype) || !allowedImageExtensions.includes(ext)) {
       return cb(new Error('Only image files are allowed'));

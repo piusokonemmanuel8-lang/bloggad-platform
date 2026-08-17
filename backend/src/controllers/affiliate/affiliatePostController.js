@@ -2227,17 +2227,7 @@ async function updatePost(req, res) {
         });
       }
 
-      const placement = await resolveWriterPostPlacement({
-      writerUserId: userId,
-      pageIds: page_ids,
-      showOnStorefront: show_on_storefront,
-      currentPostId: existingPost.id,
-      contentType: cleanContentType,
-      isCreate: false,
-    });
-    const postWebsiteId = placement.website_id;
-
-    const templateAccess = await canUserUseBlogTemplate({
+      const templateAccess = await canUserUseBlogTemplate({
         userId,
         templateId,
       });
@@ -2249,6 +2239,16 @@ async function updatePost(req, res) {
         });
       }
     }
+
+    const placement = await resolveWriterPostPlacement({
+      writerUserId: userId,
+      pageIds: page_ids,
+      showOnStorefront: show_on_storefront,
+      currentPostId: existingPost.id,
+      contentType: cleanContentType,
+      isCreate: false,
+    });
+    const postWebsiteId = placement.website_id;
 
     const linkPermission = await resolveUserLinkPermission(userId);
 

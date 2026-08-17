@@ -8,6 +8,9 @@ const {
   creditReaderWallet,
   appreciateWriter,
 } = require('../services/writerReaderFinanceService');
+const {
+  reconcileReaderCreditPurchase,
+} = require('../services/readerCreditPaymentService');
 
 function cleanText(value, maxLength = 255) {
   return String(value || '').trim().slice(0, maxLength);
@@ -15,6 +18,34 @@ function cleanText(value, maxLength = 255) {
 
 async function getReaderCreditWallet(req, res) {
   try {
+    const [recoverablePurchases] = await pool.query(
+      `
+      SELECT merchant_reference
+      FROM reader_credit_purchases
+      WHERE reader_user_id = ?
+        AND status IN ('created', 'initialized', 'pending', 'paid')
+        AND updated_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+      ORDER BY id DESC
+      LIMIT 3
+      `,
+      [req.user.id]
+    );
+
+    for (const purchase of recoverablePurchases) {
+      const reference = String(purchase?.merchant_reference || '').trim();
+      if (!reference) continue;
+
+      try {
+        await reconcileReaderCreditPurchase(reference);
+      } catch (reconcileError) {
+        console.warn(
+          'Reader credit wallet reconciliation skipped:',
+          reference,
+          reconcileError.message
+        );
+      }
+    }
+
     const wallet = await ensureReaderWallet(req.user.id);
     const settings = await getAppreciationSettings();
 
