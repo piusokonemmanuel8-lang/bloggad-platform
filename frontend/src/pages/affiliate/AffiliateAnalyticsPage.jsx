@@ -971,7 +971,7 @@ function WriterAnalyticsWorkspace() {
         setLoading(true);
       }
 
-      const { data } = await api.get('/api/affiliate/analytics', {
+      const { data } = await api.get('/api/writer/analytics', {
         params: { days },
       });
 

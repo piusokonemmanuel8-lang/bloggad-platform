@@ -414,6 +414,10 @@ mount(app, '/api/admin/supgad-integration', 'adminSupgadIntegrationRoutes', [
     './routes/writerReadingCoreRoutes',
   ]);
 
+  mount(app, '/api/writer/analytics', 'writerAnalyticsRoutes', [
+    './routes/writerAnalyticsRoutes',
+  ]);
+
   mount(app, '/api/writer/pages', 'writerPageRoutes', [
     './routes/writerPageRoutes',
   ]);

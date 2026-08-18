@@ -1,5 +1,6 @@
 const pool = require('../config/db');
 const { buildPublicPostAccessPayload,getPostFields,getPostCtas } = require('../services/writerReaderAccessService');
+const { trackPostView } = require('../services/analyticsService');
 const {
   fail,positiveInt,cleanText,makeSlug,boolValue,getWriterPages,getWriterPublishingContext,
   getWriterEntitlement,getPrimaryWriterPage,ensurePrimaryWriterPage,getWriterStorefront,
@@ -245,6 +246,20 @@ async function getPublicWriterPagePost(req,res) {
         affiliate_buy_url:row.affiliate_buy_url}:null,
       category:row.category_id?{id:Number(row.category_id),name:row.category_name,slug:row.category_slug}:null,
     };
+    // BLOGGAD_WRITER_PAGE_POST_VIEW_TRACKING_V1
+    try {
+      await trackPostView({
+        postId: post.id,
+        productId: post.product_id || null,
+        websiteId: post.website_id || null,
+        ipAddress: req.ip || null,
+        referrer: req.get('referer') || null,
+        userAgent: req.get('user-agent') || null,
+      });
+    } catch (analyticsError) {
+      console.error('trackWriterPagePostView error:', analyticsError.message);
+    }
+
     const [fields,ctas]=await Promise.all([getPostFields(post.id),getPostCtas(post.id)]);
     return res.json({ok:true,page:{id:Number(page.id),user_id:Number(page.user_id),name:page.name,slug:page.slug,
       logo_url:page.logo_url,banner_url:page.banner_url,bio:page.bio,is_primary:!!page.is_primary},
