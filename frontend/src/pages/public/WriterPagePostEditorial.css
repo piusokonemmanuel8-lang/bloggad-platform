@@ -810,3 +810,155 @@
     max-height: calc(100vh - 16px);
   }
 }
+/* BLOGGAD_BALANCED_SOCIAL_ACTIONS_V1 */
+
+/* Compact post metrics on desktop. */
+.wpp-hero-tools {
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+}
+
+.wpp-hero-tools span:not(:first-child) {
+  min-height: 28px;
+  padding: 0 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #e4e8ed;
+  border-radius: 999px;
+  background: #f7f8fa;
+  color: #59616b;
+  line-height: 1;
+}
+
+/* Main action strip below featured media. */
+.wpp-inline-actions {
+  margin: 14px 0 26px;
+  padding: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  overflow: visible;
+  border: 1px solid #e5e8ec;
+  border-radius: 12px;
+  background: #f5f7f9;
+}
+
+.wpp-inline-actions button {
+  min-height: 36px;
+  padding: 0 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #e1e5e9;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #30353b;
+  line-height: 1;
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.wpp-inline-actions button:hover {
+  border-color: #cdd4dc;
+  background: #fbfcfd;
+}
+
+.wpp-inline-actions button.active {
+  border-color: #bdd4fb;
+  background: #eef5ff;
+  color: var(--wpp-blue);
+}
+
+/* Final social row after the article body. */
+.wpp-engagement-row {
+  margin-top: 30px;
+  padding: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  overflow: visible;
+  border: 1px solid #e5e8ec;
+  border-radius: 12px;
+  background: #ffffff;
+}
+
+.wpp-engagement-row button,
+.wpp-engagement-row .wpp-text-action {
+  min-height: 36px;
+  padding: 0 13px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #e1e5e9;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #4f5660;
+  line-height: 1;
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.wpp-engagement-row button:hover,
+.wpp-engagement-row .wpp-text-action:hover {
+  border-color: #cdd4dc;
+  background: #f8fafc;
+}
+
+.wpp-engagement-row button.active {
+  border-color: #bdd4fb;
+  background: #eef5ff;
+  color: var(--wpp-blue);
+}
+
+.wpp-appreciate-link {
+  margin-left: auto;
+}
+
+@media (max-width: 760px) {
+  /* Android/mobile: keep the media action strip readable and touch friendly. */
+  .wpp-inline-actions {
+    margin: 10px 0 16px;
+    padding: 8px;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 7px;
+    overflow: visible;
+  }
+
+  .wpp-inline-actions button {
+    width: 100%;
+    min-width: 0;
+    min-height: 38px;
+    padding: 0 6px;
+    font-size: 11px;
+  }
+
+  /* Four core social actions stay balanced on one row. */
+  .wpp-engagement-row {
+    margin-top: 22px;
+    padding: 8px;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 6px;
+    overflow: visible;
+    border-radius: 10px;
+    background: #f8fafc;
+  }
+
+  .wpp-engagement-row button,
+  .wpp-engagement-row .wpp-text-action {
+    width: 100%;
+    min-width: 0;
+    min-height: 38px;
+    padding: 0 4px;
+    font-size: 10.5px;
+  }
+
+  .wpp-appreciate-link {
+    display: none;
+  }
+}
