@@ -131,7 +131,8 @@ async function getPublicTopicBySlug(req, res) {
           pp.published_at,
           pp.created_at,
           aw.website_name,
-          COALESCE(aw.slug, CONCAT('page/', primary_wp.slug)) AS website_slug,
+          aw.slug AS website_slug,
+        primary_wp.slug AS writer_page_slug,
           c.name AS category_name,
           COALESCE(
             NULLIF(wp.pen_name, ''),
@@ -159,9 +160,13 @@ async function getPublicTopicBySlug(req, res) {
           ON u.id = pp.user_id
          AND u.role = 'affiliate'
          AND u.status = 'active'
-        LEFT JOIN affiliate_websites aw ON aw.id = pp.website_id
-        LEFT JOIN writer_pages primary_wp ON primary_wp.user_id=pp.user_id AND primary_wp.is_primary=1 AND primary_wp.status='active'
+        LEFT JOIN affiliate_websites aw
+          ON aw.id = pp.website_id
          AND aw.status = 'active'
+        LEFT JOIN writer_pages primary_wp
+          ON primary_wp.user_id = pp.user_id
+         AND primary_wp.is_primary = 1
+         AND primary_wp.status = 'active'
         LEFT JOIN writer_profiles wp
           ON wp.user_id = pp.user_id
          AND wp.status = 'active'
@@ -389,7 +394,8 @@ async function getReaderFeed(req, res) {
         pp.published_at,
         pp.created_at,
         aw.website_name,
-        COALESCE(aw.slug, CONCAT('page/', primary_wp.slug)) AS website_slug,
+        aw.slug AS website_slug,
+        primary_wp.slug AS writer_page_slug,
         c.name AS category_name,
         COALESCE(
           NULLIF(wp.pen_name, ''),

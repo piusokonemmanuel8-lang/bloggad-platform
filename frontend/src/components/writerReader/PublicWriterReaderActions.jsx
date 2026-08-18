@@ -21,20 +21,24 @@ function safeParse(value) {
 }
 
 function getReaderSession() {
+  const bloggadUser = safeParse(localStorage.getItem('bloggad_user'));
   const customerUser = safeParse(localStorage.getItem('customerUser'));
   const generalUser = safeParse(localStorage.getItem('user'));
   const isReaderCapableRole = (userValue) =>
     userValue?.role === 'customer' || userValue?.role === 'affiliate';
 
-  const user = isReaderCapableRole(generalUser)
-    ? generalUser
-    : isReaderCapableRole(customerUser)
-    ? customerUser
-    : null;
+  const user = isReaderCapableRole(bloggadUser)
+    ? bloggadUser
+    : isReaderCapableRole(generalUser)
+      ? generalUser
+      : isReaderCapableRole(customerUser)
+        ? customerUser
+        : null;
 
   if (!user) return null;
 
   const token =
+    localStorage.getItem('bloggad_token') ||
     localStorage.getItem('customerToken') ||
     localStorage.getItem('authToken') ||
     localStorage.getItem('accessToken') ||

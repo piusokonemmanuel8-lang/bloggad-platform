@@ -114,9 +114,15 @@ function normalizeTopics(post) {
 }
 
 function getPostUrl(post) {
-  return post?.website_slug && post?.slug
-    ? `/${post.website_slug}/post/${post.slug}`
-    : '#';
+  if (post?.writer_page_slug && post?.slug) {
+    return `/page/${encodeURIComponent(post.writer_page_slug)}/post/${encodeURIComponent(post.slug)}`;
+  }
+
+  if (post?.website_slug && post?.slug) {
+    return `/${encodeURIComponent(post.website_slug)}/post/${encodeURIComponent(post.slug)}`;
+  }
+
+  return '#';
 }
 
 export default function ReaderFeedPage() {
