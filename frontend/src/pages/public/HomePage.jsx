@@ -412,10 +412,10 @@ export default function HomePage() {
             ? data.posts.filter(Boolean)
             : [];
 
-        setPersonalizedPosts(feed.length ? feed : null);
+        setPersonalizedPosts(feed);
       } catch {
         if (active) {
-          setPersonalizedPosts(null);
+          setPersonalizedPosts([]);
         }
       }
     }
@@ -427,14 +427,16 @@ export default function HomePage() {
     };
   }, [isAuthenticated]);
 const allPosts = useMemo(() => {
-    const source = Array.isArray(personalizedPosts)
-      ? personalizedPosts
+    const source = isAuthenticated
+      ? Array.isArray(personalizedPosts)
+        ? personalizedPosts
+        : []
       : Array.isArray(pageData?.posts)
         ? pageData.posts
         : [];
 
     return source.filter(Boolean);
-  }, [pageData, personalizedPosts]);
+  }, [isAuthenticated, pageData, personalizedPosts]);
 
   const categories = useMemo(
     () => (Array.isArray(pageData?.categories) ? pageData.categories.filter(Boolean) : []),

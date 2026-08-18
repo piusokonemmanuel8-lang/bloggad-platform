@@ -439,17 +439,31 @@ async function getReaderFeed(req, res) {
       FROM product_posts pp
       INNER JOIN users u
         ON u.id = pp.user_id
-       AND u.role = 'affiliate'
        AND u.status = 'active'
-      LEFT JOIN affiliate_websites aw ON aw.id = pp.website_id
-        LEFT JOIN writer_pages primary_wp ON primary_wp.user_id=pp.user_id AND primary_wp.is_primary=1 AND primary_wp.status='active'
+      LEFT JOIN affiliate_websites aw
+        ON aw.id = pp.website_id
        AND aw.status = 'active'
+      LEFT JOIN writer_pages primary_wp
+        ON primary_wp.user_id = pp.user_id
+       AND primary_wp.is_primary = 1
+       AND primary_wp.status = 'active'
       LEFT JOIN writer_profiles wp
         ON wp.user_id = pp.user_id
        AND wp.status = 'active'
       LEFT JOIN categories c
         ON c.id = pp.category_id
       WHERE pp.status = 'published'
+        AND EXISTS(
+          SELECT 1
+          FROM reader_interest_tree rit_match
+          WHERE rit_match.category_id = pp.category_id
+             OR EXISTS(
+               SELECT 1
+               FROM post_category_assignments pca_interest
+               WHERE pca_interest.post_id = pp.id
+                 AND pca_interest.category_id = rit_match.category_id
+             )
+        )
         AND NOT EXISTS(
           SELECT 1
           FROM reader_content_mutes rcm

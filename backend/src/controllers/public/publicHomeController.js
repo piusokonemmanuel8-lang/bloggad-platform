@@ -310,12 +310,11 @@ async function getHomepageStats() {
     `
     SELECT COUNT(*) AS total_posts
     FROM product_posts pp
-    INNER JOIN affiliate_websites aw
+    LEFT JOIN affiliate_websites aw
       ON aw.id = pp.website_id
      AND aw.status = 'active'
     INNER JOIN users u
       ON u.id = pp.user_id
-     AND u.role = 'affiliate'
      AND u.status = 'active'
     WHERE pp.status = 'published'
     `
@@ -406,7 +405,7 @@ async function getHomepageStories(limit = 40) {
         ) AS writer_avatar_url
 
       FROM product_posts pp
-      INNER JOIN affiliate_websites aw
+      LEFT JOIN affiliate_websites aw
         ON aw.id = pp.website_id
        AND aw.status = 'active'
       INNER JOIN users u
@@ -454,7 +453,7 @@ async function getHomepageStories(limit = 40) {
         ) AS writer_avatar_url
 
       FROM product_posts pp
-      INNER JOIN affiliate_websites aw
+      LEFT JOIN affiliate_websites aw
         ON aw.id = pp.website_id
        AND aw.status = 'active'
       INNER JOIN users u

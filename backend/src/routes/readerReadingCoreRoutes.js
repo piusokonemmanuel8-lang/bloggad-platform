@@ -28,9 +28,9 @@ router.get('/health', (req, res) => {
   res.status(200).json({ ok: true, message: 'Reader Reading Core routes working' });
 });
 
-router.get('/interests', protect, customerOnly, getReaderInterests);
-router.put('/interests', protect, customerOnly, saveReaderInterests);
-router.get('/feed', protect, customerOnly, getReaderFeed);
+router.get('/interests', protect, getReaderInterests);
+router.put('/interests', protect, saveReaderInterests);
+router.get('/feed', protect, getReaderFeed);
 router.get('/controls', protect, customerOnly, getReaderReadingControls);
 router.get('/posts/:postId/state', protect, customerOnly, getReaderPostReadingState);
 router.post('/posts/:postId/highlights', protect, customerOnly, createPostHighlight);
