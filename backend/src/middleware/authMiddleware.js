@@ -38,6 +38,10 @@ function extractToken(req) {
     return String(authHeader).split(' ')[1];
   }
 
+  if (req.cookies?.bloggad_token) {
+    return req.cookies.bloggad_token;
+  }
+
   if (req.cookies?.token) {
     return req.cookies.token;
   }
@@ -126,10 +130,15 @@ function customerOnly(req, res, next) {
   return authorize('customer')(req, res, next);
 }
 
+function readerOrWriter(req, res, next) {
+  return authorize('customer', 'affiliate')(req, res, next);
+}
+
 module.exports = {
   protect,
   authorize,
   adminOnly,
   affiliateOnly,
   customerOnly,
+  readerOrWriter,
 };

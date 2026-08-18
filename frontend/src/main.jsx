@@ -155,6 +155,40 @@ function CustomerProtectedRoute({ children }) {
   return children;
 }
 
+function ReaderProtectedRoute({ children }) {
+  const token =
+    localStorage.getItem('bloggad_token') ||
+    localStorage.getItem('customerToken') ||
+    localStorage.getItem('authToken') ||
+    localStorage.getItem('token') ||
+    localStorage.getItem('accessToken');
+
+  const rawUser =
+    localStorage.getItem('bloggad_user') ||
+    localStorage.getItem('customerUser') ||
+    localStorage.getItem('user');
+
+  let user = null;
+
+  try {
+    user = rawUser ? JSON.parse(rawUser) : null;
+  } catch (error) {
+    user = null;
+  }
+
+  if (!token) {
+    return <Navigate to="/reader/login" replace />;
+  }
+
+  if (
+    user?.role &&
+    !['customer', 'affiliate'].includes(String(user.role).toLowerCase())
+  ) {
+    return <Navigate to="/" replace />;
+  }
+
+  return children;
+}
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <AuthProvider>
@@ -429,64 +463,64 @@ ReactDOM.createRoot(document.getElementById('root')).render(
 
           <Route
             path="/reader/dashboard"
-            element={<CustomerProtectedRoute><CustomerDashboardPage /></CustomerProtectedRoute>}
+            element={<ReaderProtectedRoute><CustomerDashboardPage /></ReaderProtectedRoute>}
           />
           <Route
             path="/reader/saved-posts"
-            element={<CustomerProtectedRoute><CustomerSavedPostsPage /></CustomerProtectedRoute>}
+            element={<ReaderProtectedRoute><CustomerSavedPostsPage /></ReaderProtectedRoute>}
           />
           <Route
             path="/reader/saved-products"
-            element={<CustomerProtectedRoute><CustomerSavedProductsPage /></CustomerProtectedRoute>}
+            element={<ReaderProtectedRoute><CustomerSavedProductsPage /></ReaderProtectedRoute>}
           />
           <Route
             path="/reader/messages"
-            element={<CustomerProtectedRoute><CustomerMessagesPage /></CustomerProtectedRoute>}
+            element={<ReaderProtectedRoute><CustomerMessagesPage /></ReaderProtectedRoute>}
           />
           <Route
             path="/reader/settings"
-            element={<CustomerProtectedRoute><CustomerSettingsPage /></CustomerProtectedRoute>}
+            element={<ReaderProtectedRoute><CustomerSettingsPage /></ReaderProtectedRoute>}
           />
           <Route
             path="/reader/following"
-            element={<CustomerProtectedRoute><ReaderFollowingPage /></CustomerProtectedRoute>}
+            element={<ReaderProtectedRoute><ReaderFollowingPage /></ReaderProtectedRoute>}
           />
           <Route
             path="/reader/notifications"
-            element={<CustomerProtectedRoute><ReaderNotificationsPage /></CustomerProtectedRoute>}
+            element={<ReaderProtectedRoute><ReaderNotificationsPage /></ReaderProtectedRoute>}
           />
           <Route
             path="/reader/credits"
-            element={<CustomerProtectedRoute><ReaderCreditsPage /></CustomerProtectedRoute>}
+            element={<ReaderProtectedRoute><ReaderCreditsPage /></ReaderProtectedRoute>}
           />
           <Route
             path="/reader/premium"
-            element={<CustomerProtectedRoute><ReaderPremiumPage /></CustomerProtectedRoute>}
+            element={<ReaderProtectedRoute><ReaderPremiumPage /></ReaderProtectedRoute>}
           />
           <Route
             path="/reader/courses"
-            element={<CustomerProtectedRoute><ReaderCoursesPage /></CustomerProtectedRoute>}
+            element={<ReaderProtectedRoute><ReaderCoursesPage /></ReaderProtectedRoute>}
           />
           <Route
             path="/reader/appreciations"
-            element={<CustomerProtectedRoute><ReaderAppreciationsPage /></CustomerProtectedRoute>}
+            element={<ReaderProtectedRoute><ReaderAppreciationsPage /></ReaderProtectedRoute>}
           />
 
           <Route
             path="/reader/feed"
-            element={<CustomerProtectedRoute><ReaderFeedPage /></CustomerProtectedRoute>}
+            element={<ReaderProtectedRoute><ReaderFeedPage /></ReaderProtectedRoute>}
           />
           <Route
             path="/reader/interests"
-            element={<CustomerProtectedRoute><ReaderInterestsPage /></CustomerProtectedRoute>}
+            element={<ReaderProtectedRoute><ReaderInterestsPage /></ReaderProtectedRoute>}
           />
           <Route
             path="/reader/onboarding"
-            element={<CustomerProtectedRoute><ReaderInterestsPage /></CustomerProtectedRoute>}
+            element={<ReaderProtectedRoute><ReaderInterestsPage /></ReaderProtectedRoute>}
           />
           <Route
             path="/reader/reading-controls"
-            element={<CustomerProtectedRoute><ReaderReadingControlsPage /></CustomerProtectedRoute>}
+            element={<ReaderProtectedRoute><ReaderReadingControlsPage /></ReaderProtectedRoute>}
           />
 
           <Route path="*" element={<Navigate to="/" replace />} />

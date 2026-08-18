@@ -1,5 +1,5 @@
 const express = require('express');
-const { protect, customerOnly } = require('../middleware/authMiddleware');
+const { protect, readerOrWriter } = require('../middleware/authMiddleware');
 const {
   getReaderPost,
   getReaderSubscription,
@@ -25,21 +25,21 @@ router.get('/health', (req, res) => {
   });
 });
 
-router.get('/plans', protect, customerOnly, getReaderPlans);
-router.get('/subscription', protect, customerOnly, getReaderSubscription);
-router.get('/memberships', protect, customerOnly, getReaderMemberships);
-router.get('/checkout/options', protect, customerOnly, getCheckoutOptions);
-router.post('/checkout/initialize', protect, customerOnly, initializeCheckout);
+router.get('/plans', protect, readerOrWriter, getReaderPlans);
+router.get('/subscription', protect, readerOrWriter, getReaderSubscription);
+router.get('/memberships', protect, readerOrWriter, getReaderMemberships);
+router.get('/checkout/options', protect, readerOrWriter, getCheckoutOptions);
+router.post('/checkout/initialize', protect, readerOrWriter, initializeCheckout);
 router.get(
   '/checkout/status/:reference',
   protect,
-  customerOnly,
+  readerOrWriter,
   getCheckoutStatus
 );
 router.get('/checkout/callback/paystack', paystackCallback);
 router.get('/checkout/callback/flutterwave', flutterwaveCallback);
 router.get('/checkout/callback/paypal', paypalCallback);
 router.get('/checkout/cancel/paypal', paypalCancel);
-router.get('/posts/:postId', protect, customerOnly, getReaderPost);
+router.get('/posts/:postId', protect, readerOrWriter, getReaderPost);
 
 module.exports = router;

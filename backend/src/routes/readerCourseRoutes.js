@@ -1,5 +1,5 @@
 const express = require('express');
-const { protect, customerOnly } = require('../middleware/authMiddleware');
+const { protect, readerOrWriter } = require('../middleware/authMiddleware');
 const {
   enrollReaderInCourse,
   listReaderCourses,
@@ -16,13 +16,13 @@ router.get('/health', (req, res) => {
   });
 });
 
-router.get('/', protect, customerOnly, listReaderCourses);
-router.post('/:courseId/enroll', protect, customerOnly, enrollReaderInCourse);
-router.get('/:courseId', protect, customerOnly, getReaderCourse);
+router.get('/', protect, readerOrWriter, listReaderCourses);
+router.post('/:courseId/enroll', protect, readerOrWriter, enrollReaderInCourse);
+router.get('/:courseId', protect, readerOrWriter, getReaderCourse);
 router.patch(
   '/:courseId/lessons/:lessonId/progress',
   protect,
-  customerOnly,
+  readerOrWriter,
   updateReaderLessonProgress
 );
 

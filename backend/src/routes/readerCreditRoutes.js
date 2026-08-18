@@ -1,5 +1,5 @@
 const express = require('express');
-const { protect, customerOnly } = require('../middleware/authMiddleware');
+const { protect, readerOrWriter } = require('../middleware/authMiddleware');
 const {
   getReaderCreditWallet,
   createReaderAppreciation,
@@ -28,16 +28,16 @@ router.get('/top-up/callback/flutterwave', flutterwaveCallback);
 router.get('/top-up/callback/paypal', paypalCallback);
 router.get('/top-up/cancel/paypal', paypalCancel);
 
-router.get('/top-up/options', protect, customerOnly, getTopUpOptions);
-router.post('/top-up/initialize', protect, customerOnly, initializeTopUp);
+router.get('/top-up/options', protect, readerOrWriter, getTopUpOptions);
+router.post('/top-up/initialize', protect, readerOrWriter, initializeTopUp);
 router.get(
   '/top-up/status/:reference',
   protect,
-  customerOnly,
+  readerOrWriter,
   getTopUpStatus
 );
 
-router.get('/', protect, customerOnly, getReaderCreditWallet);
-router.post('/appreciate', protect, customerOnly, createReaderAppreciation);
+router.get('/', protect, readerOrWriter, getReaderCreditWallet);
+router.post('/appreciate', protect, readerOrWriter, createReaderAppreciation);
 
 module.exports = router;
