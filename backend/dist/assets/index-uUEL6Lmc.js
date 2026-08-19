@@ -12360,7 +12360,8 @@ Websites`,floating_green_badge:"Buy Now"},category_cards:{enabled:!0,title:"Shop
   .wa-chart {
     width: 100%;
     min-width: 680px;
-    height: 290px;
+    height: auto;
+    aspect-ratio: 820 / 292;
     display: block;
     color: #20242a;
   }
@@ -12692,7 +12693,7 @@ Websites`,floating_green_badge:"Buy Now"},category_cards:{enabled:!0,title:"Shop
 
     .wa-chart {
       min-width: 610px;
-      height: 242px;
+      height: auto;
     }
 
     .wa-ranking-row {

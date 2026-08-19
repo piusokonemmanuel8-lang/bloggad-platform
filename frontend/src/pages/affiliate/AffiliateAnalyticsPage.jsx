@@ -1472,7 +1472,8 @@ const writerAnalyticsStyles = `
   .wa-chart {
     width: 100%;
     min-width: 680px;
-    height: 290px;
+    height: auto;
+    aspect-ratio: 820 / 292;
     display: block;
     color: #20242a;
   }
@@ -1804,7 +1805,7 @@ const writerAnalyticsStyles = `
 
     .wa-chart {
       min-width: 610px;
-      height: 242px;
+      height: auto;
     }
 
     .wa-ranking-row {
