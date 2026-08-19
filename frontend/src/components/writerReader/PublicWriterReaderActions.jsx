@@ -1,6 +1,18 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
+import {
+  Bookmark,
+  Gift,
+  Heart,
+  MessageCircle,
+  Send,
+  Share2,
+  Sparkles,
+  UserPlus,
+  UserRound,
+} from 'lucide-react';
 import ReaderReadingTools from './ReaderReadingTools';
+import './ReaderToolsExperience.css';
 
 const API_BASE =
   import.meta.env.VITE_API_BASE_URL ||
@@ -115,29 +127,30 @@ function makeRequestKey(writerId, postId) {
   return `reader-appreciation-${writerId}-${postId}-${random}`;
 }
 
-function ActionButton({ active = false, disabled = false, children, onClick }) {
+function ActionButton({
+  active = false,
+  disabled = false,
+  children,
+  onClick,
+  icon: Icon,
+  tone = 'default',
+}) {
   return (
     <button
       type="button"
       disabled={disabled}
       onClick={onClick}
-      style={{
-        minHeight: 42,
-        borderRadius: 999,
-        border: active ? '1px solid #111827' : '1px solid #dbe3ee',
-        background: active ? '#111827' : '#ffffff',
-        color: active ? '#ffffff' : '#111827',
-        padding: '0 15px',
-        fontWeight: 800,
-        cursor: disabled ? 'not-allowed' : 'pointer',
-        opacity: disabled ? 0.58 : 1,
-      }}
+      className={`brt-action-button${active ? ' is-active' : ''} brt-tone-${tone}`}
     >
-      {children}
+      {Icon ? (
+        <span className="brt-action-icon" aria-hidden="true">
+          <Icon size={19} strokeWidth={1.9} />
+        </span>
+      ) : null}
+      <span className="brt-action-label">{children}</span>
     </button>
   );
 }
-
 function CommentCard({ comment, onQuote }) {
   const replies = Array.isArray(comment?.replies) ? comment.replies : [];
 
@@ -145,86 +158,62 @@ function CommentCard({ comment, onQuote }) {
     if (!item?.quoted_text) return null;
 
     return (
-      <blockquote
-        style={{
-          margin: '8px 0 0',
-          padding: '8px 10px',
-          borderLeft: '3px solid #94a3b8',
-          background: '#f8fafc',
-          color: '#475569',
-        }}
-      >
-        <div style={{ fontSize: 12, fontWeight: 800 }}>
-          Quoting {item?.quoted_author_name || 'comment'}
-        </div>
-        <u style={{ display: 'block', marginTop: 3, textDecorationThickness: 1 }}>
-          {item.quoted_text}
-        </u>
+      <blockquote className="brt-comment-quote">
+        <span>Quoting {item?.quoted_author_name || 'comment'}</span>
+        <u>{item.quoted_text}</u>
       </blockquote>
     );
   }
 
   return (
-    <div
-      style={{
-        border: '1px solid #e5e7eb',
-        borderRadius: 16,
-        padding: 14,
-        background: '#ffffff',
-      }}
-    >
-      <div style={{ fontWeight: 800, color: '#111827' }}>
-        {comment?.author?.name || (comment?.author?.role === 'writer' ? 'Writer' : 'Reader')}
+    <article className="brt-comment-card">
+      <div className="brt-comment-author">
+        <span className="brt-comment-avatar" aria-hidden="true">
+          {String(
+            comment?.author?.name ||
+            (comment?.author?.role === 'writer' ? 'Writer' : 'Reader')
+          ).trim().slice(0, 1).toUpperCase()}
+        </span>
+        <div>
+          <strong>
+            {comment?.author?.name ||
+              (comment?.author?.role === 'writer' ? 'Writer' : 'Reader')}
+          </strong>
+          <small>{comment?.author?.role === 'writer' ? 'Writer' : 'Reader'}</small>
+        </div>
       </div>
+
       <QuoteBlock item={comment} />
-      <div style={{ marginTop: 6, color: '#334155', whiteSpace: 'pre-wrap', lineHeight: 1.65 }}>
-        {comment?.body || ''}
-      </div>
+
+      <div className="brt-comment-copy">{comment?.body || ''}</div>
+
       <button
         type="button"
+        className="brt-quote-button"
         onClick={() => onQuote?.(comment)}
-        style={{
-          marginTop: 8,
-          border: 0,
-          background: 'transparent',
-          padding: 0,
-          color: '#1d4ed8',
-          fontWeight: 800,
-          cursor: 'pointer',
-        }}
       >
         Quote
       </button>
 
       {replies.length ? (
-        <div style={{ marginTop: 12, display: 'grid', gap: 8, paddingLeft: 16 }}>
+        <div className="brt-comment-replies">
           {replies.map((reply) => (
-            <div
-              key={reply.id}
-              style={{
-                borderLeft: '3px solid #dbeafe',
-                padding: '8px 0 8px 12px',
-              }}
-            >
-              <div style={{ fontWeight: 800, color: '#1d4ed8' }}>
-                {reply?.author?.name || 'Writer'}
+            <div className="brt-comment-reply" key={reply.id}>
+              <div className="brt-comment-author compact">
+                <span className="brt-comment-avatar" aria-hidden="true">
+                  {String(reply?.author?.name || 'Writer').trim().slice(0, 1).toUpperCase()}
+                </span>
+                <div>
+                  <strong>{reply?.author?.name || 'Writer'}</strong>
+                  <small>{reply?.author?.role === 'writer' ? 'Writer reply' : 'Reader reply'}</small>
+                </div>
               </div>
               <QuoteBlock item={reply} />
-              <div style={{ marginTop: 4, color: '#475569', whiteSpace: 'pre-wrap' }}>
-                {reply?.body || ''}
-              </div>
+              <div className="brt-comment-copy">{reply?.body || ''}</div>
               <button
                 type="button"
+                className="brt-quote-button"
                 onClick={() => onQuote?.(reply)}
-                style={{
-                  marginTop: 6,
-                  border: 0,
-                  background: 'transparent',
-                  padding: 0,
-                  color: '#1d4ed8',
-                  fontWeight: 800,
-                  cursor: 'pointer',
-                }}
               >
                 Quote
               </button>
@@ -232,10 +221,9 @@ function CommentCard({ comment, onQuote }) {
           ))}
         </div>
       ) : null}
-    </div>
+    </article>
   );
 }
-
 export default function PublicWriterReaderActions({
   post,
   websiteSlug,
@@ -658,149 +646,124 @@ export default function PublicWriterReaderActions({
       : Number(appreciationSettings.maximum_credits);
 
   if (!postId || !writerId) return null;
-
   return (
-    <section
-      style={{
-        maxWidth: 1180,
-        margin: '24px auto 40px',
-        padding: '0 18px',
-      }}
-    >
+    <section className="brt-shell">
       {locked ? (
-        <div
-          style={{
-            border: '1px solid #bfdbfe',
-            background: '#eff6ff',
-            borderRadius: 22,
-            padding: 20,
-            marginBottom: 18,
-          }}
-        >
-          <div style={{ fontSize: 12, fontWeight: 900, letterSpacing: '0.08em', color: '#1d4ed8' }}>
-            PREMIUM READING
+        <section className="brt-premium-card">
+          <div className="brt-premium-copy">
+            <span className="brt-kicker blue">Premium reading</span>
+            <h3>Continue the full post</h3>
+            <p>
+              This Writer chose a {Number(access?.preview_percent || 0)}% public preview.
+              Reader platform access or an active direct membership with this Writer can unlock the full post.
+            </p>
           </div>
-          <h2 style={{ margin: '8px 0 6px', color: '#0f172a' }}>Continue the full post</h2>
-          <p style={{ margin: 0, color: '#475569', lineHeight: 1.65 }}>
-            This Writer chose a {Number(access?.preview_percent || 0)}% public preview.
-            Reader platform access or an active direct membership with this Writer can unlock the full post.
-          </p>
-          <div style={{ marginTop: 14, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-            <ActionButton disabled={busy === 'unlock'} onClick={checkPremiumAccess}>
-              {busy === 'unlock' ? 'Checking...' : 'Check my Reader access'}
-            </ActionButton>
-            <Link
-              to="/reader/premium"
-              style={{
-                minHeight: 42,
-                display: 'inline-flex',
-                alignItems: 'center',
-                borderRadius: 999,
-                padding: '0 15px',
-                background: '#2563eb',
-                color: '#ffffff',
-                textDecoration: 'none',
-                fontWeight: 800,
-              }}
+          <div className="brt-premium-actions">
+            <ActionButton
+              disabled={busy === 'unlock'}
+              onClick={checkPremiumAccess}
+              icon={Sparkles}
             >
+              {busy === 'unlock' ? 'Checking...' : 'Check Reader access'}
+            </ActionButton>
+            <Link to="/reader/premium" className="brt-primary-link">
               Reader Premium
             </Link>
           </div>
-        </div>
+        </section>
       ) : null}
 
-      <div
-        style={{
-          border: '1px solid #e2e8f0',
-          borderRadius: 24,
-          background: '#f8fafc',
-          padding: 20,
-        }}
-      >
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            gap: 16,
-            alignItems: 'center',
-            flexWrap: 'wrap',
-          }}
-        >
-          <div>
-            <div style={{ fontSize: 12, fontWeight: 900, letterSpacing: '0.08em', color: '#64748b' }}>
-              READER ACTIONS
-            </div>
-            <h2 style={{ margin: '6px 0 0', color: '#0f172a' }}>Read, respond, and support the Writer</h2>
+      <div className="brt-panel">
+        <header className="brt-header">
+          <div className="brt-header-copy">
+            <span className="brt-kicker">Reader space</span>
+            <h2>Reader tools</h2>
+            <p>React, save, listen, support the Writer, and join the conversation.</p>
           </div>
 
-          <Link
-            to={profilePath}
-            style={{
-              color: '#1d4ed8',
-              fontWeight: 800,
-              textDecoration: 'none',
-            }}
-          >
-            View Writer profile
+          <Link to={profilePath} className="brt-profile-link">
+            <UserRound size={17} strokeWidth={1.9} />
+            <span>Writer profile</span>
           </Link>
-        </div>
+        </header>
 
-        <div style={{ marginTop: 16, display: 'flex', gap: 9, flexWrap: 'wrap' }}>
+        <div className="brt-actions-grid" aria-label="Reader actions">
           <ActionButton
             active={!!state.loved}
             disabled={busy === 'love'}
             onClick={() => toggleReaction('love')}
+            icon={Heart}
           >
-            Love {Number(counts.love || 0)}
+            Love <b>{Number(counts.love || 0)}</b>
           </ActionButton>
+
           <ActionButton
             active={!!state.applauded}
             disabled={busy === 'applaud'}
             onClick={() => toggleReaction('applaud')}
+            icon={Sparkles}
           >
-            Applaud {Number(counts.applaud || 0)}
+            Applaud <b>{Number(counts.applaud || 0)}</b>
           </ActionButton>
+
           <ActionButton
             active={!!state.following}
             disabled={busy === 'follow'}
             onClick={toggleFollow}
+            icon={UserPlus}
           >
-            {state.following ? 'Following' : 'Follow'} {Number(counts.followers || 0)}
+            {state.following ? 'Following' : 'Follow'} <b>{Number(counts.followers || 0)}</b>
           </ActionButton>
-          <ActionButton active={saved} disabled={busy === 'save'} onClick={toggleSave}>
+
+          <ActionButton
+            active={saved}
+            disabled={busy === 'save'}
+            onClick={toggleSave}
+            icon={Bookmark}
+          >
             {saved ? 'Saved' : 'Save'}
           </ActionButton>
-          <ActionButton onClick={sharePost}>Share</ActionButton>
-          <ActionButton disabled={busy === 'appreciation-load'} onClick={openAppreciation}>
-            Appreciate Writer
+
+          <ActionButton onClick={sharePost} icon={Share2}>
+            Share
           </ActionButton>
+
+          <ActionButton
+            disabled={busy === 'appreciation-load'}
+            onClick={openAppreciation}
+            icon={Gift}
+            tone="support"
+          >
+            Appreciate
+          </ActionButton>
+
           <ActionButton
             disabled={!!readerSession && messagingEligibility?.allowed === false}
             onClick={() => setMessageOpen((value) => !value)}
+            icon={MessageCircle}
+            tone="message"
           >
             {messagingEligibility?.request_status === 'pending'
-              ? 'Send message request'
+              ? 'Message request'
               : 'Message Writer'}
           </ActionButton>
         </div>
 
         {!readerSession ? (
-          <div style={{ marginTop: 14, color: '#64748b', fontSize: 14 }}>
-            Reader actions require a Reader account.{' '}
-            <Link to="/reader/login" style={{ color: '#1d4ed8', fontWeight: 800 }}>
-              Sign in as Reader
-            </Link>
+          <div className="brt-info-banner">
+            <span>Reader actions require a Reader account.</span>
+            <Link to="/reader/login">Sign in as Reader</Link>
           </div>
         ) : null}
 
         {readerSession && messagingEligibility?.allowed === false ? (
-          <div style={{ marginTop: 14, color: '#92400e', fontSize: 14, fontWeight: 700 }}>
+          <div className="brt-info-banner warning">
             {messagingEligibility.reason || 'Messaging is not currently available for this Writer.'}
           </div>
         ) : null}
 
         {readerSession && messagingEligibility?.allowed === true ? (
-          <div style={{ marginTop: 14, color: '#475569', fontSize: 13 }}>
+          <div className="brt-info-banner quiet">
             {messagingEligibility.request_status === 'accepted'
               ? 'Your message can go directly to this Writer.'
               : 'Your first message will be sent as a request for the Writer to accept.'}
@@ -808,230 +771,149 @@ export default function PublicWriterReaderActions({
         ) : null}
 
         {membershipAvailable ? (
-          <div
-            style={{
-              marginTop: 16,
-              padding: 14,
-              borderRadius: 16,
-              border: '1px solid #ddd6fe',
-              background: '#f5f3ff',
-              color: '#4c1d95',
-            }}
-          >
-            Direct Writer membership is available at $
-            {Number(membership.offer.monthly_price_usd || 0).toFixed(2)} / month.
-            Membership activation remains inside Bloggad Reader membership tools.
+          <div className="brt-membership">
+            <span>Writer membership</span>
+            <strong>
+              ${Number(membership.offer.monthly_price_usd || 0).toFixed(2)} / month
+            </strong>
+            <p>Direct membership is available inside Bloggad Reader membership tools.</p>
           </div>
         ) : null}
 
         {appreciationOpen ? (
-          <form
-            onSubmit={submitAppreciation}
-            style={{
-              marginTop: 16,
-              padding: 16,
-              border: '1px solid #fde68a',
-              borderRadius: 18,
-              background: '#fffbeb',
-              display: 'grid',
-              gap: 10,
-            }}
-          >
-            <strong style={{ color: '#92400e' }}>Appreciate the Writer with Reader credits</strong>
-            <div style={{ color: '#78716c', fontSize: 14 }}>
-              Available credits: {Number(wallet?.available_credits || 0)}
+          <form onSubmit={submitAppreciation} className="brt-inline-drawer appreciation">
+            <div className="brt-drawer-heading">
+              <div>
+                <span className="brt-kicker amber">Support the Writer</span>
+                <strong>Send Reader credits</strong>
+              </div>
+              <span className="brt-balance">
+                {Number(wallet?.available_credits || 0)} credits available
+              </span>
             </div>
-            <input
-              type="number"
-              min={Math.max(1, minimumCredits)}
-              max={maximumCredits || undefined}
-              step="1"
-              value={credits}
-              onChange={(event) => setCredits(event.target.value)}
-              style={{
-                minHeight: 44,
-                borderRadius: 12,
-                border: '1px solid #d6d3d1',
-                padding: '0 12px',
-                maxWidth: 220,
-              }}
-            />
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+
+            <div className="brt-drawer-fields">
+              <input
+                type="number"
+                min={Math.max(1, minimumCredits)}
+                max={maximumCredits || undefined}
+                step="1"
+                value={credits}
+                onChange={(event) => setCredits(event.target.value)}
+                aria-label="Reader credits to send"
+              />
               <button
                 type="submit"
+                className="brt-submit amber"
                 disabled={busy === 'appreciate'}
-                style={{
-                  minHeight: 42,
-                  border: 0,
-                  borderRadius: 999,
-                  background: '#92400e',
-                  color: '#ffffff',
-                  padding: '0 15px',
-                  fontWeight: 800,
-                  cursor: busy === 'appreciate' ? 'not-allowed' : 'pointer',
-                  opacity: busy === 'appreciate' ? 0.6 : 1,
-                }}
               >
+                <Gift size={17} />
                 {busy === 'appreciate' ? 'Sending...' : 'Send appreciation'}
               </button>
-              <Link to="/reader/credits" style={{ alignSelf: 'center', color: '#92400e', fontWeight: 800 }}>
-                Open Reader credits
+              <Link to="/reader/credits" className="brt-text-link">
+                Open credits
               </Link>
             </div>
           </form>
         ) : null}
 
         {messageOpen ? (
-          <form
-            onSubmit={submitMessage}
-            style={{
-              marginTop: 16,
-              padding: 16,
-              border: '1px solid #dbeafe',
-              borderRadius: 18,
-              background: '#eff6ff',
-              display: 'grid',
-              gap: 10,
-            }}
-          >
-            <strong style={{ color: '#1e3a8a' }}>Message this Writer</strong>
+          <form onSubmit={submitMessage} className="brt-inline-drawer message">
+            <div className="brt-drawer-heading">
+              <div>
+                <span className="brt-kicker blue">Private message</span>
+                <strong>Message this Writer</strong>
+              </div>
+            </div>
+
             <textarea
               rows={4}
               value={messageText}
               onChange={(event) => setMessageText(event.target.value)}
-              placeholder="Write your first message..."
-              style={{
-                width: '100%',
-                boxSizing: 'border-box',
-                border: '1px solid #bfdbfe',
-                borderRadius: 12,
-                padding: 12,
-                resize: 'vertical',
-              }}
+              placeholder="Write your message..."
             />
-            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+
+            <div className="brt-drawer-fields">
               <button
                 type="submit"
+                className="brt-submit blue"
                 disabled={busy === 'message' || !messageText.trim()}
-                style={{
-                  minHeight: 42,
-                  border: 0,
-                  borderRadius: 999,
-                  background: '#2563eb',
-                  color: '#ffffff',
-                  padding: '0 15px',
-                  fontWeight: 800,
-                  cursor: busy === 'message' ? 'not-allowed' : 'pointer',
-                  opacity: busy === 'message' ? 0.6 : 1,
-                }}
               >
+                <Send size={17} />
                 {busy === 'message' ? 'Sending...' : 'Send message'}
               </button>
-              <Link to="/reader/messages" style={{ alignSelf: 'center', color: '#1d4ed8', fontWeight: 800 }}>
-                Open Reader messages
+              <Link to="/reader/messages" className="brt-text-link">
+                Open messages
               </Link>
             </div>
           </form>
         ) : null}
 
-        {notice ? (
-          <div style={{ marginTop: 14, color: '#166534', fontWeight: 700 }}>
-            {notice}
-          </div>
-        ) : null}
+        {notice ? <div className="brt-feedback success">{notice}</div> : null}
+        {error ? <div className="brt-feedback error">{error}</div> : null}
 
-        {error ? (
-          <div style={{ marginTop: 14, color: '#b91c1c', fontWeight: 700 }}>
-            {error}
-          </div>
-        ) : null}
+        <div className="brt-content-grid">
+          <section className="brt-reading-card">
+            <ReaderReadingTools
+              post={post}
+              templateFields={templateFields}
+              locked={locked}
+            />
+          </section>
 
-        <ReaderReadingTools
-          post={post}
-          templateFields={templateFields}
-          locked={locked}
-        />
+          <section className="brt-comments-card">
+            <div className="brt-comments-head">
+              <div>
+                <span className="brt-kicker">Conversation</span>
+                <h3>Comments</h3>
+              </div>
+              <span className="brt-count-pill">{Number(counts.comments || 0)}</span>
+            </div>
 
-        <div style={{ marginTop: 24 }}>
-          <h3 style={{ margin: 0, color: '#0f172a' }}>
-            Comments ({Number(counts.comments || 0)})
-          </h3>
-
-          {readerSession ? (
-            <form onSubmit={submitComment} style={{ marginTop: 12, display: 'grid', gap: 9 }}>
-              {quoteDraft ? (
-                <div
-                  style={{
-                    borderLeft: '3px solid #94a3b8',
-                    background: '#f8fafc',
-                    padding: '9px 11px',
-                    color: '#475569',
-                  }}
-                >
-                  <div style={{ fontSize: 12, fontWeight: 800 }}>
-                    Quote from {quoteDraft.author} - max {quoteDraft.maximum} characters
+            {readerSession ? (
+              <form onSubmit={submitComment} className="brt-comment-form">
+                {quoteDraft ? (
+                  <div className="brt-quote-draft">
+                    <span>
+                      Quote from {quoteDraft.author} - max {quoteDraft.maximum} characters
+                    </span>
+                    <u>{quoteDraft.text}</u>
+                    <button type="button" onClick={() => setQuoteDraft(null)}>
+                      Remove quote
+                    </button>
                   </div>
-                  <u style={{ display: 'block', marginTop: 4 }}>{quoteDraft.text}</u>
-                  <button
-                    type="button"
-                    onClick={() => setQuoteDraft(null)}
-                    style={{
-                      marginTop: 6,
-                      border: 0,
-                      background: 'transparent',
-                      padding: 0,
-                      color: '#b91c1c',
-                      fontWeight: 800,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    Remove quote
-                  </button>
+                ) : null}
+
+                <textarea
+                  rows={3}
+                  value={commentText}
+                  onChange={(event) => setCommentText(event.target.value)}
+                  placeholder="Join the conversation..."
+                />
+
+                <button
+                  type="submit"
+                  className="brt-comment-submit"
+                  disabled={busy === 'comment' || !commentText.trim()}
+                >
+                  <Send size={16} />
+                  {busy === 'comment' ? 'Posting...' : 'Post comment'}
+                </button>
+              </form>
+            ) : null}
+
+            <div className="brt-comment-list">
+              {comments.map((comment) => (
+                <CommentCard key={comment.id} comment={comment} onQuote={beginQuote} />
+              ))}
+              {!comments.length ? (
+                <div className="brt-empty-comments">
+                  <MessageCircle size={22} strokeWidth={1.7} />
+                  <span>No comments yet.</span>
                 </div>
               ) : null}
-              <textarea
-                rows={3}
-                value={commentText}
-                onChange={(event) => setCommentText(event.target.value)}
-                placeholder="Add a Reader comment..."
-                style={{
-                  width: '100%',
-                  boxSizing: 'border-box',
-                  border: '1px solid #cbd5e1',
-                  borderRadius: 14,
-                  padding: 12,
-                  resize: 'vertical',
-                  background: '#ffffff',
-                }}
-              />
-              <button
-                type="submit"
-                disabled={busy === 'comment' || !commentText.trim()}
-                style={{
-                  justifySelf: 'start',
-                  minHeight: 40,
-                  border: 0,
-                  borderRadius: 999,
-                  padding: '0 15px',
-                  background: '#111827',
-                  color: '#ffffff',
-                  fontWeight: 800,
-                  cursor: busy === 'comment' ? 'not-allowed' : 'pointer',
-                }}
-              >
-                {busy === 'comment' ? 'Posting...' : 'Post comment'}
-              </button>
-            </form>
-          ) : null}
-
-          <div style={{ marginTop: 14, display: 'grid', gap: 10 }}>
-            {comments.map((comment) => (
-              <CommentCard key={comment.id} comment={comment} onQuote={beginQuote} />
-            ))}
-            {!comments.length ? (
-              <div style={{ color: '#64748b' }}>No comments yet.</div>
-            ) : null}
-          </div>
+            </div>
+          </section>
         </div>
       </div>
     </section>

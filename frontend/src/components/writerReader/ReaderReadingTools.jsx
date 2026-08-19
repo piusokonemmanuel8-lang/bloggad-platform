@@ -1,5 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
+import {
+  BookOpen,
+  Flag,
+  Highlighter,
+  SlidersHorizontal,
+  Volume2,
+} from 'lucide-react';
+import './ReaderToolsExperience.css';
 
 const API_BASE =
   import.meta.env.VITE_API_BASE_URL ||
@@ -128,29 +136,25 @@ function calculateApproximateReadMinutes(text) {
   return Math.max(1, Math.ceil(words / READING_WORDS_PER_MINUTE));
 }
 
-function ToolButton({ active = false, disabled = false, onClick, children }) {
+function ToolButton({
+  active = false,
+  disabled = false,
+  onClick,
+  children,
+  icon: Icon,
+}) {
   return (
     <button
       type="button"
       disabled={disabled}
       onClick={onClick}
-      style={{
-        minHeight: 38,
-        borderRadius: 999,
-        border: active ? '1px solid #111827' : '1px solid #cbd5e1',
-        background: active ? '#111827' : '#fff',
-        color: active ? '#fff' : '#0f172a',
-        padding: '0 13px',
-        fontWeight: 700,
-        cursor: disabled ? 'not-allowed' : 'pointer',
-        opacity: disabled ? 0.55 : 1,
-      }}
+      className={`rrt-tool-button${active ? ' is-active' : ''}`}
     >
-      {children}
+      {Icon ? <Icon size={17} strokeWidth={1.9} aria-hidden="true" /> : null}
+      <span>{children}</span>
     </button>
   );
 }
-
 export default function ReaderReadingTools({
   post,
   templateFields = [],
@@ -494,28 +498,25 @@ export default function ReaderReadingTools({
     ? readingState.highlights.length
     : 0;
   const providers = manifest?.providers || { browser: true };
+  const speechProgress = speechText
+    ? Math.min(100, Math.round((speechIndex / Math.max(1, speechText.length)) * 100))
+    : 0;
 
   return (
-    <div
-      style={{
-        marginTop: 18,
-        paddingTop: 16,
-        borderTop: '1px solid #e2e8f0',
-      }}
-    >
-      <div
-        style={{
-          marginBottom: 10,
-          color: '#64748b',
-          fontSize: 14,
-          fontWeight: 700,
-        }}
-      >
-        Approx. {readMinutes} min read
-      </div>
+    <div className="rrt-shell">
+      <header className="rrt-header">
+        <div>
+          <span className="rrt-kicker">Reading</span>
+          <h3>Reading controls</h3>
+        </div>
+        <span className="rrt-read-time">
+          <BookOpen size={15} strokeWidth={1.9} />
+          Approx. {readMinutes} min
+        </span>
+      </header>
 
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-        <ToolButton onClick={toggleBrowserSpeech}>
+      <div className="rrt-primary-row">
+        <ToolButton onClick={toggleBrowserSpeech} icon={Volume2}>
           {speechState === 'playing'
             ? 'Pause Listen'
             : speechState === 'paused'
@@ -525,19 +526,25 @@ export default function ReaderReadingTools({
             : 'Listen'}
         </ToolButton>
 
-        <select
-          value={rate}
-          onChange={(event) => restartAtNewRate(Number(event.target.value))}
-          aria-label="Listen speed"
-          style={{ minHeight: 38, borderRadius: 999, border: '1px solid #cbd5e1', padding: '0 10px' }}
-        >
-          {[0.75, 1, 1.25, 1.5, 2].map((value) => (
-            <option key={value} value={value}>{value}x</option>
-          ))}
-        </select>
+        <label className="rrt-speed">
+          <span>Speed</span>
+          <select
+            value={rate}
+            onChange={(event) => restartAtNewRate(Number(event.target.value))}
+            aria-label="Listen speed"
+          >
+            {[0.75, 1, 1.25, 1.5, 2].map((value) => (
+              <option key={value} value={value}>{value}x</option>
+            ))}
+          </select>
+        </label>
 
-        <ToolButton disabled={busy === 'highlight'} onClick={saveHighlight}>
-          Highlight{highlightCount ? ` (${highlightCount})` : ''}
+        <ToolButton
+          disabled={busy === 'highlight'}
+          onClick={saveHighlight}
+          icon={Highlighter}
+        >
+          Highlight{highlightCount ? ` ${highlightCount}` : ''}
         </ToolButton>
 
         {publication ? (
@@ -545,48 +552,58 @@ export default function ReaderReadingTools({
             active={!!publication.following}
             disabled={busy === 'publication'}
             onClick={togglePublication}
+            icon={BookOpen}
           >
-            {publication.following ? 'Following Publication' : 'Follow Publication'}
+            {publication.following ? 'Following publication' : 'Follow publication'}
           </ToolButton>
         ) : null}
 
-        <ToolButton onClick={() => setMoreOpen((value) => !value)}>
-          {moreOpen ? 'Close Reading Controls' : 'More Reading Controls'}
+        <ToolButton
+          onClick={() => setMoreOpen((value) => !value)}
+          icon={SlidersHorizontal}
+        >
+          {moreOpen ? 'Close controls' : 'More controls'}
         </ToolButton>
       </div>
 
       {speechText ? (
-        <div style={{ marginTop: 8, color: '#64748b', fontSize: 12 }}>
-          Browser Listen progress: {Math.min(100, Math.round((speechIndex / Math.max(1, speechText.length)) * 100))}%
-          {locked ? ' | Current public preview only until Reader access is unlocked.' : ''}
+        <div className="rrt-progress-wrap">
+          <div className="rrt-progress-copy">
+            <span>Listen progress</span>
+            <strong>{speechProgress}%</strong>
+          </div>
+          <div className="rrt-progress-track" aria-hidden="true">
+            <span style={{ width: `${speechProgress}%` }} />
+          </div>
+          {locked ? (
+            <small>Current public preview only until Reader access is unlocked.</small>
+          ) : null}
         </div>
       ) : null}
 
       {audioSrc ? (
-        <div style={{ marginTop: 12 }}>
-          <audio
-            ref={audioRef}
-            controls
-            src={audioSrc}
-            style={{ width: '100%', maxWidth: 560 }}
-          />
+        <div className="rrt-audio">
+          <audio ref={audioRef} controls src={audioSrc} />
         </div>
       ) : null}
 
       {(providers.external || providers.self_hosted) && readerSession ? (
-        <div style={{ marginTop: 10, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <div className="rrt-neural-row">
           {providers.external ? (
             <ToolButton
               disabled={busy === 'tts-external'}
               onClick={() => generateNeural('external')}
+              icon={Volume2}
             >
               {busy === 'tts-external' ? 'Preparing...' : 'Neural Listen'}
             </ToolButton>
           ) : null}
+
           {providers.self_hosted ? (
             <ToolButton
               disabled={busy === 'tts-self_hosted'}
               onClick={() => generateNeural('self_hosted')}
+              icon={Volume2}
             >
               {busy === 'tts-self_hosted' ? 'Preparing...' : 'Self-hosted Listen'}
             </ToolButton>
@@ -595,24 +612,14 @@ export default function ReaderReadingTools({
       ) : null}
 
       {moreOpen ? (
-        <div
-          style={{
-            marginTop: 12,
-            border: '1px solid #dbe3ee',
-            borderRadius: 16,
-            background: '#fff',
-            padding: 14,
-            display: 'grid',
-            gap: 10,
-          }}
-        >
+        <div className="rrt-more-panel">
           {!readerSession ? (
-            <div style={{ color: '#64748b' }}>
+            <div className="rrt-reader-required">
               Sign in as a Reader to follow publications, save highlights, mute content, or report a story.
             </div>
           ) : (
             <>
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <div className="rrt-mute-grid">
                 {readingState?.post?.writer_user_id ? (
                   <ToolButton
                     active={!!muted.writer}
@@ -632,8 +639,9 @@ export default function ReaderReadingTools({
                 ) : null}
 
                 {topics.map((topic) => {
-                  const topicMuted = Array.isArray(muted.topic_ids)
-                    && muted.topic_ids.includes(Number(topic.id));
+                  const topicMuted =
+                    Array.isArray(muted.topic_ids) &&
+                    muted.topic_ids.includes(Number(topic.id));
 
                   return (
                     <ToolButton
@@ -647,11 +655,14 @@ export default function ReaderReadingTools({
                 })}
               </div>
 
-              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
-                <ToolButton onClick={() => setReportOpen((value) => !value)}>
-                  Report Story
+              <div className="rrt-more-footer">
+                <ToolButton
+                  onClick={() => setReportOpen((value) => !value)}
+                  icon={Flag}
+                >
+                  Report story
                 </ToolButton>
-                <Link to="/reader/reading-controls" style={{ color: '#1d4ed8', fontWeight: 700 }}>
+                <Link to="/reader/reading-controls">
                   Manage highlights and reading controls
                 </Link>
               </div>
@@ -661,19 +672,12 @@ export default function ReaderReadingTools({
       ) : null}
 
       {reportOpen && readerSession ? (
-        <form
-          onSubmit={submitReport}
-          style={{
-            marginTop: 12,
-            border: '1px solid #fecaca',
-            background: '#fff7f7',
-            borderRadius: 16,
-            padding: 14,
-            display: 'grid',
-            gap: 10,
-          }}
-        >
-          <strong>Report this story</strong>
+        <form onSubmit={submitReport} className="rrt-report">
+          <div>
+            <span className="rrt-kicker danger">Safety</span>
+            <strong>Report this story</strong>
+          </div>
+
           <select
             value={reportReason}
             onChange={(event) => setReportReason(event.target.value)}
@@ -686,25 +690,26 @@ export default function ReaderReadingTools({
             <option value="adult_or_unsafe">Adult or unsafe content</option>
             <option value="other">Other</option>
           </select>
+
           <textarea
             rows={3}
             value={reportDetails}
             onChange={(event) => setReportDetails(event.target.value)}
             placeholder="Optional details for the moderation team"
           />
+
           <button type="submit" disabled={busy === 'report'}>
             {busy === 'report' ? 'Submitting...' : 'Submit report'}
           </button>
+
           {readingState?.report ? (
-            <div style={{ color: '#64748b', fontSize: 13 }}>
-              Existing report status: {readingState.report.status}
-            </div>
+            <small>Existing report status: {readingState.report.status}</small>
           ) : null}
         </form>
       ) : null}
 
-      {notice ? <div style={{ marginTop: 10, color: '#166534', fontWeight: 700 }}>{notice}</div> : null}
-      {error ? <div style={{ marginTop: 10, color: '#b91c1c', fontWeight: 700 }}>{error}</div> : null}
+      {notice ? <div className="rrt-feedback success">{notice}</div> : null}
+      {error ? <div className="rrt-feedback error">{error}</div> : null}
     </div>
   );
 }
