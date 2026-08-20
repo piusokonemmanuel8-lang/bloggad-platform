@@ -7,16 +7,30 @@ import {
 import { useAuth } from '../../hooks/useAuth';
 import EditorialAuthScreen from '../../components/auth/EditorialAuthScreen';
 
-const API_BASE =
-  import.meta.env.VITE_API_BASE_URL ||
-  import.meta.env.VITE_API_URL ||
-  '';
-
 function getApiUrl(path) {
-  if (!API_BASE) return path;
-  return `${API_BASE}${path}`;
-}
+  if (typeof window !== 'undefined') {
+    const hostname = String(window.location.hostname || '').toLowerCase();
+    const isLocal =
+      hostname === 'localhost' ||
+      hostname === '127.0.0.1';
 
+    if (!isLocal) {
+      return path;
+    }
+  }
+
+  const localApiBase =
+    import.meta.env.VITE_API_BASE_URL ||
+    import.meta.env.VITE_API_URL ||
+    'http://localhost:5000';
+
+  const localApiBaseText = String(localApiBase);
+  const cleanLocalApiBase = localApiBaseText.endsWith('/')
+    ? localApiBaseText.slice(0, -1)
+    : localApiBaseText;
+
+  return cleanLocalApiBase + path;
+}
 function readStorefrontContext(location, searchParams) {
   const state = location.state || {};
 
