@@ -1,4 +1,5 @@
 const pool = require('../../config/db');
+const { getCurrentPaidWriterSubscription } = require('../../services/writerReaderAccessService');
 const { assertAndLogSupgadUrl } = require('../../services/linkValidationService');
 
 function sanitizeSlider(row) {
@@ -239,6 +240,15 @@ async function getMySliderById(req, res) {
 
 async function createSlider(req, res) {
   try {
+    const paidWriterPlan = await getCurrentPaidWriterSubscription(req.user.id);
+
+    if (!paidWriterPlan) {
+      return res.status(403).json({
+        ok: false,
+        message: 'An active paid Writer plan and Storefront are required to create sliders.',
+      });
+    }
+
     const website = await getAffiliateWebsite(req.user.id);
 
     if (!website) {
@@ -246,6 +256,24 @@ async function createSlider(req, res) {
         ok: false,
         message: 'Create your website first before adding sliders',
       });
+    }
+
+    const sliderLimit = paidWriterPlan.slider_limit === null || paidWriterPlan.slider_limit === undefined
+      ? null
+      : Number(paidWriterPlan.slider_limit);
+
+    if (Number.isFinite(sliderLimit) && sliderLimit >= 0) {
+      const [[countRow]] = await pool.query(
+        'SELECT COUNT(*) AS slider_count FROM website_sliders WHERE website_id = ?',
+        [website.id]
+      );
+
+      if (Number(countRow?.slider_count || 0) >= sliderLimit) {
+        return res.status(403).json({
+          ok: false,
+          message: `Your ${paidWriterPlan.plan_name || 'Writer'} plan allows up to ${sliderLimit} sliders.`,
+        });
+      }
     }
 
     const {

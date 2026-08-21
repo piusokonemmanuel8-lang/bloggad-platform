@@ -489,7 +489,7 @@ async function createPlan(req, res) {
     await validateWebsiteTemplateIds(cleanAllowedWebsiteTemplateIds);
     await validateBlogTemplateIds(cleanAllowedBlogTemplateIds);
 
-    if (cleanWebsiteTemplatesMode === 'specific' && !cleanAllowedWebsiteTemplateIds.length) {
+    if (cleanWebsiteTemplatesMode === 'specific' && cleanWebsiteLimit !== 0 && !cleanAllowedWebsiteTemplateIds.length) {
       return res.status(400).json({
         ok: false,
         message: 'Select at least one website template when website template mode is specific',
@@ -679,7 +679,7 @@ async function updatePlan(req, res) {
     await validateWebsiteTemplateIds(cleanAllowedWebsiteTemplateIds);
     await validateBlogTemplateIds(cleanAllowedBlogTemplateIds);
 
-    if (cleanWebsiteTemplatesMode === 'specific' && !cleanAllowedWebsiteTemplateIds.length) {
+    if (cleanWebsiteTemplatesMode === 'specific' && cleanWebsiteLimit !== 0 && !cleanAllowedWebsiteTemplateIds.length) {
       return res.status(400).json({
         ok: false,
         message: 'Select at least one website template when website template mode is specific',

@@ -147,25 +147,6 @@ async function loadPlan(planId) {
   return plan;
 }
 
-async function ensureExistingWriterSubscription(writerUserId) {
-  const [rows] = await pool.query(
-    `
-    SELECT id
-    FROM affiliate_subscriptions
-    WHERE user_id = ?
-    ORDER BY id DESC
-    LIMIT 1
-    `,
-    [writerUserId]
-  );
-
-  if (!rows[0]) {
-    const error = new Error('Start the free Writer trial before purchasing a paid plan.');
-    error.status = 400;
-    throw error;
-  }
-}
-
 async function loadPurchaseByReference(reference, connection = pool) {
   const cleanReference = String(reference || '').trim();
 
@@ -375,8 +356,6 @@ async function initializeWriterSubscriptionPurchase({
     loadPlan(planId),
     getGatewayCredentials(provider),
   ]);
-
-  await ensureExistingWriterSubscription(writer.id);
 
   const reference = merchantReference(writer.id);
   const amount = moneyString(plan.price);

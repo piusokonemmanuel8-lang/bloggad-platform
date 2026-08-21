@@ -50,13 +50,34 @@ function gatewayLabel(provider) {
   return provider || 'payment';
 }
 
+function templateAccessLabel(plan, kind) {
+  if (!plan) return '-';
+
+  const mode = String(plan[`${kind}_templates_mode`] || 'unlimited').toLowerCase();
+  const allowed = Array.isArray(plan[`allowed_${kind}_templates`])
+    ? plan[`allowed_${kind}_templates`]
+    : [];
+
+  if (kind === 'website' && Number(plan.website_limit || 0) === 0) return 'No access';
+  if (mode === 'unlimited') return 'All';
+  return `${allowed.length} selected`;
+}
+
+function giftAccessLabel(plan) {
+  return plan?.features_json?.can_receive_gifts === true ? 'Yes' : 'No';
+}
+
+function analyticsAccessLabel(plan) {
+  const level = String(plan?.features_json?.analytics_level || 'basic').toLowerCase();
+  return level === 'full' ? 'Full' : 'Basic';
+}
+
 function WriterPlanPage() {
   const [overview, setOverview] = useState(null);
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [actionPlanId, setActionPlanId] = useState('');
-  const [startingTrial, setStartingTrial] = useState(false);
   const [gateways, setGateways] = useState([]);
   const [selectedProvider, setSelectedProvider] = useState('');
   const [error, setError] = useState('');
@@ -80,6 +101,7 @@ function WriterPlanPage() {
 
       setOverview({
         current_subscription: overviewRes?.data?.current_subscription || null,
+        free_plan: overviewRes?.data?.free_plan || null,
         available_plans: overviewRes?.data?.available_plans || [],
       });
       setHistory(historyRes?.data?.subscriptions || []);
@@ -195,27 +217,8 @@ function WriterPlanPage() {
     await fetchSubscriptionData(true);
   };
 
-  const handleStartTrial = async () => {
-    if (startingTrial) return;
-
-    setStartingTrial(true);
-    setError('');
-    setSuccess('');
-
-    try {
-      const { data } = await api.post('/api/affiliate/subscription/start-trial');
-      await fetchSubscriptionData(true);
-      setSuccess(data?.message || 'Free trial started successfully.');
-    } catch (err) {
-      setError(err?.response?.data?.message || 'Failed to start free trial.');
-    } finally {
-      setStartingTrial(false);
-    }
-  };
-
   const handleChangePlan = async (planId) => {
     if (
-      !currentSubscription ||
       actionPlanId ||
       !selectedProvider ||
       gateways.length === 0
@@ -267,7 +270,7 @@ function WriterPlanPage() {
     );
   }
 
-  const currentPlan = currentSubscription?.plan || null;
+  const currentPlan = currentSubscription?.plan || overview?.free_plan || null;
 
   return (
     <div className="writer-plan-page">
@@ -288,16 +291,6 @@ function WriterPlanPage() {
             {refreshing ? 'Refreshing...' : 'Refresh'}
           </button>
 
-          {!currentSubscription ? (
-            <button
-              type="button"
-              className="writer-plan-btn writer-plan-btn-primary"
-              onClick={handleStartTrial}
-              disabled={startingTrial}
-            >
-              {startingTrial ? 'Starting...' : 'Start Free Trial'}
-            </button>
-          ) : null}
         </div>
       </section>
 
@@ -313,7 +306,7 @@ function WriterPlanPage() {
               <p>
                 {currentSubscription
                   ? 'Your current Writer subscription.'
-                  : 'Start your free trial before changing to another Writer plan.'}
+                  : 'Your free Writer access. Upgrade whenever you want.'}
               </p>
             </div>
 
@@ -337,10 +330,6 @@ function WriterPlanPage() {
                   <strong>{currentPlan.billing_cycle || '-'}</strong>
                 </div>
                 <div className="writer-plan-info-box">
-                  <span>Trial ends</span>
-                  <strong>{formatDate(currentSubscription.trial_end)}</strong>
-                </div>
-                <div className="writer-plan-info-box">
                   <span>Plan starts</span>
                   <strong>{formatDate(currentSubscription.start_date)}</strong>
                 </div>
@@ -356,19 +345,11 @@ function WriterPlanPage() {
             </>
           ) : (
             <div className="writer-plan-empty-current">
-              <strong>No subscription yet</strong>
+              <strong>Free Writer</strong>
               <p>
-                The free trial is the required first step before this account can change to a
-                different Writer plan.
+                Write and publish on your Writer Page with the Simple Writer template.
+                Upgrade for Storefront, products, gifts, premium templates, and full analytics.
               </p>
-              <button
-                type="button"
-                className="writer-plan-btn writer-plan-btn-primary"
-                onClick={handleStartTrial}
-                disabled={startingTrial}
-              >
-                {startingTrial ? 'Starting...' : 'Start Free Trial'}
-              </button>
             </div>
           )}
         </article>
@@ -390,9 +371,13 @@ function WriterPlanPage() {
               <div><span>Sliders</span><strong>{formatLimitValue(currentPlan.slider_limit)}</strong></div>
               <div><span>Menus</span><strong>{formatLimitValue(currentPlan.menu_limit)}</strong></div>
               <div>
-                <span>Premium templates</span>
+                <span>Premium post templates</span>
                 <strong>{currentPlan.premium_templates_only ? 'Included' : 'Not included'}</strong>
               </div>
+              <div><span>Post templates</span><strong>{templateAccessLabel(currentPlan, 'blog')}</strong></div>
+              <div><span>Storefront templates</span><strong>{templateAccessLabel(currentPlan, 'website')}</strong></div>
+              <div><span>Receive gifts</span><strong>{giftAccessLabel(currentPlan)}</strong></div>
+              <div><span>Analytics</span><strong>{analyticsAccessLabel(currentPlan)}</strong></div>
             </div>
           ) : (
             <div className="writer-plan-empty-small">
@@ -402,7 +387,7 @@ function WriterPlanPage() {
         </article>
       </section>
 
-      {currentSubscription ? (
+      {currentPlan ? (
         <section
           className="writer-plan-card"
           style={{ marginBottom: 20 }}
@@ -457,7 +442,7 @@ function WriterPlanPage() {
           <div>
             <span className="writer-plan-kicker">Upgrade options</span>
             <h3>Available plans</h3>
-            <p>Choose from the active yearly Writer plans configured for your account.</p>
+            <p>Choose Starter, Pro, or Unlimited and pay directly. No trial is required.</p>
           </div>
         </div>
 
@@ -495,9 +480,13 @@ function WriterPlanPage() {
                     <div><span>Sliders</span><strong>{formatLimitValue(plan.slider_limit)}</strong></div>
                     <div><span>Menus</span><strong>{formatLimitValue(plan.menu_limit)}</strong></div>
                     <div>
-                      <span>Premium templates</span>
+                      <span>Premium post templates</span>
                       <strong>{plan.premium_templates_only ? 'Included' : 'Not included'}</strong>
                     </div>
+                    <div><span>Post templates</span><strong>{templateAccessLabel(plan, 'blog')}</strong></div>
+                    <div><span>Storefront templates</span><strong>{templateAccessLabel(plan, 'website')}</strong></div>
+                    <div><span>Receive gifts</span><strong>{giftAccessLabel(plan)}</strong></div>
+                    <div><span>Analytics</span><strong>{analyticsAccessLabel(plan)}</strong></div>
                   </div>
 
                   <button
@@ -508,7 +497,6 @@ function WriterPlanPage() {
                     disabled={
                       isCurrent ||
                       !!actionPlanId ||
-                      !currentSubscription ||
                       !selectedProvider ||
                       gateways.length === 0
                     }
@@ -516,13 +504,11 @@ function WriterPlanPage() {
                   >
                     {isCurrent
                       ? 'Current Plan'
-                      : !currentSubscription
-                        ? 'Start trial first'
-                        : isAction
-                          ? 'Opening checkout...'
-                          : selectedProvider
-                            ? `Pay with ${gatewayLabel(selectedProvider)}`
-                            : 'Select payment method'}
+                      : isAction
+                        ? 'Opening checkout...'
+                        : selectedProvider
+                          ? `Pay with ${gatewayLabel(selectedProvider)}`
+                          : 'Select payment method'}
                   </button>
                 </article>
               );
@@ -553,7 +539,6 @@ function WriterPlanPage() {
                     <th>Plan</th>
                     <th>Status</th>
                     <th>Amount paid</th>
-                    <th>Trial end</th>
                     <th>Subscription end</th>
                   </tr>
                 </thead>
@@ -567,7 +552,6 @@ function WriterPlanPage() {
                         </span>
                       </td>
                       <td>{displayAmount(item.amount_paid)}</td>
-                      <td>{formatDate(item.trial_end)}</td>
                       <td>{formatDate(item.end_date)}</td>
                     </tr>
                   ))}
@@ -585,7 +569,6 @@ function WriterPlanPage() {
                     </span>
                   </div>
                   <div><span>Amount paid</span><strong>{displayAmount(item.amount_paid)}</strong></div>
-                  <div><span>Trial end</span><strong>{formatDate(item.trial_end)}</strong></div>
                   <div><span>Subscription end</span><strong>{formatDate(item.end_date)}</strong></div>
                 </article>
               ))}

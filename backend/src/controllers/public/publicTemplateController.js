@@ -18,7 +18,7 @@ function sanitizeTemplate(row) {
 async function getLatestSubscriptionPlanByUserId(userId) {
   if (!userId) return null;
 
-  const [rows] = await pool.query(
+  const [paidRows] = await pool.query(
     `
     SELECT
       s.id AS subscription_id,
@@ -32,13 +32,40 @@ async function getLatestSubscriptionPlanByUserId(userId) {
     INNER JOIN subscription_plans p
       ON p.id = s.plan_id
     WHERE s.user_id = ?
+      AND s.status = 'active'
+      AND p.status = 'active'
+      AND p.price > 0
+      AND s.amount_paid > 0
+      AND (s.start_date IS NULL OR s.start_date <= NOW())
+      AND (s.end_date IS NULL OR s.end_date > NOW())
     ORDER BY s.id DESC
     LIMIT 1
     `,
     [userId]
   );
 
-  return rows[0] || null;
+  if (paidRows[0]) return paidRows[0];
+
+  const [freeRows] = await pool.query(
+    `
+    SELECT
+      NULL AS subscription_id,
+      ? AS user_id,
+      p.id AS plan_id,
+      'free' AS subscription_status,
+      p.name AS plan_name,
+      p.premium_templates_only,
+      p.blog_templates_mode
+    FROM subscription_plans p
+    WHERE p.status = 'active'
+      AND p.price = 0
+    ORDER BY p.id ASC
+    LIMIT 1
+    `,
+    [userId]
+  );
+
+  return freeRows[0] || null;
 }
 
 async function getAllowedBlogTemplateIdsByPlanId(planId) {
@@ -86,17 +113,24 @@ async function getPublicBlogTemplates(req, res) {
     let templates = rows.map(sanitizeTemplate);
 
     if (!latestPlan) {
-      templates = templates.filter((item) => !item.is_premium);
+      templates = templates.filter(
+        (item) => item.template_code_key === 'simple_writer_template_v1'
+      );
     } else {
-      if (!latestPlan.premium_templates_only) {
-        templates = templates.filter((item) => !item.is_premium);
-      }
+      const mode = String(
+        latestPlan.blog_templates_mode || 'unlimited'
+      ).toLowerCase();
 
-      if (String(latestPlan.blog_templates_mode || 'unlimited').toLowerCase() === 'specific') {
-        const allowedTemplateIds = await getAllowedBlogTemplateIdsByPlanId(latestPlan.plan_id);
-        templates = templates.filter(
-          (item) => !item.is_premium || allowedTemplateIds.includes(Number(item.id))
+      if (mode === 'specific') {
+        const allowedTemplateIds = await getAllowedBlogTemplateIdsByPlanId(
+          latestPlan.plan_id
         );
+
+        templates = templates.filter((item) =>
+          allowedTemplateIds.includes(Number(item.id))
+        );
+      } else if (!latestPlan.premium_templates_only) {
+        templates = templates.filter((item) => !item.is_premium);
       }
     }
 

@@ -352,6 +352,24 @@ async function createProduct(req, res) {
     }
 
     const userId = req.user.id;
+    const productLimit = paidWriterPlan.product_limit === null || paidWriterPlan.product_limit === undefined
+      ? null
+      : Number(paidWriterPlan.product_limit);
+
+    if (Number.isFinite(productLimit) && productLimit >= 0) {
+      const [[countRow]] = await pool.query(
+        'SELECT COUNT(*) AS product_count FROM products WHERE user_id = ?',
+        [userId]
+      );
+      const productCount = Number(countRow?.product_count || 0);
+
+      if (productCount >= productLimit) {
+        return res.status(403).json({
+          ok: false,
+          message: `Your ${paidWriterPlan.plan_name || 'Writer'} plan allows up to ${productLimit} products.`,
+        });
+      }
+    }
     const website = await getAffiliateWebsite(userId);
 
     if (!website) {

@@ -523,6 +523,7 @@ export default function AdminPlansPage() {
 
     if (
       form.website_templates_mode === 'specific' &&
+      String(form.website_limit) !== '0' &&
       (!Array.isArray(form.allowed_website_template_ids) || !form.allowed_website_template_ids.length)
     ) {
       throw new Error('Select at least one design template for specific design mode');
@@ -1286,7 +1287,7 @@ export default function AdminPlansPage() {
                     checked={!!form.premium_templates_only}
                     onChange={handleChange}
                   />
-                  <span style={{ fontSize: 14, fontWeight: 600 }}>Premium templates only</span>
+                  <span style={{ fontSize: 14, fontWeight: 600 }}>Premium template access</span>
                 </label>
               </div>
             </div>
@@ -1404,12 +1405,12 @@ export default function AdminPlansPage() {
 
             <div style={{ marginBottom: 16 }}>
               <label style={{ display: 'block', marginBottom: 8, fontSize: 13, fontWeight: 600, color: '#1d2327' }}>
-                Features JSON
+                Advanced plan entitlements (JSON)
               </label>
               <textarea
                 name="features_json"
                 rows="8"
-                placeholder='Features JSON e.g. {"trial_days":30}'
+                placeholder='Example: {"can_receive_gifts":true,"analytics_level":"full"}'
                 value={form.features_json}
                 onChange={handleChange}
                 style={{

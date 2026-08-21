@@ -180,6 +180,86 @@ async function getLatestSubscriptionByUserId(userId) {
   return rows[0] || null;
 }
 
+async function getFreePlan() {
+  const [rows] = await pool.query(
+    `
+    SELECT
+      id,
+      name,
+      price,
+      billing_cycle,
+      product_limit,
+      post_limit,
+      website_limit,
+      slider_limit,
+      menu_limit,
+      premium_templates_only,
+      allow_external_links,
+      website_templates_mode,
+      blog_templates_mode,
+      features_json,
+      status
+    FROM subscription_plans
+    WHERE status = 'active'
+      AND price = 0
+    ORDER BY id ASC
+    LIMIT 1
+    `
+  );
+
+  return rows[0] ? sanitizePlan(rows[0]) : null;
+}
+
+async function getCurrentPaidSubscriptionByUserId(userId) {
+  const [rows] = await pool.query(
+    `
+    SELECT
+      s.id AS subscription_id,
+      s.user_id,
+      s.plan_id,
+      s.trial_start,
+      s.trial_end,
+      s.start_date,
+      s.end_date,
+      s.status AS subscription_status,
+      s.amount_paid,
+      s.created_at AS subscription_created_at,
+      s.updated_at AS subscription_updated_at,
+
+      p.name AS plan_name,
+      p.price AS plan_price,
+      p.billing_cycle,
+      p.product_limit,
+      p.post_limit,
+      p.website_limit,
+      p.slider_limit,
+      p.menu_limit,
+      p.premium_templates_only,
+      p.allow_external_links,
+      p.website_templates_mode,
+      p.blog_templates_mode,
+      p.features_json,
+      p.status AS plan_status
+
+    FROM affiliate_subscriptions s
+    INNER JOIN subscription_plans p
+      ON p.id = s.plan_id
+    WHERE s.user_id = ?
+      AND s.status = 'active'
+      AND p.status = 'active'
+      AND p.price > 0
+      AND s.amount_paid > 0
+      AND (s.start_date IS NULL OR s.start_date <= NOW())
+      AND (s.end_date IS NULL OR s.end_date > NOW())
+    ORDER BY s.id DESC
+    LIMIT 1
+    `,
+    [userId]
+  );
+
+  return rows[0] || null;
+}
+
 async function getAllActivePlans() {
   const [rows] = await pool.query(
     `
@@ -201,6 +281,7 @@ async function getAllActivePlans() {
       status
     FROM subscription_plans
     WHERE status = 'active'
+      AND price > 0
     ORDER BY price ASC, id ASC
     `
   );
@@ -254,14 +335,18 @@ async function getSubscriptionHistoryByUserId(userId) {
 async function getMySubscriptionOverview(req, res) {
   try {
     const userId = req.user.id;
-    const currentSubscriptionRow = await getLatestSubscriptionByUserId(userId);
-    const availablePlans = await getAllActivePlans();
+    const [currentSubscriptionRow, freePlan, availablePlans] = await Promise.all([
+      getCurrentPaidSubscriptionByUserId(userId),
+      getFreePlan(),
+      getAllActivePlans(),
+    ]);
 
     return res.status(200).json({
       ok: true,
       current_subscription: currentSubscriptionRow
         ? await sanitizeSubscription(currentSubscriptionRow)
         : null,
+      free_plan: freePlan,
       available_plans: availablePlans,
     });
   } catch (error) {

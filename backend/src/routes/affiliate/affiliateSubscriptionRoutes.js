@@ -3,7 +3,6 @@ const {
   getMySubscriptionOverview,
   getMySubscriptionHistory,
   getAvailablePlans,
-  startFreeTrial,
   requestPlanChange,
 } = require('../../controllers/affiliate/affiliateSubscriptionController');
 const {
@@ -42,7 +41,6 @@ router.get(
   getCheckoutStatus
 );
 
-router.post('/start-trial', protect, affiliateOnly, startFreeTrial);
 router.post('/checkout/initialize', protect, affiliateOnly, initializeCheckout);
 router.post('/change-plan', protect, affiliateOnly, requestPlanChange);
 

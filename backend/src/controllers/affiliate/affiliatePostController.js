@@ -524,7 +524,7 @@ async function getCategoryById(categoryId) {
 async function getBlogTemplateById(templateId) {
   const [rows] = await pool.query(
     `
-    SELECT id, name, slug, status, is_premium
+    SELECT id, name, slug, template_code_key, status, is_premium
     FROM blog_templates
     WHERE id = ?
     LIMIT 1
@@ -536,7 +536,7 @@ async function getBlogTemplateById(templateId) {
 }
 
 async function getLatestSubscriptionPlanByUserId(userId) {
-  const [rows] = await pool.query(
+  const [paidRows] = await pool.query(
     `
     SELECT
       s.id AS subscription_id,
@@ -551,13 +551,41 @@ async function getLatestSubscriptionPlanByUserId(userId) {
     INNER JOIN subscription_plans p
       ON p.id = s.plan_id
     WHERE s.user_id = ?
+      AND s.status = 'active'
+      AND p.status = 'active'
+      AND p.price > 0
+      AND s.amount_paid > 0
+      AND (s.start_date IS NULL OR s.start_date <= NOW())
+      AND (s.end_date IS NULL OR s.end_date > NOW())
     ORDER BY s.id DESC
     LIMIT 1
     `,
     [userId]
   );
 
-  return rows[0] || null;
+  if (paidRows[0]) return paidRows[0];
+
+  const [freeRows] = await pool.query(
+    `
+    SELECT
+      NULL AS subscription_id,
+      ? AS user_id,
+      p.id AS plan_id,
+      'free' AS subscription_status,
+      p.name AS plan_name,
+      p.premium_templates_only,
+      p.blog_templates_mode,
+      p.allow_external_links
+    FROM subscription_plans p
+    WHERE p.status = 'active'
+      AND p.price = 0
+    ORDER BY p.id ASC
+    LIMIT 1
+    `,
+    [userId]
+  );
+
+  return freeRows[0] || null;
 }
 
 async function resolveUserLinkPermission(userId) {
@@ -609,10 +637,10 @@ async function canUserUseBlogTemplate({ userId, templateId }) {
   const latestPlan = await getLatestSubscriptionPlanByUserId(userId);
 
   if (!latestPlan) {
-    if (template.is_premium) {
+    if (template.template_code_key !== 'simple_writer_template_v1') {
       return {
         ok: false,
-        message: 'Start a subscription plan before using this premium blog template',
+        message: 'The Free Writer plan includes only the Simple Writer template',
       };
     }
 
@@ -631,7 +659,6 @@ async function canUserUseBlogTemplate({ userId, templateId }) {
   }
 
   if (
-    template.is_premium &&
     String(latestPlan.blog_templates_mode || 'unlimited').toLowerCase() === 'specific'
   ) {
     const allowedTemplateIds = await getAllowedBlogTemplateIdsByPlanId(latestPlan.plan_id);
@@ -639,7 +666,7 @@ async function canUserUseBlogTemplate({ userId, templateId }) {
     if (!allowedTemplateIds.includes(Number(templateId))) {
       return {
         ok: false,
-        message: 'This premium blog template is not included in your current plan',
+        message: 'This blog template is not included in your current Writer plan',
       };
     }
   }

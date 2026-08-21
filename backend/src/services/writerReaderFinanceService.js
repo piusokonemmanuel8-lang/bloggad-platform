@@ -504,6 +504,56 @@ async function readExistingAppreciation(
   return rows[0] || null;
 }
 
+async function getWriterGiftPlanAccess(writerUserId, connection = pool) {
+  const [rows] = await connection.query(
+    `
+    SELECT
+      p.id AS plan_id,
+      p.name AS plan_name,
+      p.features_json
+    FROM affiliate_subscriptions s
+    INNER JOIN subscription_plans p
+      ON p.id = s.plan_id
+    WHERE s.user_id = ?
+      AND s.status = 'active'
+      AND p.status = 'active'
+      AND p.price > 0
+      AND s.amount_paid > 0
+      AND (s.start_date IS NULL OR s.start_date <= NOW())
+      AND (s.end_date IS NULL OR s.end_date > NOW())
+    ORDER BY s.id DESC
+    LIMIT 1
+    `,
+    [writerUserId]
+  );
+
+  const plan = rows[0] || null;
+
+  if (!plan) {
+    return { allowed: false, plan: null };
+  }
+
+  let features = {};
+
+  try {
+    features =
+      typeof plan.features_json === 'object'
+        ? plan.features_json || {}
+        : JSON.parse(plan.features_json || '{}');
+  } catch {
+    features = {};
+  }
+
+  return {
+    allowed: features.can_receive_gifts !== false,
+    plan: {
+      id: plan.plan_id,
+      name: plan.plan_name,
+      features,
+    },
+  };
+}
+
 async function appreciateWriter({
   readerUserId,
   writerUserId,
@@ -606,6 +656,12 @@ async function appreciateWriter({
 
     if (!writer || writer.status !== 'active' || !qualifiesAsWriter) {
       throw new Error('Active Writer account required.');
+    }
+
+    const giftAccess = await getWriterGiftPlanAccess(writerUserId, connection);
+
+    if (!giftAccess.allowed) {
+      throw new Error('An active paid Writer plan is required to receive gifts.');
     }
 
     let post = null;

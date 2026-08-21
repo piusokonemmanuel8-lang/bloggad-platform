@@ -203,7 +203,17 @@ async function getCurrentPaidWriterSubscription(writerUserId, connection = pool)
       s.end_date,
       p.name AS plan_name,
       p.price AS plan_price,
-      p.billing_cycle
+      p.billing_cycle,
+      p.product_limit,
+      p.post_limit,
+      p.website_limit,
+      p.slider_limit,
+      p.menu_limit,
+      p.premium_templates_only,
+      p.allow_external_links,
+      p.website_templates_mode,
+      p.blog_templates_mode,
+      p.features_json
     FROM affiliate_subscriptions s
     INNER JOIN subscription_plans p
       ON p.id = s.plan_id

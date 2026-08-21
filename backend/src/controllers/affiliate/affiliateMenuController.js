@@ -1,4 +1,5 @@
 const pool = require('../../config/db');
+const { getCurrentPaidWriterSubscription } = require('../../services/writerReaderAccessService');
 const { assertAndLogSupgadUrl } = require('../../services/linkValidationService');
 
 function sanitizeMenu(row) {
@@ -229,6 +230,15 @@ async function getMyMenuById(req, res) {
 
 async function createMenu(req, res) {
   try {
+    const paidWriterPlan = await getCurrentPaidWriterSubscription(req.user.id);
+
+    if (!paidWriterPlan) {
+      return res.status(403).json({
+        ok: false,
+        message: 'An active paid Writer plan and Storefront are required to create menus.',
+      });
+    }
+
     const { name, location } = req.body;
 
     if (!name || !String(name).trim()) {
@@ -250,6 +260,24 @@ async function createMenu(req, res) {
     const cleanLocation = ['header', 'footer', 'sidebar', 'mobile'].includes(location)
       ? location
       : 'header';
+
+    const menuLimit = paidWriterPlan.menu_limit === null || paidWriterPlan.menu_limit === undefined
+      ? null
+      : Number(paidWriterPlan.menu_limit);
+
+    if (Number.isFinite(menuLimit) && menuLimit >= 0) {
+      const [[countRow]] = await pool.query(
+        'SELECT COUNT(*) AS menu_count FROM website_menus WHERE website_id = ?',
+        [website.id]
+      );
+
+      if (Number(countRow?.menu_count || 0) >= menuLimit) {
+        return res.status(403).json({
+          ok: false,
+          message: `Your ${paidWriterPlan.plan_name || 'Writer'} plan allows up to ${menuLimit} menus.`,
+        });
+      }
+    }
 
     const [result] = await pool.query(
       `
