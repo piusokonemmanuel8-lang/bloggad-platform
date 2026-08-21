@@ -273,7 +273,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
             <Route path="/writer/monetization/ad-placement" element={<AffiliateAdPlacementPage />} />
 
             <Route path="/affiliate/dashboard" element={<AffiliateDashboardPage />} />
-            <Route path="/affiliate/website" element={<AffiliateWebsitePage />} />
+            <Route path="/affiliate/website" element={<Navigate to="/writer/website" replace />} />
             <Route path="/affiliate/products" element={<AffiliateProductsPage />} />
             <Route path="/affiliate/products/create" element={<AffiliateCreateProductPage />} />
             <Route path="/affiliate/products/:id/edit" element={<AffiliateEditProductPage />} />
