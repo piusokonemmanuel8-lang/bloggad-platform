@@ -18,6 +18,7 @@ const registerHandler =
   authController.register ||
   authController.registerUser ||
   authController.signup ||
+  authController.registerAffiliate ||
   missingHandler('register');
 
 const loginHandler =
