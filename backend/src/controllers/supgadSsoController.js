@@ -86,6 +86,12 @@ async function verifySupgadSso(req, res) {
   }
 
   const rawToken = String(req.body?.token || '').trim();
+  const requestedBloggadRole =
+    cleanText(req.body?.role, 20).toLowerCase() === 'writer'
+      ? 'writer'
+      : 'reader';
+  const nextLegacyRole =
+    requestedBloggadRole === 'writer' ? 'affiliate' : 'customer';
 
   if (!rawToken || rawToken.length > 8192) {
     return invalidSso(res);
@@ -326,12 +332,12 @@ async function verifySupgadSso(req, res) {
       `
       UPDATE users
       SET
-        role = 'customer',
+        role = ?,
         last_login_at = NOW(),
         updated_at = NOW()
       WHERE id = ?
       `,
-      [user.id]
+      [nextLegacyRole, user.id]
     );
 
     const [freshRows] = await connection.query(
@@ -369,9 +375,12 @@ async function verifySupgadSso(req, res) {
       ok: true,
       token,
       user: sanitizeUser(freshUser),
-      active_role: 'reader',
+      active_role: requestedBloggadRole,
       supgad_active_role: supgadActiveRole || null,
-      redirect_to: '/reader/dashboard',
+      redirect_to:
+        requestedBloggadRole === 'writer'
+          ? '/writer/dashboard'
+          : '/reader/dashboard',
       provisioned_from: 'supgad',
     });
   } catch (error) {

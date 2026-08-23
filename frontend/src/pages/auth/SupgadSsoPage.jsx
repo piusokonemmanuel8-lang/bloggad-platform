@@ -61,47 +61,26 @@ export default function SupgadSsoPage() {
       try {
         const { data } = await api.post('/api/auth/supgad', {
           token: ssoToken,
+          role: dashboardRole,
         });
 
         if (!data?.ok || !data?.token || !data?.user) {
           throw new Error(data?.message || 'Supgad sign-in failed.');
         }
 
-        if (dashboardRole === 'writer') {
-          const switchResponse = await api.post(
-            '/api/auth/switch-role',
-            { role: 'writer' },
-            {
-              headers: {
-                Authorization: `Bearer ${data.token}`,
-              },
-            }
-          );
-
-          const switched = switchResponse?.data || {};
-          if (!switched?.ok || !switched?.token || !switched?.user) {
-            throw new Error(
-              switched?.message || 'Bloggad could not switch to Writer.'
-            );
-          }
-
-          saveBloggadSession(
-            switched.token,
-            switched.user,
-            data.supgad_active_role,
-            'writer'
-          );
-          window.location.replace('/writer/dashboard');
-          return;
-        }
-
         saveBloggadSession(
           data.token,
           data.user,
           data.supgad_active_role,
-          'reader'
+          dashboardRole
         );
-        window.location.replace('/reader/dashboard');
+
+        window.location.replace(
+          data.redirect_to ||
+            (dashboardRole === 'writer'
+              ? '/writer/dashboard'
+              : '/reader/dashboard')
+        );
       } catch (error) {
         const message =
           error?.response?.data?.message ||
