@@ -204,10 +204,18 @@ async function getPublicComments(postId, viewerUserId = null) {
       pc.updated_at,
       u.name AS author_name,
       u.role AS internal_role,
+      writer_profile.avatar_url AS writer_avatar_url,
+      supgad_identity.external_avatar AS external_avatar_url,
       quoted_user.name AS quoted_author_name
     FROM post_comments pc
     INNER JOIN users u
       ON u.id = pc.user_id
+    LEFT JOIN writer_profiles writer_profile
+      ON writer_profile.user_id = u.id
+     AND writer_profile.status = 'active'
+    LEFT JOIN user_external_identities supgad_identity
+      ON supgad_identity.user_id = u.id
+     AND supgad_identity.provider = 'supgad'
     LEFT JOIN post_comments quoted_comment
       ON quoted_comment.id = pc.quoted_comment_id
      AND quoted_comment.status = 'active'
@@ -306,6 +314,8 @@ async function getPublicComments(postId, viewerUserId = null) {
         id: row.user_id,
         name: row.author_name,
         role: row.internal_role === 'affiliate' ? 'writer' : 'reader',
+        avatar_url:
+          row.writer_avatar_url || row.external_avatar_url || null,
       },
       replies: [],
     };

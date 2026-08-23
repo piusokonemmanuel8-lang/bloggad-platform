@@ -16,7 +16,7 @@ const USER_KEYS = [
   'customerUser',
 ];
 
-function saveBloggadSession(token, user, supgadActiveRole) {
+function saveBloggadSession(token, user, supgadActiveRole, bloggadRole = 'reader') {
   for (const key of TOKEN_KEYS) {
     localStorage.setItem(key, token);
   }
@@ -27,7 +27,7 @@ function saveBloggadSession(token, user, supgadActiveRole) {
     localStorage.setItem(key, serializedUser);
   }
 
-  localStorage.setItem('bloggad_active_role', 'reader');
+  localStorage.setItem('bloggad_active_role', bloggadRole);
   saveSupgadReturnRole(supgadActiveRole);
 }
 
@@ -39,6 +39,9 @@ export default function SupgadSsoPage() {
     if (startedRef.current) return;
     startedRef.current = true;
 
+    const queryParams = new URLSearchParams(window.location.search || '');
+    const dashboardRole =
+      queryParams.get('pulse_dashboard') === 'writer' ? 'writer' : 'reader';
     const hash = window.location.hash || '';
     const params = new URLSearchParams(hash.startsWith('#') ? hash.slice(1) : hash);
     const ssoToken = params.get('sso') || '';
@@ -64,12 +67,41 @@ export default function SupgadSsoPage() {
           throw new Error(data?.message || 'Supgad sign-in failed.');
         }
 
+        if (dashboardRole === 'writer') {
+          const switchResponse = await api.post(
+            '/api/auth/switch-role',
+            { role: 'writer' },
+            {
+              headers: {
+                Authorization: `Bearer ${data.token}`,
+              },
+            }
+          );
+
+          const switched = switchResponse?.data || {};
+          if (!switched?.ok || !switched?.token || !switched?.user) {
+            throw new Error(
+              switched?.message || 'Bloggad could not switch to Writer.'
+            );
+          }
+
+          saveBloggadSession(
+            switched.token,
+            switched.user,
+            data.supgad_active_role,
+            'writer'
+          );
+          window.location.replace('/writer/dashboard');
+          return;
+        }
+
         saveBloggadSession(
           data.token,
           data.user,
-          data.supgad_active_role
+          data.supgad_active_role,
+          'reader'
         );
-        window.location.replace(data.redirect_to || '/reader/dashboard');
+        window.location.replace('/reader/dashboard');
       } catch (error) {
         const message =
           error?.response?.data?.message ||
