@@ -8,6 +8,7 @@ const {
   getReaderFollowing,
   toggleWriterFollow,
   togglePostReaction,
+  toggleCommentReaction,
   createReaderComment,
   getMyNotifications,
   markNotificationRead,
@@ -31,6 +32,12 @@ router.post(
   protect,
   readerOrWriter,
   togglePostReaction
+);
+router.post(
+  '/posts/:postId/comments/:commentId/reactions/:reactionType',
+  protect,
+  readerOrWriter,
+  toggleCommentReaction
 );
 router.post('/posts/:postId/comments', protect, readerOrWriter, createReaderComment);
 

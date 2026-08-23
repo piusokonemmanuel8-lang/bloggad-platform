@@ -189,7 +189,7 @@ async function getGiftCount(postId) {
   return Number(rows[0]?.total || 0);
 }
 
-async function getPublicComments(postId) {
+async function getPublicComments(postId, viewerUserId = null) {
   const [rows] = await pool.query(
     `
     SELECT
@@ -223,10 +223,72 @@ async function getPublicComments(postId) {
     [postId]
   );
 
+
+  const reactionMap = new Map();
+
+  if (rows.length) {
+    const commentIds = rows
+      .map((row) => Number(row.id))
+      .filter((id) => Number.isInteger(id) && id > 0);
+
+    if (commentIds.length) {
+      const placeholders = commentIds.map(() => "?").join(",");
+      const viewerId = Number(viewerUserId || 0);
+
+      const [commentReactionRows] = await pool.query(
+        `
+        SELECT
+          comment_id,
+          SUM(CASE WHEN reaction_type = 'like' THEN 1 ELSE 0 END) AS like_count,
+          SUM(CASE WHEN reaction_type = 'love' THEN 1 ELSE 0 END) AS love_count,
+          SUM(
+            CASE
+              WHEN reader_user_id = ?
+               AND reaction_type = 'like'
+              THEN 1
+              ELSE 0
+            END
+          ) AS viewer_like,
+          SUM(
+            CASE
+              WHEN reader_user_id = ?
+               AND reaction_type = 'love'
+              THEN 1
+              ELSE 0
+            END
+          ) AS viewer_love
+        FROM post_comment_reactions
+        WHERE comment_id IN (${placeholders})
+        GROUP BY comment_id
+        `,
+        [viewerId, viewerId, ...commentIds]
+      );
+
+      for (const reactionRow of commentReactionRows) {
+        reactionMap.set(Number(reactionRow.comment_id), {
+          reaction_counts: {
+            like: Number(reactionRow.like_count || 0),
+            love: Number(reactionRow.love_count || 0),
+          },
+          viewer_reactions: {
+            like: Number(reactionRow.viewer_like || 0) > 0,
+            love: Number(reactionRow.viewer_love || 0) > 0,
+          },
+        });
+      }
+    }
+  }
+
   const topLevel = [];
   const byId = new Map();
 
   for (const row of rows) {
+    const reactionState =
+      reactionMap.get(Number(row.id)) || {
+        reaction_counts: { like: 0, love: 0 },
+        viewer_reactions: { like: false, love: false },
+      };
+
     const item = {
       id: row.id,
       post_id: row.post_id,
@@ -238,6 +300,8 @@ async function getPublicComments(postId) {
       body: row.body,
       created_at: row.created_at,
       updated_at: row.updated_at,
+      reaction_counts: reactionState.reaction_counts,
+      viewer_reactions: reactionState.viewer_reactions,
       author: {
         id: row.user_id,
         name: row.author_name,
@@ -475,7 +539,7 @@ async function getReaderPostState(req, res) {
         getFollowerCount(post.writer_id),
         getCommentCount(post.id),
         getGiftCount(post.id),
-        getPublicComments(post.id),
+        getPublicComments(post.id, readerId),
       ]);
 
     const reactionTypes = reactionRows[0].map((row) => row.reaction_type);
@@ -705,10 +769,146 @@ async function togglePostReaction(req, res) {
   }
 }
 
+async function toggleCommentReaction(req, res) {
+  try {
+    const postId = toPositiveInt(req.params.postId);
+    const commentId = toPositiveInt(req.params.commentId);
+    const readerId = req.user.id;
+    const reactionType = cleanText(req.params.reactionType, 20).toLowerCase();
+
+    if (!postId || !commentId) {
+      return res.status(400).json({
+        ok: false,
+        message: 'Valid post and comment IDs are required.',
+      });
+    }
+
+    if (!['like', 'love'].includes(reactionType)) {
+      return res.status(400).json({
+        ok: false,
+        message: 'Comment reaction must be Like or Love.',
+      });
+    }
+
+    const [commentRows] = await pool.query(
+      `
+      SELECT
+        pc.id,
+        pc.post_id,
+        pc.status,
+        pp.status AS post_status
+      FROM post_comments pc
+      INNER JOIN product_posts pp
+        ON pp.id = pc.post_id
+      WHERE pc.id = ?
+        AND pc.post_id = ?
+        AND pc.status = 'active'
+        AND pp.status = 'published'
+      LIMIT 1
+      `,
+      [commentId, postId]
+    );
+
+    if (!commentRows[0]) {
+      return res.status(404).json({
+        ok: false,
+        message: 'Comment not found on this published post.',
+      });
+    }
+
+    const [existingRows] = await pool.query(
+      `
+      SELECT id
+      FROM post_comment_reactions
+      WHERE comment_id = ?
+        AND reader_user_id = ?
+        AND reaction_type = ?
+      LIMIT 1
+      `,
+      [commentId, readerId, reactionType]
+    );
+
+    let active = false;
+
+    if (existingRows[0]) {
+      await pool.query(
+        'DELETE FROM post_comment_reactions WHERE id = ?',
+        [existingRows[0].id]
+      );
+    } else {
+      await pool.query(
+        `
+        INSERT INTO post_comment_reactions (
+          comment_id,
+          reader_user_id,
+          reaction_type,
+          created_at,
+          updated_at
+        )
+        VALUES (?, ?, ?, NOW(), NOW())
+        `,
+        [commentId, readerId, reactionType]
+      );
+
+      active = true;
+    }
+
+    const [countRows] = await pool.query(
+      `
+      SELECT
+        SUM(CASE WHEN reaction_type = 'like' THEN 1 ELSE 0 END) AS like_count,
+        SUM(CASE WHEN reaction_type = 'love' THEN 1 ELSE 0 END) AS love_count
+      FROM post_comment_reactions
+      WHERE comment_id = ?
+      `,
+      [commentId]
+    );
+
+    const [viewerRows] = await pool.query(
+      `
+      SELECT reaction_type
+      FROM post_comment_reactions
+      WHERE comment_id = ?
+        AND reader_user_id = ?
+      `,
+      [commentId, readerId]
+    );
+
+    const viewerTypes = viewerRows.map((row) => row.reaction_type);
+    const reactionCounts = {
+      like: Number(countRows[0]?.like_count || 0),
+      love: Number(countRows[0]?.love_count || 0),
+    };
+    const viewerReactions = {
+      like: viewerTypes.includes('like'),
+      love: viewerTypes.includes('love'),
+    };
+
+    return res.status(200).json({
+      ok: true,
+      comment_id: commentId,
+      reaction: reactionType,
+      active,
+      counts: reactionCounts,
+      reaction_counts: reactionCounts,
+      viewer_reactions: viewerReactions,
+    });
+  } catch (error) {
+    console.error('toggleCommentReaction error:', error);
+
+    return res.status(500).json({
+      ok: false,
+      message: 'Failed to update comment reaction.',
+      error: error.message,
+    });
+  }
+}
+
 async function createReaderComment(req, res) {
   try {
     const postId = toPositiveInt(req.params.postId);
     const readerId = req.user.id;
+    const parentCommentId = toPositiveInt(req.body?.parent_comment_id);
     const body = cleanText(req.body?.body, 5000);
     const quotedCommentId = toPositiveInt(req.body?.quoted_comment_id);
     const quotedTextInput = cleanText(req.body?.quoted_text, 1000);
@@ -734,6 +934,42 @@ async function createReaderComment(req, res) {
         ok: false,
         message: 'Published post not found.',
       });
+    }
+
+
+    if (parentCommentId) {
+      const [parentRows] = await pool.query(
+        `
+        SELECT
+          id,
+          post_id,
+          user_id,
+          parent_comment_id,
+          status
+        FROM post_comments
+        WHERE id = ?
+          AND post_id = ?
+          AND status = 'active'
+        LIMIT 1
+        `,
+        [parentCommentId, post.id]
+      );
+
+      const parentComment = parentRows[0] || null;
+
+      if (!parentComment) {
+        return res.status(400).json({
+          ok: false,
+          message: 'The parent comment is not available on this post.',
+        });
+      }
+
+      if (parentComment.parent_comment_id) {
+        return res.status(400).json({
+          ok: false,
+          message: 'Parent comment must be a top-level comment.',
+        });
+      }
     }
 
     let quotedText = null;
@@ -803,9 +1039,9 @@ async function createReaderComment(req, res) {
         created_at,
         updated_at
       )
-      VALUES (?, ?, NULL, ?, ?, ?, 'active', NOW(), NOW())
+      VALUES (?, ?, ?, ?, ?, ?, 'active', NOW(), NOW())
       `,
-      [post.id, readerId, quotedCommentId || null, quotedText, body]
+      [post.id, readerId, parentCommentId || null, quotedCommentId || null, quotedText, body]
     );
 
     await createNotification({
@@ -818,12 +1054,16 @@ async function createReaderComment(req, res) {
       message: `A Reader commented on "${post.title}".`,
     });
 
-    const comments = await getPublicComments(post.id);
+    const comments = await getPublicComments(post.id, readerId);
     const commentCount = await getCommentCount(post.id);
 
     return res.status(201).json({
       ok: true,
-      message: quotedCommentId ? 'Quoted comment posted.' : 'Comment posted.',
+      message: parentCommentId
+        ? 'Reply posted.'
+        : quotedCommentId
+          ? 'Quoted comment posted.'
+          : 'Comment posted.',
       comment_id: result.insertId,
       comment_count: commentCount,
       comments,
@@ -1244,6 +1484,7 @@ module.exports = {
   getWriterComments,
   toggleWriterFollow,
   togglePostReaction,
+  toggleCommentReaction,
   createReaderComment,
   createWriterReply,
   getMyNotifications,
