@@ -1,6 +1,10 @@
 const pool = require('../config/db');
 const { buildPublicPostAccessPayload,getPostFields,getPostCtas } = require('../services/writerReaderAccessService');
 const { trackPostView } = require('../services/analyticsService');
+// BLOGGAD_BG_ATTRIBUTION_AND_TRAFFIC_SYNC_V1
+const {
+  decoratePublicPostPayload,
+} = require('../services/supgadBloggadAttributionService');
 const {
   fail,positiveInt,cleanText,makeSlug,boolValue,getWriterPages,getWriterPublishingContext,
   getWriterEntitlement,getPrimaryWriterPage,ensurePrimaryWriterPage,getWriterStorefront,
@@ -261,9 +265,13 @@ async function getPublicWriterPagePost(req,res) {
     }
 
     const [fields,ctas]=await Promise.all([getPostFields(post.id),getPostCtas(post.id)]);
+    const publicPostPayload=decoratePublicPostPayload(
+      await buildPublicPostAccessPayload({post,fields,ctaButtons:ctas}),
+      post
+    );
     return res.json({ok:true,page:{id:Number(page.id),user_id:Number(page.user_id),name:page.name,slug:page.slug,
       logo_url:page.logo_url,banner_url:page.banner_url,bio:page.bio,is_primary:!!page.is_primary},
-      ...await buildPublicPostAccessPayload({post,fields,ctaButtons:ctas})});
+      ...publicPostPayload});
   }catch(error){return sendError(res,error,'Failed to load Writer Page post.');}
 }
 module.exports={listMyWriterPages,getMyWriterPageContext,createWriterPage,updateWriterPage,setPrimaryWriterPage,

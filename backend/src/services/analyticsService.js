@@ -1,4 +1,8 @@
 const pool = require('../config/db');
+// BLOGGAD_BG_ATTRIBUTION_AND_TRAFFIC_SYNC_V1
+const {
+  syncPostTrafficToSupgad,
+} = require('./supgadBloggadAttributionService');
 
 async function trackProductView({
   productId,
@@ -75,6 +79,14 @@ async function trackPostView({
     `,
     [postId, productId, websiteId, referrer, ipAddress, userAgent]
   );
+
+  // BLOGGAD_BG_ATTRIBUTION_AND_TRAFFIC_SYNC_V1
+  void syncPostTrafficToSupgad(postId).catch((error) => {
+    console.error(
+      'syncPostTrafficToSupgad error:',
+      error.message
+    );
+  });
 }
 
 async function trackSliderClick({
