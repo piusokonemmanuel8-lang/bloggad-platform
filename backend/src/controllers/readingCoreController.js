@@ -295,23 +295,33 @@ async function saveReaderInterests(req, res) {
     const categoryIds = uniquePositiveInts(req.body?.category_ids);
     const interestEntitlement = await getReaderInterestEntitlement(readerId);
 
-    if (categoryIds.length < 3 || categoryIds.length > interestEntitlement.maxInterests) {
-      throw fail(`Choose between 3 and ${interestEntitlement.maxInterests} interests for your ${interestEntitlement.tier === 'premium' ? 'Premium' : interestEntitlement.tier === 'basic' ? 'Basic' : 'Free'} Reader tier.`);
+    if (categoryIds.length > interestEntitlement.maxInterests) {
+      throw fail(
+        `Choose no more than ${interestEntitlement.maxInterests} interests for your ${
+          interestEntitlement.tier === 'premium'
+            ? 'Premium'
+            : interestEntitlement.tier === 'basic'
+              ? 'Basic'
+              : 'Free'
+        } Reader tier. Leave all interests unticked to use the broad feed.`
+      );
     }
 
-    const placeholders = categoryIds.map(() => '?').join(',');
-    const [validRows] = await pool.query(
-      `
-      SELECT id
-      FROM categories
-      WHERE id IN (${placeholders})
-        AND status = 'active'
-      `,
-      categoryIds
-    );
+    if (categoryIds.length) {
+      const placeholders = categoryIds.map(() => '?').join(',');
+      const [validRows] = await pool.query(
+        `
+        SELECT id
+        FROM categories
+        WHERE id IN (${placeholders})
+          AND status = 'active'
+        `,
+        categoryIds
+      );
 
-    if (validRows.length !== categoryIds.length) {
-      throw fail('One or more selected interests are invalid or inactive.');
+      if (validRows.length !== categoryIds.length) {
+        throw fail('One or more selected interests are invalid or inactive.');
+      }
     }
 
     await connection.beginTransaction();
@@ -353,10 +363,20 @@ async function saveReaderInterests(req, res) {
 async function getReaderFeed(req, res) {
   try {
     const readerId = req.user.id;
-    const requestedLimit = Number(req.query?.limit || 40);
+    const requestedLimit = Number(req.query?.limit || 20);
+    const requestedOffset = Number(req.query?.offset || 0);
     const limit = Math.max(
       1,
-      Math.min(80, Number.isFinite(requestedLimit) ? requestedLimit : 40)
+      Math.min(80, Number.isFinite(requestedLimit) ? requestedLimit : 20)
+    );
+    const offset = Math.max(
+      0,
+      Math.min(
+        1000000,
+        Number.isFinite(requestedOffset)
+          ? Math.trunc(requestedOffset)
+          : 0
+      )
     );
 
     const [rows] = await pool.query(
@@ -459,16 +479,26 @@ async function getReaderFeed(req, res) {
       LEFT JOIN categories c
         ON c.id = pp.category_id
       WHERE pp.status = 'published'
-        AND EXISTS(
-          SELECT 1
-          FROM reader_interest_tree rit_match
-          WHERE rit_match.category_id = pp.category_id
-             OR EXISTS(
-               SELECT 1
-               FROM post_category_assignments pca_interest
-               WHERE pca_interest.post_id = pp.id
-                 AND pca_interest.category_id = rit_match.category_id
-             )
+        AND (
+          NOT EXISTS(
+            SELECT 1
+            FROM reader_category_interests rci_any
+            INNER JOIN categories c_any
+              ON c_any.id = rci_any.category_id
+             AND c_any.status = 'active'
+            WHERE rci_any.reader_user_id = ?
+          )
+          OR EXISTS(
+            SELECT 1
+            FROM reader_interest_tree rit_match
+            WHERE rit_match.category_id = pp.category_id
+               OR EXISTS(
+                 SELECT 1
+                 FROM post_category_assignments pca_interest
+                 WHERE pca_interest.post_id = pp.id
+                   AND pca_interest.category_id = rit_match.category_id
+               )
+          )
         )
         AND NOT EXISTS(
           SELECT 1
@@ -497,9 +527,17 @@ async function getReaderFeed(req, res) {
         followed_publication DESC,
         COALESCE(pp.published_at, pp.created_at) DESC,
         pp.id DESC
-      LIMIT ?
+      LIMIT ? OFFSET ?
       `,
-      [readerId, readerId, readerId, readerId, limit]
+      [
+        readerId,
+        readerId,
+        readerId,
+        readerId,
+        readerId,
+        limit,
+        offset,
+      ]
     );
 
     return res.status(200).json({
@@ -513,6 +551,13 @@ async function getReaderFeed(req, res) {
           ? String(row.topic_names).split(', ').filter(Boolean)
           : [],
       })),
+      pagination: {
+        limit,
+        offset,
+        returned: rows.length,
+        next_offset: offset + rows.length,
+        has_more: rows.length === limit,
+      },
     });
   } catch (error) {
     return sendError(res, error, 'Failed to load Reader feed.');
