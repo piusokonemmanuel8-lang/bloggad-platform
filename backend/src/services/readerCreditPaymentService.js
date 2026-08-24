@@ -12,6 +12,50 @@ const PROVIDERS = {
   paypal: 'PayPal',
 };
 
+const GATEWAY_CURRENCY_SETTING_PREFIX =
+  'reader_credit_gateway_currencies_';
+
+function normalizeCurrencyCode(value) {
+  const code = String(value || '').trim().toUpperCase();
+  return /^[A-Z]{3}$/.test(code) ? code : null;
+}
+
+function gatewayCurrencySettingKey(provider) {
+  return GATEWAY_CURRENCY_SETTING_PREFIX + provider;
+}
+
+function parseSupportedCurrencies(value) {
+  if (!value) return [];
+
+  try {
+    const parsed = JSON.parse(String(value));
+    if (!Array.isArray(parsed)) return [];
+
+    return Array.from(
+      new Set(parsed.map(normalizeCurrencyCode).filter(Boolean))
+    );
+  } catch {
+    return [];
+  }
+}
+
+function convertUsdCentsToCurrencyCents(usdCents, exchangeRate) {
+  const rate = Number(exchangeRate);
+  const usd = Number(centsToString(usdCents));
+
+  if (!Number.isFinite(rate) || rate <= 0) {
+    throw new Error('Selected Reader credit currency has an invalid exchange rate.');
+  }
+
+  const cents = Math.round(usd * rate * 100);
+
+  if (!Number.isSafeInteger(cents) || cents <= 0) {
+    throw new Error('Reader credit charge amount could not be calculated.');
+  }
+
+  return BigInt(cents);
+}
+
 function positiveInt(value) {
   const number = Number(value);
   return Number.isSafeInteger(number) && number > 0 ? number : null;
@@ -122,6 +166,9 @@ function sanitizeGatewayRow(row) {
     test_secret_configured: Boolean(row.test_secret_key_encrypted),
     live_public_configured: Boolean(row.live_public_key_encrypted),
     live_secret_configured: Boolean(row.live_secret_key_encrypted),
+    supported_currencies: parseSupportedCurrencies(
+      row.supported_currencies_json
+    ),
   };
 }
 
@@ -165,25 +212,88 @@ async function getPurchaseSettings(connection = pool) {
   };
 }
 
+async function getActiveCurrencies(connection = pool) {
+  const [rows] = await connection.query(
+    `
+    SELECT
+      currency_code,
+      currency_name,
+      currency_symbol,
+      exchange_rate,
+      is_default
+    FROM currencies
+    WHERE is_active = 1
+      AND exchange_rate > 0
+    ORDER BY is_default DESC, currency_code ASC
+    `
+  );
+
+  return rows.map((row) => ({
+    currency_code: String(row.currency_code || '').toUpperCase(),
+    currency_name: row.currency_name || null,
+    currency_symbol: row.currency_symbol || null,
+    exchange_rate: Number(row.exchange_rate || 0),
+    is_default: Number(row.is_default || 0) === 1,
+  }));
+}
+
+async function getActiveCurrency(currencyCode, connection = pool) {
+  const code = normalizeCurrencyCode(currencyCode);
+  if (!code) return null;
+
+  const [rows] = await connection.query(
+    `
+    SELECT
+      currency_code,
+      currency_name,
+      currency_symbol,
+      exchange_rate,
+      is_default
+    FROM currencies
+    WHERE currency_code = ?
+      AND is_active = 1
+      AND exchange_rate > 0
+    LIMIT 1
+    `,
+    [code]
+  );
+
+  if (!rows[0]) return null;
+
+  return {
+    currency_code: String(rows[0].currency_code || '').toUpperCase(),
+    currency_name: rows[0].currency_name || null,
+    currency_symbol: rows[0].currency_symbol || null,
+    exchange_rate: Number(rows[0].exchange_rate || 0),
+    is_default: Number(rows[0].is_default || 0) === 1,
+  };
+}
+
 async function getGatewayRows(connection = pool) {
   const [rows] = await connection.query(
     `
     SELECT
-      id,
-      provider_key,
-      display_name,
-      enabled,
-      active_mode,
-      test_public_key_encrypted,
-      test_secret_key_encrypted,
-      live_public_key_encrypted,
-      live_secret_key_encrypted,
-      updated_by,
-      created_at,
-      updated_at
-    FROM payment_gateway_settings
-    WHERE provider_key IN ('paystack', 'flutterwave', 'paypal')
-    ORDER BY FIELD(provider_key, 'paystack', 'flutterwave', 'paypal')
+      pgs.id,
+      pgs.provider_key,
+      pgs.display_name,
+      pgs.enabled,
+      pgs.active_mode,
+      pgs.test_public_key_encrypted,
+      pgs.test_secret_key_encrypted,
+      pgs.live_public_key_encrypted,
+      pgs.live_secret_key_encrypted,
+      pgs.updated_by,
+      pgs.created_at,
+      pgs.updated_at,
+      ags.setting_value AS supported_currencies_json
+    FROM payment_gateway_settings pgs
+    LEFT JOIN admin_settings ags
+      ON ags.setting_key = CONCAT(
+        '${GATEWAY_CURRENCY_SETTING_PREFIX}',
+        pgs.provider_key
+      )
+    WHERE pgs.provider_key IN ('paystack', 'flutterwave', 'paypal')
+    ORDER BY FIELD(pgs.provider_key, 'paystack', 'flutterwave', 'paypal')
     `
   );
 
@@ -192,13 +302,28 @@ async function getGatewayRows(connection = pool) {
 
 async function getReaderCreditTopUpOptions() {
   const settings = await getPurchaseSettings();
+  const currency = await getActiveCurrency(settings.currency_code);
   const gatewayRows = await getGatewayRows();
 
+  if (!currency) {
+    throw new Error(
+      'Reader credit purchase currency is not active or has no valid exchange rate.'
+    );
+  }
+
   return {
-    settings,
+    settings: {
+      ...settings,
+      currency: currency,
+    },
     gateways: gatewayRows
       .map(sanitizeGatewayRow)
-      .filter((gateway) => gateway.enabled && gateway.configured),
+      .filter(
+        (gateway) =>
+          gateway.enabled &&
+          gateway.configured &&
+          gateway.supported_currencies.includes(currency.currency_code)
+      ),
   };
 }
 
@@ -214,9 +339,16 @@ async function getGatewayCredentials(
 
   const [rows] = await pool.query(
     `
-    SELECT *
-    FROM payment_gateway_settings
-    WHERE provider_key = ?
+    SELECT
+      pgs.*,
+      ags.setting_value AS supported_currencies_json
+    FROM payment_gateway_settings pgs
+    LEFT JOIN admin_settings ags
+      ON ags.setting_key = CONCAT(
+        '${GATEWAY_CURRENCY_SETTING_PREFIX}',
+        pgs.provider_key
+      )
+    WHERE pgs.provider_key = ?
     LIMIT 1
     `,
     [provider]
@@ -251,6 +383,9 @@ async function getGatewayCredentials(
     mode,
     publicKey: decryptCredential(row[`${prefix}_public_key_encrypted`]),
     secretKey: decryptCredential(row[`${prefix}_secret_key_encrypted`]),
+    supportedCurrencies: parseSupportedCurrencies(
+      row.supported_currencies_json
+    ),
   };
 }
 
@@ -301,6 +436,7 @@ async function initializePaystack({
   gateway,
   merchantReference,
   amountCents,
+  currencyCode,
   reader,
 }) {
   const urls = callbackUrl('paystack', merchantReference);
@@ -315,7 +451,7 @@ async function initializePaystack({
       body: JSON.stringify({
         email: reader.email,
         amount: String(amountCents),
-        currency: 'USD',
+        currency: currencyCode,
         reference: merchantReference,
         callback_url: urls.returnUrl,
         metadata: {
@@ -389,6 +525,7 @@ async function initializeFlutterwave({
   gateway,
   merchantReference,
   amountString,
+  currencyCode,
   reader,
 }) {
   const urls = callbackUrl('flutterwave', merchantReference);
@@ -403,7 +540,7 @@ async function initializeFlutterwave({
       body: JSON.stringify({
         tx_ref: merchantReference,
         amount: amountString,
-        currency: 'USD',
+        currency: currencyCode,
         redirect_url: urls.returnUrl,
         customer: {
           email: reader.email,
@@ -553,6 +690,7 @@ async function initializePayPal({
   gateway,
   merchantReference,
   amountString,
+  currencyCode,
 }) {
   const urls = callbackUrl('paypal', merchantReference);
   const data = await paypalJson(
@@ -571,7 +709,7 @@ async function initializePayPal({
             custom_id: merchantReference,
             description: 'Bloggad Reader Credits',
             amount: {
-              currency_code: 'USD',
+              currency_code: currencyCode,
               value: amountString,
             },
           },
@@ -816,10 +954,6 @@ async function initializeReaderCreditPurchase({
     throw new Error('Reader credit purchases are currently disabled.');
   }
 
-  if (settings.currency_code !== 'USD') {
-    throw new Error('Reader credit purchases currently require USD pricing.');
-  }
-
   const creditCount = positiveInt(credits);
 
   if (!creditCount) {
@@ -843,11 +977,37 @@ async function initializeReaderCreditPurchase({
 
   const reader = await getReaderIdentity(readerUserId);
   const gateway = await getGatewayCredentials(provider);
-  const amountCents = priceCreditsInCents(
+  const currency = await getActiveCurrency(settings.currency_code);
+
+  if (!currency) {
+    throw new Error(
+      'Reader credit purchase currency is not active or has no valid exchange rate.'
+    );
+  }
+
+  if (!gateway.supportedCurrencies.includes(currency.currency_code)) {
+    throw new Error(
+      `${gateway.displayName} is not enabled for ${currency.currency_code} Reader credit payments.`
+    );
+  }
+
+  const usdAmountCents = priceCreditsInCents(
     creditCount,
     settings.credits_per_usd
   );
+  const amountCents = convertUsdCentsToCurrencyCents(
+    usdAmountCents,
+    currency.exchange_rate
+  );
+  const usdAmountString = centsToString(usdAmountCents);
   const amountString = centsToString(amountCents);
+  const pricingSnapshot = {
+    base_currency: 'USD',
+    usd_amount: usdAmountString,
+    charge_currency: currency.currency_code,
+    charge_amount: amountString,
+    exchange_rate: currency.exchange_rate,
+  };
   const merchantReference =
     `RCR-${Date.now()}-${crypto.randomBytes(12).toString('hex')}`.slice(
       0,
@@ -870,13 +1030,14 @@ async function initializeReaderCreditPurchase({
       created_at,
       updated_at
     )
-    VALUES (?, ?, 0, ?, ?, 'USD', ?, ?, ?, 'created', NOW(), NOW())
+    VALUES (?, ?, 0, ?, ?, ?, ?, ?, ?, 'created', NOW(), NOW())
     `,
     [
       reader.id,
       creditCount,
       settings.credits_per_usd,
-      amountString,
+      usdAmountString,
+      currency.currency_code,
       provider,
       gateway.mode,
       merchantReference,
@@ -891,6 +1052,7 @@ async function initializeReaderCreditPurchase({
         gateway,
         merchantReference,
         amountCents,
+        currencyCode: currency.currency_code,
         reader,
       });
     } else if (provider === 'flutterwave') {
@@ -898,6 +1060,7 @@ async function initializeReaderCreditPurchase({
         gateway,
         merchantReference,
         amountString,
+        currencyCode: currency.currency_code,
         reader,
       });
     } else {
@@ -905,6 +1068,7 @@ async function initializeReaderCreditPurchase({
         gateway,
         merchantReference,
         amountString,
+        currencyCode: currency.currency_code,
         reader,
       });
     }
@@ -926,7 +1090,10 @@ async function initializeReaderCreditPurchase({
         initialized.providerReference || null,
         initialized.providerTransactionId || null,
         initialized.checkoutUrl,
-        JSON.stringify(initialized.snapshot || {}),
+        JSON.stringify({
+          pricing: pricingSnapshot,
+          provider: initialized.snapshot || {},
+        }),
         insertResult.insertId,
       ]
     );
@@ -1034,14 +1201,33 @@ async function reconcileReaderCreditPurchase(
     throw error;
   }
 
-  const expectedCents = amountToCents(purchase.expected_amount_usd);
+  const purchaseCurrency =
+    normalizeCurrencyCode(purchase.currency_code) || 'USD';
+  let storedGatewaySnapshot = null;
+
+  try {
+    storedGatewaySnapshot = purchase.gateway_response_json
+      ? JSON.parse(String(purchase.gateway_response_json))
+      : null;
+  } catch {
+    storedGatewaySnapshot = null;
+  }
+
+  const pricingSnapshot = storedGatewaySnapshot?.pricing || null;
+  const expectedChargeCents =
+    pricingSnapshot &&
+    normalizeCurrencyCode(pricingSnapshot.charge_currency) === purchaseCurrency
+      ? amountToCents(pricingSnapshot.charge_amount)
+      : purchaseCurrency === 'USD'
+        ? amountToCents(purchase.expected_amount_usd)
+        : null;
 
   if (
     verification.success &&
-    verification.currency === 'USD' &&
+    verification.currency === purchaseCurrency &&
     verification.amountCents !== null &&
-    expectedCents !== null &&
-    verification.amountCents >= expectedCents
+    expectedChargeCents !== null &&
+    verification.amountCents >= expectedChargeCents
   ) {
     await pool.query(
       `
@@ -1058,10 +1244,13 @@ async function reconcileReaderCreditPurchase(
       WHERE id = ?
       `,
       [
-        centsToString(verification.amountCents),
+        String(purchase.expected_amount_usd || '0.00'),
         verification.providerReference || null,
         verification.providerTransactionId || null,
-        JSON.stringify(verification.snapshot || {}),
+        JSON.stringify({
+          pricing: pricingSnapshot,
+          provider: verification.snapshot || {},
+        }),
         purchase.id,
       ]
     );
@@ -1101,16 +1290,21 @@ async function reconcileReaderCreditPurchase(
 
   const currencyMismatch =
     verification.currency &&
-    verification.currency !== 'USD';
+    verification.currency !== purchaseCurrency;
+  const missingPricing =
+    purchaseCurrency !== 'USD' && expectedChargeCents === null;
   const underpaid =
     verification.amountCents !== null &&
-    expectedCents !== null &&
-    verification.amountCents < expectedCents;
+    expectedChargeCents !== null &&
+    verification.amountCents < expectedChargeCents;
 
   let reason = 'Payment is not verified yet.';
 
-  if (currencyMismatch) {
-    reason = 'Verified payment currency does not match USD.';
+  if (missingPricing) {
+    reason = 'Reader credit payment pricing snapshot is unavailable.';
+  } else if (currencyMismatch) {
+    reason =
+      `Verified payment currency does not match ${purchaseCurrency}.`;
   } else if (underpaid) {
     reason = 'Verified payment amount is below the required amount.';
   } else if (verification.terminalFailure) {
@@ -1118,7 +1312,10 @@ async function reconcileReaderCreditPurchase(
   }
 
   const nextStatus =
-    currencyMismatch || underpaid || verification.terminalFailure
+    missingPricing ||
+    currencyMismatch ||
+    underpaid ||
+    verification.terminalFailure
       ? 'failed'
       : 'pending';
 
@@ -1139,7 +1336,10 @@ async function reconcileReaderCreditPurchase(
       verification.providerTransactionId || null,
       nextStatus,
       reason,
-      JSON.stringify(verification.snapshot || {}),
+      JSON.stringify({
+        pricing: pricingSnapshot,
+        provider: verification.snapshot || {},
+      }),
       purchase.id,
     ]
   );
@@ -1209,10 +1409,12 @@ async function markReaderCreditPurchaseCancelled(merchantReference) {
 async function getAdminPaymentConfiguration() {
   const settings = await getPurchaseSettings();
   const gateways = (await getGatewayRows()).map(sanitizeGatewayRow);
+  const currencies = await getActiveCurrencies();
 
   return {
     settings,
     gateways,
+    currencies,
   };
 }
 
@@ -1229,6 +1431,29 @@ async function updateGatewaySetting(providerValue, payload, adminUserId) {
     payload?.enabled === true ||
     payload?.enabled === 1 ||
     payload?.enabled === '1';
+  const requestedSupportedCurrencies = Array.isArray(
+    payload?.supported_currencies
+  )
+    ? Array.from(
+        new Set(
+          payload.supported_currencies
+            .map(normalizeCurrencyCode)
+            .filter(Boolean)
+        )
+      )
+    : [];
+  const activeCurrencies = await getActiveCurrencies();
+  const activeCurrencyCodes = new Set(
+    activeCurrencies.map((item) => item.currency_code)
+  );
+
+  for (const currencyCode of requestedSupportedCurrencies) {
+    if (!activeCurrencyCodes.has(currencyCode)) {
+      throw new Error(
+        `${currencyCode} is not an active administrator currency.`
+      );
+    }
+  }
 
   const [rows] = await pool.query(
     `
@@ -1302,11 +1527,31 @@ async function updateGatewaySetting(providerValue, payload, adminUserId) {
     ]
   );
 
+  await pool.query(
+    `
+    INSERT INTO admin_settings (setting_key, setting_value)
+    VALUES (?, ?)
+    ON DUPLICATE KEY UPDATE
+      setting_value = VALUES(setting_value)
+    `,
+    [
+      gatewayCurrencySettingKey(provider),
+      JSON.stringify(requestedSupportedCurrencies),
+    ]
+  );
+
   const [freshRows] = await pool.query(
     `
-    SELECT *
-    FROM payment_gateway_settings
-    WHERE provider_key = ?
+    SELECT
+      pgs.*,
+      ags.setting_value AS supported_currencies_json
+    FROM payment_gateway_settings pgs
+    LEFT JOIN admin_settings ags
+      ON ags.setting_key = CONCAT(
+        '${GATEWAY_CURRENCY_SETTING_PREFIX}',
+        pgs.provider_key
+      )
+    WHERE pgs.provider_key = ?
     LIMIT 1
     `,
     [provider]
@@ -1326,9 +1571,22 @@ async function updateReaderCreditPurchaseSettings(payload, adminUserId) {
   const quickTwo = positiveInt(payload?.quick_option_two_credits);
   const minimum = positiveInt(payload?.minimum_credits);
   const maximum = positiveInt(payload?.maximum_credits);
+  const currencyCode = normalizeCurrencyCode(payload?.currency_code);
 
   if (!creditsPerUsd || !quickOne || !quickTwo || !minimum || !maximum) {
     throw new Error('All Reader credit pricing values must be positive whole numbers.');
+  }
+
+  if (!currencyCode) {
+    throw new Error('Select an active Reader credit purchase currency.');
+  }
+
+  const activeCurrency = await getActiveCurrency(currencyCode);
+
+  if (!activeCurrency) {
+    throw new Error(
+      'Selected Reader credit purchase currency is inactive or has no valid exchange rate.'
+    );
   }
 
   if (minimum > maximum) {
@@ -1350,7 +1608,7 @@ async function updateReaderCreditPurchaseSettings(payload, adminUserId) {
     SET
       enabled = ?,
       credits_per_usd = ?,
-      currency_code = 'USD',
+      currency_code = ?,
       quick_option_one_credits = ?,
       quick_option_two_credits = ?,
       minimum_credits = ?,
@@ -1362,6 +1620,7 @@ async function updateReaderCreditPurchaseSettings(payload, adminUserId) {
     [
       enabled ? 1 : 0,
       creditsPerUsd,
+      currencyCode,
       quickOne,
       quickTwo,
       minimum,

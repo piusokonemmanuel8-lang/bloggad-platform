@@ -30,6 +30,9 @@ function normalizeGateway(gateway) {
     test_secret_configured: Boolean(gateway.test_secret_configured),
     live_public_configured: Boolean(gateway.live_public_configured),
     live_secret_configured: Boolean(gateway.live_secret_configured),
+    supported_currencies: Array.isArray(gateway.supported_currencies)
+      ? gateway.supported_currencies
+      : [],
     ...emptySecrets(),
   };
 }
@@ -37,6 +40,7 @@ function normalizeGateway(gateway) {
 export default function AdminPaymentGatewaysPage() {
   const [settings, setSettings] = useState(null);
   const [gateways, setGateways] = useState({});
+  const [currencies, setCurrencies] = useState([]);
   const [loading, setLoading] = useState(true);
   const [savingSettings, setSavingSettings] = useState(false);
   const [savingProvider, setSavingProvider] = useState('');
@@ -59,6 +63,9 @@ export default function AdminPaymentGatewaysPage() {
 
       setSettings(data.settings || null);
       setGateways(map);
+      setCurrencies(
+        Array.isArray(data.currencies) ? data.currencies : []
+      );
     } catch (error) {
       setNotice({
         type: 'error',
@@ -92,6 +99,26 @@ export default function AdminPaymentGatewaysPage() {
     }));
   }
 
+  function toggleGatewayCurrency(provider, currencyCode, checked) {
+    setGateways((current) => {
+      const gateway = current[provider] || {};
+      const existing = Array.isArray(gateway.supported_currencies)
+        ? gateway.supported_currencies
+        : [];
+      const next = checked
+        ? Array.from(new Set([...existing, currencyCode]))
+        : existing.filter((code) => code !== currencyCode);
+
+      return {
+        ...current,
+        [provider]: {
+          ...gateway,
+          supported_currencies: next,
+        },
+      };
+    });
+  }
+
   async function saveSettings() {
     if (!settings) return;
 
@@ -112,6 +139,7 @@ export default function AdminPaymentGatewaysPage() {
           ),
           minimum_credits: Number(settings.minimum_credits),
           maximum_credits: Number(settings.maximum_credits),
+          currency_code: settings.currency_code,
         }
       );
 
@@ -151,6 +179,7 @@ export default function AdminPaymentGatewaysPage() {
           test_secret_key: gateway.test_secret_key,
           live_public_key: gateway.live_public_key,
           live_secret_key: gateway.live_secret_key,
+          supported_currencies: gateway.supported_currencies || [],
         }
       );
 
@@ -215,7 +244,8 @@ export default function AdminPaymentGatewaysPage() {
           <div>
             <h2>Reader credit purchase settings</h2>
             <p>
-              Pricing is calculated on the server. Currency is locked to USD.
+              Pricing keeps USD as the accounting base and charges the active
+              currency selected below using its administrator exchange rate.
             </p>
           </div>
           <label className="apg-switch">
@@ -298,8 +328,26 @@ export default function AdminPaymentGatewaysPage() {
             />
           </label>
           <label>
-            <span>Currency</span>
-            <input value="USD" disabled />
+            <span>Charge currency</span>
+            <select
+              value={settings?.currency_code || ''}
+              onChange={(event) =>
+                updateSettingsField('currency_code', event.target.value)
+              }
+            >
+              <option value="">Select active currency</option>
+              {currencies.map((currency) => (
+                <option
+                  key={currency.currency_code}
+                  value={currency.currency_code}
+                >
+                  {currency.currency_code}
+                  {currency.currency_name
+                    ? ` - ${currency.currency_name}`
+                    : ''}
+                </option>
+              ))}
+            </select>
           </label>
         </div>
 
@@ -378,6 +426,36 @@ export default function AdminPaymentGatewaysPage() {
                     >
                       {mode === 'test' ? 'Test / Sandbox' : 'Live'}
                     </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="apg-currency-rules">
+                <strong>Reader credit currencies</strong>
+                <p>
+                  This gateway is shown for Reader credit checkout only when
+                  the selected purchase currency is enabled here.
+                </p>
+                <div>
+                  {currencies.map((currency) => (
+                    <label key={currency.currency_code}>
+                      <input
+                        type="checkbox"
+                        checked={Boolean(
+                          gateway.supported_currencies?.includes(
+                            currency.currency_code
+                          )
+                        )}
+                        onChange={(event) =>
+                          toggleGatewayCurrency(
+                            provider,
+                            currency.currency_code,
+                            event.target.checked
+                          )
+                        }
+                      />
+                      <span>{currency.currency_code}</span>
+                    </label>
                   ))}
                 </div>
               </div>
@@ -565,6 +643,7 @@ const pageCss = `
     font-weight: 700;
   }
   .apg-grid input,
+  .apg-grid select,
   .apg-credential-group input {
     width: 100%;
     height: 42px;
@@ -579,6 +658,7 @@ const pageCss = `
     outline: none;
   }
   .apg-grid input:focus,
+  .apg-grid select:focus,
   .apg-credential-group input:focus {
     border-color: #64748b;
     box-shadow: 0 0 0 3px rgba(100, 116, 139, 0.12);
@@ -667,6 +747,40 @@ const pageCss = `
     border-color: #111827;
     background: #111827;
     color: #ffffff;
+  }
+  .apg-currency-rules {
+    margin-top: 14px;
+    padding: 12px;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    background: #f8fafc;
+  }
+  .apg-currency-rules > strong {
+    display: block;
+    font-size: 11px;
+  }
+  .apg-currency-rules > p {
+    margin: 5px 0 9px;
+    color: #64748b;
+    font-size: 10px;
+    line-height: 1.45;
+  }
+  .apg-currency-rules > div {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 12px;
+  }
+  .apg-currency-rules label {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    color: #334155;
+    font-size: 10px;
+    font-weight: 750;
+  }
+  .apg-currency-rules input {
+    width: 15px;
+    height: 15px;
   }
   .apg-credential-sections {
     display: grid;
