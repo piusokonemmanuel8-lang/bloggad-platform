@@ -177,6 +177,22 @@ function PostCard({
   const state = reactionState?.[post.id] || {};
   const likes = Number(state.love ?? post?.love_count ?? 0);
   const applause = Number(state.applaud ?? post?.applaud_count ?? 0);
+  const loved = Boolean(
+    state.loved ??
+      post?.loved ??
+      post?.viewer_loved ??
+      post?.viewer?.loved ??
+      post?.viewer?.love ??
+      false
+  );
+  const applauded = Boolean(
+    state.applauded ??
+      post?.applauded ??
+      post?.viewer_applauded ??
+      post?.viewer?.applauded ??
+      post?.viewer?.applaud ??
+      false
+  );
   const postPath = `/page/${encodeURIComponent(page.slug)}/post/${encodeURIComponent(post.slug)}`;
 
   return (
@@ -208,8 +224,14 @@ function PostCard({
 
       <div className="pwp-post-actions">
         <button
+          className={loved ? 'active' : ''}
           disabled={reactionBusy === `${post.id}:love`}
           onClick={() => onReact(post, 'love')}
+          style={
+            loved
+              ? { color: '#1877f2', background: '#eff6ff' }
+              : undefined
+          }
           type="button"
         >
           <ThumbIcon />
@@ -217,8 +239,14 @@ function PostCard({
         </button>
 
         <button
+          className={applauded ? 'active' : ''}
           disabled={reactionBusy === `${post.id}:applaud`}
           onClick={() => onReact(post, 'applaud')}
+          style={
+            applauded
+              ? { color: '#dc2626', background: '#fef2f2' }
+              : undefined
+          }
           type="button"
         >
           <ClapIcon />
@@ -532,11 +560,30 @@ export default function PublicWriterPage() {
       );
 
       const counts = response?.data?.counts || {};
+      const active = Boolean(response?.data?.active);
 
       setReactionState((current) => ({
         ...current,
         [post.id]: {
           ...(current[post.id] || {}),
+          loved:
+            type === 'love'
+              ? active
+              : Boolean(
+                  current[post.id]?.loved ??
+                    post?.loved ??
+                    post?.viewer_loved ??
+                    false
+                ),
+          applauded:
+            type === 'applaud'
+              ? active
+              : Boolean(
+                  current[post.id]?.applauded ??
+                    post?.applauded ??
+                    post?.viewer_applauded ??
+                    false
+                ),
           love: Number(
             counts.love ??
               counts.love_count ??
