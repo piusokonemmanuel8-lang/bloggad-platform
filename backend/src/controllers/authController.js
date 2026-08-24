@@ -223,9 +223,22 @@ async function getMe(req, res) {
       });
     }
 
+    const databaseUser = users[0];
+    const databaseRole = String(databaseUser.role || '').trim().toLowerCase();
+    const sessionRole = String(req.user?.role || '').trim().toLowerCase();
+
+    const responseRole =
+      ['customer', 'affiliate'].includes(databaseRole) &&
+      ['customer', 'affiliate'].includes(sessionRole)
+        ? sessionRole
+        : databaseRole;
+
     return res.status(200).json({
       ok: true,
-      user: sanitizeUser(users[0]),
+      user: sanitizeUser({
+        ...databaseUser,
+        role: responseRole,
+      }),
     });
   } catch (error) {
     console.error('getMe error:', error);

@@ -85,7 +85,20 @@ async function protect(req, res, next) {
       });
     }
 
-    req.user = user;
+    const databaseRole = String(user.role || '').trim().toLowerCase();
+    const tokenRole = String(decoded.role || '').trim().toLowerCase();
+
+    const sessionRole =
+      ['customer', 'affiliate'].includes(databaseRole) &&
+      ['customer', 'affiliate'].includes(tokenRole)
+        ? tokenRole
+        : databaseRole;
+
+    req.user = {
+      ...user,
+      role: sessionRole,
+    };
+
     next();
   } catch (error) {
     console.error('protect middleware error:', error);
