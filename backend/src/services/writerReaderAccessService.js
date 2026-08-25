@@ -125,23 +125,64 @@ async function getPostCtas(postId, connection = pool) {
   return rows.map(sanitizeCta);
 }
 
+let postAccessTimingColumnsPromise = null;
+
+async function getPostAccessTimingColumns(connection = pool) {
+  if (!postAccessTimingColumnsPromise) {
+    postAccessTimingColumnsPromise = (async () => {
+      try {
+        const [rows] = await connection.query(
+          [
+            'SELECT COLUMN_NAME',
+            'FROM information_schema.COLUMNS',
+            'WHERE TABLE_SCHEMA = DATABASE()',
+            "  AND TABLE_NAME = 'post_access_settings'",
+            "  AND COLUMN_NAME IN ('estimated_read_seconds', 'free_preview_seconds')",
+          ].join('\n')
+        );
+
+        const names = new Set(
+          rows.map((row) => String(row.COLUMN_NAME || row.column_name || ''))
+        );
+
+        return {
+          estimatedReadSeconds: names.has('estimated_read_seconds'),
+          freePreviewSeconds: names.has('free_preview_seconds'),
+        };
+      } catch (error) {
+        return { estimatedReadSeconds: false, freePreviewSeconds: false };
+      }
+    })();
+  }
+
+  return postAccessTimingColumnsPromise;
+}
+
 async function getPostAccessSetting(postId, connection = pool) {
+  const timingColumns = await getPostAccessTimingColumns(connection);
+  const estimatedSelect = timingColumns.estimatedReadSeconds
+    ? 'estimated_read_seconds'
+    : 'NULL AS estimated_read_seconds';
+  const freePreviewSelect = timingColumns.freePreviewSeconds
+    ? 'free_preview_seconds'
+    : 'NULL AS free_preview_seconds';
+
   const [rows] = await connection.query(
-    `
-    SELECT
-      id,
-      post_id,
-      access_type,
-      preview_percent,
-      estimated_read_seconds,
-      free_preview_seconds,
-      created_by_user_id,
-      created_at,
-      updated_at
-    FROM post_access_settings
-    WHERE post_id = ?
-    LIMIT 1
-    `,
+    [
+      'SELECT',
+      '  id,',
+      '  post_id,',
+      '  access_type,',
+      '  preview_percent,',
+      '  ' + estimatedSelect + ',',
+      '  ' + freePreviewSelect + ',',
+      '  created_by_user_id,',
+      '  created_at,',
+      '  updated_at',
+      'FROM post_access_settings',
+      'WHERE post_id = ?',
+      'LIMIT 1',
+    ].join('\n'),
     [postId]
   );
 
@@ -892,37 +933,46 @@ async function setWriterPostAccess({
     );
   }
 
-  await pool.query(
-    `
-    INSERT INTO post_access_settings (
-      post_id,
-      access_type,
-      preview_percent,
-      estimated_read_seconds,
-      free_preview_seconds,
-      created_by_user_id,
-      created_at,
-      updated_at
-    )
-    VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())
-    ON DUPLICATE KEY UPDATE
-      access_type = VALUES(access_type),
-      preview_percent = VALUES(preview_percent),
-      estimated_read_seconds = VALUES(estimated_read_seconds),
-      free_preview_seconds = VALUES(free_preview_seconds),
-      created_by_user_id = VALUES(created_by_user_id),
-      updated_at = NOW()
-    `,
-    [
-      post.id,
-      normalizedAccess,
-      normalizedPreview,
-      estimatedReadSeconds,
-      normalizedFreePreview,
-      writerUserId,
-    ]
-  );
+  const timingColumns = await getPostAccessTimingColumns(pool);
+  const insertColumns = ['post_id', 'access_type', 'preview_percent'];
+  const placeholders = ['?', '?', '?'];
+  const values = [post.id, normalizedAccess, normalizedPreview];
+  const updates = [
+    'access_type = VALUES(access_type)',
+    'preview_percent = VALUES(preview_percent)',
+  ];
 
+  if (timingColumns.estimatedReadSeconds) {
+    insertColumns.push('estimated_read_seconds');
+    placeholders.push('?');
+    values.push(estimatedReadSeconds);
+    updates.push('estimated_read_seconds = VALUES(estimated_read_seconds)');
+  }
+
+  if (timingColumns.freePreviewSeconds) {
+    insertColumns.push('free_preview_seconds');
+    placeholders.push('?');
+    values.push(normalizedFreePreview);
+    updates.push('free_preview_seconds = VALUES(free_preview_seconds)');
+  }
+
+  insertColumns.push('created_by_user_id', 'created_at', 'updated_at');
+  placeholders.push('?', 'NOW()', 'NOW()');
+  values.push(writerUserId);
+  updates.push('created_by_user_id = VALUES(created_by_user_id)');
+  updates.push('updated_at = NOW()');
+
+  await pool.query(
+    [
+      'INSERT INTO post_access_settings (',
+      insertColumns.join(', '),
+      ') VALUES (',
+      placeholders.join(', '),
+      ') ON DUPLICATE KEY UPDATE ',
+      updates.join(', '),
+    ].join(''),
+    values
+  );
   return getPostAccessSetting(post.id);
 }
 
