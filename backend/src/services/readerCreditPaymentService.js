@@ -882,7 +882,9 @@ async function getReaderIdentity(readerUserId) {
 
   if (
     !user ||
-    String(user.role || '').toLowerCase() !== 'customer' ||
+    !['customer', 'affiliate'].includes(
+      String(user.role || '').toLowerCase()
+    ) ||
     String(user.status || '').toLowerCase() !== 'active'
   ) {
     throw new Error('Active Reader account is required.');
