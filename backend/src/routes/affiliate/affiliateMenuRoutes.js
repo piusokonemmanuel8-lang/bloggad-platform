@@ -8,6 +8,7 @@ const {
   deleteMenu,
 } = require('../../controllers/affiliate/affiliateMenuController');
 const { protect, affiliateOnly } = require('../../middleware/authMiddleware');
+const { requireActivePaidWriterPlan } = require('../../middleware/writerPlanMiddleware');
 
 const router = express.Router();
 
@@ -21,10 +22,10 @@ router.get('/health', (req, res) => {
 router.get('/', protect, affiliateOnly, getMyMenus);
 router.get('/:id', protect, affiliateOnly, getMyMenuById);
 
-router.post('/', protect, affiliateOnly, createMenu);
-router.put('/:id', protect, affiliateOnly, updateMenu);
-router.put('/:id/items', protect, affiliateOnly, saveMenuItems);
+router.post('/', protect, affiliateOnly, requireActivePaidWriterPlan, createMenu);
+router.put('/:id', protect, affiliateOnly, requireActivePaidWriterPlan, updateMenu);
+router.put('/:id/items', protect, affiliateOnly, requireActivePaidWriterPlan, saveMenuItems);
 
-router.delete('/:id', protect, affiliateOnly, deleteMenu);
+router.delete('/:id', protect, affiliateOnly, requireActivePaidWriterPlan, deleteMenu);
 
 module.exports = router;

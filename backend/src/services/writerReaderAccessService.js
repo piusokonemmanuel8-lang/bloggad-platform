@@ -29,6 +29,28 @@ function money2(value) {
   return money(value, 2);
 }
 
+function parsePlanFeatures(value) {
+  if (!value) return {};
+  if (typeof value === 'object' && !Array.isArray(value)) return value;
+
+  try {
+    const parsed = JSON.parse(String(value));
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+      ? parsed
+      : {};
+  } catch (error) {
+    return {};
+  }
+}
+
+function planFeatureEnabled(plan, key) {
+  const features = parsePlanFeatures(plan?.features_json);
+  const value = features?.[key];
+
+  if (value === true || value === 1) return true;
+  return String(value || '').trim().toLowerCase() === 'true';
+}
+
 function sanitizeField(row) {
   return {
     id: row.id,
@@ -111,6 +133,8 @@ async function getPostAccessSetting(postId, connection = pool) {
       post_id,
       access_type,
       preview_percent,
+      estimated_read_seconds,
+      free_preview_seconds,
       created_by_user_id,
       created_at,
       updated_at
@@ -129,6 +153,8 @@ async function getPostAccessSetting(postId, connection = pool) {
       post_id: Number(postId),
       access_type: 'free',
       preview_percent: 100,
+      estimated_read_seconds: null,
+      free_preview_seconds: null,
       created_by_user_id: null,
       created_at: null,
       updated_at: null,
@@ -143,6 +169,14 @@ async function getPostAccessSetting(postId, connection = pool) {
       row.access_type === 'premium'
         ? Math.max(0, Math.min(95, Number(row.preview_percent || 0)))
         : 100,
+    estimated_read_seconds:
+      row.estimated_read_seconds === null
+        ? null
+        : Math.max(0, Number(row.estimated_read_seconds || 0)),
+    free_preview_seconds:
+      row.free_preview_seconds === null
+        ? null
+        : Math.max(0, Number(row.free_preview_seconds || 0)),
     created_by_user_id: row.created_by_user_id,
     created_at: row.created_at,
     updated_at: row.updated_at,
@@ -339,9 +373,12 @@ async function getWriterMembershipEligibility(writerUserId, connection = pool) {
   );
   const follower_count = await getWriterFollowerCount(writerUserId, connection);
   const policy = await getWriterMembershipPolicy(connection);
+  const plan_allows_membership =
+    !!paid_writer_plan &&
+    planFeatureEnabled(paid_writer_plan, 'can_offer_paid_membership');
 
   const eligible =
-    !!paid_writer_plan &&
+    plan_allows_membership &&
     !!policy.configured &&
     Number(policy.enabled || 0) === 1 &&
     policy.minimum_followers !== null &&
@@ -351,20 +388,24 @@ async function getWriterMembershipEligibility(writerUserId, connection = pool) {
 
   if (!paid_writer_plan) {
     reason = 'An active paid Writer plan is required.';
+  } else if (!plan_allows_membership) {
+    reason = 'Your current Writer plan does not include Direct Paid Membership.';
   } else if (!policy.configured) {
     reason = 'Direct Writer memberships are not configured yet.';
   } else if (Number(policy.enabled || 0) !== 1) {
     reason = 'Direct Writer memberships are disabled.';
   } else if (follower_count < Number(policy.minimum_followers || 0)) {
-    reason = `You need at least ${Number(
-      policy.minimum_followers || 0
-    )} followers to activate direct memberships.`;
+    reason =
+      'You need at least ' +
+      Number(policy.minimum_followers || 0) +
+      ' followers to activate direct memberships.';
   }
 
   return {
     eligible,
     reason,
     follower_count,
+    plan_allows_membership,
     paid_writer_plan,
     policy,
   };
@@ -421,6 +462,174 @@ function buildPreviewFields(fields, previewPercent) {
   return preview;
 }
 
+const READ_WORDS_PER_MINUTE = 200;
+const READABLE_FIELD_TYPES = new Set([
+  'text',
+  'textarea',
+  'paragraph',
+  'heading',
+  'quote',
+  'rich_text',
+]);
+
+function parseReadableValue(value) {
+  const raw = String(value || '');
+
+  if (!raw.trim().startsWith('{')) {
+    return { text: raw, rich: false, parsed: null };
+  }
+
+  try {
+    const parsed = JSON.parse(raw);
+
+    if (
+      parsed?.type === 'bloggad_rich_text_v1' &&
+      typeof parsed?.text === 'string' &&
+      Array.isArray(parsed?.links)
+    ) {
+      return { text: parsed.text, rich: true, parsed };
+    }
+  } catch (error) {
+    // Plain text fallback.
+  }
+
+  return { text: raw, rich: false, parsed: null };
+}
+
+function getReadableFieldText(field) {
+  const type = String(field?.field_type || '').trim().toLowerCase();
+  if (!READABLE_FIELD_TYPES.has(type)) return '';
+  return parseReadableValue(field?.field_value || '').text;
+}
+
+function estimateReadSeconds(fields) {
+  const words = (Array.isArray(fields) ? fields : [])
+    .map(getReadableFieldText)
+    .join(' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .split(' ')
+    .filter(Boolean).length;
+
+  if (!words) return 0;
+  return Math.max(1, Math.ceil((words * 60) / READ_WORDS_PER_MINUTE));
+}
+
+function resolveAccessTiming(access, fields) {
+  const estimatedFromFields = estimateReadSeconds(fields);
+  const storedEstimated = Number(access?.estimated_read_seconds || 0);
+  const estimated = storedEstimated > 0 ? storedEstimated : estimatedFromFields;
+
+  if (String(access?.access_type || 'free') !== 'premium') {
+    return {
+      estimated_read_seconds: estimated,
+      free_preview_seconds: estimated,
+    };
+  }
+
+  if (estimated <= 1) {
+    return {
+      estimated_read_seconds: estimated,
+      free_preview_seconds: 0,
+    };
+  }
+
+  const storedFree = Number(access?.free_preview_seconds || 0);
+  let freePreview = storedFree > 0 ? storedFree : 0;
+
+  if (!freePreview) {
+    const legacyPercent = Math.max(
+      0,
+      Math.min(95, Number(access?.preview_percent || 0))
+    );
+
+    if (legacyPercent > 0) {
+      freePreview = Math.max(
+        1,
+        Math.floor((estimated * legacyPercent) / 100)
+      );
+    }
+  }
+
+  freePreview = Math.max(1, Math.min(estimated - 1, freePreview || 1));
+
+  return {
+    estimated_read_seconds: estimated,
+    free_preview_seconds: freePreview,
+  };
+}
+
+function truncateReadableFieldValue(value, maxChars) {
+  const parsed = parseReadableValue(value);
+  const limit = Math.max(0, Number(maxChars || 0));
+
+  if (!parsed.rich) {
+    return String(value || '').slice(0, limit);
+  }
+
+  const text = parsed.text.slice(0, limit);
+  const links = (parsed.parsed?.links || [])
+    .map((link) => ({
+      ...link,
+      start: Number(link?.start),
+      end: Math.min(Number(link?.end), text.length),
+    }))
+    .filter(
+      (link) =>
+        Number.isInteger(link.start) &&
+        Number.isInteger(link.end) &&
+        link.start >= 0 &&
+        link.end > link.start &&
+        link.start < text.length
+    );
+
+  return JSON.stringify({
+    ...parsed.parsed,
+    text,
+    links,
+  });
+}
+
+function buildPreviewFieldsByTime(fields, freePreviewSeconds, estimatedReadSeconds) {
+  const estimated = Math.max(0, Number(estimatedReadSeconds || 0));
+  const freePreview = Math.max(0, Number(freePreviewSeconds || 0));
+
+  if (estimated <= 0 || freePreview <= 0) return [];
+
+  const readable = (Array.isArray(fields) ? fields : [])
+    .map((field) => ({
+      field,
+      text: getReadableFieldText(field),
+    }))
+    .filter((item) => item.text.length > 0);
+
+  const totalChars = readable.reduce((total, item) => total + item.text.length, 0);
+  if (totalChars <= 0) return [];
+
+  const ratio = Math.max(0, Math.min(0.999999, freePreview / estimated));
+  let remaining = Math.max(1, Math.floor(totalChars * ratio));
+  const preview = [];
+
+  for (const item of readable) {
+    if (remaining <= 0) break;
+
+    if (item.text.length <= remaining) {
+      preview.push({ ...item.field, preview_truncated: false });
+      remaining -= item.text.length;
+      continue;
+    }
+
+    preview.push({
+      ...item.field,
+      field_value: truncateReadableFieldValue(item.field.field_value, remaining),
+      preview_truncated: true,
+    });
+    remaining = 0;
+  }
+
+  return preview;
+}
+
 async function buildPublicPostAccessPayload({
   post,
   fields,
@@ -432,6 +641,7 @@ async function buildPublicPostAccessPayload({
   }
 
   const access = await getPostAccessSetting(post.id, connection);
+  const timing = resolveAccessTiming(access, fields);
 
   if (access.access_type !== 'premium') {
     return {
@@ -442,6 +652,8 @@ async function buildPublicPostAccessPayload({
         access_type: 'free',
         locked: false,
         preview_percent: 100,
+        estimated_read_seconds: timing.estimated_read_seconds,
+        free_preview_seconds: timing.free_preview_seconds,
         full_content_included: true,
       },
     };
@@ -459,12 +671,18 @@ async function buildPublicPostAccessPayload({
 
   return {
     post: safePost,
-    template_fields: buildPreviewFields(fields, access.preview_percent),
+    template_fields: buildPreviewFieldsByTime(
+      fields,
+      timing.free_preview_seconds,
+      timing.estimated_read_seconds
+    ),
     cta_buttons: [],
     access: {
       access_type: 'premium',
       locked: true,
       preview_percent: access.preview_percent,
+      estimated_read_seconds: timing.estimated_read_seconds,
+      free_preview_seconds: timing.free_preview_seconds,
       full_content_included: false,
       unlock_methods: ['reader_subscription', 'writer_membership'],
     },
@@ -541,11 +759,11 @@ async function getReaderPostAccess(readerUserId, postId, connection = pool) {
   }
 
   const access = await getPostAccessSetting(post.id, connection);
+  const fields = await getPostFields(post.id, connection);
+  const ctaButtons = await getPostCtas(post.id, connection);
+  const timing = resolveAccessTiming(access, fields);
 
   if (access.access_type !== 'premium') {
-    const fields = await getPostFields(post.id, connection);
-    const ctaButtons = await getPostCtas(post.id, connection);
-
     return {
       entitled: true,
       entitlement_source: 'free',
@@ -553,6 +771,7 @@ async function getReaderPostAccess(readerUserId, postId, connection = pool) {
       writer_user_id: post.user_id,
       access: {
         ...access,
+        ...timing,
         locked: false,
         full_content_included: true,
       },
@@ -575,16 +794,18 @@ async function getReaderPostAccess(readerUserId, postId, connection = pool) {
       writer_user_id: post.user_id,
       access: {
         ...access,
+        ...timing,
         locked: true,
         full_content_included: false,
       },
-      template_fields: [],
+      template_fields: buildPreviewFieldsByTime(
+        fields,
+        timing.free_preview_seconds,
+        timing.estimated_read_seconds
+      ),
       cta_buttons: [],
     };
   }
-
-  const fields = await getPostFields(post.id, connection);
-  const ctaButtons = await getPostCtas(post.id, connection);
 
   return {
     entitled: true,
@@ -593,6 +814,7 @@ async function getReaderPostAccess(readerUserId, postId, connection = pool) {
     writer_user_id: post.user_id,
     access: {
       ...access,
+      ...timing,
       locked: false,
       full_content_included: true,
     },
@@ -605,7 +827,7 @@ async function setWriterPostAccess({
   writerUserId,
   postId,
   accessType,
-  previewPercent,
+  freePreviewSeconds,
 }) {
   const normalizedAccess =
     String(accessType || '').trim().toLowerCase() === 'premium'
@@ -624,7 +846,10 @@ async function setWriterPostAccess({
     throw fail('Writer post not found.', 404);
   }
 
+  const fields = await getPostFields(post.id);
+  const estimatedReadSeconds = estimateReadSeconds(fields);
   let normalizedPreview = 100;
+  let normalizedFreePreview = estimatedReadSeconds;
 
   if (normalizedAccess === 'premium') {
     const paidPlan = await getCurrentPaidWriterSubscription(writerUserId);
@@ -633,13 +858,38 @@ async function setWriterPostAccess({
       throw fail('An active paid Writer plan is required for premium posts.', 403);
     }
 
-    const parsedPreview = nonNegativeInt(previewPercent);
-
-    if (parsedPreview === null || parsedPreview > 95) {
-      throw fail('Premium preview percent must be a whole number from 0 to 95.');
+    if (!planFeatureEnabled(paidPlan, 'can_publish_premium_posts')) {
+      throw fail(
+        'Your current Writer plan does not include Premium Post publishing.',
+        403
+      );
     }
 
-    normalizedPreview = parsedPreview;
+    if (estimatedReadSeconds <= 1) {
+      throw fail(
+        'Add readable post content before enabling Premium Post and Free Read.'
+      );
+    }
+
+    const parsedFreePreview = positiveInt(freePreviewSeconds);
+
+    if (
+      parsedFreePreview === null ||
+      parsedFreePreview >= estimatedReadSeconds
+    ) {
+      throw fail(
+        'Free Read time must be greater than zero and lower than the estimated read time.'
+      );
+    }
+
+    normalizedFreePreview = parsedFreePreview;
+    normalizedPreview = Math.max(
+      1,
+      Math.min(
+        95,
+        Math.round((normalizedFreePreview / estimatedReadSeconds) * 100)
+      )
+    );
   }
 
   await pool.query(
@@ -648,18 +898,29 @@ async function setWriterPostAccess({
       post_id,
       access_type,
       preview_percent,
+      estimated_read_seconds,
+      free_preview_seconds,
       created_by_user_id,
       created_at,
       updated_at
     )
-    VALUES (?, ?, ?, ?, NOW(), NOW())
+    VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())
     ON DUPLICATE KEY UPDATE
       access_type = VALUES(access_type),
       preview_percent = VALUES(preview_percent),
+      estimated_read_seconds = VALUES(estimated_read_seconds),
+      free_preview_seconds = VALUES(free_preview_seconds),
       created_by_user_id = VALUES(created_by_user_id),
       updated_at = NOW()
     `,
-    [post.id, normalizedAccess, normalizedPreview, writerUserId]
+    [
+      post.id,
+      normalizedAccess,
+      normalizedPreview,
+      estimatedReadSeconds,
+      normalizedFreePreview,
+      writerUserId,
+    ]
   );
 
   return getPostAccessSetting(post.id);
@@ -1251,6 +1512,7 @@ module.exports = {
   fail,
   positiveInt,
   money2,
+  planFeatureEnabled,
   getPostFields,
   getPostCtas,
   getPostAccessSetting,
@@ -1259,6 +1521,8 @@ module.exports = {
   getWriterMembershipEligibility,
   getWriterMembershipOfferRecord,
   buildPreviewFields,
+  estimateReadSeconds,
+  buildPreviewFieldsByTime,
   buildPublicPostAccessPayload,
   getReaderEntitlement,
   getReaderPostAccess,

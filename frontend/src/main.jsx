@@ -12,6 +12,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import BloggadGlobalLoader from './components/shared/BloggadGlobalLoader';
+import WriterPaidPlanGate from './components/writer/WriterPaidPlanGate';
 import App from './App';
 import './styles/global.css';
 
@@ -238,18 +239,74 @@ ReactDOM.createRoot(document.getElementById('root')).render(
           <Route element={<AffiliateLayout />}>
             <Route path="/writer/dashboard" element={<AffiliateDashboardPage />} />
             <Route path="/writer/pages" element={<WriterPagesPage />} />
-            <Route path="/writer/website" element={<AffiliateWebsitePage />} />
-            <Route path="/writer/products" element={<AffiliateProductsPage />} />
-            <Route path="/writer/products/create" element={<AffiliateCreateProductPage />} />
-            <Route path="/writer/products/:id/edit" element={<AffiliateEditProductPage />} />
-            <Route path="/writer/products/:id/posts" element={<AffiliateProductPostsPage />} />
+            <Route
+              path="/writer/website"
+              element={
+                <WriterPaidPlanGate feature="Storefront">
+                  <AffiliateWebsitePage />
+                </WriterPaidPlanGate>
+              }
+            />
+            <Route
+              path="/writer/products"
+              element={
+                <WriterPaidPlanGate feature="Products">
+                  <AffiliateProductsPage />
+                </WriterPaidPlanGate>
+              }
+            />
+            <Route
+              path="/writer/products/create"
+              element={
+                <WriterPaidPlanGate feature="Products">
+                  <AffiliateCreateProductPage />
+                </WriterPaidPlanGate>
+              }
+            />
+            <Route
+              path="/writer/products/:id/edit"
+              element={
+                <WriterPaidPlanGate feature="Products">
+                  <AffiliateEditProductPage />
+                </WriterPaidPlanGate>
+              }
+            />
+            <Route
+              path="/writer/products/:id/posts"
+              element={
+                <WriterPaidPlanGate feature="Product publishing">
+                  <AffiliateProductPostsPage />
+                </WriterPaidPlanGate>
+              }
+            />
             <Route path="/writer/posts" element={<AffiliatePostsPage />} />
             <Route path="/writer/posts/create" element={<AffiliateCreatePostPage />} />
             <Route path="/writer/posts/:id/edit" element={<AffiliateEditPostPage />} />
             <Route path="/writer/templates/choose" element={<AffiliateChooseTemplatePage />} />
-            <Route path="/writer/menus" element={<AffiliateMenusPage />} />
-            <Route path="/writer/sliders" element={<AffiliateSlidersPage />} />
-            <Route path="/writer/design" element={<AffiliateDesignPage />} />
+            <Route
+              path="/writer/menus"
+              element={
+                <WriterPaidPlanGate feature="Storefront Menus">
+                  <AffiliateMenusPage />
+                </WriterPaidPlanGate>
+              }
+            />
+            <Route
+              path="/writer/sliders"
+              element={
+                <WriterPaidPlanGate feature="Storefront Sliders">
+                  <AffiliateSlidersPage />
+                </WriterPaidPlanGate>
+              }
+            />
+            <Route
+              path="/writer/design"
+              element={
+                <WriterPaidPlanGate feature="Storefront Design">
+                  <AffiliateDesignPage />
+                </WriterPaidPlanGate>
+              }
+            />
             <Route path="/writer/analytics" element={<AffiliateAnalyticsPage />} />
             <Route path="/writer/media" element={<AffiliateMediaLibraryPage />} />
             <Route path="/writer/readers" element={<AffiliateCustomersPage />} />
@@ -274,17 +331,66 @@ ReactDOM.createRoot(document.getElementById('root')).render(
 
             <Route path="/affiliate/dashboard" element={<AffiliateDashboardPage />} />
             <Route path="/affiliate/website" element={<Navigate to="/writer/website" replace />} />
-            <Route path="/affiliate/products" element={<AffiliateProductsPage />} />
-            <Route path="/affiliate/products/create" element={<AffiliateCreateProductPage />} />
-            <Route path="/affiliate/products/:id/edit" element={<AffiliateEditProductPage />} />
-            <Route path="/affiliate/products/:id/posts" element={<AffiliateProductPostsPage />} />
+            <Route
+              path="/affiliate/products"
+              element={
+                <WriterPaidPlanGate feature="Products">
+                  <AffiliateProductsPage />
+                </WriterPaidPlanGate>
+              }
+            />
+            <Route
+              path="/affiliate/products/create"
+              element={
+                <WriterPaidPlanGate feature="Products">
+                  <AffiliateCreateProductPage />
+                </WriterPaidPlanGate>
+              }
+            />
+            <Route
+              path="/affiliate/products/:id/edit"
+              element={
+                <WriterPaidPlanGate feature="Products">
+                  <AffiliateEditProductPage />
+                </WriterPaidPlanGate>
+              }
+            />
+            <Route
+              path="/affiliate/products/:id/posts"
+              element={
+                <WriterPaidPlanGate feature="Product publishing">
+                  <AffiliateProductPostsPage />
+                </WriterPaidPlanGate>
+              }
+            />
             <Route path="/affiliate/posts" element={<AffiliatePostsPage />} />
             <Route path="/affiliate/posts/create" element={<AffiliateCreatePostPage />} />
             <Route path="/affiliate/posts/:id/edit" element={<AffiliateEditPostPage />} />
             <Route path="/affiliate/templates/choose" element={<AffiliateChooseTemplatePage />} />
-            <Route path="/affiliate/menus" element={<AffiliateMenusPage />} />
-            <Route path="/affiliate/sliders" element={<AffiliateSlidersPage />} />
-            <Route path="/affiliate/design" element={<AffiliateDesignPage />} />
+            <Route
+              path="/affiliate/menus"
+              element={
+                <WriterPaidPlanGate feature="Storefront Menus">
+                  <AffiliateMenusPage />
+                </WriterPaidPlanGate>
+              }
+            />
+            <Route
+              path="/affiliate/sliders"
+              element={
+                <WriterPaidPlanGate feature="Storefront Sliders">
+                  <AffiliateSlidersPage />
+                </WriterPaidPlanGate>
+              }
+            />
+            <Route
+              path="/affiliate/design"
+              element={
+                <WriterPaidPlanGate feature="Storefront Design">
+                  <AffiliateDesignPage />
+                </WriterPaidPlanGate>
+              }
+            />
             <Route path="/affiliate/analytics" element={<AffiliateAnalyticsPage />} />
             <Route path="/affiliate/media" element={<AffiliateMediaLibraryPage />} />
             <Route path="/affiliate/customers" element={<AffiliateCustomersPage />} />

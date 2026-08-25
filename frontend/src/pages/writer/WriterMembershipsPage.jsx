@@ -116,8 +116,21 @@ export default function WriterMembershipsPage() {
           </header>
 
           <p className="writer-memberships-helper">
-            Set the monthly direct membership offer.
+            {isEligible
+              ? 'Set the monthly direct membership offer.'
+              : eligibility?.reason || 'Direct Paid Membership is not available yet.'}
           </p>
+
+          {!isEligible && eligibility?.policy?.minimum_followers !== null ? (
+            <div className="writer-memberships-current-offer">
+              <span>FOLLOWER REQUIREMENT</span>
+              <strong>
+                {Number(eligibility?.follower_count || 0).toLocaleString()} / {Number(
+                  eligibility?.policy?.minimum_followers || 0
+                ).toLocaleString()} followers
+              </strong>
+            </div>
+          ) : null}
 
           <form className="writer-memberships-form" onSubmit={save}>
             <label className="writer-memberships-field">
@@ -129,6 +142,7 @@ export default function WriterMembershipsPage() {
                   min="0"
                   step="0.01"
                   placeholder="0.00"
+                  disabled={!isEligible}
                   value={form.monthly_price_usd}
                   onChange={(event) =>
                     setForm((previous) => ({
@@ -144,6 +158,7 @@ export default function WriterMembershipsPage() {
               <span>OFFER STATUS</span>
               <select
                 value={form.status}
+                disabled={!isEligible}
                 onChange={(event) =>
                   setForm((previous) => ({
                     ...previous,
@@ -162,7 +177,7 @@ export default function WriterMembershipsPage() {
               <strong>{offerAmount}</strong>
             </div>
 
-            <button type="submit" className="writer-memberships-save">
+            <button type="submit" className="writer-memberships-save" disabled={!isEligible}>
               Save offer
             </button>
           </form>

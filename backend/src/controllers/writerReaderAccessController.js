@@ -3,6 +3,7 @@ const {
   fail,
   positiveInt,
   money2,
+  planFeatureEnabled,
   getPostAccessSetting,
   getCurrentPaidWriterSubscription,
   getWriterMembershipPolicy,
@@ -141,6 +142,23 @@ async function getReaderPlans(req, res) {
   }
 }
 
+async function getWriterPublishingAccess(req, res) {
+  try {
+    const paid_writer_plan = await getCurrentPaidWriterSubscription(req.user.id);
+
+    return res.status(200).json({
+      ok: true,
+      paid_writer_plan,
+      can_use_premium_posts: planFeatureEnabled(
+        paid_writer_plan,
+        'can_publish_premium_posts'
+      ),
+    });
+  } catch (error) {
+    return sendError(res, error, 'Failed to load Writer publishing access.');
+  }
+}
+
 async function getWriterPostAccess(req, res) {
   try {
     const postId = positiveInt(req.params.postId);
@@ -174,7 +192,10 @@ async function getWriterPostAccess(req, res) {
       post,
       access,
       paid_writer_plan,
-      can_use_premium_posts: !!paid_writer_plan,
+      can_use_premium_posts: planFeatureEnabled(
+        paid_writer_plan,
+        'can_publish_premium_posts'
+      ),
     });
   } catch (error) {
     return sendError(res, error, 'Failed to load Writer post access.');
@@ -193,7 +214,7 @@ async function updateWriterPostAccess(req, res) {
       writerUserId: req.user.id,
       postId,
       accessType: req.body?.access_type,
-      previewPercent: req.body?.preview_percent,
+      freePreviewSeconds: req.body?.free_preview_seconds,
     });
 
     return res.status(200).json({
@@ -665,6 +686,7 @@ module.exports = {
   getReaderSubscription,
   getReaderMemberships,
   getReaderPlans,
+  getWriterPublishingAccess,
   getWriterPostAccess,
   updateWriterPostAccess,
   getWriterMembershipOffer,

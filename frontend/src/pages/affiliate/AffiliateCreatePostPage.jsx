@@ -4,6 +4,10 @@ import SimpleWriterWorkroom, {
   buildInitialSimpleWriterBlocks,
   getSimpleWriterPlainText,
 } from '../../components/writer/SimpleWriterWorkroom';
+import WriterPremiumPublishingControls, {
+  defaultWriterFreePreviewSeconds,
+  estimateWriterReadSeconds,
+} from '../../components/writer/WriterPremiumPublishingControls';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -477,6 +481,14 @@ export default function AffiliateCreatePostPage() {
   const [products, setProducts] = useState([]);
   const [templates, setTemplates] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [publishingAccess, setPublishingAccess] = useState({
+    access_type: 'free',
+    free_preview_seconds: 0,
+  });
+  const [publishingCapabilities, setPublishingCapabilities] = useState({
+    loaded: false,
+    can_use_premium_posts: false,
+  });
 
   const [form, setForm] = useState({
     content_type: presetProductId ? 'product_post' : 'article',
@@ -518,15 +530,20 @@ export default function AffiliateCreatePostPage() {
       try {
         setLoading(true);
 
-        const [productsRes, templatesRes, categoriesRes] = await Promise.all([
+        const [productsRes, templatesRes, categoriesRes, publishingRes] = await Promise.all([
           api.get('/api/affiliate/products'),
           api.get('/api/affiliate/templates/blog'),
           api.get('/api/public/categories'),
+          api.get('/api/writer/access/publishing').catch(() => null),
         ]);
 
         setProducts(productsRes?.data?.products || []);
         setTemplates(templatesRes?.data?.templates || []);
         setCategories(categoriesRes?.data?.categories || []);
+        setPublishingCapabilities({
+          loaded: !!publishingRes?.data?.ok,
+          can_use_premium_posts: !!publishingRes?.data?.can_use_premium_posts,
+        });
       } catch (err) {
         setError(err?.response?.data?.message || 'Failed to load post setup data');
       } finally {
@@ -582,6 +599,37 @@ export default function AffiliateCreatePostPage() {
       return total + countWords(field.field_value);
     }, 0);
   }, [form.template_fields]);
+
+  const estimatedReadSeconds = useMemo(
+    () => estimateWriterReadSeconds(form.template_fields),
+    [form.template_fields]
+  );
+
+  useEffect(() => {
+    setPublishingAccess((current) => {
+      if (current.access_type !== 'premium') return current;
+
+      const maxPreview = Math.max(0, estimatedReadSeconds - 1);
+      const existing = Number(current.free_preview_seconds || 0);
+      const next =
+        maxPreview > 0
+          ? Math.min(
+              maxPreview,
+              Math.max(
+                1,
+                existing || defaultWriterFreePreviewSeconds(estimatedReadSeconds)
+              )
+            )
+          : 0;
+
+      if (next === existing) return current;
+
+      return {
+        ...current,
+        free_preview_seconds: next,
+      };
+    });
+  }, [estimatedReadSeconds]);
 
   const localFieldReviews = useMemo(() => {
     const map = {};
@@ -921,6 +969,24 @@ export default function AffiliateCreatePostPage() {
       applyServerResponseMeta(data);
 
       if (data?.ok && data?.post?.id) {
+        try {
+          await api.put(`/api/writer/access/posts/${data.post.id}`, {
+            access_type: publishingAccess.access_type,
+            free_preview_seconds:
+              publishingAccess.access_type === 'premium'
+                ? Number(publishingAccess.free_preview_seconds || 0)
+                : estimatedReadSeconds,
+          });
+        } catch (accessError) {
+          setSuccess('Post created. It remains Free until Premium Post settings are saved.');
+          setError(
+            accessError?.response?.data?.message ||
+              accessError?.message ||
+              'Premium Post settings could not be saved.'
+          );
+          return;
+        }
+
         setSuccess('Post created successfully. Redirecting...');
         setTimeout(() => {
           navigate(`${routeRoot}/posts/${data.post.id}/edit`);
@@ -1508,6 +1574,27 @@ export default function AffiliateCreatePostPage() {
         </div>
 
         <div className="affiliate-create-post-side-stack">
+          <WriterPremiumPublishingControls
+            accessType={publishingAccess.access_type}
+            canUsePremiumPosts={publishingCapabilities.can_use_premium_posts}
+            capabilityLoaded={publishingCapabilities.loaded}
+            estimatedReadSeconds={estimatedReadSeconds}
+            freePreviewSeconds={publishingAccess.free_preview_seconds}
+            disabled={saving}
+            onAccessTypeChange={(access_type) =>
+              setPublishingAccess((current) => ({ ...current, access_type }))
+            }
+            onFreePreviewSecondsChange={(free_preview_seconds) =>
+              setPublishingAccess((current) => ({
+                ...current,
+                free_preview_seconds,
+              }))
+            }
+            onUpgrade={() =>
+              navigate(routeRoot === '/writer' ? '/writer/plan' : '/affiliate/subscription')
+            }
+          />
+
           <div className="affiliate-create-post-panel">
             <div className="affiliate-create-post-panel-head">
               <div>

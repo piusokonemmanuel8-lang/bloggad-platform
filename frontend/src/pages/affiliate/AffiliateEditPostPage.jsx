@@ -4,7 +4,11 @@ import SimpleWriterWorkroom, {
   buildInitialSimpleWriterBlocks,
   getSimpleWriterPlainText,
 } from '../../components/writer/SimpleWriterWorkroom';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import WriterPremiumPublishingControls, {
+  defaultWriterFreePreviewSeconds,
+  estimateWriterReadSeconds,
+} from '../../components/writer/WriterPremiumPublishingControls';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   FileText,
@@ -538,11 +542,23 @@ function getLocalFieldReview({ field, totalTextWords, productTitle }) {
 
 export default function AffiliateEditPostPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { id } = useParams();
+  const routeRoot = location.pathname.startsWith('/writer') ? '/writer' : '/affiliate';
 
   const [products, setProducts] = useState([]);
   const [templates, setTemplates] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [publishingAccess, setPublishingAccess] = useState({
+    access_type: 'free',
+    free_preview_seconds: 0,
+    preview_percent: 100,
+  });
+  const [publishingCapabilities, setPublishingCapabilities] = useState({
+    loaded: false,
+    can_use_premium_posts: false,
+  });
+  const [publishingAccessDirty, setPublishingAccessDirty] = useState(false);
 
   const [form, setForm] = useState({
     content_type: 'article',
@@ -613,6 +629,50 @@ export default function AffiliateEditPostPage() {
     }, 0);
   }, [form.template_fields]);
 
+  const estimatedReadSeconds = useMemo(
+    () => estimateWriterReadSeconds(form.template_fields),
+    [form.template_fields]
+  );
+
+  useEffect(() => {
+    setPublishingAccess((current) => {
+      if (current.access_type !== 'premium') return current;
+
+      const maxPreview = Math.max(0, estimatedReadSeconds - 1);
+      const existing = Number(current.free_preview_seconds || 0);
+      const legacyPercent = Math.max(
+        0,
+        Math.min(95, Number(current.preview_percent || 0))
+      );
+      const legacyPreview =
+        maxPreview > 0 && legacyPercent > 0
+          ? Math.max(
+              1,
+              Math.floor((estimatedReadSeconds * legacyPercent) / 100)
+            )
+          : 0;
+      const next =
+        maxPreview > 0
+          ? Math.min(
+              maxPreview,
+              Math.max(
+                1,
+                existing ||
+                  legacyPreview ||
+                  defaultWriterFreePreviewSeconds(estimatedReadSeconds)
+              )
+            )
+          : 0;
+
+      if (next === existing) return current;
+
+      return {
+        ...current,
+        free_preview_seconds: next,
+      };
+    });
+  }, [estimatedReadSeconds]);
+
   const localFieldReviews = useMemo(() => {
     const map = {};
     form.template_fields.forEach((field) => {
@@ -657,11 +717,12 @@ export default function AffiliateEditPostPage() {
       try {
         setLoading(true);
 
-        const [postRes, productsRes, templatesRes, categoriesRes] = await Promise.all([
+        const [postRes, productsRes, templatesRes, categoriesRes, accessRes] = await Promise.all([
           api.get(`/api/affiliate/posts/${id}`),
           api.get('/api/affiliate/products'),
           api.get('/api/affiliate/templates/blog'),
           api.get('/api/public/categories'),
+          api.get(`/api/writer/access/posts/${id}`).catch(() => null),
         ]);
 
         const post = postRes?.data?.post;
@@ -673,6 +734,21 @@ export default function AffiliateEditPostPage() {
         setTemplates(templateList);
         setCategories(categoryList);
 
+        const accessData = accessRes?.data?.access || null;
+        setPublishingCapabilities({
+          loaded: !!accessRes?.data?.ok,
+          can_use_premium_posts: !!accessRes?.data?.can_use_premium_posts,
+        });
+
+        if (accessData) {
+          setPublishingAccess({
+            access_type: accessData.access_type === 'premium' ? 'premium' : 'free',
+            free_preview_seconds: Number(accessData.free_preview_seconds || 0),
+            preview_percent: Number(accessData.preview_percent || 0),
+          });
+        }
+
+        setPublishingAccessDirty(false);
         applyServerResponseMeta(postRes?.data);
 
         if (post) {
@@ -1031,6 +1107,35 @@ export default function AffiliateEditPostPage() {
       applyServerResponseMeta(data);
 
       if (data?.ok) {
+        const shouldSyncPublishingAccess =
+          publishingCapabilities.loaded &&
+          (
+            publishingAccess.access_type === 'free' ||
+            publishingCapabilities.can_use_premium_posts ||
+            publishingAccessDirty
+          );
+
+        if (shouldSyncPublishingAccess) {
+          try {
+            await api.put(`/api/writer/access/posts/${id}`, {
+              access_type: publishingAccess.access_type,
+              free_preview_seconds:
+                publishingAccess.access_type === 'premium'
+                  ? Number(publishingAccess.free_preview_seconds || 0)
+                  : estimatedReadSeconds,
+            });
+            setPublishingAccessDirty(false);
+          } catch (accessError) {
+            setSuccess('Post content updated.');
+            setError(
+              accessError?.response?.data?.message ||
+                accessError?.message ||
+                'Premium Post settings could not be updated.'
+            );
+            return;
+          }
+        }
+
         setSuccess(data.message || 'Post updated successfully');
       }
     } catch (err) {
@@ -1589,6 +1694,29 @@ export default function AffiliateEditPostPage() {
         </div>
 
         <div className="affiliate-edit-post-side-stack">
+          <WriterPremiumPublishingControls
+            accessType={publishingAccess.access_type}
+            canUsePremiumPosts={publishingCapabilities.can_use_premium_posts}
+            capabilityLoaded={publishingCapabilities.loaded}
+            estimatedReadSeconds={estimatedReadSeconds}
+            freePreviewSeconds={publishingAccess.free_preview_seconds}
+            disabled={saving}
+            onAccessTypeChange={(access_type) => {
+              setPublishingAccessDirty(true);
+              setPublishingAccess((current) => ({ ...current, access_type }));
+            }}
+            onFreePreviewSecondsChange={(free_preview_seconds) => {
+              setPublishingAccessDirty(true);
+              setPublishingAccess((current) => ({
+                ...current,
+                free_preview_seconds,
+              }));
+            }}
+            onUpgrade={() =>
+              navigate(routeRoot === '/writer' ? '/writer/plan' : '/affiliate/subscription')
+            }
+          />
+
           <div className="affiliate-edit-post-panel">
             <div className="affiliate-edit-post-panel-head">
               <div>

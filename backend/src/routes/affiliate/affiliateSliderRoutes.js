@@ -8,6 +8,7 @@ const {
   deleteSlider,
 } = require('../../controllers/affiliate/affiliateSliderController');
 const { protect, affiliateOnly } = require('../../middleware/authMiddleware');
+const { requireActivePaidWriterPlan } = require('../../middleware/writerPlanMiddleware');
 
 const router = express.Router();
 
@@ -21,10 +22,10 @@ router.get('/health', (req, res) => {
 router.get('/', protect, affiliateOnly, getMySliders);
 router.get('/:id', protect, affiliateOnly, getMySliderById);
 
-router.post('/', protect, affiliateOnly, createSlider);
-router.put('/:id', protect, affiliateOnly, updateSlider);
-router.put('/:id/status', protect, affiliateOnly, updateSliderStatus);
+router.post('/', protect, affiliateOnly, requireActivePaidWriterPlan, createSlider);
+router.put('/:id', protect, affiliateOnly, requireActivePaidWriterPlan, updateSlider);
+router.put('/:id/status', protect, affiliateOnly, requireActivePaidWriterPlan, updateSliderStatus);
 
-router.delete('/:id', protect, affiliateOnly, deleteSlider);
+router.delete('/:id', protect, affiliateOnly, requireActivePaidWriterPlan, deleteSlider);
 
 module.exports = router;

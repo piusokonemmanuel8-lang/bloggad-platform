@@ -345,8 +345,6 @@ async function assignSubscriptionToAffiliate(req, res) {
       plan_id,
       status,
       amount_paid,
-      trial_start,
-      trial_end,
       start_date,
       end_date,
     } = req.body;
@@ -367,7 +365,7 @@ async function assignSubscriptionToAffiliate(req, res) {
       });
     }
 
-    if (!['trial', 'active', 'expired', 'cancelled'].includes(status)) {
+    if (!['active', 'expired', 'cancelled'].includes(status)) {
       return res.status(400).json({
         ok: false,
         message: 'Invalid subscription status',
@@ -420,8 +418,8 @@ async function assignSubscriptionToAffiliate(req, res) {
       [
         affiliateId,
         planId,
-        trial_start || null,
-        trial_end || null,
+        null,
+        null,
         start_date || null,
         end_date || null,
         status,

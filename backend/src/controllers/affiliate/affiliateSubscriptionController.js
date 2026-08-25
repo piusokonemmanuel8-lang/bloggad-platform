@@ -399,94 +399,6 @@ async function getAvailablePlans(req, res) {
   }
 }
 
-async function startFreeTrial(req, res) {
-  try {
-    const userId = req.user.id;
-
-    const existingSubscription = await getLatestSubscriptionByUserId(userId);
-
-    if (existingSubscription) {
-      return res.status(400).json({
-        ok: false,
-        message: 'Subscription already exists for this affiliate',
-      });
-    }
-
-    const [starterPlans] = await pool.query(
-      `
-      SELECT
-        id,
-        name,
-        price,
-        features_json
-      FROM subscription_plans
-      WHERE status = 'active'
-      ORDER BY price ASC, id ASC
-      LIMIT 1
-      `
-    );
-
-    if (!starterPlans.length) {
-      return res.status(404).json({
-        ok: false,
-        message: 'No active subscription plan found',
-      });
-    }
-
-    const selectedPlan = starterPlans[0];
-    const features = parseFeaturesJson(selectedPlan.features_json);
-    const trialDays = Number(features?.trial_days || 30);
-
-    await pool.query(
-      `
-      INSERT INTO affiliate_subscriptions
-      (
-        user_id,
-        plan_id,
-        trial_start,
-        trial_end,
-        start_date,
-        end_date,
-        status,
-        amount_paid,
-        created_at,
-        updated_at
-      )
-      VALUES
-      (
-        ?,
-        ?,
-        NOW(),
-        DATE_ADD(NOW(), INTERVAL ? DAY),
-        NULL,
-        NULL,
-        'trial',
-        0,
-        NOW(),
-        NOW()
-      )
-      `,
-      [userId, selectedPlan.id, trialDays]
-    );
-
-    const createdSubscription = await getLatestSubscriptionByUserId(userId);
-
-    return res.status(201).json({
-      ok: true,
-      message: 'Free trial started successfully',
-      subscription: await sanitizeSubscription(createdSubscription),
-    });
-  } catch (error) {
-    console.error('startFreeTrial error:', error);
-
-    return res.status(500).json({
-      ok: false,
-      message: 'Failed to start free trial',
-      error: error.message,
-    });
-  }
-}
-
 async function requestPlanChange(req, res) {
   return res.status(400).json({
     ok: false,
@@ -499,6 +411,5 @@ module.exports = {
   getMySubscriptionOverview,
   getMySubscriptionHistory,
   getAvailablePlans,
-  startFreeTrial,
   requestPlanChange,
 };

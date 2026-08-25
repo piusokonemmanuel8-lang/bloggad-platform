@@ -72,6 +72,17 @@ function analyticsAccessLabel(plan) {
   return level === 'full' ? 'Full' : 'Basic';
 }
 
+function planFeatureEnabled(plan, key) {
+  const value = plan?.features_json?.[key];
+  return value === true || value === 1 || String(value || '').toLowerCase() === 'true';
+}
+
+function paidMembershipAccessLabel(plan) {
+  return planFeatureEnabled(plan, 'can_offer_paid_membership')
+    ? 'Included - unlocks automatically at 25,000 followers'
+    : 'Not included';
+}
+
 function WriterPlanPage() {
   const [overview, setOverview] = useState(null);
   const [history, setHistory] = useState([]);
@@ -378,6 +389,14 @@ function WriterPlanPage() {
               <div><span>Storefront templates</span><strong>{templateAccessLabel(currentPlan, 'website')}</strong></div>
               <div><span>Receive gifts</span><strong>{giftAccessLabel(currentPlan)}</strong></div>
               <div><span>Analytics</span><strong>{analyticsAccessLabel(currentPlan)}</strong></div>
+              <div>
+                <span>Premium Post publishing</span>
+                <strong>{planFeatureEnabled(currentPlan, 'can_publish_premium_posts') ? 'Included' : 'Not included'}</strong>
+              </div>
+              <div>
+                <span>Direct Paid Membership</span>
+                <strong>{paidMembershipAccessLabel(currentPlan)}</strong>
+              </div>
             </div>
           ) : (
             <div className="writer-plan-empty-small">
@@ -487,6 +506,14 @@ function WriterPlanPage() {
                     <div><span>Storefront templates</span><strong>{templateAccessLabel(plan, 'website')}</strong></div>
                     <div><span>Receive gifts</span><strong>{giftAccessLabel(plan)}</strong></div>
                     <div><span>Analytics</span><strong>{analyticsAccessLabel(plan)}</strong></div>
+                    <div>
+                      <span>Premium Post publishing</span>
+                      <strong>{planFeatureEnabled(plan, 'can_publish_premium_posts') ? 'Included' : 'Not included'}</strong>
+                    </div>
+                    <div>
+                      <span>Direct Paid Membership</span>
+                      <strong>{paidMembershipAccessLabel(plan)}</strong>
+                    </div>
                   </div>
 
                   <button
@@ -526,7 +553,7 @@ function WriterPlanPage() {
           <div>
             <span className="writer-plan-kicker">History</span>
             <h3>Subscription history</h3>
-            <p>Previous trials and plan changes on this Writer account.</p>
+            <p>Previous Writer plan changes on this account. Legacy records remain visible for audit.</p>
           </div>
         </div>
 

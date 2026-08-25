@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useState } from 'react';
+﻿import { useEffect, useMemo, useState } from 'react';
 import {
   useLocation,
   useNavigate,
   useSearchParams,
 } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
+import api from '../../api/axios';
 import EditorialAuthScreen from '../../components/auth/EditorialAuthScreen';
 
 const API_BASE =
@@ -154,7 +155,49 @@ export default function LoginPage() {
       return;
     }
 
-    navigate('/affiliate/dashboard');
+    let writerSession = data;
+
+    if (data?.user?.role === 'customer') {
+      const switchResponse = await api.post('/api/auth/switch-role', {
+        role: 'writer',
+      });
+
+      writerSession = switchResponse?.data || null;
+
+      if (
+        !writerSession?.ok ||
+        !writerSession?.token ||
+        writerSession?.user?.role !== 'affiliate'
+      ) {
+        throw new Error(
+          writerSession?.message || 'Failed to switch this account into Writer mode.'
+        );
+      }
+
+      const serializedUser = JSON.stringify(writerSession.user);
+
+      [
+        'bloggad_token',
+        'token',
+        'authToken',
+        'accessToken',
+        'customerToken',
+      ].forEach((key) => localStorage.setItem(key, writerSession.token));
+
+      [
+        'bloggad_user',
+        'user',
+        'customerUser',
+      ].forEach((key) => localStorage.setItem(key, serializedUser));
+
+      localStorage.setItem('bloggad_active_role', 'writer');
+    }
+
+    if (writerSession?.user?.role !== 'affiliate') {
+      throw new Error('This account cannot enter Writer mode.');
+    }
+
+    window.location.assign('/writer/dashboard');
   }
 
   async function submitReaderLogin() {

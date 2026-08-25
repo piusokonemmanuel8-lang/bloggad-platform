@@ -132,6 +132,19 @@ async function getHomepageProducts(limit = 24) {
       ON c.id = p.category_id
      AND c.status = 'active'
     WHERE p.status = 'published'
+      AND EXISTS (
+        SELECT 1
+        FROM affiliate_subscriptions paid_s
+        INNER JOIN subscription_plans paid_p
+          ON paid_p.id = paid_s.plan_id
+         AND paid_p.status = 'active'
+         AND paid_p.price > 0
+        WHERE paid_s.user_id = aw.user_id
+          AND paid_s.status = 'active'
+          AND paid_s.amount_paid > 0
+          AND (paid_s.start_date IS NULL OR paid_s.start_date <= NOW())
+          AND (paid_s.end_date IS NULL OR paid_s.end_date > NOW())
+      )
     ORDER BY p.id DESC
     LIMIT ?
     `,
@@ -152,7 +165,7 @@ async function getHomepageCategories(limit = 20) {
       c.slug,
       c.icon,
       c.sort_order,
-      COUNT(p.id) AS total_products
+      COUNT(CASE WHEN aw.id IS NOT NULL AND u.id IS NOT NULL THEN p.id END) AS total_products
     FROM categories c
     LEFT JOIN products p
       ON p.category_id = c.id
@@ -160,6 +173,19 @@ async function getHomepageCategories(limit = 20) {
     LEFT JOIN affiliate_websites aw
       ON aw.id = p.website_id
      AND aw.status = 'active'
+     AND EXISTS (
+       SELECT 1
+       FROM affiliate_subscriptions paid_s
+       INNER JOIN subscription_plans paid_p
+         ON paid_p.id = paid_s.plan_id
+        AND paid_p.status = 'active'
+        AND paid_p.price > 0
+       WHERE paid_s.user_id = aw.user_id
+         AND paid_s.status = 'active'
+         AND paid_s.amount_paid > 0
+         AND (paid_s.start_date IS NULL OR paid_s.start_date <= NOW())
+         AND (paid_s.end_date IS NULL OR paid_s.end_date > NOW())
+     )
     LEFT JOIN users u
       ON u.id = p.user_id
      AND u.role = 'affiliate'
@@ -199,6 +225,19 @@ async function getHomepageFeaturedWebsites(limit = 10) {
     INNER JOIN affiliate_websites aw
       ON aw.id = c.target_id
      AND aw.status = 'active'
+     AND EXISTS (
+       SELECT 1
+       FROM affiliate_subscriptions paid_s
+       INNER JOIN subscription_plans paid_p
+         ON paid_p.id = paid_s.plan_id
+        AND paid_p.status = 'active'
+        AND paid_p.price > 0
+       WHERE paid_s.user_id = aw.user_id
+         AND paid_s.status = 'active'
+         AND paid_s.amount_paid > 0
+         AND (paid_s.start_date IS NULL OR paid_s.start_date <= NOW())
+         AND (paid_s.end_date IS NULL OR paid_s.end_date > NOW())
+     )
     INNER JOIN users u
       ON u.id = aw.user_id
      AND u.role = 'affiliate'
@@ -246,6 +285,19 @@ async function getHomepageStats() {
     INNER JOIN affiliate_websites aw
       ON aw.id = p.website_id
      AND aw.status = 'active'
+     AND EXISTS (
+       SELECT 1
+       FROM affiliate_subscriptions paid_s
+       INNER JOIN subscription_plans paid_p
+         ON paid_p.id = paid_s.plan_id
+        AND paid_p.status = 'active'
+        AND paid_p.price > 0
+       WHERE paid_s.user_id = aw.user_id
+         AND paid_s.status = 'active'
+         AND paid_s.amount_paid > 0
+         AND (paid_s.start_date IS NULL OR paid_s.start_date <= NOW())
+         AND (paid_s.end_date IS NULL OR paid_s.end_date > NOW())
+     )
     INNER JOIN users u
       ON u.id = p.user_id
      AND u.role = 'affiliate'
@@ -263,6 +315,19 @@ async function getHomepageStats() {
      AND u.role = 'affiliate'
      AND u.status = 'active'
     WHERE aw.status = 'active'
+      AND EXISTS (
+        SELECT 1
+        FROM affiliate_subscriptions paid_s
+        INNER JOIN subscription_plans paid_p
+          ON paid_p.id = paid_s.plan_id
+         AND paid_p.status = 'active'
+         AND paid_p.price > 0
+        WHERE paid_s.user_id = aw.user_id
+          AND paid_s.status = 'active'
+          AND paid_s.amount_paid > 0
+          AND (paid_s.start_date IS NULL OR paid_s.start_date <= NOW())
+          AND (paid_s.end_date IS NULL OR paid_s.end_date > NOW())
+      )
     `
   );
 
@@ -273,6 +338,19 @@ async function getHomepageStats() {
     INNER JOIN affiliate_websites aw
       ON aw.id = c.target_id
      AND aw.status = 'active'
+     AND EXISTS (
+       SELECT 1
+       FROM affiliate_subscriptions paid_s
+       INNER JOIN subscription_plans paid_p
+         ON paid_p.id = paid_s.plan_id
+        AND paid_p.status = 'active'
+        AND paid_p.price > 0
+       WHERE paid_s.user_id = aw.user_id
+         AND paid_s.status = 'active'
+         AND paid_s.amount_paid > 0
+         AND (paid_s.start_date IS NULL OR paid_s.start_date <= NOW())
+         AND (paid_s.end_date IS NULL OR paid_s.end_date > NOW())
+     )
     INNER JOIN users u
       ON u.id = aw.user_id
      AND u.role = 'affiliate'

@@ -880,6 +880,16 @@ export default function WriterPagePostPage() {
               <p>
                 Reader access or direct Writer membership unlocks the remaining story without leaving this page.
               </p>
+              {Number(data?.access?.estimated_read_seconds || 0) > 0 ? (
+                <p>
+                  Free Read:{' '}
+                  {Number(data?.access?.free_preview_seconds || 0) < 60
+                    ? `${Math.max(1, Number(data?.access?.free_preview_seconds || 0))} sec`
+                    : `${Math.ceil(Number(data?.access?.free_preview_seconds || 0) / 60)} min`}
+                  {' '}of about{' '}
+                  {Math.max(1, Math.ceil(Number(data?.access?.estimated_read_seconds || 0) / 60))} min.
+                </p>
+              ) : null}
               <div>
                 <button
                   className="wpp-button dark"

@@ -1,0 +1,169 @@
+.writer-premium-publishing {
+  padding: 16px;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  background: #ffffff;
+  color: #111827;
+}
+
+.writer-premium-publishing-head,
+.writer-premium-read-time,
+.writer-premium-preview-title,
+.writer-premium-plan-note {
+  display: flex;
+  align-items: center;
+}
+
+.writer-premium-publishing-head {
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.writer-premium-publishing-kicker {
+  margin-bottom: 3px;
+  color: #6b7280;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.writer-premium-publishing h3 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.writer-premium-toggle {
+  width: 44px;
+  height: 24px;
+  padding: 2px;
+  border: 0;
+  border-radius: 999px;
+  background: #d1d5db;
+  cursor: pointer;
+  transition: background 0.16s ease;
+}
+
+.writer-premium-toggle > span {
+  display: block;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #ffffff;
+  transition: transform 0.16s ease;
+}
+
+.writer-premium-toggle.active {
+  background: #111827;
+}
+
+.writer-premium-toggle.active > span {
+  transform: translateX(20px);
+}
+
+.writer-premium-toggle:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.writer-premium-read-time {
+  gap: 8px;
+  padding: 10px 12px;
+  margin-bottom: 10px;
+  border: 1px solid #e5e7eb;
+  background: #f9fafb;
+  font-size: 12px;
+}
+
+.writer-premium-read-time strong {
+  margin-left: auto;
+  font-size: 13px;
+}
+
+.writer-premium-plan-note {
+  gap: 8px;
+  color: #6b7280;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.writer-premium-plan-note.ready {
+  color: #166534;
+}
+
+.writer-premium-upgrade {
+  display: grid;
+  gap: 6px;
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid #fed7aa;
+  background: #fff7ed;
+  font-size: 12px;
+}
+
+.writer-premium-upgrade strong {
+  color: #9a3412;
+}
+
+.writer-premium-upgrade span {
+  color: #7c2d12;
+}
+
+.writer-premium-upgrade button {
+  justify-self: start;
+  margin-top: 2px;
+  padding: 7px 10px;
+  border: 1px solid #111827;
+  background: #111827;
+  color: #ffffff;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.writer-premium-preview {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.writer-premium-preview-title {
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 9px;
+  font-size: 12px;
+}
+
+.writer-premium-preview-title strong {
+  font-size: 13px;
+}
+
+.writer-premium-preview input[type='range'] {
+  width: 100%;
+  accent-color: #111827;
+}
+
+.writer-premium-preview-scale {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 5px;
+  color: #9ca3af;
+  font-size: 10px;
+}
+
+.writer-premium-preview p,
+.writer-premium-free-copy {
+  margin: 9px 0 0;
+  color: #6b7280;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+@media (max-width: 720px) {
+  .writer-premium-publishing {
+    padding: 14px;
+  }
+}

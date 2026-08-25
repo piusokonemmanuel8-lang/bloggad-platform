@@ -278,6 +278,19 @@ async function getPublicProductBySlug(websiteSlug, productSlug) {
     WHERE aw.slug = ?
       AND p.slug = ?
       AND p.status = 'published'
+      AND EXISTS (
+        SELECT 1
+        FROM affiliate_subscriptions paid_s
+        INNER JOIN subscription_plans paid_p
+          ON paid_p.id = paid_s.plan_id
+         AND paid_p.status = 'active'
+         AND paid_p.price > 0
+        WHERE paid_s.user_id = aw.user_id
+          AND paid_s.status = 'active'
+          AND paid_s.amount_paid > 0
+          AND (paid_s.start_date IS NULL OR paid_s.start_date <= NOW())
+          AND (paid_s.end_date IS NULL OR paid_s.end_date > NOW())
+      )
     LIMIT 1
     `,
     [websiteSlug, productSlug]

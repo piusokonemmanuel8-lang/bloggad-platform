@@ -274,12 +274,15 @@ export default function AffiliateLayout() {
   const greeting = useMemo(() => getGreeting(firstName), [firstName]);
   const supgadReturnUrl = useMemo(() => getSupgadReturnUrl(), []);
 
+  const writerPostEditMode = /^\/writer\/posts\/[^/]+\/edit$/.test(location.pathname);
+
   const connectedWriterShellMode =
   location.pathname === '/writer/plan' ||
   (location.pathname === '/writer/dashboard' ||
     location.pathname === '/writer/notifications' ||
     location.pathname === '/writer/posts' ||
     location.pathname === '/writer/posts/create' ||
+    writerPostEditMode ||
     location.pathname === '/writer/series' ||
     location.pathname === '/writer/pages' ||
     location.pathname === '/writer/courses' ||
@@ -351,6 +354,8 @@ export default function AffiliateLayout() {
           ? 'Notifications'
           : location.pathname === '/writer/posts'
             ? 'Posts'
+            : writerPostEditMode
+              ? 'Edit Post'
             : location.pathname === '/writer/posts/create'
               ? 'Write'
               : location.pathname === '/writer/series'

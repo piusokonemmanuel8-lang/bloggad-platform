@@ -1,6 +1,7 @@
 const express = require('express');
 const { protect, affiliateOnly } = require('../middleware/authMiddleware');
 const {
+  getWriterPublishingAccess,
   getWriterPostAccess,
   updateWriterPostAccess,
   getWriterMembershipOffer,
@@ -17,6 +18,7 @@ router.get('/health', (req, res) => {
   });
 });
 
+router.get('/publishing', protect, affiliateOnly, getWriterPublishingAccess);
 router.get('/posts/:postId', protect, affiliateOnly, getWriterPostAccess);
 router.put('/posts/:postId', protect, affiliateOnly, updateWriterPostAccess);
 router.get('/membership-offer', protect, affiliateOnly, getWriterMembershipOffer);

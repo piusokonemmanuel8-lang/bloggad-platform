@@ -22,8 +22,6 @@ function emptySubscriptionForm() {
     plan_id: '',
     status: 'active',
     amount_paid: '',
-    trial_start: '',
-    trial_end: '',
     start_date: '',
     end_date: '',
   };
@@ -169,8 +167,6 @@ export default function AdminAffiliatesPage() {
       plan_id: affiliate?.subscription?.plan_id || '',
       status: affiliate?.subscription?.subscription_status || 'active',
       amount_paid: affiliate?.subscription?.amount_paid ?? '',
-      trial_start: affiliate?.subscription?.trial_start || '',
-      trial_end: affiliate?.subscription?.trial_end || '',
       start_date: affiliate?.subscription?.start_date || '',
       end_date: affiliate?.subscription?.end_date || '',
     });
@@ -301,8 +297,6 @@ export default function AdminAffiliatesPage() {
         status: subscriptionForm.status,
         amount_paid:
           subscriptionForm.amount_paid === '' ? 0 : Number(subscriptionForm.amount_paid),
-        trial_start: subscriptionForm.trial_start || null,
-        trial_end: subscriptionForm.trial_end || null,
         start_date: subscriptionForm.start_date || null,
         end_date: subscriptionForm.end_date || null,
       };
@@ -1066,7 +1060,7 @@ export default function AdminAffiliatesPage() {
                     Assign Subscription
                   </div>
                   <div style={{ fontSize: 13, color: '#646970' }}>
-                    Attach a plan and control trial, amount paid and validity period.
+                    Attach a paid plan and control amount paid and validity period. Trials are not available.
                   </div>
                 </div>
 
@@ -1115,7 +1109,6 @@ export default function AdminAffiliatesPage() {
                           outline: 'none',
                         }}
                       >
-                        <option value="trial">Trial</option>
                         <option value="active">Active</option>
                         <option value="expired">Expired</option>
                         <option value="cancelled">Cancelled</option>
@@ -1156,47 +1149,6 @@ export default function AdminAffiliatesPage() {
                     </div>
                   </div>
 
-                  <div className="admin-aff-two-grid" style={{ marginBottom: 16 }}>
-                    <div>
-                      <label style={{ display: 'block', marginBottom: 8, fontSize: 13, fontWeight: 600, color: '#1d2327' }}>
-                        Trial Start
-                      </label>
-                      <input
-                        name="trial_start"
-                        type="datetime-local"
-                        value={subscriptionForm.trial_start}
-                        onChange={handleSubscriptionChange}
-                        style={{
-                          width: '100%',
-                          padding: '12px 14px',
-                          border: '1px solid #8c8f94',
-                          background: '#fff',
-                          color: '#1d2327',
-                          outline: 'none',
-                        }}
-                      />
-                    </div>
-
-                    <div>
-                      <label style={{ display: 'block', marginBottom: 8, fontSize: 13, fontWeight: 600, color: '#1d2327' }}>
-                        Trial End
-                      </label>
-                      <input
-                        name="trial_end"
-                        type="datetime-local"
-                        value={subscriptionForm.trial_end}
-                        onChange={handleSubscriptionChange}
-                        style={{
-                          width: '100%',
-                          padding: '12px 14px',
-                          border: '1px solid #8c8f94',
-                          background: '#fff',
-                          color: '#1d2327',
-                          outline: 'none',
-                        }}
-                      />
-                    </div>
-                  </div>
 
                   <div className="admin-aff-two-grid" style={{ marginBottom: 16 }}>
                     <div>

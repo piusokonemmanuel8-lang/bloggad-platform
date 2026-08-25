@@ -8,6 +8,7 @@ const {
   deleteProduct,
 } = require('../../controllers/affiliate/affiliateProductController');
 const { protect, affiliateOnly } = require('../../middleware/authMiddleware');
+const { requireActivePaidWriterPlan } = require('../../middleware/writerPlanMiddleware');
 
 const router = express.Router();
 
@@ -21,10 +22,10 @@ router.get('/health', (req, res) => {
 router.get('/', protect, affiliateOnly, getMyProducts);
 router.get('/:id', protect, affiliateOnly, getMyProductById);
 
-router.post('/', protect, affiliateOnly, createProduct);
-router.put('/:id', protect, affiliateOnly, updateProduct);
-router.put('/:id/status', protect, affiliateOnly, updateProductStatus);
+router.post('/', protect, affiliateOnly, requireActivePaidWriterPlan, createProduct);
+router.put('/:id', protect, affiliateOnly, requireActivePaidWriterPlan, updateProduct);
+router.put('/:id/status', protect, affiliateOnly, requireActivePaidWriterPlan, updateProductStatus);
 
-router.delete('/:id', protect, affiliateOnly, deleteProduct);
+router.delete('/:id', protect, affiliateOnly, requireActivePaidWriterPlan, deleteProduct);
 
 module.exports = router;

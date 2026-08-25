@@ -5,6 +5,7 @@ const {
   getAvailableWebsiteTemplates,
 } = require('../../controllers/affiliate/affiliateDesignController');
 const { protect, authorize } = require('../../middleware/authMiddleware');
+const { requireActivePaidWriterPlan } = require('../../middleware/writerPlanMiddleware');
 
 const router = express.Router();
 
@@ -23,9 +24,9 @@ router.get('/debug-user', protect, (req, res) => {
 });
 
 router.get('/', protect, authorize('affiliate', 'admin'), getMyDesignSettings);
-router.get('/templates', protect, authorize('affiliate', 'admin'), getAvailableWebsiteTemplates);
+router.get('/templates', protect, authorize('affiliate', 'admin'), requireActivePaidWriterPlan, getAvailableWebsiteTemplates);
 
-router.post('/', protect, authorize('affiliate', 'admin'), saveMyDesignSettings);
-router.put('/', protect, authorize('affiliate', 'admin'), saveMyDesignSettings);
+router.post('/', protect, authorize('affiliate', 'admin'), requireActivePaidWriterPlan, saveMyDesignSettings);
+router.put('/', protect, authorize('affiliate', 'admin'), requireActivePaidWriterPlan, saveMyDesignSettings);
 
 module.exports = router;

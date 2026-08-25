@@ -33,6 +33,8 @@ function emptyForm() {
     slider_limit: '',
     menu_limit: '',
     premium_templates_only: false,
+    can_publish_premium_posts: false,
+    can_offer_paid_membership: false,
     allow_external_links: false,
     website_templates_mode: 'unlimited',
     blog_templates_mode: 'unlimited',
@@ -428,6 +430,12 @@ export default function AdminPlansPage() {
       slider_limit: plan.slider_limit ?? '',
       menu_limit: plan.menu_limit ?? '',
       premium_templates_only: !!plan.premium_templates_only,
+      can_publish_premium_posts:
+        plan?.features_json?.can_publish_premium_posts === true ||
+        plan?.features_json?.can_publish_premium_posts === 1,
+      can_offer_paid_membership:
+        plan?.features_json?.can_offer_paid_membership === true ||
+        plan?.features_json?.can_offer_paid_membership === 1,
       allow_external_links: !!plan.allow_external_links,
       website_templates_mode: plan.website_templates_mode || 'unlimited',
       blog_templates_mode: plan.blog_templates_mode || 'unlimited',
@@ -546,6 +554,15 @@ export default function AdminPlansPage() {
     try {
       validateForm();
 
+      const featuresPayload = form.features_json.trim()
+        ? JSON.parse(form.features_json)
+        : {};
+
+      featuresPayload.can_publish_premium_posts =
+        !!form.can_publish_premium_posts;
+      featuresPayload.can_offer_paid_membership =
+        !!form.can_offer_paid_membership;
+
       const payload = {
         name: form.name,
         price: Number(form.price),
@@ -565,7 +582,7 @@ export default function AdminPlansPage() {
         allowed_blog_template_ids: Array.isArray(form.allowed_blog_template_ids)
           ? form.allowed_blog_template_ids.map(Number)
           : [],
-        features_json: form.features_json.trim() ? JSON.parse(form.features_json) : null,
+        features_json: featuresPayload,
         status: form.status,
       };
 
@@ -1401,6 +1418,64 @@ export default function AdminPlansPage() {
                 }
                 emptyMessage="No post templates available."
               />
+            </div>
+
+            <div className="admin-plan-two-grid" style={{ marginBottom: 16 }}>
+              <label
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 16,
+                  padding: '14px 16px',
+                  border: '1px solid #dcdcde',
+                  background: '#ffffff',
+                  cursor: 'pointer',
+                }}
+              >
+                <div>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: '#1d2327', marginBottom: 4 }}>
+                    Premium Post publishing
+                  </div>
+                  <div style={{ fontSize: 12, color: '#646970' }}>
+                    Writers on this plan can turn Premium Post on while publishing.
+                  </div>
+                </div>
+                <input
+                  type="checkbox"
+                  name="can_publish_premium_posts"
+                  checked={!!form.can_publish_premium_posts}
+                  onChange={handleChange}
+                />
+              </label>
+
+              <label
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 16,
+                  padding: '14px 16px',
+                  border: '1px solid #dcdcde',
+                  background: '#ffffff',
+                  cursor: 'pointer',
+                }}
+              >
+                <div>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: '#1d2327', marginBottom: 4 }}>
+                    Direct Paid Membership
+                  </div>
+                  <div style={{ fontSize: 12, color: '#646970' }}>
+                    Plan access only. The Writer must also reach the configured follower requirement.
+                  </div>
+                </div>
+                <input
+                  type="checkbox"
+                  name="can_offer_paid_membership"
+                  checked={!!form.can_offer_paid_membership}
+                  onChange={handleChange}
+                />
+              </label>
             </div>
 
             <div style={{ marginBottom: 16 }}>

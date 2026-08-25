@@ -209,73 +209,6 @@ async function hasAnySubscription(userId) {
   return rows.length > 0;
 }
 
-async function startFreeTrialForUser(userId, planId = null) {
-  if (await hasAnySubscription(userId)) {
-    const error = new Error('Subscription already exists for this affiliate');
-    error.status = 400;
-    throw error;
-  }
-
-  let selectedPlan = null;
-
-  if (planId) {
-    selectedPlan = await getPlanById(planId);
-    if (!selectedPlan || selectedPlan.status !== 'active') {
-      const error = new Error('Selected plan not found or inactive');
-      error.status = 404;
-      throw error;
-    }
-  } else {
-    const plans = await getActivePlans();
-    selectedPlan = plans[0] || null;
-
-    if (!selectedPlan) {
-      const error = new Error('No active subscription plan found');
-      error.status = 404;
-      throw error;
-    }
-  }
-
-  const trialDays = Number(selectedPlan.features_json?.trial_days || 30);
-
-  const [result] = await pool.query(
-    `
-    INSERT INTO affiliate_subscriptions
-    (
-      user_id,
-      plan_id,
-      trial_start,
-      trial_end,
-      start_date,
-      end_date,
-      status,
-      amount_paid,
-      created_at,
-      updated_at
-    )
-    VALUES
-    (
-      ?,
-      ?,
-      NOW(),
-      DATE_ADD(NOW(), INTERVAL ? DAY),
-      NULL,
-      NULL,
-      'trial',
-      0,
-      NOW(),
-      NOW()
-    )
-    `,
-    [userId, selectedPlan.id, trialDays]
-  );
-
-  return {
-    insertId: result.insertId,
-    subscription: await getLatestSubscriptionByUserId(userId),
-  };
-}
-
 async function activateYearlyPlanForUser(userId, planId) {
   const selectedPlan = await getPlanById(planId);
 
@@ -329,6 +262,5 @@ module.exports = {
   getLatestSubscriptionByUserId,
   getSubscriptionHistoryByUserId,
   hasAnySubscription,
-  startFreeTrialForUser,
   activateYearlyPlanForUser,
 };

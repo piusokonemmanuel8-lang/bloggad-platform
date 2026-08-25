@@ -1,4 +1,5 @@
 const pool = require('../../config/db');
+const { getCurrentPaidWriterSubscription } = require('../../services/writerReaderAccessService');
 const {
   normalizeNullable,
   normalizeBooleanFlag,
@@ -19,27 +20,7 @@ function isAdmin(user) {
 }
 
 async function getLatestSubscriptionPlanByUserId(userId) {
-  const [rows] = await pool.query(
-    `
-    SELECT
-      s.id AS subscription_id,
-      s.user_id,
-      s.plan_id,
-      s.status AS subscription_status,
-      p.name AS plan_name,
-      p.premium_templates_only,
-      p.website_templates_mode
-    FROM affiliate_subscriptions s
-    INNER JOIN subscription_plans p
-      ON p.id = s.plan_id
-    WHERE s.user_id = ?
-    ORDER BY s.id DESC
-    LIMIT 1
-    `,
-    [userId]
-  );
-
-  return rows[0] || null;
+  return getCurrentPaidWriterSubscription(userId);
 }
 
 async function getAllowedWebsiteTemplateIdsByPlanId(planId) {
@@ -73,17 +54,9 @@ async function canUserUseWebsiteTemplate({ userId, templateId }) {
   const latestPlan = await getLatestSubscriptionPlanByUserId(userId);
 
   if (!latestPlan) {
-    if (template.is_premium) {
-      return {
-        ok: false,
-        message: 'Start a subscription plan before using this premium website template',
-      };
-    }
-
     return {
-      ok: true,
-      template,
-      plan: null,
+      ok: false,
+      message: 'An active paid Writer plan is required to use Storefront templates',
     };
   }
 
@@ -445,7 +418,7 @@ async function getAvailableWebsiteTemplates(req, res) {
     }));
 
     if (!latestPlan) {
-      templates = templates.filter((item) => !item.is_premium);
+      templates = [];
     } else {
       if (!latestPlan.premium_templates_only) {
         templates = templates.filter((item) => !item.is_premium);
