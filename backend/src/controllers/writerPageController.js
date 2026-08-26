@@ -227,12 +227,26 @@ async function getPublicWriterPagePost(req,res) {
       `SELECT pp.*,aw.website_name,aw.slug AS website_slug,p.title AS product_title,p.slug AS product_slug,
               p.product_image,p.pricing_type,p.price,p.min_price,p.max_price,p.affiliate_buy_url,
               c.name AS category_name,c.slug AS category_slug
-       FROM writer_post_page_placements x
-       INNER JOIN product_posts pp ON pp.id=x.post_id AND pp.status='published'
+       FROM product_posts pp
+       LEFT JOIN writer_post_page_placements x ON x.post_id=pp.id
        LEFT JOIN affiliate_websites aw ON aw.id=pp.website_id
        LEFT JOIN products p ON p.id=pp.product_id
        LEFT JOIN categories c ON c.id=pp.category_id
-       WHERE x.page_id=? AND pp.slug=? LIMIT 1`,[page.id,postSlug]
+       WHERE pp.status='published'
+         AND pp.slug=?
+         AND (
+           x.page_id=?
+           OR (
+             ?=1
+             AND pp.user_id=?
+             AND NOT EXISTS (
+               SELECT 1
+               FROM writer_post_page_placements legacy_placement
+               WHERE legacy_placement.post_id=pp.id
+             )
+           )
+         )
+       LIMIT 1`,[postSlug,page.id,page.is_primary?1:0,page.user_id]
     );
     const row=rows[0];
     if(!row) throw fail('Published post not found on this Page.',404);
