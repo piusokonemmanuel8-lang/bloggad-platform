@@ -12,7 +12,6 @@ async function getCustomerById(customerId) {
     SELECT id, role, status
     FROM users
     WHERE id = ?
-      AND role = 'customer'
     LIMIT 1
     `,
     [customerId]
