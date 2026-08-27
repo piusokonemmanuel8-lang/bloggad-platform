@@ -133,6 +133,7 @@ async function getPublicTopicBySlug(req, res) {
           aw.website_name,
           aw.slug AS website_slug,
         primary_wp.slug AS writer_page_slug,
+        primary_wp.logo_url AS writer_page_logo_url,
           c.name AS category_name,
           COALESCE(
             NULLIF(wp.pen_name, ''),
@@ -416,6 +417,7 @@ async function getReaderFeed(req, res) {
         aw.website_name,
         aw.slug AS website_slug,
         primary_wp.slug AS writer_page_slug,
+        primary_wp.logo_url AS writer_page_logo_url,
         c.name AS category_name,
         COALESCE(
           NULLIF(wp.pen_name, ''),
