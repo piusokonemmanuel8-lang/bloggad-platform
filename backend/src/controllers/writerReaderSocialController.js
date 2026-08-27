@@ -1,4 +1,7 @@
 const pool = require('../config/db');
+const {
+  getWriterGiftPlanAccess,
+} = require('../services/writerReaderFinanceService');
 
 function toPositiveInt(value) {
   const parsed = Number(value);
@@ -524,6 +527,7 @@ async function getReaderPostState(req, res) {
       commentCount,
       giftCount,
       comments,
+      giftAccess,
     ] =
       await Promise.all([
         pool.query(
@@ -550,6 +554,7 @@ async function getReaderPostState(req, res) {
         getCommentCount(post.id),
         getGiftCount(post.id),
         getPublicComments(post.id, readerId),
+        getWriterGiftPlanAccess(post.writer_id),
       ]);
 
     const reactionTypes = reactionRows[0].map((row) => row.reaction_type);
@@ -559,7 +564,9 @@ async function getReaderPostState(req, res) {
       writer: {
         id: post.writer_id,
         name: post.writer_name,
+        can_receive_gifts: !!giftAccess.allowed,
       },
+      writer_can_receive_gifts: !!giftAccess.allowed,
       state: {
         following: followRows[0].length > 0,
         loved: reactionTypes.includes('love'),

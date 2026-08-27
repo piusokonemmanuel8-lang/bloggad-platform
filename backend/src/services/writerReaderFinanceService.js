@@ -504,31 +504,7 @@ async function readExistingAppreciation(
   return rows[0] || null;
 }
 
-async function getWriterGiftPlanAccess(writerUserId, connection = pool) {
-  const [rows] = await connection.query(
-    `
-    SELECT
-      p.id AS plan_id,
-      p.name AS plan_name,
-      p.features_json
-    FROM affiliate_subscriptions s
-    INNER JOIN subscription_plans p
-      ON p.id = s.plan_id
-    WHERE s.user_id = ?
-      AND s.status = 'active'
-      AND p.status = 'active'
-      AND p.price > 0
-      AND s.amount_paid > 0
-      AND (s.start_date IS NULL OR s.start_date <= NOW())
-      AND (s.end_date IS NULL OR s.end_date > NOW())
-    ORDER BY s.id DESC
-    LIMIT 1
-    `,
-    [writerUserId]
-  );
-
-  const plan = rows[0] || null;
-
+function writerGiftPlanAccessFromRow(plan) {
   if (!plan) {
     return { allowed: false, plan: null };
   }
@@ -552,6 +528,76 @@ async function getWriterGiftPlanAccess(writerUserId, connection = pool) {
       features,
     },
   };
+}
+
+async function getWriterGiftPlanAccessMap(writerUserIds, connection = pool) {
+  const ids = [
+    ...new Set(
+      (Array.isArray(writerUserIds) ? writerUserIds : [])
+        .map((value) => positiveInt(value))
+        .filter(Boolean)
+    ),
+  ];
+
+  const access = new Map();
+
+  for (const writerUserId of ids) {
+    access.set(writerUserId, { allowed: false, plan: null });
+  }
+
+  if (!ids.length) {
+    return access;
+  }
+
+  const placeholders = ids.map(() => '?').join(',');
+  const [rows] = await connection.query(
+    `
+    SELECT
+      s.user_id,
+      s.id AS subscription_id,
+      p.id AS plan_id,
+      p.name AS plan_name,
+      p.features_json
+    FROM affiliate_subscriptions s
+    INNER JOIN subscription_plans p
+      ON p.id = s.plan_id
+    WHERE s.user_id IN (${placeholders})
+      AND s.status = 'active'
+      AND p.status = 'active'
+      AND p.price > 0
+      AND s.amount_paid > 0
+      AND (s.start_date IS NULL OR s.start_date <= NOW())
+      AND (s.end_date IS NULL OR s.end_date > NOW())
+    ORDER BY s.user_id ASC, s.id DESC
+    `,
+    ids
+  );
+
+  const resolved = new Set();
+
+  for (const row of rows) {
+    const writerUserId = positiveInt(row.user_id);
+
+    if (!writerUserId || resolved.has(writerUserId)) {
+      continue;
+    }
+
+    resolved.add(writerUserId);
+    access.set(writerUserId, writerGiftPlanAccessFromRow(row));
+  }
+
+  return access;
+}
+
+async function getWriterGiftPlanAccess(writerUserId, connection = pool) {
+  const id = positiveInt(writerUserId);
+
+  if (!id) {
+    return { allowed: false, plan: null };
+  }
+
+  const access = await getWriterGiftPlanAccessMap([id], connection);
+  return access.get(id) || { allowed: false, plan: null };
 }
 
 async function appreciateWriter({
@@ -967,5 +1013,7 @@ module.exports = {
   ensureWriterWallet,
   getAppreciationSettings,
   creditReaderWallet,
+  getWriterGiftPlanAccess,
+  getWriterGiftPlanAccessMap,
   appreciateWriter,
 };

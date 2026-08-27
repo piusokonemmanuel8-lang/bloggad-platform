@@ -3,6 +3,9 @@ const {
   getReaderSubscriptionState,
 } = require('../services/writerReaderAccessService');
 const {
+  getWriterGiftPlanAccessMap,
+} = require('../services/writerReaderFinanceService');
+const {
   fail,
   positiveInt,
   uniquePositiveInts,
@@ -22,6 +25,19 @@ const CONTENT_TYPES = new Set([
   'opinion',
   'product_post',
 ]);
+
+async function attachWriterGiftAccess(rows) {
+  const safeRows = Array.isArray(rows) ? rows : [];
+  const access = await getWriterGiftPlanAccessMap(
+    safeRows.map((row) => row.writer_user_id)
+  );
+
+  return safeRows.map((row) => ({
+    ...row,
+    writer_can_receive_gifts:
+      !!access.get(Number(row.writer_user_id))?.allowed,
+  }));
+}
 
 function sendError(res, error, fallbackMessage) {
   const status = Number(error?.status || 500);
@@ -192,6 +208,8 @@ async function getPublicTopicBySlug(req, res) {
       ),
     ]);
 
+    const enrichedPostRows = await attachWriterGiftAccess(postRows[0]);
+
     return res.status(200).json({
       ok: true,
       topic: {
@@ -206,7 +224,7 @@ async function getPublicTopicBySlug(req, res) {
         parent_id: row.parent_id ? Number(row.parent_id) : null,
         sort_order: Number(row.sort_order || 0),
       })),
-      posts: postRows[0].map((row) => ({
+      posts: enrichedPostRows.map((row) => ({
         ...row,
         id: Number(row.id),
         writer_user_id: Number(row.writer_user_id),
@@ -542,9 +560,11 @@ async function getReaderFeed(req, res) {
       ]
     );
 
+    const enrichedRows = await attachWriterGiftAccess(rows);
+
     return res.status(200).json({
       ok: true,
-      feed: rows.map((row) => ({
+      feed: enrichedRows.map((row) => ({
         ...row,
         interest_match: !!row.interest_match,
         followed_writer: !!row.followed_writer,
