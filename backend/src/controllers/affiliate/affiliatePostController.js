@@ -144,6 +144,60 @@ function isLikelyLinkField(field = {}) {
 }
 
 
+function isStructuredSimpleWriterUrlField(field = {}) {
+  const fieldKey = normalizeNullable(field.field_key || field.key) || '';
+  const normalizedKey = fieldKey.toLowerCase();
+
+  return (
+    normalizedKey.startsWith('simple_writer_link_') ||
+    normalizedKey.startsWith('simple_writer_video_')
+  );
+}
+
+function getTemplateFieldUrlValue(field = {}) {
+  const rawValue = normalizeNullable(field.field_value ?? field.value);
+
+  if (!rawValue || !isStructuredSimpleWriterUrlField(field)) {
+    return rawValue;
+  }
+
+  try {
+    const parsed = JSON.parse(rawValue);
+
+    if (
+      parsed &&
+      typeof parsed === 'object' &&
+      !Array.isArray(parsed) &&
+      typeof parsed.url === 'string'
+    ) {
+      return normalizeNullable(parsed.url);
+    }
+  } catch (error) {}
+
+  return rawValue;
+}
+
+function setTemplateFieldValidatedUrl(field = {}, validatedUrl) {
+  const rawValue = normalizeNullable(field.field_value ?? field.value);
+
+  if (!isStructuredSimpleWriterUrlField(field)) {
+    return validatedUrl;
+  }
+
+  try {
+    const parsed = JSON.parse(String(rawValue || ''));
+
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      return JSON.stringify({
+        ...parsed,
+        url: String(validatedUrl || '').trim(),
+      });
+    }
+  } catch (error) {}
+
+  return rawValue;
+}
+
 const RICH_TEXT_FIELD_TYPE = 'bloggad_rich_text_v1';
 const DEFAULT_INLINE_LINK_COLOR = '#2563eb';
 
@@ -962,10 +1016,11 @@ async function normalizeTemplateFieldsWithValidatedLinks({
 
     if (isLikelyLinkField(field)) {
       const rawValue = normalizeNullable(field.field_value ?? field.value);
+      const validationValue = getTemplateFieldUrlValue(field);
 
       if (rawValue) {
         const result = await assertAndLogSupgadUrl({
-          value: rawValue,
+          value: validationValue,
           fieldName: `Template field (${fieldKey})`,
           required: true,
           allowEmpty: false,
@@ -976,10 +1031,13 @@ async function normalizeTemplateFieldsWithValidatedLinks({
           allowExternalLinks,
         });
 
+        const normalizedUrl = result.normalized_url || result.submitted_link;
+        const storedValue = setTemplateFieldValidatedUrl(field, normalizedUrl);
+
         if (field.field_value !== undefined) {
-          nextField.field_value = result.normalized_url || result.submitted_link;
+          nextField.field_value = storedValue;
         } else {
-          nextField.value = result.normalized_url || result.submitted_link;
+          nextField.value = storedValue;
         }
       }
     }

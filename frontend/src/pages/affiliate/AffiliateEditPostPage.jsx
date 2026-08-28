@@ -324,6 +324,37 @@ function isLikelyUrlValue(value) {
   }
 }
 
+function isStructuredSimpleWriterUrlField(field) {
+  const key = String(field?.field_key || '').trim().toLowerCase();
+
+  return (
+    key.startsWith('simple_writer_link_') ||
+    key.startsWith('simple_writer_video_')
+  );
+}
+
+function getTemplateFieldUrlValue(field) {
+  const rawValue = String(field?.field_value || '').trim();
+
+  if (!rawValue || !isStructuredSimpleWriterUrlField(field)) {
+    return rawValue;
+  }
+
+  try {
+    const parsed = JSON.parse(rawValue);
+
+    if (
+      parsed &&
+      typeof parsed === 'object' &&
+      typeof parsed.url === 'string'
+    ) {
+      return parsed.url.trim();
+    }
+  } catch (error) {}
+
+  return rawValue;
+}
+
 function isTemplateFieldUrlField(field) {
   const type = String(field?.field_type || '').trim().toLowerCase();
   const key = String(field?.field_key || '').trim().toLowerCase();
@@ -1018,7 +1049,13 @@ export default function AffiliateEditPostPage() {
         }
       }
 
-      if (isTemplateFieldUrlField(field) && fieldValue.trim() && !isLikelyUrlValue(fieldValue)) {
+      const validationUrlValue = getTemplateFieldUrlValue(field);
+
+      if (
+        isTemplateFieldUrlField(field) &&
+        fieldValue.trim() &&
+        !isLikelyUrlValue(validationUrlValue)
+      ) {
         throw new Error(`${fieldLabel} must be a valid URL`);
       }
     }

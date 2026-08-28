@@ -268,6 +268,52 @@ function isLikelyUrlValue(value) {
   }
 }
 
+function isTemplateFieldUrlField(field) {
+  const type = String(field?.field_type || '').trim().toLowerCase();
+  const key = String(field?.field_key || '').trim().toLowerCase();
+
+  if (type === 'url') return true;
+
+  return (
+    key.endsWith('_url') ||
+    key.endsWith('_link_url') ||
+    key === 'url' ||
+    key === 'link_url' ||
+    key === 'destination_url'
+  );
+}
+
+function isStructuredSimpleWriterUrlField(field) {
+  const key = String(field?.field_key || '').trim().toLowerCase();
+
+  return (
+    key.startsWith('simple_writer_link_') ||
+    key.startsWith('simple_writer_video_')
+  );
+}
+
+function getTemplateFieldUrlValue(field) {
+  const rawValue = String(field?.field_value || '').trim();
+
+  if (!rawValue || !isStructuredSimpleWriterUrlField(field)) {
+    return rawValue;
+  }
+
+  try {
+    const parsed = JSON.parse(rawValue);
+
+    if (
+      parsed &&
+      typeof parsed === 'object' &&
+      typeof parsed.url === 'string'
+    ) {
+      return parsed.url.trim();
+    }
+  } catch (error) {}
+
+  return rawValue;
+}
+
 function countRepeatedWords(value) {
   const words = normalizeText(value)
     .toLowerCase()
@@ -860,14 +906,13 @@ export default function AffiliateCreatePostPage() {
         }
       }
 
-      const looksLikeLinkField =
-        String(field.field_type || '').toLowerCase().includes('url') ||
-        String(field.field_type || '').toLowerCase().includes('link') ||
-        String(field.field_key || '').toLowerCase().includes('url') ||
-        String(field.field_key || '').toLowerCase().includes('link') ||
-        String(field.field_key || '').toLowerCase().includes('cta');
+      const validationUrlValue = getTemplateFieldUrlValue(field);
 
-      if (looksLikeLinkField && String(field.field_value || '').trim() && !isLikelyUrlValue(field.field_value)) {
+      if (
+        isTemplateFieldUrlField(field) &&
+        fieldValue.trim() &&
+        !isLikelyUrlValue(validationUrlValue)
+      ) {
         throw new Error(`${fieldLabel} must be a valid URL`);
       }
     }
