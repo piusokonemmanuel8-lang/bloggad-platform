@@ -1018,7 +1018,7 @@ async function normalizeTemplateFieldsWithValidatedLinks({
       const rawValue = normalizeNullable(field.field_value ?? field.value);
       const validationValue = getTemplateFieldUrlValue(field);
 
-      if (rawValue) {
+      if (validationValue) {
         const result = await assertAndLogSupgadUrl({
           value: validationValue,
           fieldName: `Template field (${fieldKey})`,

@@ -1053,7 +1053,7 @@ export default function AffiliateEditPostPage() {
 
       if (
         isTemplateFieldUrlField(field) &&
-        fieldValue.trim() &&
+        validationUrlValue.trim() &&
         !isLikelyUrlValue(validationUrlValue)
       ) {
         throw new Error(`${fieldLabel} must be a valid URL`);
