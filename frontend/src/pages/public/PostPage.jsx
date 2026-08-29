@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { useParams } from 'react-router-dom';
 import api from '../../api/axios';
+import usePostBehaviorAnalytics from '../../hooks/usePostBehaviorAnalytics';
 import { resolvePostTemplateComponent } from './templates/posts';
 import PublicWriterReaderActions from '../../components/writerReader/PublicWriterReaderActions';
 
@@ -1171,6 +1172,13 @@ export default function PostPage() {
   }, [websiteSlug, slug]);
 
   const post = postData?.post;
+  const postId = Number(post?.id || 0);
+
+  usePostBehaviorAnalytics({
+    postId,
+    contentSelector: '[data-bloggad-post-content]',
+  });
+
   const templateFields = postData?.template_fields || [];
   const ctaButtons = postData?.cta_buttons || [];
   const relatedPosts = postData?.related_posts || [];
@@ -1306,7 +1314,8 @@ export default function PostPage() {
 
   return (
     <>
-      <TemplateComponent
+      <div data-bloggad-post-content style={{ display: 'contents' }}>
+        <TemplateComponent
         post={post}
         templateFields={templateFields}
         ctaButtons={ctaButtons}
@@ -1317,7 +1326,8 @@ export default function PostPage() {
         emailCaptureFooter={emailCaptureFooter}
         sponsoredRelatedPostsSlot={sponsoredRelatedPostsSlot}
         onOpenPopup={() => setPopupOpen(true)}
-      />
+        />
+      </div>
 
       <PublicWriterReaderActions
         post={post}

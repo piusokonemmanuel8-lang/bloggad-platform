@@ -414,6 +414,459 @@ async function getWriterTrafficTrend(userId, days = 30) {
   };
 }
 
+
+// BLOGGAD_PRO_POST_ANALYTICS_V1
+function parseAnalyticsFeatures(value) {
+  if (!value) return {};
+
+  if (typeof value === 'object') {
+    return value;
+  }
+
+  try {
+    return JSON.parse(value);
+  } catch (error) {
+    return {};
+  }
+}
+
+async function getWriterAdvancedAnalyticsAccess(userId) {
+  const [rows] = await pool.query(
+    `
+    SELECT
+      p.id,
+      p.name,
+      p.price,
+      p.billing_cycle,
+      p.features_json
+    FROM affiliate_subscriptions s
+    INNER JOIN subscription_plans p
+      ON p.id = s.plan_id
+    WHERE s.user_id = ?
+      AND s.status = 'active'
+      AND p.status = 'active'
+      AND p.price > 0
+      AND s.amount_paid > 0
+      AND (s.start_date IS NULL OR s.start_date <= NOW())
+      AND (s.end_date IS NULL OR s.end_date > NOW())
+    ORDER BY s.id DESC
+    LIMIT 1
+    `,
+    [userId]
+  );
+
+  const plan = rows[0] || null;
+  const features = parseAnalyticsFeatures(plan?.features_json);
+  const enabled =
+    features?.advanced_post_analytics === true ||
+    features?.advanced_post_analytics === 1 ||
+    String(features?.advanced_post_analytics || '').toLowerCase() === 'true';
+
+  return {
+    advanced_post_analytics: enabled,
+    plan: plan
+      ? {
+          id: plan.id,
+          name: plan.name,
+          price: plan.price !== null ? Number(plan.price) : null,
+          billing_cycle: plan.billing_cycle,
+        }
+      : null,
+  };
+}
+
+function classifyAnalyticsReferrer(value) {
+  const raw = String(value || '').trim();
+
+  if (!raw) {
+    return 'Direct';
+  }
+
+  let url;
+
+  try {
+    url = new URL(raw);
+  } catch (error) {
+    return 'External';
+  }
+
+  const host = String(url.hostname || '').toLowerCase();
+  const path = String(url.pathname || '').toLowerCase();
+
+  if (host === 'bloggad.com' || host.endsWith('.bloggad.com')) {
+    if (path === '/' || path.startsWith('/reader/feed')) {
+      return 'Bloggad feed';
+    }
+
+    if (path.startsWith('/page/')) {
+      return 'Writer Page';
+    }
+
+    if (path.includes('/post/')) {
+      return 'Other Bloggad posts';
+    }
+
+    return 'Bloggad internal';
+  }
+
+  if (
+    host.includes('google.') ||
+    host.includes('bing.') ||
+    host.includes('yahoo.') ||
+    host.includes('duckduckgo.')
+  ) {
+    return 'Search';
+  }
+
+  if (
+    host.includes('facebook.') ||
+    host.includes('instagram.') ||
+    host.includes('linkedin.') ||
+    host.includes('tiktok.') ||
+    host.includes('youtube.') ||
+    host.includes('reddit.') ||
+    host.includes('twitter.') ||
+    host === 'x.com' ||
+    host.endsWith('.x.com') ||
+    host.includes('whatsapp.')
+  ) {
+    return 'Social';
+  }
+
+  return 'External';
+}
+
+function percentage(part, total) {
+  const safePart = Number(part || 0);
+  const safeTotal = Number(total || 0);
+  return safeTotal > 0 ? Number(((safePart / safeTotal) * 100).toFixed(1)) : 0;
+}
+
+async function getWriterPostAnalytics(req, res) {
+  try {
+    const userId = Number(req.user.id);
+    const postId = Number(req.params.postId);
+
+    if (!Number.isInteger(postId) || postId <= 0) {
+      return res.status(400).json({
+        ok: false,
+        message: 'Invalid post id',
+      });
+    }
+
+    const [[post]] = await pool.query(
+      `
+      SELECT
+        pp.id,
+        pp.title,
+        pp.slug,
+        pp.status,
+        pp.featured_image,
+        pp.website_id,
+        aw.website_name,
+        aw.slug AS website_slug
+      FROM product_posts pp
+      LEFT JOIN affiliate_websites aw
+        ON aw.id = pp.website_id
+      WHERE pp.id = ?
+        AND pp.user_id = ?
+      LIMIT 1
+      `,
+      [postId, userId]
+    );
+
+    if (!post) {
+      return res.status(404).json({
+        ok: false,
+        message: 'Post not found',
+      });
+    }
+
+    const [[viewRow], access] = await Promise.all([
+      pool
+        .query(
+          `
+          SELECT COUNT(*) AS total_views
+          FROM analytics_post_views
+          WHERE post_id = ?
+          `,
+          [postId]
+        )
+        .then(([rows]) => rows),
+      getWriterAdvancedAnalyticsAccess(userId),
+    ]);
+
+    const totalViews = Number(viewRow?.total_views || 0);
+
+    const basePayload = {
+      post: {
+        id: post.id,
+        title: post.title,
+        slug: post.slug,
+        status: post.status,
+        featured_image: post.featured_image,
+        website: post.website_id
+          ? {
+              id: post.website_id,
+              name: post.website_name,
+              slug: post.website_slug,
+            }
+          : null,
+      },
+      total_views: totalViews,
+      access,
+      advanced: null,
+    };
+
+    if (!access.advanced_post_analytics) {
+      return res.status(200).json({
+        ok: true,
+        post_analytics: basePayload,
+      });
+    }
+
+    const [
+      [summaryRows],
+      [funnelRows],
+      [countryRows],
+      [deviceRows],
+      [referrerRows],
+      [readerTypeRows],
+      [linkSummaryRows],
+      [linkRows],
+    ] = await Promise.all([
+      pool.query(
+        `
+        SELECT
+          COUNT(*) AS sessions,
+          COUNT(DISTINCT visitor_key) AS unique_readers,
+          COUNT(
+            DISTINCT CASE
+              WHEN engaged_seconds >= 10 OR max_scroll_percent >= 25
+              THEN visitor_key
+              ELSE NULL
+            END
+          ) AS engaged_readers,
+          ROUND(AVG(engaged_seconds), 1) AS average_reading_time_seconds,
+          ROUND(AVG(max_scroll_percent), 1) AS average_scroll_percent,
+          MAX(estimated_read_seconds) AS estimated_read_seconds,
+          COUNT(
+            DISTINCT CASE
+              WHEN completed = 1 OR max_scroll_percent >= 95
+              THEN visitor_key
+              ELSE NULL
+            END
+          ) AS completed_readers,
+          COUNT(
+            DISTINCT CASE
+              WHEN country_code = 'ZZ'
+              THEN visitor_key
+              ELSE NULL
+            END
+          ) AS unknown_country_readers
+        FROM analytics_post_engagements
+        WHERE post_id = ?
+        `,
+        [postId]
+      ),
+      pool.query(
+        `
+        SELECT
+          COUNT(DISTINCT CASE WHEN max_scroll_percent >= 25 THEN visitor_key END) AS reached_25,
+          COUNT(DISTINCT CASE WHEN max_scroll_percent >= 50 THEN visitor_key END) AS reached_50,
+          COUNT(DISTINCT CASE WHEN max_scroll_percent >= 75 THEN visitor_key END) AS reached_75,
+          COUNT(
+            DISTINCT CASE
+              WHEN completed = 1 OR max_scroll_percent >= 95
+              THEN visitor_key
+            END
+          ) AS reached_100
+        FROM analytics_post_engagements
+        WHERE post_id = ?
+        `,
+        [postId]
+      ),
+      pool.query(
+        `
+        SELECT
+          country_code,
+          COUNT(DISTINCT visitor_key) AS readers
+        FROM analytics_post_engagements
+        WHERE post_id = ?
+        GROUP BY country_code
+        ORDER BY readers DESC, country_code ASC
+        LIMIT 40
+        `,
+        [postId]
+      ),
+      pool.query(
+        `
+        SELECT
+          device_type,
+          COUNT(DISTINCT visitor_key) AS readers
+        FROM analytics_post_engagements
+        WHERE post_id = ?
+        GROUP BY device_type
+        ORDER BY readers DESC, device_type ASC
+        `,
+        [postId]
+      ),
+      pool.query(
+        `
+        SELECT
+          COALESCE(referrer, '') AS referrer,
+          COUNT(DISTINCT visitor_key) AS readers
+        FROM analytics_post_engagements
+        WHERE post_id = ?
+        GROUP BY referrer
+        ORDER BY readers DESC
+        LIMIT 100
+        `,
+        [postId]
+      ),
+      pool.query(
+        `
+        SELECT
+          SUM(CASE WHEN visits = 1 THEN 1 ELSE 0 END) AS new_readers,
+          SUM(CASE WHEN visits > 1 THEN 1 ELSE 0 END) AS returning_readers
+        FROM (
+          SELECT visitor_key, COUNT(*) AS visits
+          FROM analytics_post_engagements
+          WHERE post_id = ?
+          GROUP BY visitor_key
+        ) reader_visits
+        `,
+        [postId]
+      ),
+      pool.query(
+        `
+        SELECT
+          COUNT(*) AS total_link_clicks,
+          COUNT(DISTINCT visitor_key) AS unique_link_clickers
+        FROM analytics_post_link_clicks
+        WHERE post_id = ?
+        `,
+        [postId]
+      ),
+      pool.query(
+        `
+        SELECT
+          link_hash,
+          MAX(link_url) AS link_url,
+          MAX(link_text) AS link_text,
+          COUNT(*) AS clicks,
+          COUNT(DISTINCT visitor_key) AS unique_clickers
+        FROM analytics_post_link_clicks
+        WHERE post_id = ?
+        GROUP BY link_hash
+        ORDER BY clicks DESC, unique_clickers DESC
+        LIMIT 50
+        `,
+        [postId]
+      ),
+    ]);
+
+    const summaryRow = summaryRows[0] || {};
+    const funnelRow = funnelRows[0] || {};
+    const readerTypeRow = readerTypeRows[0] || {};
+    const linkSummaryRow = linkSummaryRows[0] || {};
+    const uniqueReaders = Number(summaryRow.unique_readers || 0);
+    const engagedReaders = Number(summaryRow.engaged_readers || 0);
+    const completedReaders = Number(summaryRow.completed_readers || 0);
+    const uniqueLinkClickers = Number(linkSummaryRow.unique_link_clickers || 0);
+
+    const trafficMap = new Map();
+
+    referrerRows.forEach((row) => {
+      const source = classifyAnalyticsReferrer(row.referrer);
+      trafficMap.set(
+        source,
+        Number(trafficMap.get(source) || 0) + Number(row.readers || 0)
+      );
+    });
+
+    const trafficSources = Array.from(trafficMap.entries())
+      .map(([source, readers]) => ({
+        source,
+        readers,
+        percent: percentage(readers, uniqueReaders),
+      }))
+      .sort((a, b) => b.readers - a.readers);
+
+    const countries = countryRows.map((row) => ({
+      country_code: row.country_code || 'ZZ',
+      readers: Number(row.readers || 0),
+      percent: percentage(row.readers, uniqueReaders),
+    }));
+
+    const devices = deviceRows.map((row) => ({
+      device_type: row.device_type || 'unknown',
+      readers: Number(row.readers || 0),
+      percent: percentage(row.readers, uniqueReaders),
+    }));
+
+    const links = linkRows.map((row) => ({
+      link_hash: row.link_hash,
+      link_url: row.link_url,
+      link_text: row.link_text,
+      clicks: Number(row.clicks || 0),
+      unique_clickers: Number(row.unique_clickers || 0),
+      ctr: percentage(row.unique_clickers, uniqueReaders),
+    }));
+
+    return res.status(200).json({
+      ok: true,
+      post_analytics: {
+        ...basePayload,
+        advanced: {
+          summary: {
+            total_views: totalViews,
+            sessions: Number(summaryRow.sessions || 0),
+            unique_readers: uniqueReaders,
+            engaged_readers: engagedReaders,
+            engagement_rate: percentage(engagedReaders, uniqueReaders),
+            average_reading_time_seconds: Number(
+              summaryRow.average_reading_time_seconds || 0
+            ),
+            estimated_read_seconds: Number(summaryRow.estimated_read_seconds || 0),
+            average_scroll_percent: Number(summaryRow.average_scroll_percent || 0),
+            completed_readers: completedReaders,
+            completion_rate: percentage(completedReaders, uniqueReaders),
+            total_link_clicks: Number(linkSummaryRow.total_link_clicks || 0),
+            unique_link_clickers: uniqueLinkClickers,
+            link_ctr: percentage(uniqueLinkClickers, uniqueReaders),
+            unknown_country_readers: Number(
+              summaryRow.unknown_country_readers || 0
+            ),
+          },
+          completion_funnel: {
+            reached_25: Number(funnelRow.reached_25 || 0),
+            reached_50: Number(funnelRow.reached_50 || 0),
+            reached_75: Number(funnelRow.reached_75 || 0),
+            reached_100: Number(funnelRow.reached_100 || 0),
+          },
+          countries,
+          devices,
+          traffic_sources: trafficSources,
+          reader_types: {
+            new_readers: Number(readerTypeRow.new_readers || 0),
+            returning_readers: Number(readerTypeRow.returning_readers || 0),
+          },
+          links,
+        },
+      },
+    });
+  } catch (error) {
+    console.error('getWriterPostAnalytics error:', error);
+
+    return res.status(500).json({
+      ok: false,
+      message: 'Failed to fetch post analytics',
+      error: error.message,
+    });
+  }
+}
+
 async function getWriterAnalyticsOverview(req, res) {
   try {
     const userId = Number(req.user.id);
@@ -460,4 +913,5 @@ async function getWriterAnalyticsOverview(req, res) {
 
 module.exports = {
   getWriterAnalyticsOverview,
+  getWriterPostAnalytics,
 };

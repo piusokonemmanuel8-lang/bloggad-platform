@@ -1,6 +1,7 @@
 const express = require('express');
 const {
   getWriterAnalyticsOverview,
+  getWriterPostAnalytics,
 } = require('../controllers/writerAnalyticsController');
 const { protect, affiliateOnly } = require('../middleware/authMiddleware');
 
@@ -14,5 +15,6 @@ router.get('/health', (req, res) => {
 });
 
 router.get('/', protect, affiliateOnly, getWriterAnalyticsOverview);
+router.get('/posts/:postId', protect, affiliateOnly, getWriterPostAnalytics);
 
 module.exports = router;

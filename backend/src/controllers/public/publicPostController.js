@@ -2,6 +2,10 @@ const pool = require('../../config/db');
 const {
   buildPublicPostAccessPayload,
 } = require('../../services/writerReaderAccessService');
+const {
+  upsertPostEngagement,
+  recordPostLinkClick,
+} = require('../../services/postBehaviorAnalyticsService');
 
 function sanitizePost(row) {
   if (!row) return null;
@@ -455,7 +459,69 @@ async function getWebsitePublishedPosts(req, res) {
   }
 }
 
+
+// BLOGGAD_PRO_POST_ANALYTICS_V1
+async function trackPublicPostEngagement(req, res) {
+  try {
+    await upsertPostEngagement({
+      postId: req.params.postId,
+      body: req.body || {},
+      req,
+    });
+
+    return res.status(202).json({
+      ok: true,
+      tracked: true,
+    });
+  } catch (error) {
+    const status = Number(error?.statusCode || 500);
+
+    if (status >= 500) {
+      console.error('trackPublicPostEngagement error:', error);
+    }
+
+    return res.status(status).json({
+      ok: false,
+      message:
+        status >= 500
+          ? 'Failed to record post engagement.'
+          : error.message,
+    });
+  }
+}
+
+async function trackPublicPostLinkClick(req, res) {
+  try {
+    await recordPostLinkClick({
+      postId: req.params.postId,
+      body: req.body || {},
+      req,
+    });
+
+    return res.status(202).json({
+      ok: true,
+      tracked: true,
+    });
+  } catch (error) {
+    const status = Number(error?.statusCode || 500);
+
+    if (status >= 500) {
+      console.error('trackPublicPostLinkClick error:', error);
+    }
+
+    return res.status(status).json({
+      ok: false,
+      message:
+        status >= 500
+          ? 'Failed to record post link click.'
+          : error.message,
+    });
+  }
+}
+
 module.exports = {
   getPublicPost,
   getWebsitePublishedPosts,
+  trackPublicPostEngagement,
+  trackPublicPostLinkClick,
 };

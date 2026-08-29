@@ -14,6 +14,7 @@ import {
   Layers3,
 } from 'lucide-react';
 import api from '../../api/axios';
+import WriterPostAnalyticsDrawer from '../../components/writer/WriterPostAnalyticsDrawer';
 
 function StatCard({ title, value, icon: Icon, hint }) {
   return (
@@ -960,6 +961,10 @@ function WriterAnalyticsWorkspace() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
+  const [selectedPost, setSelectedPost] = useState(null);
+  const [postAnalytics, setPostAnalytics] = useState(null);
+  const [postAnalyticsLoading, setPostAnalyticsLoading] = useState(false);
+  const [postAnalyticsError, setPostAnalyticsError] = useState('');
 
   const loadAnalytics = async ({ refresh = false, days = period } = {}) => {
     try {
@@ -981,6 +986,26 @@ function WriterAnalyticsWorkspace() {
     } finally {
       setLoading(false);
       setRefreshing(false);
+    }
+  };
+
+  const loadPostAnalytics = async (item) => {
+    if (!item?.id) return;
+
+    setSelectedPost(item);
+    setPostAnalytics(null);
+    setPostAnalyticsError('');
+    setPostAnalyticsLoading(true);
+
+    try {
+      const { data } = await api.get(`/api/writer/analytics/posts/${item.id}`);
+      setPostAnalytics(data || null);
+    } catch (err) {
+      setPostAnalyticsError(
+        err?.response?.data?.message || 'Failed to load post analytics'
+      );
+    } finally {
+      setPostAnalyticsLoading(false);
     }
   };
 
@@ -1155,7 +1180,21 @@ function WriterAnalyticsWorkspace() {
           {topPosts.length ? (
             <div className="wa-ranking-list">
               {topPosts.slice(0, 6).map((item, index) => (
-                <article key={item.id} className="wa-ranking-row">
+                <article
+                  key={item.id}
+                  className="wa-ranking-row"
+                  role="button"
+                  tabIndex={0}
+                  style={{ cursor: 'pointer' }}
+                  aria-label={`Analyze ${item.title || 'post'}`}
+                  onClick={() => loadPostAnalytics(item)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault();
+                      loadPostAnalytics(item);
+                    }
+                  }}
+                >
                   <span className="wa-rank">{index + 1}</span>
                   <div>
                     <strong>{item.title || 'Untitled story'}</strong>
@@ -1231,6 +1270,18 @@ function WriterAnalyticsWorkspace() {
           )}
         </div>
       </section>
+      <WriterPostAnalyticsDrawer
+        post={selectedPost}
+        data={postAnalytics}
+        loading={postAnalyticsLoading}
+        error={postAnalyticsError}
+        onClose={() => {
+          setSelectedPost(null);
+          setPostAnalytics(null);
+          setPostAnalyticsError('');
+        }}
+        onRetry={() => selectedPost && loadPostAnalytics(selectedPost)}
+      />
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import api from '../../api/axios';
+import usePostBehaviorAnalytics from '../../hooks/usePostBehaviorAnalytics';
 import PublicWriterReaderActions from '../../components/writerReader/PublicWriterReaderActions';
 import ReaderReadingTools from '../../components/writerReader/ReaderReadingTools';
 import PostVideoEmbed from '../../components/writer/PostVideoEmbed';
@@ -399,6 +400,12 @@ export default function WriterPagePostPage() {
 
   const writerId = Number(post?.user_id || writer?.user_id || page?.user_id || 0);
   const postId = Number(post?.id || 0);
+
+  usePostBehaviorAnalytics({
+    postId,
+    contentSelector: '[data-bloggad-post-content]',
+  });
+
   const websiteSlug =
     post?.website?.slug ||
     post?.website_slug ||
@@ -836,7 +843,7 @@ export default function WriterPagePostPage() {
             </button>
           </div>
 
-          <div className="wpp-article-body">
+          <div className="wpp-article-body" data-bloggad-post-content>
             {bodyFields.length ? (
               bodyFields.map((field, index) => (
                 <ArticleField field={field} index={index} key={field?.id || index} />
