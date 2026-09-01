@@ -321,13 +321,13 @@ ReactDOM.createRoot(document.getElementById('root')).render(
             <Route path="/writer/memberships" element={<WriterMembershipsPage />} />
             <Route path="/writer/notifications" element={<WriterSocialNotificationsPage />} />
             <Route path="/writer/leaderboard" element={<AffiliateLeaderboardPage />} />
-            <Route path="/writer/ads" element={<WriterAdsPage />} />
+            <Route path="/writer/ads" element={<WriterPaidPlanGate feature="Ads Account"><WriterAdsPage /></WriterPaidPlanGate>} />
             <Route path="/writer/monetization" element={<Navigate to="/writer/monetization/eligibility" replace />} />
             <Route path="/writer/monetization/eligibility" element={<AffiliateMonetizationEligibilityPage />} />
             <Route path="/writer/monetization/analytics" element={<AffiliateMonetizationAnalyticsOverviewPage />} />
             <Route path="/writer/monetization/blogpulse-analytics" element={<AffiliateBlogPulseAnalyticsPage />} />
-            <Route path="/writer/monetization/my-ads" element={<AffiliateMyAdsPage />} />
-            <Route path="/writer/monetization/ad-placement" element={<AffiliateAdPlacementPage />} />
+            <Route path="/writer/monetization/my-ads" element={<WriterPaidPlanGate feature="My Ads"><AffiliateMyAdsPage /></WriterPaidPlanGate>} />
+            <Route path="/writer/monetization/ad-placement" element={<WriterPaidPlanGate feature="Ad Placement"><AffiliateAdPlacementPage /></WriterPaidPlanGate>} />
 
             <Route path="/affiliate/dashboard" element={<AffiliateDashboardPage />} />
             <Route path="/affiliate/website" element={<Navigate to="/writer/website" replace />} />

@@ -1,5 +1,6 @@
 const express = require('express');
 const { protect } = require('../../middleware/authMiddleware');
+const { paidWriterOnly } = require('../../middleware/writerPaidPlanMiddleware');
 
 const {
   getAffiliateMonetizationSettings,
@@ -10,7 +11,7 @@ const {
 const router = express.Router();
 
 router.get('/settings', protect, getAffiliateMonetizationSettings);
-router.post('/settings', protect, saveAffiliateMonetizationSettings);
-router.post('/submit', protect, submitAffiliateMonetizationForReview);
+router.post('/settings', protect, paidWriterOnly, saveAffiliateMonetizationSettings);
+router.post('/submit', protect, paidWriterOnly, submitAffiliateMonetizationForReview);
 
 module.exports = router;

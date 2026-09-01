@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, Navigate, NavLink, Outlet, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard,
@@ -32,6 +32,7 @@ import {
 import { useAuth } from '../hooks/useAuth';
 import RoleSwitcher from '../components/shared/RoleSwitcher';
 import { getSupgadReturnUrl } from '../utils/supgadReturn';
+import api from '../api/axios';
 
 function extractFirstName(user) {
   if (!user) return 'Writer';
@@ -100,14 +101,15 @@ const navItems = [
     icon: LineChart,
     group: 'Insights',
   },
-  { label: 'My Ads', to: '/writer/monetization/my-ads', icon: SquarePen, group: 'Insights' },
+  { label: 'My Ads', to: '/writer/monetization/my-ads', icon: SquarePen, group: 'Insights', paidOnly: true },
   {
     label: 'Ad Placement',
     to: '/writer/monetization/ad-placement',
     icon: PanelsTopLeft,
     group: 'Insights',
+    paidOnly: true,
   },
-  { label: 'Ads Account', to: '/writer/ads', icon: Megaphone, group: 'Insights' },
+  { label: 'Ads Account', to: '/writer/ads', icon: Megaphone, group: 'Insights', paidOnly: true },
   { label: 'Leaderboard', to: '/writer/leaderboard', icon: Trophy, group: 'Insights' },
 
   { label: 'Writer Wallet', to: '/writer/wallet', icon: Wallet, group: 'Account' },
@@ -117,13 +119,13 @@ const navItems = [
 
 const dashboardGroups = ['Overview', 'Publish', 'Audience', 'Store', 'Insights', 'Account'];
 
-function StandardNavigation({ onNavigate, supgadReturnUrl }) {
+function StandardNavigation({ onNavigate, supgadReturnUrl, navigationItems = navItems }) {
   return (
     <div className="affiliate-layout-sidebar-menu">
       <div className="affiliate-layout-menu-label">Main Menu</div>
 
       <nav className="affiliate-layout-nav">
-        {navItems.map((item) => {
+        {navigationItems.map((item) => {
           const Icon = item.icon;
 
           return (
@@ -163,11 +165,11 @@ function StandardNavigation({ onNavigate, supgadReturnUrl }) {
   );
 }
 
-function DashboardNavigation({ onNavigate, supgadReturnUrl }) {
+function DashboardNavigation({ onNavigate, supgadReturnUrl, navigationItems = navItems }) {
   return (
     <div className="dashboard-nav-scroll">
       {dashboardGroups.map((group) => {
-        const items = navItems.filter((item) => item.group === group);
+        const items = navigationItems.filter((item) => item.group === group);
 
         return (
           <div className="dashboard-nav-group" key={group}>
@@ -269,6 +271,36 @@ export default function AffiliateLayout() {
   const { isAuthenticated, isAffiliate, bootstrapping, user } = useAuth();
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [hasPaidWriterPlan, setHasPaidWriterPlan] = useState(false);
+
+  useEffect(() => {
+    let ignore = false;
+
+    async function loadPaidWriterAccess() {
+      try {
+        const { data } = await api.get('/api/affiliate/subscription');
+        const currentSubscription = data?.current_subscription || null;
+        const paid =
+          String(currentSubscription?.status || '').toLowerCase() === 'active' &&
+          Number(currentSubscription?.plan?.price || 0) > 0;
+
+        if (!ignore) setHasPaidWriterPlan(paid);
+      } catch (error) {
+        if (!ignore) setHasPaidWriterPlan(false);
+      }
+    }
+
+    loadPaidWriterAccess();
+
+    return () => {
+      ignore = true;
+    };
+  }, []);
+
+  const visibleNavItems = useMemo(
+    () => navItems.filter((item) => !item.paidOnly || hasPaidWriterPlan),
+    [hasPaidWriterPlan]
+  );
 
   const firstName = useMemo(() => extractFirstName(user), [user]);
   const greeting = useMemo(() => getGreeting(firstName), [firstName]);
@@ -445,11 +477,13 @@ export default function AffiliateLayout() {
           <DashboardNavigation
             onNavigate={() => setMobileOpen(false)}
             supgadReturnUrl={supgadReturnUrl}
+            navigationItems={visibleNavItems}
           />
         ) : (
           <StandardNavigation
             onNavigate={() => setMobileOpen(false)}
             supgadReturnUrl={supgadReturnUrl}
+            navigationItems={visibleNavItems}
           />
         )}
       </aside>

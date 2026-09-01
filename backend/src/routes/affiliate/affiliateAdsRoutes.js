@@ -11,6 +11,7 @@ const {
 } = require('../../controllers/affiliate/affiliateAdsController');
 
 const { protect, affiliateOnly } = require('../../middleware/authMiddleware');
+const { paidWriterOnly } = require('../../middleware/writerPaidPlanMiddleware');
 
 const router = express.Router();
 
@@ -21,18 +22,18 @@ router.get('/health', (req, res) => {
   });
 });
 
-router.get('/options', protect, affiliateOnly, getAffiliateAdsOptions);
+router.get('/options', protect, affiliateOnly, paidWriterOnly, getAffiliateAdsOptions);
 
-router.get('/', protect, affiliateOnly, getAffiliateAds);
+router.get('/', protect, affiliateOnly, paidWriterOnly, getAffiliateAds);
 
-router.post('/', protect, affiliateOnly, createAffiliateAd);
+router.post('/', protect, affiliateOnly, paidWriterOnly, createAffiliateAd);
 
-router.put('/:id', protect, affiliateOnly, updateAffiliateAd);
+router.put('/:id', protect, affiliateOnly, paidWriterOnly, updateAffiliateAd);
 
-router.post('/:id/top-up', protect, affiliateOnly, topUpAffiliateAd);
+router.post('/:id/top-up', protect, affiliateOnly, paidWriterOnly, topUpAffiliateAd);
 
-router.put('/:id/pause', protect, affiliateOnly, pauseAffiliateAd);
+router.put('/:id/pause', protect, affiliateOnly, paidWriterOnly, pauseAffiliateAd);
 
-router.put('/:id/resume', protect, affiliateOnly, resumeAffiliateAd);
+router.put('/:id/resume', protect, affiliateOnly, paidWriterOnly, resumeAffiliateAd);
 
 module.exports = router;

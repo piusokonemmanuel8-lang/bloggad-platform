@@ -8,6 +8,7 @@ const {
   submitAffiliateMonetizationForReview,
 } = require('../../controllers/affiliate/affiliateMonetizationController');
 const { protect, affiliateOnly } = require('../../middleware/authMiddleware');
+const { paidWriterOnly } = require('../../middleware/writerPaidPlanMiddleware');
 
 const router = express.Router();
 
@@ -31,6 +32,7 @@ router.put(
   '/monetization/settings',
   protect,
   affiliateOnly,
+  paidWriterOnly,
   saveAffiliateMonetizationSettings
 );
 
@@ -38,6 +40,7 @@ router.post(
   '/monetization/submit-review',
   protect,
   affiliateOnly,
+  paidWriterOnly,
   submitAffiliateMonetizationForReview
 );
 
