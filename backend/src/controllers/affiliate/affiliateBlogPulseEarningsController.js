@@ -129,6 +129,54 @@ async function getAffiliateWebsite(userId) {
   return rows[0] || null;
 }
 
+async function getPrimaryWriterPageForEarnings(userId) {
+  const [rows] = await pool.query(
+    `
+      SELECT id, user_id, name, slug, status, is_primary
+      FROM writer_pages
+      WHERE user_id = ?
+        AND status = 'active'
+      ORDER BY is_primary DESC, id ASC
+      LIMIT 1
+    `,
+    [userId]
+  );
+
+  return rows[0] || null;
+}
+
+async function getPublishingIdentity(userId) {
+  const website = await getAffiliateWebsite(userId);
+
+  if (website) {
+    return {
+      website_id: Number(website.id),
+      public: {
+        ...website,
+        id: Number(website.id),
+        user_id: Number(website.user_id),
+        identity_type: 'storefront',
+      },
+    };
+  }
+
+  const page = await getPrimaryWriterPageForEarnings(userId);
+
+  if (!page) return null;
+
+  return {
+    website_id: null,
+    public: {
+      id: Number(page.id),
+      user_id: Number(page.user_id),
+      website_name: page.name,
+      slug: page.slug,
+      status: page.status,
+      identity_type: 'writer_page',
+    },
+  };
+}
+
 async function getMonetizationSettings(userId) {
   const [rows] = await pool.query(
     `
@@ -168,57 +216,69 @@ async function getBlogPulseSettings() {
   return rows[0] || null;
 }
 
-async function getTrackedTotals(websiteId) {
+async function getTrackedTotals(userId, websiteId = null) {
   const [[postViewRow]] = await pool.query(
     `
       SELECT COUNT(*) AS total
-      FROM analytics_post_views
-      WHERE website_id = ?
+      FROM analytics_post_views apv
+      INNER JOIN product_posts pp
+        ON pp.id = apv.post_id
+      WHERE pp.user_id = ?
     `,
-    [websiteId]
+    [userId]
   );
 
-  const [[productViewRow]] = await pool.query(
-    `
-      SELECT COUNT(*) AS total
-      FROM analytics_product_views
-      WHERE website_id = ?
-    `,
-    [websiteId]
-  );
+  let totalProductViews = 0;
+  let totalProductClicks = 0;
+  let totalSliderClicks = 0;
 
-  const [[productClickRow]] = await pool.query(
-    `
-      SELECT COUNT(*) AS total
-      FROM analytics_product_clicks
-      WHERE website_id = ?
-    `,
-    [websiteId]
-  );
+  if (websiteId) {
+    const [[productViewRow]] = await pool.query(
+      `
+        SELECT COUNT(*) AS total
+        FROM analytics_product_views
+        WHERE website_id = ?
+      `,
+      [websiteId]
+    );
 
-  const [[sliderClickRow]] = await pool.query(
-    `
-      SELECT COUNT(*) AS total
-      FROM analytics_slider_clicks
-      WHERE website_id = ?
-    `,
-    [websiteId]
-  );
+    const [[productClickRow]] = await pool.query(
+      `
+        SELECT COUNT(*) AS total
+        FROM analytics_product_clicks
+        WHERE website_id = ?
+      `,
+      [websiteId]
+    );
+
+    const [[sliderClickRow]] = await pool.query(
+      `
+        SELECT COUNT(*) AS total
+        FROM analytics_slider_clicks
+        WHERE website_id = ?
+      `,
+      [websiteId]
+    );
+
+    totalProductViews = Number(productViewRow?.total || 0);
+    totalProductClicks = Number(productClickRow?.total || 0);
+    totalSliderClicks = Number(sliderClickRow?.total || 0);
+  }
 
   const [[postCountRow]] = await pool.query(
     `
       SELECT COUNT(*) AS total
       FROM product_posts
-      WHERE website_id = ?
+      WHERE user_id = ?
     `,
-    [websiteId]
+    [userId]
   );
 
   return {
     total_post_views: Number(postViewRow?.total || 0),
-    total_product_views: Number(productViewRow?.total || 0),
-    total_product_clicks: Number(productClickRow?.total || 0),
-    total_slider_clicks: Number(sliderClickRow?.total || 0),
+    total_product_views: totalProductViews,
+    total_product_clicks: totalProductClicks,
+    total_slider_clicks: totalSliderClicks,
     total_posts: Number(postCountRow?.total || 0),
   };
 }
@@ -397,19 +457,21 @@ async function getSponsoredAdDailyRevenue(userId, websiteId, days = 7) {
   return points;
 }
 
-async function getDailyPostViews(websiteId, days = 7) {
+async function getDailyPostViews(userId, days = 7) {
   const [rows] = await pool.query(
     `
       SELECT
-        DATE(created_at) AS day,
+        DATE(apv.created_at) AS day,
         COUNT(*) AS total_views
-      FROM analytics_post_views
-      WHERE website_id = ?
-        AND created_at >= DATE_SUB(UTC_TIMESTAMP(), INTERVAL ? DAY)
-      GROUP BY DATE(created_at)
+      FROM analytics_post_views apv
+      INNER JOIN product_posts pp
+        ON pp.id = apv.post_id
+      WHERE pp.user_id = ?
+        AND apv.created_at >= DATE_SUB(UTC_TIMESTAMP(), INTERVAL ? DAY)
+      GROUP BY DATE(apv.created_at)
       ORDER BY day ASC
     `,
-    [websiteId, days]
+    [userId, days]
   );
 
   const map = new Map();
@@ -433,7 +495,7 @@ async function getDailyPostViews(websiteId, days = 7) {
   return points;
 }
 
-async function getTopEarningPosts(websiteId, ratePerView) {
+async function getTopEarningPosts(userId, ratePerView) {
   const [rows] = await pool.query(
     `
       SELECT
@@ -444,12 +506,12 @@ async function getTopEarningPosts(websiteId, ratePerView) {
       FROM product_posts pp
       LEFT JOIN analytics_post_views apv
         ON apv.post_id = pp.id
-      WHERE pp.website_id = ?
+      WHERE pp.user_id = ?
       GROUP BY pp.id, pp.title, pp.slug
       ORDER BY total_views DESC, pp.id DESC
       LIMIT 5
     `,
-    [websiteId]
+    [userId]
   );
 
   return rows.map((row) => {
@@ -484,21 +546,24 @@ async function getAffiliateBlogPulseEarnings(req, res) {
     await ensureAffiliateMonetizationTable();
     await ensureBlogPulseSettingsTable();
 
-    const website = await getAffiliateWebsite(userId);
+    const publishingIdentity = await getPublishingIdentity(userId);
 
-    if (!website) {
+    if (!publishingIdentity) {
       return res.status(404).json({
         ok: false,
-        message: 'Affiliate website not found.',
+        message: 'Writer publishing identity not found.',
       });
     }
 
+    const website = publishingIdentity.public;
+    const websiteId = publishingIdentity.website_id;
+
     const monetization = await getMonetizationSettings(userId);
     const blogPulse = await getBlogPulseSettings();
-    const totals = await getTrackedTotals(website.id);
-    const chart = await getDailyPostViews(website.id, 7);
-    const sponsoredSummary = await getSponsoredAdRevenueSummary(userId, website.id);
-    const sponsoredDaily = await getSponsoredAdDailyRevenue(userId, website.id, 7);
+    const totals = await getTrackedTotals(userId, websiteId);
+    const chart = await getDailyPostViews(userId, 7);
+    const sponsoredSummary = await getSponsoredAdRevenueSummary(userId, websiteId);
+    const sponsoredDaily = await getSponsoredAdDailyRevenue(userId, websiteId, 7);
 
     const monetizationMode = monetization?.monetization_mode === 'platform'
       ? 'platform'
@@ -507,7 +572,7 @@ async function getAffiliateBlogPulseEarnings(req, res) {
     const ratePerView = Number(blogPulse?.default_rate_per_view || 0);
     const trackedMonetizableViews = totals.total_post_views;
     const platformEstimatedRevenue = formatCurrencyNumber(trackedMonetizableViews * ratePerView);
-    const top_posts = await getTopEarningPosts(website.id, ratePerView);
+    const top_posts = await getTopEarningPosts(userId, ratePerView);
 
     const mergedChart = chart.map((point) => {
       const sponsoredPoint = sponsoredDaily.find((item) => item.date === point.date) || {};
