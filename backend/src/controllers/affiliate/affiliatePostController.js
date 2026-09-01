@@ -144,6 +144,7 @@ function isLikelyLinkField(field = {}) {
 }
 
 
+
 function isStructuredSimpleWriterUrlField(field = {}) {
   const fieldKey = normalizeNullable(field.field_key || field.key) || '';
   const normalizedKey = fieldKey.toLowerCase();
@@ -1041,7 +1042,6 @@ async function normalizeTemplateFieldsWithValidatedLinks({
         }
       }
     }
-
     normalizedFields.push(nextField);
   }
 

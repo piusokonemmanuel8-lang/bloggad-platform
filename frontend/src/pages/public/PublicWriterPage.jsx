@@ -726,7 +726,7 @@ export default function PublicWriterPage() {
         </nav>
       </section>
 
-      <section className={`pwp-content pwp-tab-${activeTab}`}>
+      <section className={`pwp-content ${isPostFeedTab ? 'pwp-tab-posts' : `pwp-tab-${activeTab}`}`}>
         {isPostFeedTab ? (
           <>
             <aside className="pwp-sidebar">

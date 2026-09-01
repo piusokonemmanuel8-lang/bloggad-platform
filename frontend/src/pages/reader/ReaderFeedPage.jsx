@@ -213,6 +213,9 @@ export default function ReaderFeedPage() {
           love: Number(data?.counts?.love || 0),
           applaud: Number(data?.counts?.applaud || 0),
           comments: Number(data?.counts?.comments || 0),
+          can_receive_gifts:
+            data?.writer_can_receive_gifts === true ||
+            data?.writer?.can_receive_gifts === true,
         };
       });
 
@@ -756,18 +759,20 @@ export default function ReaderFeedPage() {
                         </span>
                       </button>
 
-                      <button
-                        type="button"
-                        className="bh-gift-action"
-                        title="Gift this Writer"
-                        aria-label="Gift this Writer"
-                        onClick={() => openGift(post)}
-                      >
-                        <Gift size={17} />
-                        <span className="bh-action-label">
-                          Gift
-                        </span>
-                      </button>
+                      {stats?.can_receive_gifts ? (
+                        <button
+                          type="button"
+                          className="bh-gift-action"
+                          title="Gift this Writer"
+                          aria-label="Gift this Writer"
+                          onClick={() => openGift(post)}
+                        >
+                          <Gift size={17} />
+                          <span className="bh-action-label">
+                            Gift
+                          </span>
+                        </button>
+                      ) : null}
                     </div>
 
                     <div className="bh-story-actions bh-secondary-social">

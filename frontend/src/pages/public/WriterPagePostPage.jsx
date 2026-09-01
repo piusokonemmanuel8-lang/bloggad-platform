@@ -185,9 +185,34 @@ function isImageValue(key, value) {
   );
 }
 
+function resolveStoredImageUrl(value) {
+  const text = String(value || '').trim();
+  if (!text) return '';
+
+  if (/^https?:\/\//i.test(text)) return text;
+  if (/^\/\//.test(text)) return `https:${text}`;
+  if (/^\//.test(text)) return text;
+  if (/^(data|blob|javascript):/i.test(text)) return '';
+
+  if (!/^[a-z][a-z0-9+.-]*:/i.test(text)) {
+    return `/${text.replace(/^\.\//, '')}`;
+  }
+
+  return '';
+}
+
 function ArticleField({ field, index }) {
   const key = fieldKey(field);
   const raw = fieldValue(field);
+  const type = String(field?.field_type || field?.type || '').trim().toLowerCase();
+
+  const isDividerField =
+    key.startsWith('simple_writer_divider_') ||
+    type === 'divider';
+
+  if (isDividerField) {
+    return <hr className="wpp-body-divider" aria-hidden="true" />;
+  }
 
   const isVideoField =
     key.startsWith('simple_writer_video_') ||
@@ -245,6 +270,21 @@ function ArticleField({ field, index }) {
     );
   }
 
+  const isSimpleWriterImage =
+    key.startsWith('simple_writer_image_') ||
+    type === 'image';
+
+  if (isSimpleWriterImage) {
+    const imageSrc = resolveStoredImageUrl(raw);
+    if (!imageSrc) return null;
+
+    return (
+      <figure className="wpp-inline-media">
+        <img src={imageSrc} alt="" />
+      </figure>
+    );
+  }
+
   const value = stripMarkup(raw);
 
   if (!value) return null;
@@ -253,6 +293,14 @@ function ArticleField({ field, index }) {
     /title|excerpt|seo|featured|thumbnail|slug|author|date|price|product/.test(key)
   ) {
     return null;
+  }
+
+  const isQuoteField =
+    key.startsWith('simple_writer_quote_') ||
+    type === 'quote';
+
+  if (isQuoteField) {
+    return <blockquote className="wpp-body-quote">{value}</blockquote>;
   }
 
   if (isImageValue(key, raw)) {
@@ -341,6 +389,7 @@ export default function WriterPagePostPage() {
   const { pageSlug, postSlug } = useParams();
 
   const [data, setData] = useState(null);
+  const [unlockedContent, setUnlockedContent] = useState(null);
   const [pageData, setPageData] = useState(null);
   const [social, setSocial] = useState(null);
   const [readerState, setReaderState] = useState(null);
@@ -361,6 +410,7 @@ export default function WriterPagePostPage() {
 
     setLoading(true);
     setError('');
+    setUnlockedContent(null);
 
     Promise.all([
       api.get(
@@ -391,15 +441,44 @@ export default function WriterPagePostPage() {
   }, [pageSlug, postSlug]);
 
   const post = data?.post || null;
-  const fields = Array.isArray(data?.template_fields)
-    ? data.template_fields
-    : [];
+  const fields = Array.isArray(unlockedContent?.template_fields)
+    ? unlockedContent.template_fields
+    : Array.isArray(data?.template_fields)
+      ? data.template_fields
+      : [];
+  const access = unlockedContent?.access || data?.access || null;
   const page = data?.page || pageData?.page || null;
   const writer = pageData?.writer || null;
   const storefront = pageData?.storefront || null;
 
   const writerId = Number(post?.user_id || writer?.user_id || page?.user_id || 0);
   const postId = Number(post?.id || 0);
+
+  useEffect(() => {
+    if (!postId) return;
+
+    let active = true;
+
+    api.get(`/api/reader/access/posts/${postId}`)
+      .then((response) => {
+        if (!active) return;
+
+        const payload = response?.data || null;
+
+        if (
+          payload?.entitled &&
+          payload?.access?.full_content_included &&
+          Array.isArray(payload?.template_fields)
+        ) {
+          setUnlockedContent(payload);
+        }
+      })
+      .catch(() => {});
+
+    return () => {
+      active = false;
+    };
+  }, [postId]);
 
   usePostBehaviorAnalytics({
     postId,
@@ -494,7 +573,22 @@ export default function WriterPagePostPage() {
       : [];
 
   const bodyFields = useMemo(
-    () => fields.filter((field) => String(fieldValue(field) || '').trim()),
+    () =>
+      fields.filter((field) => {
+        const key = fieldKey(field);
+        const type = String(field?.field_type || field?.type || '')
+          .trim()
+          .toLowerCase();
+
+        if (
+          key.startsWith('simple_writer_divider_') ||
+          type === 'divider'
+        ) {
+          return true;
+        }
+
+        return String(fieldValue(field) || '').trim();
+      }),
     [fields]
   );
 
@@ -732,7 +826,13 @@ export default function WriterPagePostPage() {
     <main className="wpp-page">
       <header className="wpp-global-header">
         <div className="wpp-global-inner">
-          <Link className="wpp-brand" to="/">Bloggad</Link>
+          <Link className="wpp-brand" to="/" aria-label="Bloggad home">
+            <img
+              src="/bloggad-logo.png"
+              alt="Bloggad"
+              style={{ display: 'block', width: 112, height: 'auto' }}
+            />
+          </Link>
 
           <div className="wpp-search-pill">Search writers, stories, topics</div>
 
@@ -880,21 +980,21 @@ export default function WriterPagePostPage() {
             </section>
           ) : null}
 
-          {data?.access?.locked ? (
+          {access?.locked ? (
             <section className="wpp-premium-context">
               <span>PREMIUM READING</span>
               <h3>Continue the full post</h3>
               <p>
                 Reader access or direct Writer membership unlocks the remaining story without leaving this page.
               </p>
-              {Number(data?.access?.estimated_read_seconds || 0) > 0 ? (
+              {Number(access?.estimated_read_seconds || 0) > 0 ? (
                 <p>
                   Free Read:{' '}
-                  {Number(data?.access?.free_preview_seconds || 0) < 60
-                    ? `${Math.max(1, Number(data?.access?.free_preview_seconds || 0))} sec`
-                    : `${Math.ceil(Number(data?.access?.free_preview_seconds || 0) / 60)} min`}
+                  {Number(access?.free_preview_seconds || 0) < 60
+                    ? `${Math.max(1, Number(access?.free_preview_seconds || 0))} sec`
+                    : `${Math.ceil(Number(access?.free_preview_seconds || 0) / 60)} min`}
                   {' '}of about{' '}
-                  {Math.max(1, Math.ceil(Number(data?.access?.estimated_read_seconds || 0) / 60))} min.
+                  {Math.max(1, Math.ceil(Number(access?.estimated_read_seconds || 0) / 60))} min.
                 </p>
               ) : null}
               <div>
@@ -1090,7 +1190,7 @@ export default function WriterPagePostPage() {
             <ReaderReadingTools
               post={post}
               templateFields={fields}
-              access={data?.access || null}
+              access={access || null}
             />
           </section>
         </aside>
@@ -1118,8 +1218,17 @@ export default function WriterPagePostPage() {
             <PublicWriterReaderActions
               post={post}
               websiteSlug={websiteSlug}
-              access={data?.access || null}
+              access={access || null}
               templateFields={fields}
+              onUnlocked={(payload) => {
+                if (
+                  payload?.entitled &&
+                  payload?.access?.full_content_included &&
+                  Array.isArray(payload?.template_fields)
+                ) {
+                  setUnlockedContent(payload);
+                }
+              }}
             />
           </section>
         </div>

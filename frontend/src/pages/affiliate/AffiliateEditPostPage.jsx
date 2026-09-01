@@ -1203,25 +1203,29 @@ export default function AffiliateEditPostPage() {
     <div className="affiliate-edit-post-page">
       <style>{styles}</style>
 
-      <section className="affiliate-edit-post-hero">
-        <div className="affiliate-edit-post-hero-copy">
-          <div className="affiliate-edit-post-badge">Post editor</div>
-          <h1 className="affiliate-edit-post-title">Edit Post</h1>
-          <p className="affiliate-edit-post-subtitle">
-            {activePreset
-              ? 'This template is locked. Replace every template field, image, and CTA before saving.'
-              : 'Update post content, template fields, SEO details, and CTA buttons.'}
-          </p>
+      <section className="affiliate-edit-post-command">
+        <div className="affiliate-edit-post-command-left">
+          <strong>Edit post</strong>
+          <span className={getStatusClass(form.status)}>{form.status || 'draft'}</span>
         </div>
 
-        <div className="affiliate-edit-post-hero-actions">
+        <div className="affiliate-edit-post-command-actions">
           <button
             className="affiliate-edit-post-btn secondary"
             type="button"
-            onClick={() => navigate('/affiliate/products')}
+            onClick={() => navigate(`${routeRoot}/posts`)}
           >
-            <ArrowLeft size={16} />
-            Back to Products
+            Back to Posts
+          </button>
+
+          <button
+            className="affiliate-edit-post-btn primary"
+            type="submit"
+            form="affiliate-edit-post-form"
+            disabled={saving}
+          >
+            <Save size={15} />
+            {saving ? 'Saving...' : 'Save Changes'}
           </button>
         </div>
       </section>
@@ -1235,7 +1239,7 @@ export default function AffiliateEditPostPage() {
             </div>
           </div>
 
-          <form className="affiliate-edit-post-form" onSubmit={handleSubmit}>
+          <form id="affiliate-edit-post-form" className="affiliate-edit-post-form" onSubmit={handleSubmit}>
             <div className="affiliate-edit-post-form-grid">
               <label className="affiliate-edit-post-field">
                 <span className="affiliate-edit-post-label">
@@ -1922,22 +1926,37 @@ const styles = `
 
   .affiliate-edit-post-page {
     width: 100%;
+    color: #111827;
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+
+  .affiliate-edit-post-page button,
+  .affiliate-edit-post-page input,
+  .affiliate-edit-post-page select,
+  .affiliate-edit-post-page textarea {
+    font: inherit;
   }
 
   .affiliate-edit-post-loading-wrap {
-    min-height: 60vh;
+    min-height: 58vh;
     display: grid;
     place-items: center;
   }
 
   .affiliate-edit-post-loading-card {
-    min-width: 260px;
-    background: #ffffff;
+    min-width: 230px;
+    padding: 22px;
     border: 1px solid #e5e7eb;
-    border-radius: 24px;
-    padding: 28px 22px;
+    border-radius: 14px;
+    background: #ffffff;
     text-align: center;
-    box-shadow: 0 18px 45px rgba(15, 23, 42, 0.06);
+  }
+
+  .affiliate-edit-post-loading-card p {
+    margin: 10px 0 0;
+    color: #6b7280;
+    font-size: 11px;
+    font-weight: 600;
   }
 
   .affiliate-edit-post-spinner,
@@ -1946,12 +1965,12 @@ const styles = `
   }
 
   .affiliate-edit-post-spinner {
-    width: 38px;
-    height: 38px;
-    border-radius: 999px;
+    width: 32px;
+    height: 32px;
+    margin: 0 auto;
     border: 3px solid #e5e7eb;
     border-top-color: #111827;
-    margin: 0 auto 12px;
+    border-radius: 999px;
   }
 
   @keyframes affiliateEditPostSpin {
@@ -1960,687 +1979,878 @@ const styles = `
     }
   }
 
-  .affiliate-edit-post-hero {
+  .affiliate-edit-post-command {
+    min-height: 60px;
+    margin-bottom: 12px;
+    padding: 10px 16px;
     display: flex;
+    align-items: center;
     justify-content: space-between;
-    align-items: flex-start;
-    gap: 18px;
-    background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+    gap: 12px;
     border: 1px solid #e5e7eb;
-    border-radius: 28px;
-    padding: 24px;
-    box-shadow: 0 18px 45px rgba(15, 23, 42, 0.05);
-    margin-bottom: 20px;
+    border-radius: 14px;
+    background: #ffffff;
   }
 
-  .affiliate-edit-post-badge {
-    display: inline-flex;
-    align-items: center;
-    padding: 8px 12px;
-    border-radius: 999px;
-    background: #111827;
-    color: #ffffff;
-    font-size: 12px;
-    font-weight: 800;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-    margin-bottom: 14px;
-  }
-
-  .affiliate-edit-post-title {
-    margin: 0;
-    font-size: 30px;
-    line-height: 1.1;
-    font-weight: 900;
-    color: #111827;
-  }
-
-  .affiliate-edit-post-subtitle {
-    margin: 12px 0 0;
-    max-width: 760px;
-    color: #6b7280;
-    font-size: 15px;
-    line-height: 1.7;
-  }
-
-  .affiliate-edit-post-hero-actions,
-  .affiliate-edit-post-actions {
+  .affiliate-edit-post-command-left,
+  .affiliate-edit-post-command-actions {
     display: flex;
     align-items: center;
-    gap: 12px;
-    flex-wrap: wrap;
-  }
-
-  .affiliate-edit-post-btn {
-    height: 46px;
-    padding: 0 16px;
-    border-radius: 14px;
-    border: 1px solid #dbe2ea;
-    background: #ffffff;
-    color: #111827;
-    font-size: 14px;
-    font-weight: 800;
-    text-decoration: none;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
     gap: 8px;
-    cursor: pointer;
-    transition: 0.2s ease;
   }
 
-  .affiliate-edit-post-btn.primary {
-    background: #111827;
-    color: #ffffff;
-    border-color: #111827;
+  .affiliate-edit-post-command-left {
+    min-width: 0;
   }
 
-  .affiliate-edit-post-btn:disabled,
-  .affiliate-edit-post-upload-btn:disabled {
-    opacity: 0.7;
-    cursor: not-allowed;
+  .affiliate-edit-post-command-left > strong {
+    font-size: 16px;
+    line-height: 1.2;
+    font-weight: 600;
+    letter-spacing: -0.01em;
   }
 
   .affiliate-edit-post-grid {
     display: grid;
-    grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.85fr);
-    gap: 20px;
+    grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.65fr);
+    gap: 12px;
+    align-items: start;
   }
 
   .affiliate-edit-post-side-stack {
     display: flex;
     flex-direction: column;
-    gap: 20px;
+    gap: 12px;
+    position: sticky;
+    top: 12px;
   }
 
   .affiliate-edit-post-panel {
-    background: #ffffff;
+    padding: 16px;
     border: 1px solid #e5e7eb;
-    border-radius: 24px;
-    padding: 22px;
-    box-shadow: 0 16px 35px rgba(15, 23, 42, 0.04);
+    border-radius: 14px;
+    background: #ffffff;
+    box-shadow: none;
   }
 
   .affiliate-edit-post-panel-head,
   .affiliate-edit-post-block-head {
+    margin-bottom: 12px;
     display: flex;
-    align-items: flex-start;
+    align-items: center;
     justify-content: space-between;
-    gap: 14px;
-    margin-bottom: 18px;
+    gap: 10px;
   }
 
   .affiliate-edit-post-panel-kicker {
-    margin: 0 0 6px;
-    font-size: 12px;
-    font-weight: 800;
-    color: #6b7280;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
+    display: none;
   }
 
   .affiliate-edit-post-panel-title,
   .affiliate-edit-post-block-title {
     margin: 0;
-    font-size: 22px;
-    font-weight: 900;
     color: #111827;
-    line-height: 1.2;
+    font-size: 13px;
+    line-height: 1.25;
+    font-weight: 600;
+    letter-spacing: 0;
   }
 
   .affiliate-edit-post-form {
     display: flex;
     flex-direction: column;
-    gap: 18px;
+    gap: 12px;
   }
 
   .affiliate-edit-post-form-grid {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 16px;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .affiliate-edit-post-form-grid > :nth-child(1),
+  .affiliate-edit-post-form-grid > :nth-child(2),
+  .affiliate-edit-post-form-grid > :nth-child(3) {
+    grid-column: span 2;
+  }
+
+  .affiliate-edit-post-form-grid > :nth-child(4),
+  .affiliate-edit-post-form-grid > :nth-child(5),
+  .affiliate-edit-post-form-grid > :nth-child(6),
+  .affiliate-edit-post-form-grid > :nth-child(7) {
+    grid-column: span 3;
+  }
+
+  .affiliate-edit-post-form-grid > :nth-child(8),
+  .affiliate-edit-post-form-grid > :nth-child(12),
+  .affiliate-edit-post-form-grid > :nth-child(13) {
+    grid-column: span 2;
+  }
+
+  .affiliate-edit-post-form-grid > :nth-child(9),
+  .affiliate-edit-post-form-grid > :nth-child(10),
+  .affiliate-edit-post-form-grid > :nth-child(11),
+  .affiliate-edit-post-form-grid > :nth-child(14) {
+    grid-column: span 3;
   }
 
   .affiliate-edit-post-form-grid.single {
     grid-template-columns: 1fr;
   }
 
+  .affiliate-edit-post-form-grid.single > * {
+    grid-column: auto;
+  }
+
   .affiliate-edit-post-field,
   .affiliate-edit-post-upload-field {
+    min-width: 0;
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 6px;
   }
 
   .affiliate-edit-post-field-full {
-    grid-column: span 2;
+    grid-column: 1 / -1 !important;
   }
 
   .affiliate-edit-post-label {
     display: inline-flex;
     align-items: center;
-    gap: 8px;
-    font-size: 13px;
-    font-weight: 800;
-    color: #111827;
+    gap: 6px;
+    color: #6b7280;
+    font-size: 9px;
+    line-height: 1.2;
+    font-weight: 600;
+    letter-spacing: 0.025em;
+    text-transform: uppercase;
+  }
+
+  .affiliate-edit-post-label svg {
+    width: 13px;
+    height: 13px;
+    color: #6b7280;
   }
 
   .affiliate-edit-post-input {
     width: 100%;
-    min-height: 50px;
-    border-radius: 16px;
-    border: 1px solid #dbe2ea;
+    min-height: 42px;
+    padding: 0 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 10px;
+    outline: 0;
     background: #ffffff;
-    padding: 0 14px;
-    font-size: 14px;
     color: #111827;
-    outline: none;
-    transition: 0.2s ease;
+    font-size: 11px;
+    line-height: 1.4;
+    font-weight: 500;
+    transition: border-color 140ms ease, box-shadow 140ms ease;
+  }
+
+  .affiliate-edit-post-input::placeholder {
+    color: #6b7280;
+    opacity: 1;
   }
 
   .affiliate-edit-post-input:focus {
     border-color: #111827;
-    box-shadow: 0 0 0 4px rgba(17, 24, 39, 0.06);
+    box-shadow: 0 0 0 2px rgba(17, 24, 39, 0.06);
   }
 
   .affiliate-edit-post-textarea {
-    min-height: 110px;
-    padding: 14px;
+    min-height: 78px;
+    padding: 10px 12px;
     resize: vertical;
   }
 
   .affiliate-edit-post-upload-row {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
-    gap: 10px;
-    align-items: center;
+    gap: 8px;
+    align-items: end;
   }
 
   .affiliate-edit-post-upload-btn {
-    min-height: 50px;
-    padding: 0 16px;
-    border-radius: 14px;
-    border: 1px solid #111827;
-    background: #111827;
-    color: #ffffff;
-    font-size: 14px;
-    font-weight: 800;
+    min-height: 38px;
+    padding: 0 14px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
+    gap: 6px;
+    border: 1px solid #111827;
+    border-radius: 10px;
+    background: #111827;
+    color: #ffffff;
+    font-size: 11px;
+    font-weight: 600;
     cursor: pointer;
+  }
+
+  .affiliate-edit-post-upload-btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
   }
 
   .affiliate-edit-post-inline-preview {
     width: 100%;
-    padding: 10px;
-    border: 1px solid #edf2f7;
-    border-radius: 16px;
+    padding: 8px;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
     background: #f8fafc;
   }
 
+  .affiliate-edit-post-inline-preview img {
+    border-radius: 9px !important;
+  }
+
   .affiliate-edit-post-block {
-    background: #f8fafc;
-    border: 1px solid #edf2f7;
-    border-radius: 22px;
-    padding: 18px;
+    width: 100%;
+    min-width: 0;
+    margin-top: 2px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    border: 1px solid #dfe3e8;
+    border-radius: 14px;
+    background: #ffffff;
+  }
+
+  .affiliate-edit-post-block + .affiliate-edit-post-block {
+    margin-top: 0;
+  }
+
+  .affiliate-edit-post-block-head {
+    width: 100%;
+    margin-bottom: 0;
+    padding-bottom: 2px;
+  }
+
+  .affiliate-edit-post-block-title {
+    font-size: 15px;
+    line-height: 1.35;
+    font-weight: 650;
   }
 
   .affiliate-edit-post-stack {
     display: flex;
     flex-direction: column;
-    gap: 14px;
+    gap: 10px;
   }
 
   .affiliate-edit-post-section-group {
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 10px;
   }
 
   .affiliate-edit-post-section-title {
-    font-size: 14px;
-    font-weight: 900;
+    padding: 2px 0;
     color: #111827;
-    letter-spacing: 0.02em;
-    padding: 2px 2px 0;
+    font-size: 11px;
+    line-height: 1.3;
+    font-weight: 600;
   }
 
   .affiliate-edit-post-card {
-    background: #ffffff;
+    padding: 12px;
     border: 1px solid #e5e7eb;
-    border-radius: 18px;
-    padding: 16px;
+    border-radius: 12px;
+    background: #ffffff;
   }
 
   .affiliate-edit-post-card-top {
+    margin-bottom: 10px;
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    margin-bottom: 14px;
+    gap: 8px;
     flex-wrap: wrap;
   }
 
-  .affiliate-edit-post-chip {
+  .affiliate-edit-post-chip,
+  .affiliate-edit-post-lock-note,
+  .affiliate-edit-post-score-pill,
+  .affiliate-edit-post-review-state,
+  .affiliate-edit-post-word-rule,
+  .affiliate-edit-post-required-tag,
+  .affiliate-edit-post-status {
+    min-height: 25px;
+    padding: 0 9px;
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    min-height: 34px;
-    padding: 0 12px;
+    justify-content: center;
+    gap: 5px;
+    border: 1px solid #e5e7eb;
     border-radius: 999px;
     background: #f8fafc;
-    border: 1px solid #e5e7eb;
-    color: #111827;
-    font-size: 12px;
-    font-weight: 800;
+    color: #6b7280;
+    font-size: 9px;
+    line-height: 1;
+    font-weight: 600;
   }
 
-  .affiliate-edit-post-chip.muted {
-    color: #475467;
+  .affiliate-edit-post-score-pill {
+    margin-left: auto;
+  }
+
+  .affiliate-edit-post-status {
+    text-transform: capitalize;
+  }
+
+  .affiliate-edit-post-status.active,
+  .affiliate-edit-post-score-pill.good,
+  .affiliate-edit-post-review-state.good,
+  .affiliate-edit-post-word-rule.valid {
+    border-color: #abefc6;
+    background: #ecfdf3;
+    color: #027a48;
+  }
+
+  .affiliate-edit-post-status.draft,
+  .affiliate-edit-post-status.neutral {
+    border-color: #e5e7eb;
+    background: #f8fafc;
+    color: #6b7280;
+  }
+
+  .affiliate-edit-post-status.inactive,
+  .affiliate-edit-post-score-pill.warn,
+  .affiliate-edit-post-review-state.warn,
+  .affiliate-edit-post-word-rule.invalid {
+    border-color: #fed7aa;
+    background: #fff7ed;
+    color: #b54708;
+  }
+
+  .affiliate-edit-post-score-pill.bad,
+  .affiliate-edit-post-review-state.bad {
+    border-color: #fecaca;
+    background: #fef2f2;
+    color: #b42318;
+  }
+
+  .affiliate-edit-post-preset-note {
+    margin-bottom: 10px;
+    padding: 10px 12px;
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    border: 1px solid #fde68a;
+    border-radius: 10px;
+    background: #fffbeb;
+    color: #92400e;
+    font-size: 10px;
+    line-height: 1.5;
+    font-weight: 600;
+  }
+
+  .affiliate-edit-post-field-meta,
+  .affiliate-edit-post-review-top {
+    margin-top: 9px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    flex-wrap: wrap;
+    color: #6b7280;
+    font-size: 9px;
+    line-height: 1.45;
+  }
+
+  .affiliate-edit-post-review-box {
+    margin-top: 9px;
+    padding: 10px;
+    display: grid;
+    gap: 6px;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
     background: #ffffff;
+  }
+
+  .affiliate-edit-post-review-message {
+    color: #111827;
+    font-size: 10px;
+    line-height: 1.45;
+    font-weight: 600;
+  }
+
+  .affiliate-edit-post-review-suggestion,
+  .affiliate-edit-post-review-meta,
+  .affiliate-edit-post-suggested-note {
+    color: #6b7280;
+    font-size: 9px;
+    line-height: 1.45;
+  }
+
+  .affiliate-edit-post-review-tag {
+    width: fit-content;
+    padding: 5px 8px;
+    border-radius: 999px;
+    background: #f8fafc;
+    color: #6b7280;
+    font-size: 9px;
+    font-weight: 600;
   }
 
   .affiliate-edit-post-check {
+    min-height: 42px;
+    padding: 0 12px;
     display: flex;
     align-items: center;
-    gap: 10px;
-    min-height: 50px;
-    padding: 0 14px;
-    border-radius: 16px;
-    border: 1px solid #dbe2ea;
+    gap: 8px;
+    border: 1px solid #d1d5db;
+    border-radius: 10px;
     background: #ffffff;
-    font-size: 14px;
-    font-weight: 700;
     color: #111827;
+    font-size: 10px;
+    font-weight: 600;
   }
 
   .affiliate-edit-post-alert {
+    padding: 11px 12px;
     display: flex;
     align-items: flex-start;
-    gap: 10px;
-    padding: 14px 16px;
-    border-radius: 16px;
-    font-size: 14px;
-    font-weight: 700;
+    gap: 8px;
+    border-radius: 10px;
+    font-size: 11px;
+    line-height: 1.45;
+    font-weight: 600;
   }
 
   .affiliate-edit-post-alert.error {
-    background: #fff7ed;
     border: 1px solid #fed7aa;
+    background: #fff7ed;
     color: #9a3412;
   }
 
   .affiliate-edit-post-alert.success {
-    background: #ecfdf3;
     border: 1px solid #abefc6;
+    background: #ecfdf3;
     color: #027a48;
+  }
+
+  .affiliate-edit-post-actions {
+    padding-top: 2px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .affiliate-edit-post-btn {
+    min-height: 38px;
+    padding: 0 14px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    border: 1px solid #d1d5db;
+    border-radius: 10px;
+    background: #ffffff;
+    color: #111827;
+    font-size: 11px;
+    line-height: 1;
+    font-weight: 600;
+    text-decoration: none;
+    cursor: pointer;
+  }
+
+  .affiliate-edit-post-btn.primary {
+    border-color: #111827;
+    background: #111827;
+    color: #ffffff;
+  }
+
+  .affiliate-edit-post-btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
   }
 
   .affiliate-edit-post-summary {
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 2px;
   }
 
   .affiliate-edit-post-summary-row {
+    min-height: 32px;
+    padding: 5px 0;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 12px;
-    padding: 14px 16px;
-    background: #f8fafc;
-    border: 1px solid #edf2f7;
-    border-radius: 16px;
+    gap: 10px;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
   }
 
   .affiliate-edit-post-summary-row span {
     color: #6b7280;
-    font-weight: 700;
-    font-size: 13px;
+    font-size: 10px;
+    line-height: 1.3;
+    font-weight: 500;
   }
 
   .affiliate-edit-post-summary-row strong {
+    max-width: 62%;
     color: #111827;
-    font-weight: 900;
+    font-size: 10px;
+    line-height: 1.35;
+    font-weight: 600;
     text-align: right;
-    word-break: break-word;
-  }
-
-  .affiliate-edit-post-summary-card {
-    border-radius: 20px;
-    padding: 18px;
-    background: linear-gradient(135deg, #111827 0%, #1d4ed8 100%);
-    color: #ffffff;
-    margin-bottom: 16px;
-  }
-
-  .affiliate-edit-post-summary-score {
-    font-size: 44px;
-    font-weight: 900;
-    line-height: 1;
-    margin-bottom: 8px;
-  }
-
-  .affiliate-edit-post-summary-line {
-    font-size: 13px;
-    color: rgba(255,255,255,0.85);
-  }
-
-  .affiliate-edit-post-score-pill {
-    margin-left: auto;
-    display: inline-flex;
-    align-items: center;
-    min-height: 30px;
-    padding: 0 10px;
-    border-radius: 999px;
-    font-size: 12px;
-    font-weight: 800;
-    border: 1px solid transparent;
-  }
-
-  .affiliate-edit-post-score-pill.good,
-  .affiliate-edit-post-review-state.good {
-    background: #ecfdf3;
-    color: #027a48;
-    border-color: #abefc6;
-  }
-
-  .affiliate-edit-post-score-pill.warn,
-  .affiliate-edit-post-review-state.warn {
-    background: #fff7ed;
-    color: #b54708;
-    border-color: #fed7aa;
-  }
-
-  .affiliate-edit-post-score-pill.bad,
-  .affiliate-edit-post-review-state.bad {
-    background: #fef2f2;
-    color: #b42318;
-    border-color: #fecaca;
-  }
-
-  .affiliate-edit-post-review-box {
-    margin-top: 14px;
-    border: 1px solid #e5e7eb;
-    background: #ffffff;
-    border-radius: 16px;
-    padding: 14px;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
-
-  .affiliate-edit-post-review-top {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    flex-wrap: wrap;
-  }
-
-  .affiliate-edit-post-review-state {
-    display: inline-flex;
-    align-items: center;
-    min-height: 30px;
-    padding: 0 10px;
-    border-radius: 999px;
-    font-size: 12px;
-    font-weight: 800;
-    border: 1px solid transparent;
-  }
-
-  .affiliate-edit-post-review-meta {
-    font-size: 12px;
-    color: #6b7280;
-    font-weight: 700;
-  }
-
-  .affiliate-edit-post-review-message {
-    font-size: 14px;
-    color: #111827;
-    font-weight: 800;
-    line-height: 1.5;
-  }
-
-  .affiliate-edit-post-review-suggestion {
-    font-size: 13px;
-    color: #6b7280;
-    line-height: 1.6;
-  }
-
-  .affiliate-edit-post-review-tag {
-    display: inline-flex;
-    width: fit-content;
-    min-height: 30px;
-    padding: 0 10px;
-    border-radius: 999px;
-    background: #eef2ff;
-    color: #4338ca;
-    font-size: 12px;
-    font-weight: 800;
-    align-items: center;
-  }
-
-  .affiliate-edit-post-plan-note,
-  .affiliate-edit-post-server-warning {
-    font-size: 13px;
-    line-height: 1.7;
-  }
-
-  .affiliate-edit-post-plan-note {
-    color: #6b7280;
-  }
-
-  .affiliate-edit-post-server-warning {
-    color: #b42318;
-    font-weight: 800;
-    margin-top: 10px;
-  }
-
-  .affiliate-edit-post-status {
-    display: inline-flex;
-    width: fit-content;
-    align-items: center;
-    justify-content: center;
-    min-height: 34px;
-    padding: 0 12px;
-    border-radius: 999px;
-    font-size: 12px;
-    font-weight: 800;
-    text-transform: capitalize;
-    border: 1px solid transparent;
-  }
-
-  .affiliate-edit-post-status.active {
-    background: #ecfdf3;
-    color: #027a48;
-    border-color: #abefc6;
-  }
-
-  .affiliate-edit-post-status.inactive {
-    background: #fff7ed;
-    color: #b54708;
-    border-color: #fed7aa;
-  }
-
-  .affiliate-edit-post-status.draft {
-    background: #f8fafc;
-    color: #475467;
-    border-color: #e4e7ec;
-  }
-
-  .affiliate-edit-post-status.neutral {
-    background: #eef2f7;
-    color: #344054;
-    border-color: #dbe2ea;
+    overflow-wrap: anywhere;
   }
 
   .affiliate-edit-post-preview-image,
   .affiliate-edit-post-preview-empty {
     width: 100%;
-    height: 240px;
-    border-radius: 18px;
-    border: 1px solid #edf2f7;
+    height: 190px;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
     background: #f8fafc;
   }
 
   .affiliate-edit-post-preview-image {
-    object-fit: cover;
     display: block;
+    object-fit: cover;
   }
 
   .affiliate-edit-post-preview-empty {
     display: grid;
     place-items: center;
+    gap: 6px;
     color: #6b7280;
-    gap: 8px;
+    font-size: 10px;
     text-align: center;
   }
 
-  .affiliate-edit-post-lock-note {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    min-height: 36px;
-    padding: 0 12px;
-    border-radius: 999px;
-    border: 1px solid #dbe2ea;
-    background: #ffffff;
+  .affiliate-edit-post-quality-box {
+    padding: 0;
+    border-radius: 0;
+    background: transparent;
     color: #111827;
-    font-size: 12px;
-    font-weight: 800;
   }
 
-  .affiliate-edit-post-preset-note {
-    display: flex;
-    align-items: flex-start;
-    gap: 10px;
-    padding: 12px 14px;
-    border-radius: 16px;
-    background: #fffbeb;
-    border: 1px solid #fde68a;
-    color: #92400e;
-    font-size: 13px;
+  .affiliate-edit-post-quality-score {
+    margin-bottom: 7px;
+    color: #111827;
+    font-size: 34px;
+    line-height: 1;
     font-weight: 700;
-    margin-bottom: 14px;
   }
 
-  .affiliate-edit-post-field-meta {
-    display: flex;
-    justify-content: space-between;
-    gap: 14px;
-    flex-wrap: wrap;
-    margin-top: 12px;
+  .affiliate-edit-post-quality-text {
+    margin-bottom: 4px;
+    color: #111827;
+    font-size: 10px;
+    line-height: 1.4;
+    font-weight: 600;
+  }
+
+  .affiliate-edit-post-quality-meta,
+  .affiliate-edit-post-plan-note,
+  .affiliate-edit-post-server-warning {
     color: #6b7280;
-    font-size: 12px;
+    font-size: 9px;
     line-height: 1.5;
   }
 
-  .affiliate-edit-post-suggested-note {
-    margin-top: 4px;
-    color: #b45309;
-    font-weight: 700;
+  .affiliate-edit-post-server-warning {
+    color: #b42318;
+    font-weight: 600;
   }
 
-  .affiliate-edit-post-word-rule {
-    display: inline-flex;
-    align-items: center;
-    gap: 10px;
+  .affiliate-edit-post-block > div[style] {
+    width: 100% !important;
+    min-width: 0 !important;
+    gap: 12px !important;
+    align-items: stretch !important;
+  }
+
+  .affiliate-edit-post-block > div[style] > * {
+    min-width: 0 !important;
+  }
+
+  .affiliate-edit-post-block button:not(.affiliate-edit-post-upload-btn) {
+    min-height: 32px !important;
+    padding: 0 11px !important;
+    border: 1px solid #dfe3e8 !important;
+    border-radius: 9px !important;
+    background: #f8fafc !important;
+    color: #475467 !important;
+    font-size: 11px !important;
+    line-height: 1 !important;
+    font-weight: 600 !important;
+    box-shadow: none !important;
+  }
+
+  .affiliate-edit-post-block button:not(.affiliate-edit-post-upload-btn):hover {
+    border-color: #c8cfd8 !important;
+    background: #f3f4f6 !important;
+    color: #111827 !important;
+  }
+
+  .affiliate-edit-post-block input:not([type="file"]),
+  .affiliate-edit-post-block textarea {
+    width: 100% !important;
+    min-width: 0 !important;
+    border: 1px solid #cfd5dd !important;
+    border-radius: 10px !important;
+    background: #ffffff !important;
+    color: #111827 !important;
+    font-size: 15px !important;
+    line-height: 1.55 !important;
+    font-weight: 400 !important;
+    box-shadow: none !important;
+  }
+
+  .affiliate-edit-post-block input:not([type="file"]) {
+    min-height: 44px !important;
+    padding: 0 12px !important;
+  }
+
+  .affiliate-edit-post-block textarea {
+    min-height: 132px !important;
+    padding: 12px 13px !important;
+    resize: vertical !important;
+  }
+
+  .affiliate-edit-post-block input:not([type="file"])::placeholder,
+  .affiliate-edit-post-block textarea::placeholder {
+    color: #98a2b3 !important;
+    opacity: 1 !important;
+  }
+
+  .affiliate-edit-post-block input:not([type="file"]):focus,
+  .affiliate-edit-post-block textarea:focus {
+    border-color: #111827 !important;
+    outline: 0 !important;
+    box-shadow: 0 0 0 2px rgba(17, 24, 39, 0.06) !important;
+  }
+
+  .affiliate-edit-post-block input[type="file"] {
+    width: 100% !important;
+    min-height: 42px !important;
+    padding: 5px !important;
+    border: 1px solid #d1d5db !important;
+    border-radius: 10px !important;
+    background: #ffffff !important;
+    color: #475467 !important;
+    font-size: 11px !important;
+  }
+
+  .affiliate-edit-post-block input[type="file"]::file-selector-button {
     min-height: 30px;
-    padding: 0 10px;
-    border-radius: 999px;
-    font-size: 12px;
-    font-weight: 800;
-    border: 1px solid transparent;
+    margin-right: 10px;
+    padding: 0 11px;
+    border: 0;
+    border-radius: 7px;
+    background: #111827;
+    color: #ffffff;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
   }
 
-  .affiliate-edit-post-word-rule.valid {
-    background: #ecfdf3;
-    color: #027a48;
-    border-color: #abefc6;
+  .affiliate-edit-post-block label,
+  .affiliate-edit-post-block .affiliate-edit-post-label {
+    font-size: 10px !important;
+    line-height: 1.3 !important;
   }
 
-  .affiliate-edit-post-word-rule.invalid {
-    background: #fff7ed;
-    color: #b54708;
-    border-color: #fed7aa;
-  }
-
-  .affiliate-edit-post-required-tag {
-    display: inline-flex;
-    align-items: center;
-    min-height: 30px;
-    padding: 0 10px;
-    border-radius: 999px;
-    background: #f8fafc;
-    border: 1px solid #e5e7eb;
-    color: #111827;
-    font-size: 12px;
-    font-weight: 800;
+  .affiliate-edit-post-block img {
+    width: 100%;
+    max-width: 100%;
+    border-radius: 10px !important;
   }
 
   @media (max-width: 1100px) {
     .affiliate-edit-post-grid {
       grid-template-columns: 1fr;
     }
-  }
 
-  @media (max-width: 991px) {
-    .affiliate-edit-post-hero {
-      flex-direction: column;
-      padding: 20px;
-    }
-
-    .affiliate-edit-post-title {
-      font-size: 26px;
-    }
-
-    .affiliate-edit-post-panel {
-      padding: 18px;
+    .affiliate-edit-post-side-stack {
+      position: static;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
     }
   }
 
   @media (max-width: 767px) {
-    .affiliate-edit-post-title {
-      font-size: 22px;
+    .affiliate-edit-post-command {
+      min-height: 52px;
+      margin-bottom: 10px;
+      padding: 8px 12px;
+      border-radius: 12px;
     }
 
-    .affiliate-edit-post-subtitle {
+    .affiliate-edit-post-command-left > strong {
       font-size: 14px;
     }
 
-    .affiliate-edit-post-form-grid,
+    .affiliate-edit-post-command-left .affiliate-edit-post-status {
+      display: none;
+    }
+
+    .affiliate-edit-post-command-actions {
+      gap: 6px;
+    }
+
+    .affiliate-edit-post-command-actions .affiliate-edit-post-btn {
+      min-height: 36px;
+      padding: 0 11px;
+      font-size: 10px;
+    }
+
+    .affiliate-edit-post-command-actions .affiliate-edit-post-btn svg {
+      display: none;
+    }
+
+    .affiliate-edit-post-grid {
+      gap: 10px;
+    }
+
+    .affiliate-edit-post-panel {
+      padding: 14px;
+      border-radius: 14px;
+    }
+
+    .affiliate-edit-post-form-grid {
+      grid-template-columns: 1fr;
+      gap: 9px;
+    }
+
+    .affiliate-edit-post-form-grid > * {
+      grid-column: auto !important;
+    }
+
+    .affiliate-edit-post-label {
+      font-size: 8px;
+    }
+
+    .affiliate-edit-post-input {
+      min-height: 40px;
+      border-radius: 9px;
+      font-size: 10px;
+    }
+
+    .affiliate-edit-post-textarea {
+      min-height: 72px;
+    }
+
     .affiliate-edit-post-upload-row {
       grid-template-columns: 1fr;
     }
 
-    .affiliate-edit-post-field-full {
-      grid-column: span 1;
+    .affiliate-edit-post-upload-btn {
+      width: 100%;
+      min-height: 36px;
+      border-radius: 9px;
+      font-size: 10px;
     }
 
-    .affiliate-edit-post-hero-actions,
-    .affiliate-edit-post-actions,
-    .affiliate-edit-post-block-head {
+    .affiliate-edit-post-block {
+      padding: 13px;
+      gap: 10px;
+    }
+
+    .affiliate-edit-post-block-title {
+      font-size: 14px;
+    }
+
+    .affiliate-edit-post-block input:not([type="file"]),
+    .affiliate-edit-post-block textarea {
+      font-size: 14px !important;
+    }
+
+    .affiliate-edit-post-block textarea {
+      min-height: 120px !important;
+    }
+
+    .affiliate-edit-post-block button:not(.affiliate-edit-post-upload-btn) {
+      min-height: 32px !important;
+      font-size: 11px !important;
+    }
+
+    .affiliate-edit-post-card {
+      padding: 11px;
+    }
+
+    .affiliate-edit-post-side-stack {
+      display: flex;
+    }
+
+    .affiliate-edit-post-summary-row {
+      min-height: 30px;
+    }
+
+    .affiliate-edit-post-preview-image,
+    .affiliate-edit-post-preview-empty {
+      height: 170px;
+    }
+
+    .affiliate-edit-post-actions {
       flex-direction: column;
       align-items: stretch;
     }
 
-    .affiliate-edit-post-btn,
-    .affiliate-edit-post-upload-btn {
+    .affiliate-edit-post-actions .affiliate-edit-post-btn {
       width: 100%;
+      min-height: 36px;
     }
 
-    .affiliate-edit-post-summary-row,
-    .affiliate-edit-post-card-top,
-    .affiliate-edit-post-field-meta,
-    .affiliate-edit-post-review-top {
-      flex-direction: column;
-      align-items: flex-start;
+    .affiliate-edit-post-panel-main .affiliate-edit-post-panel-head {
+      margin-bottom: 10px;
     }
 
-    .affiliate-edit-post-score-pill {
-      margin-left: 0;
+    .affiliate-edit-post-block-head {
+      align-items: center;
+      flex-direction: row;
     }
+  }
+
+  @media (max-width: 420px) {
+    .affiliate-edit-post-command {
+      gap: 8px;
+    }
+
+    .affiliate-edit-post-command-actions .affiliate-edit-post-btn {
+      padding: 0 9px;
+    }
+
+    .affiliate-edit-post-panel {
+      padding: 12px;
+    }
+
+    .affiliate-edit-post-block {
+      padding: 12px;
+    }
+
+    .affiliate-edit-post-block textarea {
+      min-height: 112px !important;
+    }
+  }
+  .affiliate-edit-post-summary-card {
+    margin-bottom: 10px;
+    padding: 14px;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    background: #f9fafb;
+  }
+
+  .affiliate-edit-post-summary-score {
+    margin-bottom: 6px;
+    color: #111827;
+    font-size: 28px;
+    line-height: 1;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+
+  .affiliate-edit-post-summary-line {
+    color: #6b7280;
+    font-size: 12px;
+    line-height: 1.45;
+    font-weight: 500;
   }
 `;

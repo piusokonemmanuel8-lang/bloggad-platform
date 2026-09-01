@@ -370,12 +370,14 @@ async function getPublicPostSocial(req, res) {
       commentCount,
       giftCount,
       comments,
+      giftAccess,
     ] = await Promise.all([
       getReactionCounts(post.id),
       getFollowerCount(post.writer_id),
       getCommentCount(post.id),
       getGiftCount(post.id),
       getPublicComments(post.id),
+      getWriterGiftPlanAccess(post.writer_id),
     ]);
 
     return res.status(200).json({
@@ -389,7 +391,9 @@ async function getPublicPostSocial(req, res) {
         id: post.writer_id,
         name: post.writer_name,
         follower_count: followerCount,
+        can_receive_gifts: !!giftAccess.allowed,
       },
+      writer_can_receive_gifts: !!giftAccess.allowed,
       counts: {
         love: reactionCounts.love_count,
         applaud: reactionCounts.applaud_count,

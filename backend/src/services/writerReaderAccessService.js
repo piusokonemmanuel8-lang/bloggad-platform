@@ -899,13 +899,6 @@ async function setWriterPostAccess({
       throw fail('An active paid Writer plan is required for premium posts.', 403);
     }
 
-    if (!planFeatureEnabled(paidPlan, 'can_publish_premium_posts')) {
-      throw fail(
-        'Your current Writer plan does not include Premium Post publishing.',
-        403
-      );
-    }
-
     if (estimatedReadSeconds <= 1) {
       throw fail(
         'Add readable post content before enabling Premium Post and Free Read.'

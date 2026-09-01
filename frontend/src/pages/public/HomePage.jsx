@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  BarChart3,
   Bell,
   Bookmark,
   BookOpen,
@@ -131,7 +130,7 @@ function StoryCard({
   const author = post?.writer_name || post?.website_name || 'Writer';
 
   return (
-    <article className="bh-story-card">
+    <article className={`bh-story-card ${post?.featured_image ? '' : 'bh-story-card-no-thumb'}`.trim()}>
       <div className="bh-story-main">
         <div className="bh-story-author">
           <Link
@@ -207,58 +206,60 @@ function StoryCard({
               <span className="bh-action-count">{formatCompact(stats?.comments)}</span>
             </button>
 
-            <button
-              type="button"
-              className="bh-gift-action"
-              title="Gift this Writer"
-              aria-label="Gift this Writer"
-              onClick={(event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                onGift(post);
-              }}
-            >
-              <Gift size={17} />
-              <span
-                className="bh-action-label"
-                style={{
-                  position: 'relative',
-                  display: 'inline-block',
+            {stats?.can_receive_gifts ? (
+              <button
+                type="button"
+                className="bh-gift-action"
+                title="Gift this Writer"
+                aria-label="Gift this Writer"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  onGift(post);
                 }}
               >
-                Gift
-                {Number(stats?.gifts || 0) > 0 ? (
-                  <span
-                    aria-label={String(Number(stats?.gifts || 0)) + ' Gifts'}
-                    style={{
-                      position: 'absolute',
-                      top: -10,
-                      right: -6,
-                      minWidth: 13,
-                      height: 13,
-                      padding: '0 2px',
-                      borderRadius: 999,
-                      border: '1.5px solid #ffffff',
-                      background: '#9a6700',
-                      color: '#ffffff',
-                      fontSize: 8,
-                      fontWeight: 900,
-                      lineHeight: '11px',
-                      textAlign: 'center',
-                      boxSizing: 'border-box',
-                      boxShadow: '0 1px 2px rgba(17, 24, 39, 0.18)',
-                      pointerEvents: 'none',
-                      transform: 'translate(0, 0)',
-                      zIndex: 1,
-                    }}
-                  >
-                    {Number(stats?.gifts || 0) > 99
-                      ? '99+'
-                      : Number(stats?.gifts || 0)}
-                  </span>
-                ) : null}
-              </span>
-            </button>
+                <Gift size={17} />
+                <span
+                  className="bh-action-label"
+                  style={{
+                    position: 'relative',
+                    display: 'inline-block',
+                  }}
+                >
+                  Gift
+                  {Number(stats?.gifts || 0) > 0 ? (
+                    <span
+                      aria-label={String(Number(stats?.gifts || 0)) + ' Gifts'}
+                      style={{
+                        position: 'absolute',
+                        top: -10,
+                        right: -6,
+                        minWidth: 13,
+                        height: 13,
+                        padding: '0 2px',
+                        borderRadius: 999,
+                        border: '1.5px solid #ffffff',
+                        background: '#9a6700',
+                        color: '#ffffff',
+                        fontSize: 8,
+                        fontWeight: 900,
+                        lineHeight: '11px',
+                        textAlign: 'center',
+                        boxSizing: 'border-box',
+                        boxShadow: '0 1px 2px rgba(17, 24, 39, 0.18)',
+                        pointerEvents: 'none',
+                        transform: 'translate(0, 0)',
+                        zIndex: 1,
+                      }}
+                    >
+                      {Number(stats?.gifts || 0) > 99
+                        ? '99+'
+                        : Number(stats?.gifts || 0)}
+                    </span>
+                  ) : null}
+                </span>
+              </button>
+            ) : null}
           </div>
 
           <div className="bh-story-actions bh-secondary-social">
@@ -308,9 +309,7 @@ function StoryCard({
         <Link className="bh-story-thumb" to={url}>
           <img src={post.featured_image} alt="" />
         </Link>
-      ) : (
-        <Link className="bh-story-thumb bh-story-thumb-empty" to={url} aria-label={post?.title || 'Story'} />
-      )}
+      ) : null}
     </article>
   );
 }
@@ -345,6 +344,7 @@ function WriterRow({ writer, following, onFollow }) {
 
 export default function HomePage() {
   const { user, isAuthenticated } = useAuth();
+  const [homepagePrimaryPageLogo, setHomepagePrimaryPageLogo] = useState('');
 
   const [pageData, setPageData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -367,6 +367,34 @@ export default function HomePage() {
   const [giftNotice, setGiftNotice] = useState('');
   const giftRequestKeyRef = useRef('');
   const loaderRef = useRef(null);
+
+  useEffect(() => {
+    let active = true;
+    const userId = Number(user?.id || 0);
+
+    if (!isAuthenticated || !userId) {
+      setHomepagePrimaryPageLogo('');
+      return () => {
+        active = false;
+      };
+    }
+
+    api
+      .get(`/api/public/writer-pages/writers/${encodeURIComponent(userId)}/primary`, {
+        skipGlobalLoader: true,
+      })
+      .then(({ data }) => {
+        if (!active) return;
+        setHomepagePrimaryPageLogo(String(data?.page?.logo_url || '').trim());
+      })
+      .catch(() => {
+        if (active) setHomepagePrimaryPageLogo('');
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [isAuthenticated, user?.id]);
 
   useEffect(() => {
     let active = true;
@@ -506,6 +534,9 @@ const allPosts = useMemo(() => {
             comments: Number(data?.counts?.comments || 0),
             gifts: Number(data?.counts?.gifts || 0),
             writer_id: Number(data?.writer?.id || 0),
+            can_receive_gifts:
+              data?.writer_can_receive_gifts === true ||
+              data?.writer?.can_receive_gifts === true,
           };
         });
 
@@ -992,17 +1023,22 @@ const allPosts = useMemo(() => {
       <aside className="bh-sidebar">
         <div className="bh-sidebar-brand">
           <Menu size={22} />
-          <Link to="/">Bloggad</Link>
+          <Link to="/" aria-label="Bloggad home">
+            <img
+              src="/bloggad-logo.png"
+              alt="Bloggad"
+              style={{ display: 'block', width: 132, height: 'auto' }}
+            />
+          </Link>
         </div>
 
         <nav className="bh-sidebar-nav">
           <SidebarItem active to="/" icon={Home} label="Home" />
-          <SidebarItem to="/reader/saved" icon={Bookmark} label="Library" />
+          <SidebarItem to="/reader/saved-posts" icon={Bookmark} label="Library" />
           <SidebarItem to="/reader/profile" icon={User} label="Profile" />
           <SidebarItem to="/writer/posts" icon={BookOpen} label="Stories" />
           <SidebarItem to="/topics" icon={Tags} label="Topics" />
           <SidebarItem to="/categories" icon={LayoutGrid} label="Categories" />
-          <SidebarItem to="/writer/analytics" icon={BarChart3} label="Stats" />
         </nav>
 
         <div className="bh-sidebar-divider" />
@@ -1021,7 +1057,13 @@ const allPosts = useMemo(() => {
       </aside>
 
       <header className="bh-header">
-        <Link className="bh-mobile-brand" to="/">Bloggad</Link>
+        <Link className="bh-mobile-brand" to="/" aria-label="Bloggad home">
+          <img
+            src="/bloggad-logo.png"
+            alt="Bloggad"
+            style={{ display: 'block', width: 108, height: 'auto' }}
+          />
+        </Link>
 
         <label className="bh-search">
           <Search size={17} />
@@ -1042,11 +1084,33 @@ const allPosts = useMemo(() => {
             <span>Write</span>
           </Link>
 
-          <Bell className="bh-header-icon" size={20} />
+          <Link
+            className="bh-header-icon"
+            to="/reader/notifications"
+            aria-label="Notifications"
+            title="Notifications"
+          >
+            <Bell size={20} />
+          </Link>
 
           {isAuthenticated && user ? (
             <Link className="bh-profile-circle" to="/reader/profile">
-              {String(user?.name || user?.email || 'U').slice(0, 1).toUpperCase()}
+              {homepagePrimaryPageLogo ? (
+                <img
+                  src={homepagePrimaryPageLogo}
+                  alt=""
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    display: 'block',
+                    objectFit: 'cover',
+                    borderRadius: '50%',
+                  }}
+                  onError={() => setHomepagePrimaryPageLogo('')}
+                />
+              ) : (
+                String(user?.name || user?.email || 'U').slice(0, 1).toUpperCase()
+              )}
             </Link>
           ) : (
             <Link className="bh-profile-circle" to="/reader/login">
@@ -1116,7 +1180,7 @@ const allPosts = useMemo(() => {
 
         <aside className="bh-right-rail">
           <section className="bh-rail-section">
-            <h2>Staff Picks</h2>
+            <h2>Featured Stories</h2>
             <div className="bh-staff-list">
               {staffPicks.map((post) => (
                 <StaffPick key={post.id} post={post} />
@@ -1224,7 +1288,7 @@ const allPosts = useMemo(() => {
       ) : null}
       <nav className="bh-mobile-bottom">
         <Link className="active" to="/"><Home size={19} /><span>Home</span></Link>
-        <Link to="/reader/saved"><Bookmark size={19} /><span>Library</span></Link>
+        <Link to="/reader/saved-posts"><Bookmark size={19} /><span>Library</span></Link>
         <Link to="/writer/posts/create"><PenSquare size={19} /><span>Write</span></Link>
         <Link to="/reader/profile"><User size={19} /><span>Profile</span></Link>
       </nav>

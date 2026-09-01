@@ -417,12 +417,13 @@ export default function AffiliateLayout() {
               aria-label="Go to Bloggad homepage"
               onClick={() => setMobileOpen(false)}
             >
-              <div className="affiliate-layout-brand-logo">
-                {dashboardMode ? <span className="dashboard-brand-dot" /> : 'BG'}
-              </div>
+              <img
+                src="/bloggad-logo.png"
+                alt="Bloggad"
+                style={{ display: 'block', width: 126, height: 'auto', flexShrink: 0 }}
+              />
 
               <div className="affiliate-layout-brand-copy">
-                <h2>Bloggad</h2>
                 <p>Writer Studio</p>
               </div>
             </Link>
@@ -481,10 +482,11 @@ export default function AffiliateLayout() {
                 style={{ color: 'inherit', textDecoration: 'none' }}
                 aria-label="Go to Bloggad homepage"
               >
-                <span className="dashboard-mobile-brand-mark">
-                  <span />
-                </span>
-                <strong>Bloggad</strong>
+                <img
+                  src="/bloggad-logo.png"
+                  alt="Bloggad"
+                  style={{ display: 'block', width: 98, height: 'auto' }}
+                />
               </Link>
 
               <RoleSwitcher currentRole="writer" iconOnly />
