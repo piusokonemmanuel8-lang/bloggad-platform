@@ -282,7 +282,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
             <Route path="/writer/posts" element={<AffiliatePostsPage />} />
             <Route path="/writer/posts/create" element={<AffiliateCreatePostPage />} />
             <Route path="/writer/posts/:id/edit" element={<AffiliateEditPostPage />} />
-            <Route path="/writer/templates/choose" element={<AffiliateChooseTemplatePage />} />
+            <Route path="/writer/templates/choose" element={<WriterPaidPlanGate feature="Templates"><AffiliateChooseTemplatePage /></WriterPaidPlanGate>} />
             <Route
               path="/writer/menus"
               element={
@@ -309,23 +309,23 @@ ReactDOM.createRoot(document.getElementById('root')).render(
             />
             <Route path="/writer/analytics" element={<AffiliateAnalyticsPage />} />
             <Route path="/writer/media" element={<AffiliateMediaLibraryPage />} />
-            <Route path="/writer/readers" element={<AffiliateCustomersPage />} />
-            <Route path="/writer/email-lists" element={<AffiliateEmailListsPage />} />
+            <Route path="/writer/readers" element={<WriterPaidPlanGate feature="Readers"><AffiliateCustomersPage /></WriterPaidPlanGate>} />
+            <Route path="/writer/email-lists" element={<WriterPaidPlanGate feature="Email Lists"><AffiliateEmailListsPage /></WriterPaidPlanGate>} />
             <Route path="/writer/messages" element={<AffiliateChatsPage />} />
             <Route path="/writer/plan" element={<AffiliateSubscriptionPage />} />
             <Route path="/writer/settings" element={<AffiliateSettingsPage />} />
-            <Route path="/writer/series" element={<WriterSeriesPage />} />
-            <Route path="/writer/courses" element={<WriterCoursesPage />} />
-            <Route path="/writer/community" element={<WriterCommunityPage />} />
-            <Route path="/writer/wallet" element={<WriterWalletPage />} />
-            <Route path="/writer/memberships" element={<WriterMembershipsPage />} />
+            <Route path="/writer/series" element={<WriterPaidPlanGate feature="Series and Books"><WriterSeriesPage /></WriterPaidPlanGate>} />
+            <Route path="/writer/courses" element={<WriterPaidPlanGate feature="Courses"><WriterCoursesPage /></WriterPaidPlanGate>} />
+            <Route path="/writer/community" element={<WriterPaidPlanGate feature="Community"><WriterCommunityPage /></WriterPaidPlanGate>} />
+            <Route path="/writer/wallet" element={<WriterPaidPlanGate feature="Writer Wallet"><WriterWalletPage /></WriterPaidPlanGate>} />
+            <Route path="/writer/memberships" element={<WriterPaidPlanGate feature="Memberships"><WriterMembershipsPage /></WriterPaidPlanGate>} />
             <Route path="/writer/notifications" element={<WriterSocialNotificationsPage />} />
-            <Route path="/writer/leaderboard" element={<AffiliateLeaderboardPage />} />
-            <Route path="/writer/ads" element={<WriterPaidPlanGate feature="Ads Account"><WriterAdsPage /></WriterPaidPlanGate>} />
+            <Route path="/writer/leaderboard" element={<WriterPaidPlanGate feature="Leaderboard"><AffiliateLeaderboardPage /></WriterPaidPlanGate>} />
+            <Route path="/writer/ads" element={<WriterAdsPage />} />
             <Route path="/writer/monetization" element={<Navigate to="/writer/monetization/eligibility" replace />} />
-            <Route path="/writer/monetization/eligibility" element={<AffiliateMonetizationEligibilityPage />} />
-            <Route path="/writer/monetization/analytics" element={<AffiliateMonetizationAnalyticsOverviewPage />} />
-            <Route path="/writer/monetization/blogpulse-analytics" element={<AffiliateBlogPulseAnalyticsPage />} />
+            <Route path="/writer/monetization/eligibility" element={<WriterPaidPlanGate feature="Monetization"><AffiliateMonetizationEligibilityPage /></WriterPaidPlanGate>} />
+            <Route path="/writer/monetization/analytics" element={<WriterPaidPlanGate feature="Monetization"><AffiliateMonetizationAnalyticsOverviewPage /></WriterPaidPlanGate>} />
+            <Route path="/writer/monetization/blogpulse-analytics" element={<WriterPaidPlanGate feature="BlogPulse Earnings"><AffiliateBlogPulseAnalyticsPage /></WriterPaidPlanGate>} />
             <Route path="/writer/monetization/my-ads" element={<WriterPaidPlanGate feature="My Ads"><AffiliateMyAdsPage /></WriterPaidPlanGate>} />
             <Route path="/writer/monetization/ad-placement" element={<WriterPaidPlanGate feature="Ad Placement"><AffiliateAdPlacementPage /></WriterPaidPlanGate>} />
 
