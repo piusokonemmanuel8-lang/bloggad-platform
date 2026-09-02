@@ -198,7 +198,6 @@ function setTemplateFieldValidatedUrl(field = {}, validatedUrl) {
 
   return rawValue;
 }
-
 const RICH_TEXT_FIELD_TYPE = 'bloggad_rich_text_v1';
 const DEFAULT_INLINE_LINK_COLOR = '#2563eb';
 
@@ -2156,43 +2155,33 @@ async function createPost(req, res) {
       categoryIds: cleanTopicIds,
     });
 
-    let quality = null;
+    let quality = await runPostQualityReview({
+      postId,
+      userId,
+      productTitle: qualityContextTitle,
+    });
 
-    if (requestedStatus === 'published' && !shouldSchedule) {
-      const publishGate = await enforcePublishGate({
-        postId,
-        userId,
-        productTitle: qualityContextTitle,
-      });
+    const requiresAdminReview = requestedStatus === 'published' || shouldSchedule;
 
-      quality = publishGate.quality;
-
-      if (!publishGate.ok) {
-        const fullPost = await buildFullPostResponse(postId, userId);
-
-        return res.status(400).json({
-          ok: false,
-          message: `${publishGate.message}. Post was saved as draft.`,
-          post: fullPost,
-          quality_review: quality,
-          link_permissions: {
-            allow_external_links: !!linkPermission.allow_external_links,
-          },
-        });
-      }
-    } else {
-      quality = await runPostQualityReview({
-        postId,
-        userId,
-        productTitle: qualityContextTitle,
-      });
+    if (requiresAdminReview && !quality.blocked) {
+      await pool.query(
+        `UPDATE product_posts
+         SET status='draft',review_status='pending_review',published_at=NULL,updated_at=NOW()
+         WHERE id=? AND user_id=?`,
+        [postId, userId]
+      );
+      quality = { ...quality, review_status: 'pending_review' };
     }
 
     const fullPost = await buildFullPostResponse(postId, userId);
 
     return res.status(201).json({
       ok: true,
-      message: shouldSchedule ? 'Post scheduled successfully' : requestedStatus === 'published' ? 'Post published successfully' : 'Post created successfully',
+      message: shouldSchedule
+        ? 'Post scheduled and sent for admin review'
+        : requestedStatus === 'published'
+        ? 'Post submitted for admin review'
+        : 'Post created successfully',
       post: fullPost,
       quality_review: quality,
       link_permissions: {
@@ -2423,11 +2412,7 @@ async function updatePost(req, res) {
     }
 
     const shouldSchedule = !!cleanScheduledAt;
-    const safeStatus = shouldSchedule
-      ? 'draft'
-      : requestedStatus === 'published'
-      ? existingPost.status
-      : requestedStatus;
+    const safeStatus = requestedStatus === 'inactive' ? 'inactive' : 'draft';
 
     await pool.query(
       `
@@ -2446,6 +2431,7 @@ async function updatePost(req, res) {
         media_id = ?,
         scheduled_at = ?,
         status = ?,
+        published_at = NULL,
         updated_at = NOW()
       WHERE id = ?
         AND user_id = ?
@@ -2506,43 +2492,35 @@ async function updatePost(req, res) {
       });
     }
 
-    let quality = null;
+    let quality = await runPostQualityReview({
+      postId: existingPost.id,
+      userId,
+      productTitle: qualityContextTitle,
+    });
 
-    if (requestedStatus === 'published' && !shouldSchedule) {
-      const publishGate = await enforcePublishGate({
-        postId: existingPost.id,
-        userId,
-        productTitle: qualityContextTitle,
-      });
+    const requiresAdminReview =
+      existingPost.status === 'published' ||
+      ['approved', 'pending_review', 'needs_revision', 'rejected'].includes(existingPost.review_status) ||
+      requestedStatus === 'published' ||
+      shouldSchedule;
 
-      quality = publishGate.quality;
-
-      if (!publishGate.ok) {
-        const fullPost = await buildFullPostResponse(existingPost.id, userId);
-
-        return res.status(400).json({
-          ok: false,
-          message: `${publishGate.message}. Post remains in draft.`,
-          post: fullPost,
-          quality_review: quality,
-          link_permissions: {
-            allow_external_links: !!linkPermission.allow_external_links,
-          },
-        });
-      }
-    } else {
-      quality = await runPostQualityReview({
-        postId: existingPost.id,
-        userId,
-        productTitle: qualityContextTitle,
-      });
+    if (requiresAdminReview && !quality.blocked) {
+      await pool.query(
+        `UPDATE product_posts
+         SET status='draft',review_status='pending_review',published_at=NULL,updated_at=NOW()
+         WHERE id=? AND user_id=?`,
+        [existingPost.id, userId]
+      );
+      quality = { ...quality, review_status: 'pending_review' };
     }
 
     const fullPost = await buildFullPostResponse(existingPost.id, userId);
 
     return res.status(200).json({
       ok: true,
-      message: shouldSchedule ? 'Post scheduled successfully' : requestedStatus === 'published' ? 'Post updated and published successfully' : 'Post updated successfully',
+      message: requiresAdminReview
+        ? 'Post updated and returned to pending admin review'
+        : 'Post updated successfully',
       post: fullPost,
       quality_review: quality,
       link_permissions: {
@@ -2567,6 +2545,7 @@ async function publishDueScheduledPosts(limit = 25) {
     SELECT id, user_id
     FROM product_posts
     WHERE status = 'draft'
+      AND review_status = 'approved'
       AND scheduled_at IS NOT NULL
       AND scheduled_at <= NOW()
     ORDER BY scheduled_at ASC, id ASC
@@ -2647,30 +2626,37 @@ async function updatePostStatus(req, res) {
     }
 
     if (status === 'published') {
-      const publishGate = await enforcePublishGate({
+      let quality = await runPostQualityReview({
         postId,
         userId,
         productTitle: existingPost.product_title || existingPost.title,
       });
 
-      if (!publishGate.ok) {
+      if (quality.blocked) {
         const fullPost = await buildFullPostResponse(postId, userId);
-
         return res.status(400).json({
           ok: false,
-          message: publishGate.message,
+          message: quality.blocked_reason || 'Fix the highlighted sections before submitting for review',
           post: fullPost,
-          quality_review: publishGate.quality,
+          quality_review: quality,
         });
       }
 
+      await pool.query(
+        `UPDATE product_posts
+         SET status='draft',review_status='pending_review',published_at=NULL,updated_at=NOW()
+         WHERE id=? AND user_id=?`,
+        [postId, userId]
+      );
+
+      quality = { ...quality, review_status: 'pending_review' };
       const fullPost = await buildFullPostResponse(postId, userId);
 
       return res.status(200).json({
         ok: true,
-        message: 'Post status updated successfully',
+        message: 'Post submitted for admin review',
         post: fullPost,
-        quality_review: publishGate.quality,
+        quality_review: quality,
       });
     }
 
