@@ -497,6 +497,8 @@ export default function PublicWriterReaderActions({
   }
 
   async function openAppreciation() {
+    if (!writerCanReceiveGifts) return;
+
     try {
       setBusy('appreciation-load');
       setError('');
@@ -638,6 +640,9 @@ export default function PublicWriterReaderActions({
   const profilePath = `/${encodeURIComponent(websiteSlug || '')}/writer/${writerId}`;
   const locked = !!access?.locked;
   const membershipAvailable = !!membership?.available && !!membership?.offer;
+  const writerCanReceiveGifts =
+    social?.writer_can_receive_gifts === true ||
+    social?.writer?.can_receive_gifts === true;
   const minimumCredits = Number(appreciationSettings?.minimum_credits || 1);
   const maximumCredits =
     appreciationSettings?.maximum_credits === null ||
@@ -728,14 +733,16 @@ export default function PublicWriterReaderActions({
             Share
           </ActionButton>
 
-          <ActionButton
-            disabled={busy === 'appreciation-load'}
-            onClick={openAppreciation}
-            icon={Gift}
-            tone="support"
-          >
-            Appreciate
-          </ActionButton>
+          {writerCanReceiveGifts ? (
+            <ActionButton
+              disabled={busy === 'appreciation-load'}
+              onClick={openAppreciation}
+              icon={Gift}
+              tone="support"
+            >
+              Appreciate
+            </ActionButton>
+          ) : null}
 
           <ActionButton
             disabled={!!readerSession && messagingEligibility?.allowed === false}
@@ -780,7 +787,7 @@ export default function PublicWriterReaderActions({
           </div>
         ) : null}
 
-        {appreciationOpen ? (
+        {writerCanReceiveGifts && appreciationOpen ? (
           <form onSubmit={submitAppreciation} className="brt-inline-drawer appreciation">
             <div className="brt-drawer-heading">
               <div>

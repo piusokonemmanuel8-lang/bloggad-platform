@@ -85,7 +85,7 @@
 }
 
 .wpp-hero-inner {
-  width: min(880px, calc(100% - 32px));
+  width: min(1040px, calc(100% - 32px));
   margin: 0 auto;
   padding: 38px 0 18px;
 }
@@ -208,11 +208,11 @@
 }
 
 .wpp-content-grid {
-  width: min(980px, calc(100% - 32px));
+  width: min(1080px, calc(100% - 32px));
   margin: 22px auto 0;
   padding-bottom: 80px;
   display: grid;
-  grid-template-columns: minmax(0, 680px) 280px;
+  grid-template-columns: minmax(0, 760px) 296px;
   grid-template-areas:
     "article sidebar"
     "comments sidebar";
@@ -284,6 +284,26 @@
   font-size: 30px;
   line-height: 1.18;
   letter-spacing: -0.02em;
+}
+
+.wpp-body-quote {
+  margin: 2px 0;
+  padding: 16px 18px;
+  border-left: 4px solid var(--wpp-blue);
+  border-radius: 0 8px 8px 0;
+  background: #f7f9fc;
+  color: #343941;
+  font-size: 18px;
+  font-style: italic;
+  line-height: 1.65;
+}
+
+.wpp-body-divider {
+  width: 100%;
+  height: 0;
+  margin: 8px 0;
+  border: 0;
+  border-top: 1px solid var(--wpp-line);
 }
 
 .wpp-product-context,

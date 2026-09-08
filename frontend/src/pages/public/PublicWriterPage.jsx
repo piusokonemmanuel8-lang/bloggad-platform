@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import api from '../../api/axios';
+import WriterVerificationBadge from '../../components/common/WriterVerificationBadge';
 import './PublicWriterPageApproved.css';
 
 function compactNumber(value) {
@@ -200,7 +201,7 @@ function PostCard({
       <header className="pwp-post-head">
         <PageAvatar page={page} writer={writer} sizeClass="pwp-post-avatar" />
         <div className="pwp-post-author">
-          <strong>{page?.name || writer?.public_name || 'Writer Page'}</strong>
+          <strong>{page?.name || writer?.public_name || 'Writer Page'}<WriterVerificationBadge badge={writer?.verification_badge} size={15} /></strong>
           <span>{String(post?.content_type || 'article').replace(/_/g, ' ').toUpperCase()} - Public</span>
         </div>
       </header>
@@ -676,7 +677,7 @@ export default function PublicWriterPage() {
 
           <div className="pwp-profile-copy">
             <h1>{page.name}</h1>
-            <div className="pwp-byline">By {writer?.public_name || 'Writer'}</div>
+            <div className="pwp-byline">By {writer?.public_name || 'Writer'}<WriterVerificationBadge badge={writer?.verification_badge} size={17} /></div>
             <div className="pwp-header-summary">{headerSummary}</div>
           </div>
 
@@ -726,7 +727,7 @@ export default function PublicWriterPage() {
         </nav>
       </section>
 
-      <section className={`pwp-content pwp-tab-${activeTab}`}>
+      <section className={`pwp-content ${isPostFeedTab ? 'pwp-tab-posts' : `pwp-tab-${activeTab}`}`}>
         {isPostFeedTab ? (
           <>
             <aside className="pwp-sidebar">

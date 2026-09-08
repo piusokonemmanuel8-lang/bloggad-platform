@@ -41,17 +41,36 @@ function pickCreativeMarkup(campaign, creative) {
   };
 }
 
-async function getWebsiteMonetizationSettings(websiteId) {
-  if (!websiteId) return null;
+async function getWebsiteMonetizationSettings(
+  websiteId,
+  affiliateUserId = null
+) {
+  let ownerUserId = toNumber(affiliateUserId, null);
+
+  if (!ownerUserId && websiteId) {
+    const [ownerRows] = await pool.query(
+      `
+        SELECT user_id
+        FROM affiliate_websites
+        WHERE id = ?
+        LIMIT 1
+      `,
+      [websiteId]
+    );
+
+    ownerUserId = toNumber(ownerRows[0]?.user_id, null);
+  }
+
+  if (!ownerUserId) return null;
 
   const [rows] = await pool.query(
     `
       SELECT *
       FROM affiliate_monetization_settings
-      WHERE website_id = ?
+      WHERE user_id = ?
       LIMIT 1
     `,
-    [websiteId]
+    [ownerUserId]
   );
 
   return rows[0] || null;
@@ -200,7 +219,10 @@ async function servePublicAd(req, res) {
       });
     }
 
-    const monetizationSettings = await getWebsiteMonetizationSettings(websiteId);
+    const monetizationSettings = await getWebsiteMonetizationSettings(
+      websiteId,
+      affiliateUserId
+    );
 
     if (!monetizationSettings) {
       return res.status(200).json({
@@ -210,11 +232,11 @@ async function servePublicAd(req, res) {
       });
     }
 
-    if (Number(monetizationSettings.ad_system_enabled) !== 1) {
+    if (monetizationSettings.monetization_mode !== 'platform') {
       return res.status(200).json({
         ok: true,
         ad: null,
-        message: 'Ad system is disabled.',
+        message: 'Platform ad mode is disabled.',
       });
     }
 

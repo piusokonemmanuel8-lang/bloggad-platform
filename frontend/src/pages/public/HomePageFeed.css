@@ -272,6 +272,14 @@
   border-bottom: 1px solid var(--bh-line);
 }
 
+.bh-story-card-no-thumb {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.bh-story-card-no-thumb .bh-story-title,
+.bh-story-card-no-thumb .bh-story-excerpt {
+  max-width: none;
+}
 .bh-story-main {
   min-width: 0;
 }

@@ -143,6 +143,7 @@ export default function AdminAffiliatesPage() {
   const [statusSaving, setStatusSaving] = useState(false);
   const [websiteStatusSaving, setWebsiteStatusSaving] = useState(false);
   const [subscriptionSaving, setSubscriptionSaving] = useState(false);
+  const [verificationSaving, setVerificationSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
@@ -159,9 +160,22 @@ export default function AdminAffiliatesPage() {
   };
 
   const fetchSingleAffiliate = async (affiliateId) => {
-    const { data } = await api.get(`/api/admin/affiliates/${affiliateId}`);
-    const affiliate = data?.affiliate || null;
-    setAffiliateDetails(affiliate);
+    const [affiliateResponse, verificationResponse] = await Promise.all([
+      api.get(`/api/admin/affiliates/${affiliateId}`),
+      api.get(`/api/admin/affiliates/${affiliateId}/verification`),
+    ]);
+    const affiliate = affiliateResponse.data?.affiliate || null;
+    const verificationData = verificationResponse.data || {};
+    setAffiliateDetails(
+      affiliate
+        ? {
+            ...affiliate,
+            verification: verificationData.verification || null,
+            verification_badge: verificationData.badge || null,
+            gold_eligible: Boolean(verificationData.gold_eligible),
+          }
+        : null
+    );
 
     setSubscriptionForm({
       plan_id: affiliate?.subscription?.plan_id || '',
@@ -312,6 +326,35 @@ export default function AdminAffiliatesPage() {
       setError(err?.response?.data?.message || err.message || 'Failed to assign subscription');
     } finally {
       setSubscriptionSaving(false);
+    }
+  };
+
+  const handleVerificationAction = async (action) => {
+    if (!selectedAffiliateId) return;
+
+    const warning =
+      action === 'official'
+        ? 'Assign the protected Official badge to this writer? This badge cannot be purchased.'
+        : action === 'gold'
+        ? 'Approve this writer as a verified organization? An active $499 plan is required.'
+        : 'Remove this writer manual Gold or Official verification?';
+
+    if (!window.confirm(warning)) return;
+
+    try {
+      setVerificationSaving(true);
+      setError('');
+      setSuccess('');
+      const { data } = await api.put(
+        `/api/admin/affiliates/${selectedAffiliateId}/verification`,
+        { action }
+      );
+      await refreshAll(selectedAffiliateId);
+      setSuccess(data?.message || 'Writer verification updated successfully');
+    } catch (err) {
+      setError(err?.response?.data?.message || 'Failed to update writer verification');
+    } finally {
+      setVerificationSaving(false);
     }
   };
 
@@ -1013,6 +1056,95 @@ export default function AdminAffiliatesPage() {
                         <div style={{ fontWeight: 600, color: '#1d2327' }}>
                           {formatDateTime(affiliateDetails.subscription?.end_date)}
                         </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={{ ...cardStyle(), marginBottom: 20 }}>
+                    <div style={{ padding: '16px 18px', borderBottom: '1px solid #dcdcde' }}>
+                      <div style={{ fontSize: 16, fontWeight: 600, color: '#1d2327', marginBottom: 6 }}>
+                        Writer Verification
+                      </div>
+                      <div style={{ fontSize: 13, color: '#646970' }}>
+                        Blue and Purple are automatic. Gold and Official require Admin approval.
+                      </div>
+                    </div>
+
+                    <div style={{ padding: 18, display: 'grid', gap: 14 }}>
+                      <div style={{ ...cardStyle({ padding: 14, background: '#f6f7f7' }) }}>
+                        <div style={{ fontSize: 12, color: '#646970', marginBottom: 8 }}>
+                          Current Visible Badge
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+                          <ShieldCheck
+                            size={20}
+                            color={affiliateDetails.verification_badge?.color || '#8c8f94'}
+                          />
+                          <strong style={{ color: '#1d2327' }}>
+                            {affiliateDetails.verification_badge?.visible
+                              ? affiliateDetails.verification_badge.label
+                              : 'No badge'}
+                          </strong>
+                        </div>
+                      </div>
+
+                      <div style={{ fontSize: 13, color: '#646970', lineHeight: 1.55 }}>
+                        Gold eligibility:{' '}
+                        <strong style={{ color: affiliateDetails.gold_eligible ? '#166534' : '#991b1b' }}>
+                          {affiliateDetails.gold_eligible
+                            ? 'Active $499 organization plan confirmed'
+                            : 'Active $499 organization plan required'}
+                        </strong>
+                      </div>
+
+                      <div style={{ display: 'grid', gap: 9 }}>
+                        <button
+                          type="button"
+                          onClick={() => handleVerificationAction('gold')}
+                          disabled={verificationSaving || !affiliateDetails.gold_eligible}
+                          style={{
+                            border: '1px solid #d4a017',
+                            background: '#fff8d8',
+                            color: '#7a5b00',
+                            padding: '11px 14px',
+                            fontWeight: 700,
+                            cursor: affiliateDetails.gold_eligible ? 'pointer' : 'not-allowed',
+                          }}
+                        >
+                          Approve Gold Organization Badge
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleVerificationAction('official')}
+                          disabled={verificationSaving}
+                          style={{
+                            border: '1px solid #102a43',
+                            background: '#102a43',
+                            color: '#ffffff',
+                            padding: '11px 14px',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                          }}
+                        >
+                          Assign Official Platform Badge
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleVerificationAction('remove')}
+                          disabled={verificationSaving || !affiliateDetails.verification}
+                          style={{
+                            border: '1px solid #8c8f94',
+                            background: '#ffffff',
+                            color: '#50575e',
+                            padding: '11px 14px',
+                            fontWeight: 600,
+                            cursor: 'pointer',
+                          }}
+                        >
+                          {verificationSaving ? 'Saving...' : 'Remove Manual Badge'}
+                        </button>
                       </div>
                     </div>
                   </div>

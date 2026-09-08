@@ -1,0 +1,28 @@
+.writer-verification-badge {
+  --writer-badge-color: #1d9bf0;
+  align-items: center;
+  color: var(--writer-badge-color);
+  display: inline-flex;
+  flex: 0 0 auto;
+  line-height: 0;
+  margin-left: 4px;
+  vertical-align: -2px;
+}
+
+.writer-verification-badge svg {
+  display: block;
+  fill: currentColor;
+  overflow: visible;
+}
+
+.writer-verification-badge-purple { --writer-badge-color: #7c3aed; }
+.writer-verification-badge-gold { --writer-badge-color: #d4a017; }
+.writer-verification-badge-official { --writer-badge-color: #102a43; }
+
+.writer-verification-check {
+  fill: none;
+  stroke: #fff;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2.2;
+}

@@ -9,6 +9,8 @@ import {
   Share2,
 } from 'lucide-react';
 import api from '../../api/axios';
+import { SupgadFeaturedAdPlacement } from '../../components/monetization/MonetizationAdSlot';
+import WriterVerificationBadge from '../../components/common/WriterVerificationBadge';
 import ReaderUnifiedShell from '../../components/reader/ReaderUnifiedShell';
 import '../public/HomePageFeed.css';
 import './ReaderFeedApproved.css';
@@ -213,6 +215,9 @@ export default function ReaderFeedPage() {
           love: Number(data?.counts?.love || 0),
           applaud: Number(data?.counts?.applaud || 0),
           comments: Number(data?.counts?.comments || 0),
+          can_receive_gifts:
+            data?.writer_can_receive_gifts === true ||
+            data?.writer?.can_receive_gifts === true,
         };
       });
 
@@ -591,6 +596,8 @@ export default function ReaderFeedPage() {
             className="reader-feed-approved-list"
             aria-label="Personalized reading feed"
           >
+            <SupgadFeaturedAdPlacement placementKey="bloggad_feed" />
+
             {feed.map((post) => {
               const postId = Number(post?.id || 0);
               if (hiddenPosts[postId]) return null;
@@ -634,6 +641,7 @@ export default function ReaderFeedPage() {
                       <div className="reader-feed-approved-author-copy">
                         <strong>
                           {post.writer_name || 'Writer'}
+                          <WriterVerificationBadge badge={post?.verification_badge} size={16} />
                         </strong>
                         {publicationLine ? (
                           <span>{publicationLine}</span>
@@ -756,18 +764,20 @@ export default function ReaderFeedPage() {
                         </span>
                       </button>
 
-                      <button
-                        type="button"
-                        className="bh-gift-action"
-                        title="Gift this Writer"
-                        aria-label="Gift this Writer"
-                        onClick={() => openGift(post)}
-                      >
-                        <Gift size={17} />
-                        <span className="bh-action-label">
-                          Gift
-                        </span>
-                      </button>
+                      {stats?.can_receive_gifts ? (
+                        <button
+                          type="button"
+                          className="bh-gift-action"
+                          title="Gift this Writer"
+                          aria-label="Gift this Writer"
+                          onClick={() => openGift(post)}
+                        >
+                          <Gift size={17} />
+                          <span className="bh-action-label">
+                            Gift
+                          </span>
+                        </button>
+                      ) : null}
                     </div>
 
                     <div className="bh-story-actions bh-secondary-social">

@@ -8,6 +8,10 @@ const {
   deleteAffiliate,
 } = require('../../controllers/admin/adminAffiliateController');
 const { protect, adminOnly } = require('../../middleware/authMiddleware');
+const {
+  getWriterVerification,
+  updateWriterVerification,
+} = require('../../controllers/admin/adminWriterVerificationController');
 
 const router = express.Router();
 
@@ -24,6 +28,8 @@ router.get('/:id', protect, adminOnly, getSingleAffiliate);
 router.put('/:id/status', protect, adminOnly, updateAffiliateStatus);
 router.put('/:id/website-status', protect, adminOnly, updateAffiliateWebsiteStatus);
 router.post('/:id/subscription', protect, adminOnly, assignSubscriptionToAffiliate);
+router.get('/:id/verification', protect, adminOnly, getWriterVerification);
+router.put('/:id/verification', protect, adminOnly, updateWriterVerification);
 
 router.delete('/:id', protect, adminOnly, deleteAffiliate);
 

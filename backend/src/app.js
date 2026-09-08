@@ -254,6 +254,10 @@ function createApp() {
     './routes/admin/adminPlanRoutes',
   ]);
 
+  mount(app, '/api/admin/webinar-plans', 'adminWebinarPlanRoutes', [
+    './routes/admin/adminWebinarPlanRoutes',
+  ]);
+
   mount(app, '/api/admin/affiliates', 'adminAffiliatesRoutes', [
     './routes/admin/adminAffiliatesRoutes',
     './routes/admin/adminAffiliateRoutes',
@@ -341,6 +345,10 @@ mount(app, '/api/admin/supgad-integration', 'adminSupgadIntegrationRoutes', [
     './routes/public/publicWriterPageRoutes',
   ]);
 
+  mount(app, '/api/public/webinars', 'publicWebinarRoutes', [
+    './routes/public/publicWebinarRoutes',
+  ]);
+
   mount(app, '/api/public/courses', 'publicCourseRoutes', [
     './routes/public/publicCourseRoutes',
   ]);
@@ -420,6 +428,13 @@ mount(app, '/api/admin/supgad-integration', 'adminSupgadIntegrationRoutes', [
 
   mount(app, '/api/writer/pages', 'writerPageRoutes', [
     './routes/writerPageRoutes',
+  ]);
+  mount(app, '/api/writer/webinars', 'writerWebinarRoutes', [
+    './routes/writerWebinarRoutes',
+  ]);
+
+  mount(app, '/api/writer/webinar-subscription', 'writerWebinarSubscriptionRoutes', [
+    './routes/writerWebinarSubscriptionRoutes',
   ]);
 
   mount(app, '/api/customer/saved', 'customerSavedRoutes', [

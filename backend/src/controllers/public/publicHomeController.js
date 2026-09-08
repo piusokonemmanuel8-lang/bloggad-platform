@@ -1,4 +1,5 @@
 const pool = require('../../config/db');
+const { resolveWriterVerificationBadges } = require('../../services/writerVerificationBadgeService');
 
 function safeImageUrl(value) {
   const raw = String(value || '').trim();
@@ -424,6 +425,7 @@ function sanitizeHomepageStory(row) {
     website_name: row.website_name,
     website_slug: row.website_slug,
     writer_name: row.writer_name || row.website_name || 'Writer',
+    verification_badge: row.verification_badge || null,
     writer_page_slug: row.writer_page_slug || null,
     writer_avatar_url: safeImageUrl(
       row.writer_page_logo_url || row.writer_avatar_url || null
@@ -496,7 +498,9 @@ async function getHomepageStories(limit = 40) {
       [safeLimit]
     );
 
-    return rows.map(sanitizeHomepageStory);
+    const stories = rows.map(sanitizeHomepageStory);
+    const badges = await resolveWriterVerificationBadges(stories.map((story) => story.user_id));
+    return stories.map((story) => ({ ...story, verification_badge: badges[story.user_id] || null }));
   } catch (error) {
     const [rows] = await pool.query(
       `
@@ -544,7 +548,9 @@ async function getHomepageStories(limit = 40) {
       [safeLimit]
     );
 
-    return rows.map(sanitizeHomepageStory);
+    const stories = rows.map(sanitizeHomepageStory);
+    const badges = await resolveWriterVerificationBadges(stories.map((story) => story.user_id));
+    return stories.map((story) => ({ ...story, verification_badge: badges[story.user_id] || null }));
   }
 }
 async function getHomepage(req, res) {

@@ -983,3 +983,141 @@
     border-radius: 14px 14px 0 0;
   }
 }
+/* BLOGGAD_WRITER_PAGE_BANNER_OVERFLOW_V1B */
+.public-writer-page {
+  overflow-x: hidden;
+}
+
+@media (min-width: 768px) {
+  .pwp-cover {
+    width: min(1000px, calc(100% - 32px));
+    max-width: 1000px;
+    margin: 12px auto 0;
+  }
+
+  .pwp-cover img {
+    max-width: 100%;
+    display: block;
+  }
+}
+/* BLOGGAD_WRITER_PAGE_BANNER_WHITE_GUTTER_V1 */
+.pwp-profile-shell {
+  background: #fff;
+}
+
+@media (min-width: 768px) {
+  .pwp-profile-shell {
+    padding-top: 12px;
+  }
+
+  .pwp-cover {
+    margin: 0 auto;
+  }
+}
+/* BLOGGAD_WRITER_PAGE_WIDER_DESKTOP_V1 */
+@media (min-width: 768px) {
+  .pwp-cover,
+  .pwp-profile-row,
+  .pwp-tabs,
+  .pwp-content {
+    width: min(1200px, calc(100% - 64px));
+  }
+
+  .pwp-cover {
+    max-width: 1200px;
+  }
+}
+/* BLOGGAD_WRITER_PAGE_NATURAL_POST_SCROLL_V1 */
+@media (min-width: 768px) {
+  .pwp-tab-posts {
+    overflow: visible;
+    align-items: start;
+  }
+
+  .pwp-sidebar {
+    position: sticky;
+    top: 16px;
+    align-self: start;
+    height: fit-content;
+    max-height: none;
+    overflow: visible;
+  }
+
+  .pwp-feed {
+    height: auto;
+    max-height: none;
+    overflow: visible;
+    overflow-y: visible;
+    overscroll-behavior: auto;
+    scrollbar-gutter: auto;
+    padding-right: 0;
+  }
+}
+/* BLOGGAD_WRITER_PAGE_CONSTANT_SIDEBAR_V1 */
+@media (min-width: 768px) {
+  .pwp-tab-posts {
+    align-items: start;
+  }
+
+  .pwp-sidebar {
+    position: sticky;
+    top: 16px;
+    align-self: start;
+    max-height: calc(100vh - 32px);
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-width: none;
+    overscroll-behavior: contain;
+  }
+
+  .pwp-sidebar::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+    display: none;
+  }
+}
+/* BLOGGAD_WRITER_PAGE_TRUE_CONSTANT_SIDEBAR_V1 */
+@media (min-width: 768px) {
+  .pwp-sidebar {
+    position: sticky;
+    top: 16px;
+    align-self: start;
+    height: auto;
+    max-height: none;
+    overflow: visible;
+    overflow-y: visible;
+    overflow-x: visible;
+    overscroll-behavior: auto;
+    scrollbar-width: auto;
+  }
+}
+/* BLOGGAD_WRITER_PAGE_STICKY_ROOT_FIX_V1 */
+.public-writer-page {
+  overflow-x: clip;
+  overflow-y: visible;
+}
+
+@media (min-width: 768px) {
+  .pwp-content.pwp-tab-posts {
+    overflow: visible;
+    align-items: start;
+  }
+
+  .pwp-sidebar {
+    position: sticky;
+    top: 16px;
+    align-self: start;
+    height: fit-content;
+    max-height: none;
+    overflow: visible;
+    overflow-y: visible;
+    overflow-x: visible;
+  }
+
+  .pwp-feed {
+    height: auto;
+    max-height: none;
+    overflow: visible;
+    overflow-y: visible;
+  }
+}

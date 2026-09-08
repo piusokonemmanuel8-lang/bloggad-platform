@@ -1,4 +1,4 @@
-const pool = require('../config/db');
+﻿const pool = require('../config/db');
 const { buildPublicPostAccessPayload,getPostFields,getPostCtas } = require('../services/writerReaderAccessService');
 const { trackPostView } = require('../services/analyticsService');
 // BLOGGAD_BG_ATTRIBUTION_AND_TRAFFIC_SYNC_V1
@@ -197,7 +197,6 @@ async function publicPayload(page) {
       ? {id:Number(storefront.id),name:storefront.website_name,slug:storefront.slug,logo:storefront.logo,banner:storefront.banner}
       : null,
     posts:postRows[0].map((row)=>({...row,id:Number(row.id),user_id:Number(row.user_id),
-      website_id:row.website_id?Number(row.website_id):null,product_id:row.product_id?Number(row.product_id):null,
       love_count:Number(row.love_count||0),applaud_count:Number(row.applaud_count||0),page_slug:page.slug}))
   };
 }
@@ -264,6 +263,26 @@ async function getPublicWriterPagePost(req,res) {
       console.error('trackWriterPagePostView error:', analyticsError.message);
     }
 
+    let monetizationSettings=null;
+    if(post.website_id){
+      const [monetizationRows]=await pool.query(
+        `SELECT *
+          FROM affiliate_monetization_settings
+          WHERE user_id=?
+         LIMIT 1`,
+        [post.user_id]
+      );
+      const monetizationRow=monetizationRows[0]||null;
+      if(monetizationRow){
+        monetizationSettings={
+          website_id:Number(monetizationRow.website_id),
+          user_id:monetizationRow.user_id?Number(monetizationRow.user_id):null,
+          monetization_mode:monetizationRow.monetization_mode,
+          post_top_enabled:Number(monetizationRow.post_top_enabled||0),
+          review_status:monetizationRow.review_status||'draft',
+        };
+      }
+    }
     const [fields,ctas]=await Promise.all([getPostFields(post.id),getPostCtas(post.id)]);
     const publicPostPayload=decoratePublicPostPayload(
       await buildPublicPostAccessPayload({post,fields,ctaButtons:ctas}),
@@ -271,6 +290,7 @@ async function getPublicWriterPagePost(req,res) {
     );
     return res.json({ok:true,page:{id:Number(page.id),user_id:Number(page.user_id),name:page.name,slug:page.slug,
       logo_url:page.logo_url,banner_url:page.banner_url,bio:page.bio,is_primary:!!page.is_primary},
+      monetization_settings:monetizationSettings,
       ...publicPostPayload});
   }catch(error){return sendError(res,error,'Failed to load Writer Page post.');}
 }

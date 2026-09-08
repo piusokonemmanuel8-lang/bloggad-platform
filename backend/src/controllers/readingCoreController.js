@@ -3,6 +3,9 @@ const {
   getReaderSubscriptionState,
 } = require('../services/writerReaderAccessService');
 const {
+  resolveWriterVerificationBadges,
+} = require('../services/writerVerificationBadgeService');
+const {
   fail,
   positiveInt,
   uniquePositiveInts,
@@ -540,10 +543,15 @@ async function getReaderFeed(req, res) {
       ]
     );
 
+    const verificationBadges = await resolveWriterVerificationBadges(
+      rows.map((row) => row.writer_user_id)
+    );
+
     return res.status(200).json({
       ok: true,
       feed: rows.map((row) => ({
         ...row,
+        verification_badge: verificationBadges[row.writer_user_id] || null,
         interest_match: !!row.interest_match,
         followed_writer: !!row.followed_writer,
         followed_publication: !!row.followed_publication,

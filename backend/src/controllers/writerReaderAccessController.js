@@ -149,10 +149,7 @@ async function getWriterPublishingAccess(req, res) {
     return res.status(200).json({
       ok: true,
       paid_writer_plan,
-      can_use_premium_posts: planFeatureEnabled(
-        paid_writer_plan,
-        'can_publish_premium_posts'
-      ),
+      can_use_premium_posts: !!paid_writer_plan,
     });
   } catch (error) {
     return sendError(res, error, 'Failed to load Writer publishing access.');
@@ -192,10 +189,7 @@ async function getWriterPostAccess(req, res) {
       post,
       access,
       paid_writer_plan,
-      can_use_premium_posts: planFeatureEnabled(
-        paid_writer_plan,
-        'can_publish_premium_posts'
-      ),
+      can_use_premium_posts: !!paid_writer_plan,
     });
   } catch (error) {
     return sendError(res, error, 'Failed to load Writer post access.');

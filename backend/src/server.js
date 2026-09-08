@@ -112,6 +112,7 @@ async function startServer() {
 
       startLeaderboardDailyJob();
       startWriterScheduledPostJob();
+
     });
   } catch (error) {
     console.error('Failed to start Bloggad backend:', error.message);

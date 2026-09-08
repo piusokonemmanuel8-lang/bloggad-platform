@@ -1,4 +1,8 @@
 const pool = require('../config/db');
+const {
+  getWriterGiftPlanAccess,
+} = require('../services/writerReaderFinanceService');
+const { resolveWriterVerificationBadge } = require('../services/writerVerificationBadgeService');
 
 function toPositiveInt(value) {
   const parsed = Number(value);
@@ -367,12 +371,16 @@ async function getPublicPostSocial(req, res) {
       commentCount,
       giftCount,
       comments,
+      giftAccess,
+      verificationBadge,
     ] = await Promise.all([
       getReactionCounts(post.id),
       getFollowerCount(post.writer_id),
       getCommentCount(post.id),
       getGiftCount(post.id),
       getPublicComments(post.id),
+      getWriterGiftPlanAccess(post.writer_id),
+      resolveWriterVerificationBadge(post.writer_id),
     ]);
 
     return res.status(200).json({
@@ -386,7 +394,10 @@ async function getPublicPostSocial(req, res) {
         id: post.writer_id,
         name: post.writer_name,
         follower_count: followerCount,
+        can_receive_gifts: !!giftAccess.allowed,
+        verification_badge: verificationBadge,
       },
+      writer_can_receive_gifts: !!giftAccess.allowed,
       counts: {
         love: reactionCounts.love_count,
         applaud: reactionCounts.applaud_count,
@@ -427,7 +438,7 @@ async function getPublicWriterSocial(req, res) {
       });
     }
 
-    const [followerCount, websiteRows, postRows] = await Promise.all([
+    const [followerCount, websiteRows, postRows, verificationBadge] = await Promise.all([
       getFollowerCount(writer.id),
       pool.query(
         `
@@ -464,6 +475,7 @@ async function getPublicWriterSocial(req, res) {
         `,
         [writer.id]
       ),
+      resolveWriterVerificationBadge(writer.id),
     ]);
 
     return res.status(200).json({
@@ -480,6 +492,7 @@ async function getPublicWriterSocial(req, res) {
         cover_url: writer.cover_url || null,
         website_url: writer.website_url || null,
         follower_count: followerCount,
+        verification_badge: verificationBadge,
         website: websiteRows[0][0] || null,
         posts: postRows[0] || [],
       },

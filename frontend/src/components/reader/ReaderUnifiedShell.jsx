@@ -237,9 +237,12 @@ export default function ReaderUnifiedShell({
         aria-label="Go to Bloggad homepage"
         onClick={() => setMobileOpen(false)}
       >
-        <span className="reader-unified-brand-mark" aria-hidden="true">B</span>
+        <img
+          src="/bloggad-logo.png"
+          alt="Bloggad"
+          style={{ display: 'block', width: 112, height: 'auto', flexShrink: 0 }}
+        />
         <span className="reader-unified-brand-copy">
-          <strong>Bloggad</strong>
           <small>Reader</small>
         </span>
       </Link>
@@ -401,9 +404,12 @@ export default function ReaderUnifiedShell({
             style={{ color: 'inherit', textDecoration: 'none' }}
             aria-label="Go to Bloggad homepage"
           >
-            <span className="reader-unified-brand-mark" aria-hidden="true">B</span>
+            <img
+              src="/bloggad-logo.png"
+              alt="Bloggad"
+              style={{ display: 'block', width: 94, height: 'auto', flexShrink: 0 }}
+            />
             <span className="reader-unified-brand-copy">
-              <strong>Bloggad</strong>
               <small>Reader</small>
             </span>
           </Link>

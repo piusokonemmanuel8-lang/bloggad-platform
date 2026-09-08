@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+﻿import { useEffect, useMemo, useRef, useState } from 'react';
 import api from '../../api/axios';
 
 function getSlotLabel(slotKey = '') {
@@ -315,6 +315,329 @@ function NativeAdCard({
   );
 }
 
+
+function getSupgadFeaturedSessionId() {
+  if (typeof window === 'undefined') return '';
+
+  try {
+    const key = 'bloggad_supgad_featured_ads_session';
+    let value = window.sessionStorage.getItem(key);
+
+    if (!value) {
+      value =
+        globalThis.crypto?.randomUUID?.() ||
+        `bg-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      window.sessionStorage.setItem(key, value);
+    }
+
+    return value;
+  } catch {
+    return '';
+  }
+}
+
+function getSupgadCreative(ad = {}) {
+  const creative =
+    ad?.creative && typeof ad.creative === 'object'
+      ? ad.creative
+      : ad;
+
+  return {
+    imageUrl:
+      creative?.asset_url ||
+      creative?.image_url ||
+      creative?.thumbnail_url ||
+      ad?.image_url ||
+      null,
+    headline:
+      creative?.headline ||
+      ad?.headline ||
+      ad?.campaign_name ||
+      'Sponsored',
+    description:
+      creative?.body_text ||
+      creative?.description ||
+      ad?.description_text ||
+      ad?.description ||
+      '',
+    buttonText:
+      creative?.button_text ||
+      ad?.call_to_action ||
+      ad?.cta_text ||
+      'Learn More',
+    displayUrl:
+      ad?.display_url ||
+      creative?.display_url ||
+      '',
+    altText:
+      creative?.alt_text ||
+      creative?.headline ||
+      ad?.headline ||
+      'Sponsored advertisement',
+  };
+}
+
+export function SupgadFeaturedAdPlacement({
+  placementKey,
+  postId = null,
+  keywordContext = '',
+  darkMode = false,
+}) {
+  const [delivery, setDelivery] = useState(null);
+  const rootRef = useRef(null);
+  const qualifiedRef = useRef(false);
+
+  useEffect(() => {
+    let ignore = false;
+
+    async function load() {
+      if (!placementKey) return;
+
+      try {
+        const { data } = await api.post('/api/public/ads/supgad/request', {
+          placement_key: placementKey,
+          post_id: postId || null,
+          keyword_context: keywordContext || null,
+          session_id: getSupgadFeaturedSessionId() || null,
+        });
+
+        if (!ignore) {
+          setDelivery(
+            data?.ok &&
+              data?.ad &&
+              data?.delivery_token &&
+              data?.impression_token
+              ? data
+              : null
+          );
+        }
+      } catch {
+        if (!ignore) setDelivery(null);
+      }
+    }
+
+    load();
+
+    return () => {
+      ignore = true;
+    };
+  }, [placementKey, postId, keywordContext]);
+
+  useEffect(() => {
+    if (
+      !delivery?.ad ||
+      !delivery?.delivery_token ||
+      !delivery?.impression_token ||
+      !rootRef.current ||
+      qualifiedRef.current
+    ) {
+      return;
+    }
+
+    let visibleSince = 0;
+    let visibleRatio = 0;
+    let timer = null;
+
+    const clearTimer = () => {
+      if (timer) {
+        window.clearTimeout(timer);
+        timer = null;
+      }
+    };
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        if (!entry) return;
+
+        visibleRatio = Math.max(
+          0,
+          Math.min(1, Number(entry.intersectionRatio || 0))
+        );
+
+        if (entry.isIntersecting && visibleRatio >= 0.3) {
+          if (!visibleSince) visibleSince = performance.now();
+
+          if (!timer && !qualifiedRef.current) {
+            timer = window.setTimeout(async () => {
+              const elapsed = visibleSince
+                ? Math.max(
+                    0,
+                    Math.round(performance.now() - visibleSince)
+                  )
+                : 0;
+
+              if (elapsed < 1000 || qualifiedRef.current) return;
+
+              qualifiedRef.current = true;
+
+              try {
+                await api.post(
+                  `/api/public/ads/supgad/impressions/${encodeURIComponent(
+                    delivery.impression_token
+                  )}/qualify`,
+                  {
+                    delivery_token: delivery.delivery_token,
+                    impression_token: delivery.impression_token,
+                    visible_percent: Math.round(visibleRatio * 100),
+                    visible_milliseconds: elapsed,
+                    session_id:
+                      getSupgadFeaturedSessionId() || null,
+                  }
+                );
+              } catch {}
+            }, 1000);
+          }
+        } else {
+          clearTimer();
+          visibleSince = 0;
+        }
+      },
+      {
+        threshold: [0, 0.3, 0.5, 0.75, 1],
+      }
+    );
+
+    observer.observe(rootRef.current);
+
+    return () => {
+      clearTimer();
+      observer.disconnect();
+    };
+  }, [delivery]);
+
+  if (!delivery?.ad) return null;
+
+  const creative = getSupgadCreative(delivery.ad);
+
+  async function handleClick(event) {
+    event.preventDefault();
+
+    try {
+      const { data } = await api.post(
+        '/api/public/ads/supgad/click',
+        {
+          delivery_token: delivery.delivery_token,
+          impression_token: delivery.impression_token,
+          session_id: getSupgadFeaturedSessionId() || null,
+        }
+      );
+
+      const redirectUrl = String(data?.redirect_url || '').trim();
+
+      if (/^https?:\/\//i.test(redirectUrl)) {
+        window.location.assign(redirectUrl);
+      }
+    } catch {}
+  }
+
+  return (
+    <aside
+      ref={rootRef}
+      aria-label="Sponsored"
+      style={{
+        width: '100%',
+        margin: '18px 0',
+        borderRadius: 18,
+        border: `1px solid ${darkMode ? '#2a2f35' : '#e5e7eb'}`,
+        background: darkMode ? '#111418' : '#ffffff',
+        overflow: 'hidden',
+      }}
+    >
+      <a
+        href="#"
+        onClick={handleClick}
+        rel="sponsored"
+        style={{
+          display: 'grid',
+          gap: 12,
+          padding: 14,
+          textDecoration: 'none',
+          color: darkMode ? '#f8fafc' : '#111827',
+        }}
+      >
+        <span
+          style={{
+            fontSize: 11,
+            fontWeight: 800,
+            letterSpacing: '0.08em',
+            textTransform: 'uppercase',
+            color: darkMode ? '#86efac' : '#047857',
+          }}
+        >
+          Sponsored
+        </span>
+
+        {creative.imageUrl ? (
+          <img
+            src={creative.imageUrl}
+            alt={creative.altText}
+            loading="lazy"
+            style={{
+              display: 'block',
+              width: '100%',
+              maxHeight: 320,
+              objectFit: 'cover',
+              borderRadius: 14,
+            }}
+          />
+        ) : null}
+
+        <strong style={{ fontSize: 20, lineHeight: 1.25 }}>
+          {creative.headline}
+        </strong>
+
+        {creative.description ? (
+          <span
+            style={{
+              fontSize: 14,
+              lineHeight: 1.6,
+              color: darkMode ? '#cbd5e1' : '#4b5563',
+            }}
+          >
+            {creative.description}
+          </span>
+        ) : null}
+
+        <span
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 12,
+            flexWrap: 'wrap',
+          }}
+        >
+          <span
+            style={{
+              fontSize: 12,
+              color: darkMode ? '#94a3b8' : '#6b7280',
+              wordBreak: 'break-word',
+            }}
+          >
+            {creative.displayUrl}
+          </span>
+
+          <span
+            style={{
+              display: 'inline-flex',
+              minHeight: 38,
+              alignItems: 'center',
+              padding: '0 14px',
+              borderRadius: 999,
+              background: darkMode ? '#f8fafc' : '#111827',
+              color: darkMode ? '#111827' : '#ffffff',
+              fontSize: 13,
+              fontWeight: 800,
+            }}
+          >
+            {creative.buttonText}
+          </span>
+        </span>
+      </a>
+    </aside>
+  );
+}
 export default function MonetizationAdSlot({
   slotKey,
   monetizationSettings,
@@ -326,9 +649,11 @@ export default function MonetizationAdSlot({
   affiliateUserId: affiliateUserIdProp = null,
   postId = null,
   productId = null,
+  externalFallback = null,
 }) {
   const [internalAd, setInternalAd] = useState(null);
   const [internalLoading, setInternalLoading] = useState(false);
+  const [internalResolved, setInternalResolved] = useState(false);
 
   const mode =
     monetizationSettings?.monetization_mode === 'platform' ? 'platform' : 'individual';
@@ -340,15 +665,24 @@ export default function MonetizationAdSlot({
   useEffect(() => {
     let ignore = false;
 
-    async function loadInternalAd() {
-      if (!slotKey || !monetizationSettings) return;
+        async function loadInternalAd() {
+      setInternalResolved(false);
+      setInternalAd(null);
+
+      if (!slotKey || !monetizationSettings) {
+        if (!ignore) setInternalResolved(true);
+        return;
+      }
+
       if (!getSlotEnabled(slotKey, monetizationSettings)) {
         setInternalAd(null);
+        if (!ignore) setInternalResolved(true);
         return;
       }
 
       if (reviewRequired && monetizationSettings?.review_status !== 'approved') {
         setInternalAd(null);
+        if (!ignore) setInternalResolved(true);
         return;
       }
 
@@ -376,6 +710,7 @@ export default function MonetizationAdSlot({
       } finally {
         if (!ignore) {
           setInternalLoading(false);
+          setInternalResolved(true);
         }
       }
     }
@@ -407,7 +742,31 @@ export default function MonetizationAdSlot({
     [slotKey, monetizationSettings, placementMode, reviewRequired, internalAd]
   );
 
-  if (!canRender && !isPreview) {
+    const canRenderExternalFallback = useMemo(() => {
+    if (!externalFallback || !internalResolved || internalAd) return false;
+    if (!slotKey || !monetizationSettings) return false;
+    if (!getSlotEnabled(slotKey, monetizationSettings)) return false;
+
+    if (placementMode === 'storefront' && slotKey.startsWith('post_')) {
+      return false;
+    }
+
+    if (placementMode === 'post' && slotKey.startsWith('storefront_')) {
+      return false;
+    }
+
+    return mode === 'platform';
+  }, [
+    externalFallback,
+    internalResolved,
+    internalAd,
+    slotKey,
+    monetizationSettings,
+    placementMode,
+    mode,
+  ]);
+
+  if (!canRender && !canRenderExternalFallback && !isPreview) {
     return null;
   }
 
@@ -523,6 +882,10 @@ export default function MonetizationAdSlot({
         />
       </div>
     );
+  }
+
+  if (mode === 'platform' && canRenderExternalFallback) {
+    return externalFallback;
   }
 
   if (mode === 'platform') {
