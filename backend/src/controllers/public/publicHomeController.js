@@ -430,7 +430,100 @@ function sanitizeHomepageStory(row) {
     writer_avatar_url: safeImageUrl(
       row.writer_page_logo_url || row.writer_avatar_url || null
     ),
+    love_count: Number(row.love_count || 0),
+    applaud_count: Number(row.applaud_count || 0),
+    comment_count: Number(row.comment_count || 0),
+    gift_count: Number(row.gift_count || 0),
   };
+}
+
+async function hydrateHomepageStorySocialCounts(rows) {
+  const storyRows = Array.isArray(rows) ? rows : [];
+  const postIds = storyRows
+    .map((row) => Number(row?.id || 0))
+    .filter((id) => Number.isInteger(id) && id > 0);
+
+  if (!postIds.length) {
+    return storyRows.map(sanitizeHomepageStory);
+  }
+
+  const placeholders = postIds.map(() => '?').join(',');
+
+  const [reactionResult, commentResult, giftResult] = await Promise.all([
+    pool.query(
+      `
+      SELECT
+        post_id,
+        SUM(CASE WHEN reaction_type = 'love' THEN 1 ELSE 0 END) AS love_count,
+        SUM(CASE WHEN reaction_type = 'applaud' THEN 1 ELSE 0 END) AS applaud_count
+      FROM post_reactions
+      WHERE post_id IN (${placeholders})
+      GROUP BY post_id
+      `,
+      postIds
+    ),
+    pool.query(
+      `
+      SELECT
+        post_id,
+        COUNT(*) AS comment_count
+      FROM post_comments
+      WHERE post_id IN (${placeholders})
+        AND status = 'active'
+      GROUP BY post_id
+      `,
+      postIds
+    ),
+    pool.query(
+      `
+      SELECT
+        post_id,
+        COUNT(*) AS gift_count
+      FROM writer_appreciations
+      WHERE post_id IN (${placeholders})
+        AND status = 'completed'
+      GROUP BY post_id
+      `,
+      postIds
+    ),
+  ]);
+
+  const countsByPost = new Map();
+
+  for (const postId of postIds) {
+    countsByPost.set(postId, {
+      love_count: 0,
+      applaud_count: 0,
+      comment_count: 0,
+      gift_count: 0,
+    });
+  }
+
+  for (const row of reactionResult[0] || []) {
+    const current = countsByPost.get(Number(row.post_id));
+    if (!current) continue;
+    current.love_count = Number(row.love_count || 0);
+    current.applaud_count = Number(row.applaud_count || 0);
+  }
+
+  for (const row of commentResult[0] || []) {
+    const current = countsByPost.get(Number(row.post_id));
+    if (!current) continue;
+    current.comment_count = Number(row.comment_count || 0);
+  }
+
+  for (const row of giftResult[0] || []) {
+    const current = countsByPost.get(Number(row.post_id));
+    if (!current) continue;
+    current.gift_count = Number(row.gift_count || 0);
+  }
+
+  return storyRows.map((row) =>
+    sanitizeHomepageStory({
+      ...row,
+      ...(countsByPost.get(Number(row?.id || 0)) || {}),
+    })
+  );
 }
 
 async function getHomepageStories(limit = 40) {
@@ -498,10 +591,9 @@ async function getHomepageStories(limit = 40) {
       [safeLimit]
     );
 
-    const stories = rows.map(sanitizeHomepageStory);
+    const stories = await hydrateHomepageStorySocialCounts(rows);
     const badges = await resolveWriterVerificationBadges(stories.map((story) => story.user_id));
-    return stories.map((story) => ({ ...story, verification_badge: badges[story.user_id] || null }));
-  } catch (error) {
+    return stories.map((story) => ({ ...story, verification_badge: badges[story.user_id] || null }));  } catch (error) {
     const [rows] = await pool.query(
       `
       SELECT
@@ -548,10 +640,9 @@ async function getHomepageStories(limit = 40) {
       [safeLimit]
     );
 
-    const stories = rows.map(sanitizeHomepageStory);
+    const stories = await hydrateHomepageStorySocialCounts(rows);
     const badges = await resolveWriterVerificationBadges(stories.map((story) => story.user_id));
-    return stories.map((story) => ({ ...story, verification_badge: badges[story.user_id] || null }));
-  }
+    return stories.map((story) => ({ ...story, verification_badge: badges[story.user_id] || null }));  }
 }
 async function getHomepage(req, res) {
   try {
