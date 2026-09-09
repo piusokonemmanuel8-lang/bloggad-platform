@@ -1,4 +1,5 @@
 const pool = require('../config/db');
+const { resolveWriterVerificationBadges } = require('../services/writerVerificationBadgeService');
 const { buildPublicPostAccessPayload,getPostFields,getPostCtas } = require('../services/writerReaderAccessService');
 const { trackPostView } = require('../services/analyticsService');
 // BLOGGAD_BG_ATTRIBUTION_AND_TRAFFIC_SYNC_V1
@@ -143,7 +144,7 @@ async function loadPublicPage(slug) {
 }
 async function publicPayload(page) {
   const userId=Number(page.user_id);
-  const [followers,members,reactions,appreciations,storefront,postRows]=await Promise.all([
+  const [followers,members,reactions,appreciations,storefront,postRows,verificationBadges]=await Promise.all([
     pool.query(`SELECT COUNT(*) AS total FROM writer_follows WHERE writer_user_id=?`,[userId]),
     pool.query(`SELECT COUNT(*) AS total FROM writer_memberships WHERE writer_user_id=? AND status='active' AND ends_at>NOW()`,[userId]),
     pool.query(
@@ -180,12 +181,14 @@ async function publicPayload(page) {
        ) prc ON prc.post_id=pp.id
        WHERE x.page_id=? ORDER BY COALESCE(pp.published_at,pp.created_at) DESC,pp.id DESC LIMIT 200`,
       [page.id]
-    )
+    ),
+    resolveWriterVerificationBadges([userId])
   ]);
   return {
     page:{id:Number(page.id),user_id:userId,name:page.name,slug:page.slug,logo_url:page.logo_url,banner_url:page.banner_url,
           bio:page.bio,about_text:page.about_text,is_primary:!!page.is_primary,status:page.status},
     writer:{user_id:userId,public_name:cleanText(page.pen_name,180)||cleanText(page.display_name,180)||cleanText(page.account_name,180)||page.name,
+            verification_badge:verificationBadges[userId]||null,
             display_name:page.display_name,pen_name:page.pen_name,tagline:page.writer_tagline,bio:page.writer_bio,
             avatar_url:page.writer_avatar_url,cover_url:page.writer_cover_url,
             follower_count:Number(followers[0][0]?.total||0),
