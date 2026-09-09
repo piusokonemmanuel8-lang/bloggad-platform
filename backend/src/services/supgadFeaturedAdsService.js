@@ -1,4 +1,4 @@
-﻿"use strict";
+"use strict";
 
 const http = require("http");
 const https = require("https");
@@ -148,7 +148,7 @@ async function resolvePostContext(postIdValue) {
 
   const [rows] = await pool.query(
     `
-      SELECT id, user_id, slug, title
+      SELECT id, user_id, website_id, slug, title
       FROM product_posts
       WHERE id = ?
         AND status = 'published'
@@ -166,11 +166,14 @@ async function resolvePostContext(postIdValue) {
     bg_post_slug: cleanText(row.slug, 255) || null,
     bg_post_title: cleanText(row.title, 255) || null,
     writer_user_id: Number(row.user_id),
+    website_id: positiveInt(row.website_id),
   };
 }
 
-async function resolveWriterMonetization(writerUserId) {
+async function resolveWriterMonetization(writerUserId, websiteIdValue) {
   const writerId = positiveInt(writerUserId);
+  const websiteId = positiveInt(websiteIdValue);
+
   if (!writerId) {
     return {
       writer_monetized: false,
@@ -178,18 +181,28 @@ async function resolveWriterMonetization(writerUserId) {
     };
   }
 
-  const [rows] = await pool.query(
-    `
-      SELECT review_status, content_quality_status
-      FROM affiliate_monetization_settings
-      WHERE user_id = ?
-      LIMIT 1
-    `,
-    [writerId]
-  );
+  let settings = null;
 
-  const settings = rows[0] || null;
-  const writerMonetized = settings?.review_status === "approved";
+  if (websiteId) {
+    const [rows] = await pool.query(
+      `
+        SELECT review_status, content_quality_status, monetization_mode,
+               post_top_enabled
+        FROM affiliate_monetization_settings
+        WHERE user_id = ?
+          AND website_id = ?
+        LIMIT 1
+      `,
+      [writerId, websiteId]
+    );
+
+    settings = rows[0] || null;
+  }
+
+  const writerMonetized =
+    settings?.review_status === "approved" &&
+    settings?.monetization_mode === "platform" &&
+    Number(settings?.post_top_enabled || 0) === 1;
 
   let tier = null;
   try {
@@ -212,13 +225,31 @@ async function resolveWriterMonetization(writerUserId) {
 }
 
 function privateSourceKey(key) {
-  return /aliexpress|alibaba|import[_-]?source|supplier[_-]?source|supplier[_-]?url|supplier[_-]?id|source[_-]?vendor|sourcing/i.test(
+  return /aliexpress|alibaba|1688|import[_-]?source|supplier[_-]?source|supplier[_-]?url|supplier[_-]?id|source[_-]?vendor|sourcing/i.test(
     String(key || "")
+  );
+}
+
+function privateSourceUrl(value) {
+  const parsed = safeHttpUrl(value);
+  if (!parsed) return false;
+
+  const hostname = String(parsed.hostname || "").trim().toLowerCase();
+
+  return (
+    /(^|\.)aliexpress\./i.test(hostname) ||
+    /(^|\.)alibaba\./i.test(hostname) ||
+    /(^|\.)1688\.com$/i.test(hostname)
   );
 }
 
 function sanitizeForBrowser(value, depth = 0) {
   if (depth > 8) return null;
+
+  if (typeof value === "string") {
+    return privateSourceUrl(value) ? null : value;
+  }
+
   if (Array.isArray(value)) {
     return value.map((item) => sanitizeForBrowser(item, depth + 1));
   }
@@ -232,11 +263,17 @@ function sanitizeForBrowser(value, depth = 0) {
   return output;
 }
 
+function serviceError(message, status) {
+  const error = new Error(message);
+  error.status = status;
+  return error;
+}
+
 function postJson(urlValue, body, syncKey, timeoutMs = 4500) {
   return new Promise((resolve, reject) => {
     const target = safeHttpUrl(urlValue);
     if (!target) {
-      reject(new Error("Supgad Featured Ads URL is invalid."));
+      reject(serviceError("Supgad Featured Ads URL is invalid.", 503));
       return;
     }
 
@@ -287,22 +324,32 @@ function postJson(urlValue, body, syncKey, timeoutMs = 4500) {
             return;
           }
 
-          reject(
-            new Error(
-              cleanText(parsed?.message, 500) ||
-                `Supgad Featured Ads returned HTTP ${Number(
-                  response.statusCode || 0
-                )}.`
-            )
+          const upstreamStatus = Number(response.statusCode || 0);
+          const mappedStatus =
+            upstreamStatus >= 400 && upstreamStatus < 500
+              ? upstreamStatus
+              : 502;
+
+          const error = serviceError(
+            cleanText(parsed?.message, 500) ||
+              `Supgad Featured Ads returned HTTP ${upstreamStatus}.`,
+            mappedStatus
           );
+          error.upstream_status = upstreamStatus;
+          reject(error);
         });
       }
     );
 
     request.on("timeout", () => {
-      request.destroy(new Error("Supgad Featured Ads request timed out."));
+      request.destroy(
+        serviceError("Supgad Featured Ads request timed out.", 504)
+      );
     });
-    request.on("error", reject);
+    request.on("error", (error) => {
+      if (!error.status) error.status = 502;
+      reject(error);
+    });
     request.write(payload);
     request.end();
   });
@@ -365,7 +412,8 @@ async function requestSupgadFeaturedAd(req) {
     }
 
     writerContext = await resolveWriterMonetization(
-      postContext.writer_user_id
+      postContext.writer_user_id,
+      postContext.website_id
     );
   }
 

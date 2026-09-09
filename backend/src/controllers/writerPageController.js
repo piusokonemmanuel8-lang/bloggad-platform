@@ -1,4 +1,4 @@
-﻿const pool = require('../config/db');
+const pool = require('../config/db');
 const { buildPublicPostAccessPayload,getPostFields,getPostCtas } = require('../services/writerReaderAccessService');
 const { trackPostView } = require('../services/analyticsService');
 // BLOGGAD_BG_ATTRIBUTION_AND_TRAFFIC_SYNC_V1
@@ -283,8 +283,9 @@ async function getPublicWriterPagePost(req,res) {
         `SELECT *
           FROM affiliate_monetization_settings
           WHERE user_id=?
+            AND website_id=?
          LIMIT 1`,
-        [post.user_id]
+        [post.user_id, post.website_id]
       );
       const monetizationRow=monetizationRows[0]||null;
       if(monetizationRow){
