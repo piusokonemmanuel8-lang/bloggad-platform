@@ -579,10 +579,11 @@ async function clickSupgadFeaturedAd(req) {
     config.secret
   );
 
-  const redirect = safeHttpUrl(response.body?.redirect_url);
+  const browserSafeBody = sanitizeForBrowser(response.body || {});
+  const redirect = safeHttpUrl(browserSafeBody?.redirect_url);
 
   return {
-    ...sanitizeForBrowser(response.body || {}),
+    ...browserSafeBody,
     redirect_url: redirect ? redirect.toString() : null,
   };
 }
