@@ -213,7 +213,7 @@ async function getAllPosts(req, res) {
     const safePage = Math.min(page, totalPages);
     const safeOffset = (safePage - 1) * limit;
 
-    const [rows] = await pool.query(`
+    const rowsPromise = pool.query(`
       ${ADMIN_POST_LIST_SELECT}
       ${ADMIN_POST_LIST_FROM}
       ${whereSql}
@@ -222,13 +222,14 @@ async function getAllPosts(req, res) {
       OFFSET ${safeOffset}
     `, params);
 
-    const [summaryRows] = await pool.query(`
+    const summaryPromise = pool.query(`
       SELECT COUNT(*) AS total,
         SUM(CASE WHEN status = 'published' THEN 1 ELSE 0 END) AS published,
         SUM(CASE WHEN status = 'draft' THEN 1 ELSE 0 END) AS draft,
         SUM(CASE WHEN status = 'inactive' THEN 1 ELSE 0 END) AS inactive
       FROM product_posts
     `);
+    const [[rows], [summaryRows]] = await Promise.all([rowsPromise, summaryPromise]);
     const summary = summaryRows[0] || {};
 
     return res.status(200).json({

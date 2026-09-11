@@ -2,7 +2,7 @@ const pool = require('../../config/db');
 
 async function getAdminDashboardOverview(req, res) {
   try {
-    const [[usersRow]] = await pool.query(`
+    const usersPromise = pool.query(`
       SELECT
         COUNT(*) AS total_users,
         SUM(CASE WHEN role = 'affiliate' THEN 1 ELSE 0 END) AS total_affiliates,
@@ -13,7 +13,7 @@ async function getAdminDashboardOverview(req, res) {
       FROM users
     `);
 
-    const [[websiteRow]] = await pool.query(`
+    const websitePromise = pool.query(`
       SELECT
         COUNT(*) AS total_websites,
         SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) AS total_active_websites,
@@ -23,7 +23,7 @@ async function getAdminDashboardOverview(req, res) {
       FROM affiliate_websites
     `);
 
-    const [[productRow]] = await pool.query(`
+    const productPromise = pool.query(`
       SELECT
         COUNT(*) AS total_products,
         SUM(CASE WHEN status = 'published' THEN 1 ELSE 0 END) AS total_published_products,
@@ -32,7 +32,7 @@ async function getAdminDashboardOverview(req, res) {
       FROM products
     `);
 
-    const [[postRow]] = await pool.query(`
+    const postPromise = pool.query(`
       SELECT
         COUNT(*) AS total_posts,
         SUM(CASE WHEN status = 'published' THEN 1 ELSE 0 END) AS total_published_posts,
@@ -41,7 +41,7 @@ async function getAdminDashboardOverview(req, res) {
       FROM product_posts
     `);
 
-    const [[categoryRow]] = await pool.query(`
+    const categoryPromise = pool.query(`
       SELECT
         COUNT(*) AS total_categories,
         SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) AS total_active_categories,
@@ -49,7 +49,7 @@ async function getAdminDashboardOverview(req, res) {
       FROM categories
     `);
 
-    const [[planRow]] = await pool.query(`
+    const planPromise = pool.query(`
       SELECT
         COUNT(*) AS total_plans,
         SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) AS total_active_plans,
@@ -57,7 +57,7 @@ async function getAdminDashboardOverview(req, res) {
       FROM subscription_plans
     `);
 
-    const [[subscriptionRow]] = await pool.query(`
+    const subscriptionPromise = pool.query(`
       SELECT
         COUNT(*) AS total_subscriptions,
         SUM(CASE WHEN status = 'trial' THEN 1 ELSE 0 END) AS total_trial_subscriptions,
@@ -67,7 +67,7 @@ async function getAdminDashboardOverview(req, res) {
       FROM affiliate_subscriptions
     `);
 
-    const [[analyticsRow]] = await pool.query(`
+    const analyticsPromise = pool.query(`
       SELECT
         (SELECT COUNT(*) FROM analytics_product_views) AS total_product_views,
         (SELECT COUNT(*) FROM analytics_product_clicks) AS total_product_clicks,
@@ -75,7 +75,7 @@ async function getAdminDashboardOverview(req, res) {
         (SELECT COUNT(*) FROM analytics_slider_clicks) AS total_slider_clicks
     `);
 
-    const [[validationRow]] = await pool.query(`
+    const validationPromise = pool.query(`
       SELECT
         COUNT(*) AS total_validation_logs,
         SUM(CASE WHEN is_allowed = 1 THEN 1 ELSE 0 END) AS total_passed_logs,
@@ -83,7 +83,7 @@ async function getAdminDashboardOverview(req, res) {
       FROM link_validation_logs
     `);
 
-    const [recentAffiliates] = await pool.query(`
+    const recentAffiliatesPromise = pool.query(`
       SELECT
         id,
         name,
@@ -97,7 +97,7 @@ async function getAdminDashboardOverview(req, res) {
       LIMIT 10
     `);
 
-    const [recentProducts] = await pool.query(`
+    const recentProductsPromise = pool.query(`
       SELECT
         p.id,
         p.title,
@@ -116,7 +116,7 @@ async function getAdminDashboardOverview(req, res) {
       LIMIT 10
     `);
 
-    const [recentPosts] = await pool.query(`
+    const recentPostsPromise = pool.query(`
       SELECT
         pp.id,
         pp.title,
@@ -134,6 +134,18 @@ async function getAdminDashboardOverview(req, res) {
       ORDER BY pp.id DESC
       LIMIT 10
     `);
+
+    const [
+      [[usersRow]], [[websiteRow]], [[productRow]], [[postRow]],
+      [[categoryRow]], [[planRow]], [[subscriptionRow]],
+      [[analyticsRow]], [[validationRow]],
+      [recentAffiliates], [recentProducts], [recentPosts],
+    ] = await Promise.all([
+      usersPromise, websitePromise, productPromise, postPromise,
+      categoryPromise, planPromise, subscriptionPromise,
+      analyticsPromise, validationPromise,
+      recentAffiliatesPromise, recentProductsPromise, recentPostsPromise,
+    ]);
 
     return res.status(200).json({
       ok: true,

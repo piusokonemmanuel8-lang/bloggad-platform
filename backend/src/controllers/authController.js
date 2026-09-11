@@ -206,24 +206,9 @@ async function loginUser(req, res) {
 
 async function getMe(req, res) {
   try {
-    const [users] = await pool.query(
-      `
-      SELECT id, name, email, role, status, email_verified_at, last_login_at, created_at, updated_at
-      FROM users
-      WHERE id = ?
-      LIMIT 1
-      `,
-      [req.user.id]
-    );
-
-    if (users.length === 0) {
-      return res.status(404).json({
-        ok: false,
-        message: 'User not found',
-      });
-    }
-
-    const databaseUser = users[0];
+    // Authentication middleware already loaded and validated this user.
+    // Reuse it to avoid a duplicate users query during application bootstrap.
+    const databaseUser = req.user;
     const databaseRole = String(databaseUser.role || '').trim().toLowerCase();
     const sessionRole = String(req.user?.role || '').trim().toLowerCase();
 
