@@ -12,6 +12,10 @@ const {
   getWriterVerification,
   updateWriterVerification,
 } = require('../../controllers/admin/adminWriterVerificationController');
+const {
+  getWriterFollowerAdjustment,
+  updateWriterFollowerAdjustment,
+} = require('../../controllers/admin/adminWriterFollowerAdjustmentController');
 
 const router = express.Router();
 
@@ -30,6 +34,8 @@ router.put('/:id/website-status', protect, adminOnly, updateAffiliateWebsiteStat
 router.post('/:id/subscription', protect, adminOnly, assignSubscriptionToAffiliate);
 router.get('/:id/verification', protect, adminOnly, getWriterVerification);
 router.put('/:id/verification', protect, adminOnly, updateWriterVerification);
+router.get('/:id/follower-adjustment', protect, adminOnly, getWriterFollowerAdjustment);
+router.put('/:id/follower-adjustment', protect, adminOnly, updateWriterFollowerAdjustment);
 
 router.delete('/:id', protect, adminOnly, deleteAffiliate);
 

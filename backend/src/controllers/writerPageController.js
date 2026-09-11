@@ -1,5 +1,6 @@
 const pool = require('../config/db');
 const { resolveWriterVerificationBadges } = require('../services/writerVerificationBadgeService');
+const { getWriterFollowerCounts } = require('../services/writerFollowerCountService');
 const { buildPublicPostAccessPayload,getPostFields,getPostCtas } = require('../services/writerReaderAccessService');
 const { trackPostView } = require('../services/analyticsService');
 // BLOGGAD_BG_ATTRIBUTION_AND_TRAFFIC_SYNC_V1
@@ -144,8 +145,8 @@ async function loadPublicPage(slug) {
 }
 async function publicPayload(page) {
   const userId=Number(page.user_id);
-  const [followers,members,reactions,appreciations,storefront,postRows,verificationBadges]=await Promise.all([
-    pool.query(`SELECT COUNT(*) AS total FROM writer_follows WHERE writer_user_id=?`,[userId]),
+  const [followerCounts,members,reactions,appreciations,storefront,postRows,verificationBadges]=await Promise.all([
+    getWriterFollowerCounts(userId),
     pool.query(`SELECT COUNT(*) AS total FROM writer_memberships WHERE writer_user_id=? AND status='active' AND ends_at>NOW()`,[userId]),
     pool.query(
       `SELECT
@@ -191,7 +192,7 @@ async function publicPayload(page) {
             verification_badge:verificationBadges[userId]||null,
             display_name:page.display_name,pen_name:page.pen_name,tagline:page.writer_tagline,bio:page.writer_bio,
             avatar_url:page.writer_avatar_url,cover_url:page.writer_cover_url,
-            follower_count:Number(followers[0][0]?.total||0),
+            follower_count:Number(followerCounts?.follower_count||0),
             member_count:Number(members[0][0]?.total||0),
             love_count:Number(reactions[0][0]?.love_count||0),
             applaud_count:Number(reactions[0][0]?.applaud_count||0),

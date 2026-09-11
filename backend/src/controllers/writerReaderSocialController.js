@@ -3,6 +3,7 @@ const {
   getWriterGiftPlanAccess,
 } = require('../services/writerReaderFinanceService');
 const { resolveWriterVerificationBadge } = require('../services/writerVerificationBadgeService');
+const { getWriterFollowerCounts } = require('../services/writerFollowerCountService');
 
 function toPositiveInt(value) {
   const parsed = Number(value);
@@ -153,16 +154,8 @@ async function getReactionCounts(postId) {
 }
 
 async function getFollowerCount(writerId) {
-  const [rows] = await pool.query(
-    `
-    SELECT COUNT(*) AS total
-    FROM writer_follows
-    WHERE writer_user_id = ?
-    `,
-    [writerId]
-  );
-
-  return Number(rows[0]?.total || 0);
+  const counts = await getWriterFollowerCounts(writerId);
+  return Number(counts?.follower_count || 0);
 }
 
 async function getCommentCount(postId) {
@@ -1232,10 +1225,13 @@ async function getReaderFollowing(req, res) {
           ORDER BY aw.id DESC
           LIMIT 1
         ) AS website_slug,
-        (
-          SELECT COUNT(*)
-          FROM writer_follows wf2
-          WHERE wf2.writer_user_id = wf.writer_user_id
+        GREATEST(
+          0,
+          (
+            SELECT COUNT(*)
+            FROM writer_follows wf2
+            WHERE wf2.writer_user_id = wf.writer_user_id
+          ) + COALESCE(u.writer_follower_adjustment, 0)
         ) AS follower_count
       FROM writer_follows wf
       INNER JOIN users u

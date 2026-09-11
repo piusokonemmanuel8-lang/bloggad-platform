@@ -144,6 +144,9 @@ export default function AdminAffiliatesPage() {
   const [websiteStatusSaving, setWebsiteStatusSaving] = useState(false);
   const [subscriptionSaving, setSubscriptionSaving] = useState(false);
   const [verificationSaving, setVerificationSaving] = useState(false);
+  const [followerCounts, setFollowerCounts] = useState(null);
+  const [followerAdjustmentAmount, setFollowerAdjustmentAmount] = useState('');
+  const [followerSaving, setFollowerSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
@@ -160,12 +163,14 @@ export default function AdminAffiliatesPage() {
   };
 
   const fetchSingleAffiliate = async (affiliateId) => {
-    const [affiliateResponse, verificationResponse] = await Promise.all([
+    const [affiliateResponse, verificationResponse, followerResponse] = await Promise.all([
       api.get(`/api/admin/affiliates/${affiliateId}`),
       api.get(`/api/admin/affiliates/${affiliateId}/verification`),
+      api.get(`/api/admin/affiliates/${affiliateId}/follower-adjustment`),
     ]);
     const affiliate = affiliateResponse.data?.affiliate || null;
     const verificationData = verificationResponse.data || {};
+    setFollowerCounts(followerResponse.data?.counts || null);
     setAffiliateDetails(
       affiliate
         ? {
@@ -329,6 +334,35 @@ export default function AdminAffiliatesPage() {
     }
   };
 
+  const handleFollowerAdjustment = async (direction) => {
+    if (!selectedAffiliateId || followerSaving) return;
+    const amount = Number(followerAdjustmentAmount);
+    if (!Number.isInteger(amount) || amount <= 0) {
+      setError('Enter a positive whole number of followers.');
+      return;
+    }
+
+    const adjustmentDelta = direction === 'reduce' ? -amount : amount;
+    const actionLabel = direction === 'reduce' ? 'reduce' : 'increase';
+    if (!window.confirm(`${actionLabel === 'increase' ? 'Increase' : 'Reduce'} the displayed follower total by ${amount.toLocaleString()}?`)) return;
+
+    try {
+      setFollowerSaving(true);
+      setError('');
+      setSuccess('');
+      const { data } = await api.put(
+        `/api/admin/affiliates/${selectedAffiliateId}/follower-adjustment`,
+        { adjustment_delta: adjustmentDelta }
+      );
+      setFollowerCounts(data?.counts || null);
+      setFollowerAdjustmentAmount('');
+      setSuccess(data?.message || 'Writer follower total updated successfully');
+    } catch (err) {
+      setError(err?.response?.data?.message || 'Failed to update Writer follower total');
+    } finally {
+      setFollowerSaving(false);
+    }
+  };
   const handleVerificationAction = async (action) => {
     if (!selectedAffiliateId) return;
 
@@ -1062,6 +1096,75 @@ export default function AdminAffiliatesPage() {
 
                   <div style={{ ...cardStyle(), marginBottom: 20 }}>
                     <div style={{ padding: '16px 18px', borderBottom: '1px solid #dcdcde' }}>
+          <div
+            style={{
+              marginBottom: 20,
+              padding: 18,
+              border: '1px solid #dbe3ef',
+              borderRadius: 12,
+              background: '#f8fafc',
+            }}
+          >
+            <h3 style={{ marginTop: 0, marginBottom: 6 }}>Writer Followers</h3>
+            <p style={{ marginTop: 0, color: '#64748b' }}>
+              Adjust the public total without changing real follow relationships.
+            </p>
+
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
+                gap: 10,
+                marginBottom: 14,
+              }}
+            >
+              <div style={{ padding: 12, borderRadius: 10, background: '#ffffff' }}>
+                <small style={{ color: '#64748b' }}>Real followers</small>
+                <div style={{ fontSize: 22, fontWeight: 700 }}>
+                  {Number(followerCounts?.real_follower_count || 0).toLocaleString()}
+                </div>
+              </div>
+              <div style={{ padding: 12, borderRadius: 10, background: '#ffffff' }}>
+                <small style={{ color: '#64748b' }}>Admin adjustment</small>
+                <div style={{ fontSize: 22, fontWeight: 700 }}>
+                  {Number(followerCounts?.follower_adjustment || 0).toLocaleString()}
+                </div>
+              </div>
+              <div style={{ padding: 12, borderRadius: 10, background: '#ffffff' }}>
+                <small style={{ color: '#64748b' }}>Displayed total</small>
+                <div style={{ fontSize: 22, fontWeight: 700 }}>
+                  {Number(followerCounts?.follower_count || 0).toLocaleString()}
+                </div>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center' }}>
+              <input
+                type="number"
+                min="1"
+                step="1"
+                value={followerAdjustmentAmount}
+                onChange={(event) => setFollowerAdjustmentAmount(event.target.value)}
+                placeholder="Amount"
+                disabled={followerSaving}
+                style={{ width: 160, padding: '10px 12px', border: '1px solid #cbd5e1', borderRadius: 8 }}
+              />
+              <button
+                type="button"
+                onClick={() => handleFollowerAdjustment('increase')}
+                disabled={followerSaving}
+              >
+                {followerSaving ? 'Saving...' : 'Increase'}
+              </button>
+              <button
+                type="button"
+                onClick={() => handleFollowerAdjustment('reduce')}
+                disabled={followerSaving}
+              >
+                {followerSaving ? 'Saving...' : 'Reduce'}
+              </button>
+            </div>
+          </div>
                       <div style={{ fontSize: 16, fontWeight: 600, color: '#1d2327', marginBottom: 6 }}>
                         Writer Verification
                       </div>
