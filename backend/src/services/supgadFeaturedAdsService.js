@@ -438,6 +438,11 @@ async function requestSupgadFeaturedAd(req) {
     placement_key: placementKey,
     partner_request_id: partnerRequestId,
     exclude_campaign_target_ids: excludeCampaignTargetIds,
+    preferred_target_type:
+      req.body?.preferred_target_type === "product" ||
+      req.body?.preferred_target_type === "storefront"
+        ? req.body.preferred_target_type
+        : null,
     reader_ads_allowed: reader.reader_ads_allowed,
     reader_ip: reader.reader_ip,
     reader_user_agent: reader.reader_user_agent,
