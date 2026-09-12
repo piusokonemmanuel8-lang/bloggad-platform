@@ -1,0 +1,245 @@
+.admin-webinar-infra-page {
+  width: 100%;
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 28px;
+  color: #101828;
+}
+
+.admin-webinar-infra-heading {
+  margin-bottom: 22px;
+}
+
+.admin-webinar-infra-heading h1 {
+  margin: 4px 0 6px;
+  font-size: 28px;
+  line-height: 1.2;
+}
+
+.admin-webinar-infra-heading p {
+  margin: 0;
+  color: #667085;
+}
+
+.admin-webinar-infra-eyebrow {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.admin-webinar-infra-status-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.admin-webinar-infra-status-card,
+.admin-webinar-infra-card {
+  border: 1px solid #e4e7ec;
+  border-radius: 14px;
+  background: #ffffff;
+}
+
+.admin-webinar-infra-status-card {
+  padding: 18px;
+}
+
+.admin-webinar-infra-status-card span,
+.admin-webinar-infra-status-card small {
+  display: block;
+  color: #667085;
+}
+
+.admin-webinar-infra-status-card strong {
+  display: block;
+  margin: 6px 0;
+  font-size: 16px;
+}
+
+.admin-webinar-infra-card {
+  padding: 24px;
+  margin-bottom: 18px;
+}
+
+.admin-webinar-infra-fixed-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.admin-webinar-infra-fixed-grid > div {
+  padding: 14px;
+  border: 1px solid #eaecf0;
+  border-radius: 10px;
+  background: #f9fafb;
+}
+
+.admin-webinar-infra-fixed-grid span {
+  display: block;
+  margin-bottom: 6px;
+  color: #667085;
+  font-size: 12px;
+}
+
+.admin-webinar-infra-fixed-grid strong {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.admin-webinar-infra-section {
+  display: grid;
+  grid-template-columns:
+    minmax(220px, 0.8fr)
+    minmax(320px, 1.2fr);
+  gap: 28px;
+  align-items: start;
+}
+
+.admin-webinar-infra-section h2 {
+  margin: 0 0 6px;
+  font-size: 18px;
+}
+
+.admin-webinar-infra-section p {
+  margin: 0;
+  color: #667085;
+  line-height: 1.55;
+}
+
+.admin-webinar-infra-section label {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 16px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.admin-webinar-infra-section input {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid #d0d5dd;
+  border-radius: 10px;
+  background: #ffffff;
+  color: #101828;
+  outline: none;
+}
+
+.admin-webinar-infra-section input:focus {
+  border-color: #98a2b3;
+  box-shadow:
+    0 0 0 3px rgba(152, 162, 179, 0.14);
+}
+
+.admin-webinar-infra-security-note {
+  display: block;
+  color: #667085;
+}
+
+.admin-webinar-infra-divider {
+  height: 1px;
+  margin: 24px 0;
+  background: #eaecf0;
+}
+
+.admin-webinar-infra-lock-list {
+  display: grid;
+  gap: 10px;
+}
+
+.admin-webinar-infra-lock-list > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 14px;
+  border: 1px solid #eaecf0;
+  border-radius: 10px;
+}
+
+.admin-webinar-infra-lock-list span {
+  color: #667085;
+}
+
+.admin-webinar-infra-message {
+  margin-top: 18px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  font-size: 13px;
+}
+
+.admin-webinar-infra-message.success {
+  background: #ecfdf3;
+  color: #067647;
+}
+
+.admin-webinar-infra-message.error {
+  background: #fef3f2;
+  color: #b42318;
+}
+
+.admin-webinar-infra-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 22px;
+}
+
+.admin-webinar-infra-actions button {
+  min-height: 42px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 10px;
+  background: #101828;
+  color: #ffffff;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.admin-webinar-infra-actions button.secondary {
+  border: 1px solid #d0d5dd;
+  background: #ffffff;
+  color: #344054;
+}
+
+.admin-webinar-infra-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+@media (max-width: 900px) {
+  .admin-webinar-infra-status-grid {
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .admin-webinar-infra-page {
+    padding: 16px;
+  }
+
+  .admin-webinar-infra-status-grid,
+  .admin-webinar-infra-fixed-grid,
+  .admin-webinar-infra-section {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-webinar-infra-heading h1 {
+    font-size: 24px;
+  }
+
+  .admin-webinar-infra-card {
+    padding: 18px;
+  }
+
+  .admin-webinar-infra-actions {
+    flex-direction: column-reverse;
+  }
+
+  .admin-webinar-infra-actions button {
+    width: 100%;
+  }
+}

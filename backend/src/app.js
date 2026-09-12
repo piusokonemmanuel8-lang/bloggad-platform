@@ -258,6 +258,10 @@ function createApp() {
     './routes/admin/adminWebinarPlanRoutes',
   ]);
 
+  mount(app, '/api/admin/webinar-infrastructure', 'adminWebinarInfrastructureRoutes', [
+    './routes/admin/adminWebinarInfrastructureRoutes',
+  ]);
+
   mount(app, '/api/admin/affiliates', 'adminAffiliatesRoutes', [
     './routes/admin/adminAffiliatesRoutes',
     './routes/admin/adminAffiliateRoutes',

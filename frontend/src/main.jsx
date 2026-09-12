@@ -80,6 +80,7 @@ import AdminPaymentModerationDetailsPage from './pages/admin/AdminPaymentModerat
 import AdminWriterWithdrawalsPage from './pages/admin/AdminWriterWithdrawalsPage';
 import AdminPaymentGatewaysPage from './pages/admin/AdminPaymentGatewaysPage';
 import AdminSupgadIntegrationPage from './pages/admin/AdminSupgadIntegrationPage';
+import AdminWebinarInfrastructurePage from './pages/admin/AdminWebinarInfrastructurePage';
 import AdminNotificationsPage from './pages/admin/AdminNotificationsPage';
 import AdminAffiliateAdsPage from './pages/admin/AdminAffiliateAdsPage';
 import AdminAffiliateAdsSettingsPage from './pages/admin/AdminAffiliateAdsSettingsPage';
@@ -468,6 +469,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
             <Route path="/admin/writer-withdrawals" element={<AdminWriterWithdrawalsPage />} />
             <Route path="/admin/payment-gateways" element={<AdminPaymentGatewaysPage />} />
               <Route path="/admin/supgad-integration" element={<AdminSupgadIntegrationPage />} />
+              <Route path="/admin/webinar-infrastructure" element={<AdminWebinarInfrastructurePage />} />
           </Route>
 
           <Route

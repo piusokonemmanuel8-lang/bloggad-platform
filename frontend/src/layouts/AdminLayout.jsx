@@ -47,6 +47,7 @@ const adminMenu = [
   { label: 'Writer Withdrawals', to: '/admin/writer-withdrawals', icon: Wallet },
   { label: 'Payment Gateways', to: '/admin/payment-gateways', icon: CreditCard },
   { label: 'Supgad Integration', to: '/admin/supgad-integration', icon: ShieldCheck },
+  { label: 'Webinar Infrastructure', to: '/admin/webinar-infrastructure', icon: ShieldCheck },
   { label: 'Products', to: '/admin/products', icon: Box },
   { label: 'Posts', to: '/admin/posts', icon: FileText },
   { label: 'Chats', to: '/admin/chats', icon: MessageSquare },
