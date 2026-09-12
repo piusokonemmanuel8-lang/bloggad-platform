@@ -421,9 +421,23 @@ async function requestSupgadFeaturedAd(req) {
     cleanText(crypto.randomUUID?.(), 100) ||
     `bloggad-${Date.now()}-${crypto.randomBytes(8).toString("hex")}`;
 
+  /* BLOGGAD_SUPGAD_AD_DIVERSITY_V1 */
+  const excludeCampaignTargetIds = Array.from(
+    new Set(
+      (
+        Array.isArray(req.body?.exclude_campaign_target_ids)
+          ? req.body.exclude_campaign_target_ids
+          : String(req.body?.exclude_campaign_target_ids || "").split(",")
+      )
+        .map((value) => Number(value))
+        .filter((value) => Number.isInteger(value) && value > 0)
+    )
+  ).slice(-50);
+
   const body = {
     placement_key: placementKey,
     partner_request_id: partnerRequestId,
+    exclude_campaign_target_ids: excludeCampaignTargetIds,
     reader_ads_allowed: reader.reader_ads_allowed,
     reader_ip: reader.reader_ip,
     reader_user_agent: reader.reader_user_agent,
