@@ -114,7 +114,6 @@ async function verifySupgadSso(req, res) {
   const supgadUserId = cleanText(claims?.supgad_user_id, 191);
   const jti = cleanText(claims?.jti, 191);
   const email = cleanEmail(claims?.email);
-  const emailVerified = claims?.email_verified === true;
   const fullName = cleanText(claims?.full_name, 150);
   const avatar = cleanText(claims?.avatar, 500);
   const supgadActiveRole = cleanSupgadRole(claims?.supgad_active_role);
@@ -222,16 +221,6 @@ async function verifySupgadSso(req, res) {
       user = emailRows[0] || null;
 
       if (user) {
-        if (!emailVerified) {
-          await connection.rollback();
-
-          return res.status(409).json({
-            ok: false,
-            code: 'SUPGAD_EMAIL_VERIFICATION_REQUIRED',
-            message:
-              'Verify your Supgad email before linking it to your existing Bloggad account.',
-          });
-        }
 
         const [existingSupgadIdentityRows] = await connection.query(
           `
