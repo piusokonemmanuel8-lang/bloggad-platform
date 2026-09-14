@@ -438,7 +438,18 @@ async function getReaderFeed(req, res) {
         aw.website_name,
         aw.slug AS website_slug,
         primary_wp.slug AS writer_page_slug,
-        primary_wp.logo_url AS writer_page_logo_url,
+        COALESCE(
+          NULLIF(wp.avatar_url, ''),
+          NULLIF(primary_wp.logo_url, ''),
+          (
+            SELECT NULLIF(external_identity.external_avatar, '')
+            FROM user_external_identities external_identity
+            WHERE external_identity.user_id = pp.user_id
+              AND external_identity.provider = 'supgad'
+            ORDER BY external_identity.id DESC
+            LIMIT 1
+          )
+        ) AS writer_page_logo_url,
         c.name AS category_name,
         COALESCE(
           NULLIF(wp.pen_name, ''),
@@ -502,27 +513,7 @@ async function getReaderFeed(req, res) {
       LEFT JOIN categories c
         ON c.id = pp.category_id
       WHERE pp.status = 'published'
-        AND (
-          NOT EXISTS(
-            SELECT 1
-            FROM reader_category_interests rci_any
-            INNER JOIN categories c_any
-              ON c_any.id = rci_any.category_id
-             AND c_any.status = 'active'
-            WHERE rci_any.reader_user_id = ?
-          )
-          OR EXISTS(
-            SELECT 1
-            FROM reader_interest_tree rit_match
-            WHERE rit_match.category_id = pp.category_id
-               OR EXISTS(
-                 SELECT 1
-                 FROM post_category_assignments pca_interest
-                 WHERE pca_interest.post_id = pp.id
-                   AND pca_interest.category_id = rit_match.category_id
-               )
-          )
-        )
+
         AND NOT EXISTS(
           SELECT 1
           FROM reader_content_mutes rcm
@@ -545,6 +536,16 @@ async function getReaderFeed(req, res) {
             )
         )
       ORDER BY
+        FLOOR(
+          (
+            ROW_NUMBER() OVER (
+              PARTITION BY pp.user_id
+              ORDER BY
+                COALESCE(pp.published_at, pp.created_at) DESC,
+                pp.id DESC
+            ) - 1
+          ) / 2
+        ) ASC,
         interest_match DESC,
         followed_writer DESC,
         followed_publication DESC,
@@ -553,7 +554,6 @@ async function getReaderFeed(req, res) {
       LIMIT ? OFFSET ?
       `,
       [
-        readerId,
         readerId,
         readerId,
         readerId,

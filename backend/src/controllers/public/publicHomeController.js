@@ -427,6 +427,9 @@ function sanitizeHomepageStory(row) {
     writer_name: row.writer_name || row.website_name || 'Writer',
     verification_badge: row.verification_badge || null,
     writer_page_slug: row.writer_page_slug || null,
+    writer_page_logo_url: safeImageUrl(
+      row.writer_page_logo_url || row.writer_avatar_url || null
+    ),
     writer_avatar_url: safeImageUrl(
       row.writer_page_logo_url || row.writer_avatar_url || null
     ),
@@ -646,13 +649,11 @@ async function getHomepageStories(limit = 40) {
 }
 async function getHomepage(req, res) {
   try {
-    const [posts, products, categories, featured_websites, stats] = await Promise.all([
-      getHomepageStories(),
-      getHomepageProducts(),
-      getHomepageCategories(),
-      getHomepageFeaturedWebsites(),
-      getHomepageStats(),
-    ]);
+    const posts = await getHomepageStories();
+    const products = await getHomepageProducts();
+    const categories = await getHomepageCategories();
+    const featured_websites = await getHomepageFeaturedWebsites();
+    const stats = await getHomepageStats();
 
     return res.status(200).json({
       ok: true,
