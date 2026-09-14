@@ -114,6 +114,7 @@ async function verifySupgadSso(req, res) {
   const supgadUserId = cleanText(claims?.supgad_user_id, 191);
   const jti = cleanText(claims?.jti, 191);
   const email = cleanEmail(claims?.email);
+  const emailVerified = claims?.email_verified === true;
   const fullName = cleanText(claims?.full_name, 150);
   const avatar = cleanText(claims?.avatar, 500);
   const supgadActiveRole = cleanSupgadRole(claims?.supgad_active_role);
@@ -221,13 +222,39 @@ async function verifySupgadSso(req, res) {
       user = emailRows[0] || null;
 
       if (user) {
-        await connection.rollback();
+        if (!emailVerified) {
+          await connection.rollback();
 
-        return res.status(409).json({
-          ok: false,
-          message:
-            'A Bloggad account already uses this email. Sign in to Bloggad normally before linking Supgad.',
-        });
+          return res.status(409).json({
+            ok: false,
+            code: 'SUPGAD_EMAIL_VERIFICATION_REQUIRED',
+            message:
+              'Verify your Supgad email before linking it to your existing Bloggad account.',
+          });
+        }
+
+        const [existingSupgadIdentityRows] = await connection.query(
+          `
+          SELECT external_user_id
+          FROM user_external_identities
+          WHERE user_id = ?
+            AND provider = ?
+          LIMIT 1
+          FOR UPDATE
+          `,
+          [user.id, PROVIDER]
+        );
+
+        if (existingSupgadIdentityRows[0]) {
+          await connection.rollback();
+
+          return res.status(409).json({
+            ok: false,
+            code: 'BLOGGAD_ACCOUNT_ALREADY_LINKED',
+            message:
+              'This Bloggad account is already linked to another Supgad account.',
+          });
+        }
       } else {
         const generatedPassword = crypto.randomBytes(48).toString('hex');
         const hashedPassword = await bcrypt.hash(generatedPassword, 12);
