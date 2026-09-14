@@ -649,11 +649,13 @@ async function getHomepageStories(limit = 40) {
 }
 async function getHomepage(req, res) {
   try {
-    const posts = await getHomepageStories();
-    const products = await getHomepageProducts();
-    const categories = await getHomepageCategories();
-    const featured_websites = await getHomepageFeaturedWebsites();
-    const stats = await getHomepageStats();
+    const [posts, products, categories, featured_websites, stats] = await Promise.all([
+      getHomepageStories(),
+      getHomepageProducts(),
+      getHomepageCategories(),
+      getHomepageFeaturedWebsites(),
+      getHomepageStats(),
+    ]);
 
     return res.status(200).json({
       ok: true,
