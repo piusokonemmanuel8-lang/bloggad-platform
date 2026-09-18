@@ -596,11 +596,10 @@ export default function ReaderFeedPage() {
             className="reader-feed-approved-list"
             aria-label="Personalized reading feed"
           >
-            <SupgadFeaturedAdPlacement placementKey="bloggad_feed" />
 
-            {feed.map((post) => {
+
+            {feed.filter((post) => !hiddenPosts[Number(post?.id || 0)]).map((post, index) => {
               const postId = Number(post?.id || 0);
-              if (hiddenPosts[postId]) return null;
 
               const reason = getFeedReason(post);
               const topics = normalizeTopics(post);
@@ -624,7 +623,7 @@ export default function ReaderFeedPage() {
               const menuOpen =
                 openStoryMenuId === postId;
 
-              return (
+              return [
                 <article
                   className="reader-feed-approved-card"
                   key={post.id}
@@ -852,8 +851,14 @@ export default function ReaderFeedPage() {
                       <span aria-hidden="true">-&gt;</span>
                     </Link>
                   </div>
-                </article>
-              );
+                </article>,
+                (index + 1) % 4 === 0 ? (
+                  <SupgadFeaturedAdPlacement
+                    key={`supgad-reader-feed-${post.id}`}
+                    placementKey="bloggad_feed"
+                  />
+                ) : null,
+              ];
             })}
           </section>
         ) : null}

@@ -954,20 +954,26 @@ export default function WriterPagePostPage() {
             affiliateUserId={writerId || null}
             postId={postId}
             productId={post?.product_id || null}
-            externalFallback={
-              <SupgadFeaturedAdPlacement
-                placementKey="bloggad_post_detail"
-                postId={postId}
-                keywordContext={post?.title || ''}
-              />
-            }
           />
 
           <div className="wpp-article-body" data-bloggad-post-content>
             {bodyFields.length ? (
-              bodyFields.map((field, index) => (
-                <ArticleField field={field} index={index} key={field?.id || index} />
-              ))
+              bodyFields.map((field, index) => [
+                <ArticleField
+                  field={field}
+                  index={index}
+                  key={field?.id || index}
+                />,
+                bodyFields.length > 1 &&
+                index === Math.ceil(bodyFields.length / 2) - 1 ? (
+                  <SupgadFeaturedAdPlacement
+                    key={`supgad-post-mid-${postId}-${index}`}
+                    placementKey="bloggad_post_detail"
+                    postId={postId}
+                    keywordContext={post?.title || ''}
+                  />
+                ) : null,
+              ])
             ) : (
               post.excerpt ? <p className="wpp-body-copy">{post.excerpt}</p> : null
             )}
@@ -1035,6 +1041,12 @@ export default function WriterPagePostPage() {
               </div>
             </section>
           ) : null}
+
+          <SupgadFeaturedAdPlacement
+            placementKey="bloggad_post_detail"
+            postId={postId}
+            keywordContext={post?.title || ''}
+          />
 
           <div className="wpp-engagement-row">
             <button

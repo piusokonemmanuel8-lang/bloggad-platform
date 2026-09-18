@@ -1144,12 +1144,9 @@ const allPosts = useMemo(() => {
           {error ? <div className="bh-inline-error">{error}</div> : null}
 
           <div className="bh-story-list">
-            <SupgadFeaturedAdPlacement
-              placementKey="bloggad_feed"
-              keywordContext={search || activeTab}
-            />
+
             {visiblePosts.length ? (
-              visiblePosts.map((post) => (
+              visiblePosts.filter((post) => !hiddenPosts[post.id]).map((post, index) => [
                 <StoryCard
                   key={post.id}
                   post={post}
@@ -1169,8 +1166,15 @@ const allPosts = useMemo(() => {
                   onShare={shareHomepageStory}
                   onHide={hideHomepageStory}
                   onMore={toggleHomepageStoryMenu}
-                />
-              ))
+                />,
+                (index + 1) % 4 === 0 ? (
+                  <SupgadFeaturedAdPlacement
+                    key={`supgad-home-feed-${post.id}`}
+                    placementKey="bloggad_feed"
+                    keywordContext={search || activeTab}
+                  />
+                ) : null,
+              ])
             ) : (
               <div className="bh-empty">
                 <strong>No published stories yet.</strong>

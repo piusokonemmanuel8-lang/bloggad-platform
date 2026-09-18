@@ -48,6 +48,47 @@ function sanitizeUsage(row) {
 async function ensureUsagePeriod(subscription, connection = pool) {
   if (!subscription) return null;
 
+  const [[windowRow]] = await connection.query(
+    `
+    SELECT
+      GREATEST(
+        ?,
+        DATE_FORMAT(NOW(), '%Y-%m-01 00:00:00')
+      ) AS period_start,
+      LEAST(
+        ?,
+        DATE_ADD(LAST_DAY(NOW()), INTERVAL 1 DAY)
+      ) AS period_end
+    `,
+    [subscription.current_period_start, subscription.current_period_end]
+  );
+
+  const periodStart = windowRow?.period_start;
+  const periodEnd = windowRow?.period_end;
+
+  if (!periodStart || !periodEnd) {
+    const error = new Error('Unable to determine webinar usage period.');
+    error.status = 500;
+    error.code = 'WEBINAR_USAGE_PERIOD_INVALID';
+    throw error;
+  }
+
+  const [[carryRow]] = await connection.query(
+    `
+    SELECT COALESCE((
+      SELECT storage_bytes
+      FROM webinar_usage_periods
+      WHERE writer_user_id = ?
+        AND period_start < ?
+      ORDER BY period_start DESC, id DESC
+      LIMIT 1
+    ), 0) AS storage_bytes
+    `,
+    [subscription.writer_user_id, periodStart]
+  );
+
+  const carriedStorageBytes = nonNegativeInt(carryRow?.storage_bytes);
+
   await connection.query(
     `
     INSERT INTO webinar_usage_periods (
@@ -62,7 +103,7 @@ async function ensureUsagePeriod(subscription, connection = pool) {
       created_at,
       updated_at
     )
-    VALUES (?, ?, ?, ?, 0, 0, 0, 0, NOW(), NOW())
+    VALUES (?, ?, ?, ?, 0, ?, 0, 0, NOW(), NOW())
     ON DUPLICATE KEY UPDATE
       period_end = VALUES(period_end),
       updated_at = NOW()
@@ -70,8 +111,9 @@ async function ensureUsagePeriod(subscription, connection = pool) {
     [
       subscription.id,
       subscription.writer_user_id,
-      subscription.current_period_start,
-      subscription.current_period_end,
+      periodStart,
+      periodEnd,
+      carriedStorageBytes,
     ]
   );
 
@@ -83,7 +125,7 @@ async function ensureUsagePeriod(subscription, connection = pool) {
       AND period_start = ?
     LIMIT 1
     `,
-    [subscription.id, subscription.current_period_start]
+    [subscription.id, periodStart]
   );
 
   return sanitizeUsage(rows[0] || null);
@@ -129,10 +171,15 @@ async function getWebinarSubscriptionOverview(writerUserId) {
     plan.max_webinars !== null &&
     webinarCount >= plan.max_webinars;
 
+  const playbackExceeded =
+    plan.monthly_playback_seconds_limit !== null &&
+    usage.playback_seconds >= plan.monthly_playback_seconds_limit;
+
   let reason = null;
 
   if (bandwidthExceeded) reason = 'bandwidth_limit_reached';
   else if (storageExceeded) reason = 'storage_limit_reached';
+  else if (playbackExceeded) reason = 'monthly_playback_limit_reached';
   else if (webinarCountExceeded) reason = 'webinar_limit_reached';
 
   return {
@@ -144,7 +191,10 @@ async function getWebinarSubscriptionOverview(writerUserId) {
         bandwidth_bytes: plan.bandwidth_limit_bytes,
         storage_bytes: plan.storage_limit_bytes,
         max_webinars: plan.max_webinars,
+        max_concurrent_attendees: plan.max_concurrent_attendees,
+        monthly_playback_seconds: plan.monthly_playback_seconds_limit,
         max_video_duration_seconds: plan.max_video_duration_seconds,
+        ticket_platform_fee_percent: plan.ticket_platform_fee_percent,
       },
       remaining: {
         bandwidth_bytes: remaining(
@@ -159,6 +209,10 @@ async function getWebinarSubscriptionOverview(writerUserId) {
           plan.max_webinars === null
             ? null
             : Math.max(0, plan.max_webinars - webinarCount),
+        playback_seconds: remaining(
+          usage.playback_seconds,
+          plan.monthly_playback_seconds_limit
+        ),
       },
       percent_used: {
         bandwidth: percent(
@@ -170,12 +224,16 @@ async function getWebinarSubscriptionOverview(writerUserId) {
           plan.storage_limit_bytes
         ),
         webinars: percent(webinarCount, plan.max_webinars),
+        playback: percent(
+          usage.playback_seconds,
+          plan.monthly_playback_seconds_limit
+        ),
       },
     },
     entitlement: {
       can_create: !storageExceeded && !webinarCountExceeded,
       can_upload: !storageExceeded,
-      can_stream: !bandwidthExceeded,
+      can_stream: !bandwidthExceeded && !playbackExceeded,
       reason,
     },
   };
@@ -207,6 +265,125 @@ async function assertWebinarEntitlement(
   return overview;
 }
 
+
+async function consumeWebinarPlaybackSeconds({
+  writerUserId,
+  usageKey,
+  playbackSeconds,
+  metadata = null,
+  connection = pool,
+}) {
+  const cleanWriterUserId = positiveInt(writerUserId);
+  const cleanUsageKey = String(usageKey || '').trim().slice(0, 190);
+  const requestedSeconds = nonNegativeInt(playbackSeconds);
+
+  if (!cleanWriterUserId || !cleanUsageKey) {
+    const error = new Error('Valid Writer user id and usage key are required.');
+    error.status = 400;
+    throw error;
+  }
+
+  const subscription = await getCurrentWebinarSubscription(
+    cleanWriterUserId,
+    {
+      connection,
+      forUpdate: true,
+    }
+  );
+
+  if (!subscription) {
+    const error = new Error('An active webinar subscription is required.');
+    error.status = 403;
+    error.code = 'WEBINAR_SUBSCRIPTION_REQUIRED';
+    throw error;
+  }
+
+  const usage = await ensureUsagePeriod(subscription, connection);
+
+  const [existingRows] = await connection.query(
+    `
+    SELECT playback_seconds_delta
+    FROM webinar_usage_events
+    WHERE usage_key = ?
+    LIMIT 1
+    `,
+    [cleanUsageKey]
+  );
+
+  if (existingRows[0]) {
+    return {
+      consumed_seconds: Number(existingRows[0].playback_seconds_delta || 0),
+      limit_reached: false,
+      duplicate: true,
+      usage,
+      plan: subscription.plan,
+    };
+  }
+
+  const limit = subscription.plan.monthly_playback_seconds_limit;
+  const remainingSeconds =
+    limit === null
+      ? requestedSeconds
+      : Math.max(0, Number(limit) - Number(usage.playback_seconds || 0));
+  const consumedSeconds = Math.min(requestedSeconds, remainingSeconds);
+
+  await connection.query(
+    `
+    INSERT INTO webinar_usage_events (
+      usage_period_id,
+      subscription_id,
+      writer_user_id,
+      usage_key,
+      event_type,
+      bandwidth_bytes_delta,
+      storage_bytes_delta,
+      playback_seconds_delta,
+      viewer_sessions_delta,
+      metadata_json,
+      created_at
+    )
+    VALUES (?, ?, ?, ?, 'playback', 0, 0, ?, 0, ?, NOW())
+    `,
+    [
+      usage.id,
+      subscription.id,
+      cleanWriterUserId,
+      cleanUsageKey,
+      consumedSeconds,
+      metadata ? JSON.stringify(metadata) : null,
+    ]
+  );
+
+  if (consumedSeconds > 0) {
+    await connection.query(
+      `
+      UPDATE webinar_usage_periods
+      SET
+        playback_seconds = playback_seconds + ?,
+        updated_at = NOW()
+      WHERE id = ?
+      `,
+      [consumedSeconds, usage.id]
+    );
+  }
+
+  const nextPlayback =
+    Number(usage.playback_seconds || 0) + consumedSeconds;
+  const limitReached =
+    limit !== null && nextPlayback >= Number(limit);
+
+  return {
+    consumed_seconds: consumedSeconds,
+    limit_reached: limitReached,
+    duplicate: false,
+    usage: {
+      ...usage,
+      playback_seconds: nextPlayback,
+    },
+    plan: subscription.plan,
+  };
+}
+
 async function recordWebinarUsage({
   writerUserId,
   usageKey,
@@ -216,6 +393,7 @@ async function recordWebinarUsage({
   playbackSeconds = 0,
   viewerSessions = 0,
   metadata = null,
+  enforceStorageLimit = false,
 }) {
   const cleanWriterUserId = positiveInt(writerUserId);
   const cleanUsageKey = String(usageKey || '').trim().slice(0, 190);
@@ -264,6 +442,21 @@ async function recordWebinarUsage({
     }
 
     const usage = await ensureUsagePeriod(subscription, connection);
+
+    if (
+      enforceStorageLimit &&
+      cleanStorageDelta > 0 &&
+      subscription.plan.storage_limit_bytes !== null &&
+      Number(usage.storage_bytes || 0) + cleanStorageDelta >
+        Number(subscription.plan.storage_limit_bytes)
+    ) {
+      const error = new Error(
+        'This media would exceed the webinar storage allowance.'
+      );
+      error.status = 413;
+      error.code = 'WEBINAR_STORAGE_LIMIT_EXCEEDED';
+      throw error;
+    }
 
     const [existingRows] = await connection.query(
       `
@@ -393,5 +586,6 @@ module.exports = {
   ensureUsagePeriod,
   getWebinarSubscriptionOverview,
   assertWebinarEntitlement,
+  consumeWebinarPlaybackSeconds,
   recordWebinarUsage,
 };

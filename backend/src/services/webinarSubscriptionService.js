@@ -47,10 +47,22 @@ function sanitizePlan(row) {
         : Number(row.storage_limit_bytes),
     max_webinars:
       row.max_webinars === null ? null : Number(row.max_webinars),
+    max_concurrent_attendees:
+      row.max_concurrent_attendees === null
+        ? null
+        : Number(row.max_concurrent_attendees),
+    monthly_playback_seconds_limit:
+      row.monthly_playback_seconds_limit === null
+        ? null
+        : Number(row.monthly_playback_seconds_limit),
     max_video_duration_seconds:
       row.max_video_duration_seconds === null
         ? null
         : Number(row.max_video_duration_seconds),
+    ticket_platform_fee_percent:
+      row.ticket_platform_fee_percent === null
+        ? 0
+        : Number(row.ticket_platform_fee_percent),
     features: parseFeatures(row.features_json),
     status: row.status,
     sort_order: Number(row.sort_order || 0),
@@ -85,7 +97,10 @@ function sanitizeSubscription(row) {
           bandwidth_limit_bytes: row.bandwidth_limit_bytes,
           storage_limit_bytes: row.storage_limit_bytes,
           max_webinars: row.max_webinars,
+          max_concurrent_attendees: row.max_concurrent_attendees,
+          monthly_playback_seconds_limit: row.monthly_playback_seconds_limit,
           max_video_duration_seconds: row.max_video_duration_seconds,
+          ticket_platform_fee_percent: row.ticket_platform_fee_percent,
           features_json: row.features_json,
           status: row.plan_status,
           sort_order: row.plan_sort_order,
@@ -151,7 +166,10 @@ async function getCurrentWebinarSubscription(
       p.bandwidth_limit_bytes,
       p.storage_limit_bytes,
       p.max_webinars,
+      p.max_concurrent_attendees,
+      p.monthly_playback_seconds_limit,
       p.max_video_duration_seconds,
+      p.ticket_platform_fee_percent,
       p.features_json,
       p.status AS plan_status,
       p.sort_order AS plan_sort_order

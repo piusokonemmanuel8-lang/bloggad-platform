@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import api from '../../api/axios';
 
 function getSlotLabel(slotKey = '') {
@@ -336,29 +336,82 @@ function getSupgadFeaturedSessionId() {
   }
 }
 
+function normalizeSupgadImage(value) {
+  if (!value) return '';
+
+  if (typeof value === 'string') {
+    return value.trim();
+  }
+
+  if (typeof value !== 'object') return '';
+
+  return String(
+    value.asset_url ||
+      value.image_url ||
+      value.url ||
+      value.src ||
+      value.thumbnail_url ||
+      ''
+  ).trim();
+}
+
 function getSupgadCreative(ad = {}) {
   const creative =
     ad?.creative && typeof ad.creative === 'object'
       ? ad.creative
       : ad;
 
-  return {
-    imageUrl:
-      creative?.asset_url ||
+  const targetType = String(ad?.target_type || '').trim().toLowerCase();
+
+  const contractImage = normalizeSupgadImage(ad?.image);
+  const legacyImage = normalizeSupgadImage(
+    creative?.asset_url ||
       creative?.image_url ||
       creative?.thumbnail_url ||
-      ad?.image_url ||
-      null,
+      ad?.image_url
+  );
+
+  const primaryImage =
+    targetType === 'storefront'
+      ? contractImage
+      : contractImage || legacyImage;
+
+  let images = [];
+
+  if (targetType === 'storefront') {
+    images = Array.isArray(ad?.images)
+      ? ad.images.map(normalizeSupgadImage).filter(Boolean)
+      : [];
+
+    images = Array.from(new Set(images)).slice(0, 4);
+
+    if (primaryImage && !images.includes(primaryImage)) {
+      images = [primaryImage, ...images].slice(0, 4);
+    }
+  } else if (primaryImage) {
+    images = [primaryImage];
+  }
+
+  const initialSlideIndex =
+    primaryImage && images.includes(primaryImage)
+      ? images.indexOf(primaryImage)
+      : 0;
+
+  return {
+    targetType,
+    images,
+    initialSlideIndex,
     headline:
+      ad?.title ||
       creative?.headline ||
       ad?.headline ||
       ad?.campaign_name ||
       'Sponsored',
     description:
+      ad?.description ||
       creative?.body_text ||
       creative?.description ||
       ad?.description_text ||
-      ad?.description ||
       '',
     buttonText:
       creative?.button_text ||
@@ -371,9 +424,16 @@ function getSupgadCreative(ad = {}) {
       '',
     altText:
       creative?.alt_text ||
+      ad?.title ||
       creative?.headline ||
       ad?.headline ||
       'Sponsored advertisement',
+    price: ad?.price ?? null,
+    priceRangeMin: ad?.price_range_min ?? null,
+    priceRangeMax: ad?.price_range_max ?? null,
+    currency: String(ad?.currency || '').trim(),
+    averageRating: ad?.average_rating ?? null,
+    totalReviews: ad?.total_reviews ?? null,
   };
 }
 
@@ -384,14 +444,34 @@ export function SupgadFeaturedAdPlacement({
   darkMode = false,
 }) {
   const [delivery, setDelivery] = useState(null);
+  const [slideIndex, setSlideIndex] = useState(0);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [dismissed, setDismissed] = useState(false);
+
   const rootRef = useRef(null);
   const qualifiedRef = useRef(false);
+  const qualificationBusyRef = useRef(false);
+  const clickBusyRef = useRef(false);
+  const touchStartXRef = useRef(null);
+
+  const creative = useMemo(
+    () => getSupgadCreative(delivery?.ad || {}),
+    [delivery]
+  );
+
+  const slides = creative.images || [];
 
   useEffect(() => {
     let ignore = false;
 
     async function load() {
       if (!placementKey) return;
+
+      qualifiedRef.current = false;
+      qualificationBusyRef.current = false;
+      clickBusyRef.current = false;
+      setMenuOpen(false);
+      setDismissed(false);
 
       try {
         const { data } = await api.post('/api/public/ads/supgad/request', {
@@ -424,11 +504,20 @@ export function SupgadFeaturedAdPlacement({
   }, [placementKey, postId, keywordContext]);
 
   useEffect(() => {
+    setSlideIndex(
+      Number.isInteger(creative.initialSlideIndex)
+        ? creative.initialSlideIndex
+        : 0
+    );
+  }, [delivery?.delivery_token, creative.initialSlideIndex]);
+
+  useEffect(() => {
     if (
       !delivery?.ad ||
       !delivery?.delivery_token ||
       !delivery?.impression_token ||
       !rootRef.current ||
+      dismissed ||
       qualifiedRef.current
     ) {
       return;
@@ -458,8 +547,14 @@ export function SupgadFeaturedAdPlacement({
         if (entry.isIntersecting && visibleRatio >= 0.3) {
           if (!visibleSince) visibleSince = performance.now();
 
-          if (!timer && !qualifiedRef.current) {
+          if (
+            !timer &&
+            !qualifiedRef.current &&
+            !qualificationBusyRef.current
+          ) {
             timer = window.setTimeout(async () => {
+              timer = null;
+
               const elapsed = visibleSince
                 ? Math.max(
                     0,
@@ -467,12 +562,19 @@ export function SupgadFeaturedAdPlacement({
                   )
                 : 0;
 
-              if (elapsed < 1000 || qualifiedRef.current) return;
+              if (
+                elapsed < 1000 ||
+                visibleRatio < 0.3 ||
+                qualifiedRef.current ||
+                qualificationBusyRef.current
+              ) {
+                return;
+              }
 
-              qualifiedRef.current = true;
+              qualificationBusyRef.current = true;
 
               try {
-                await api.post(
+                const { data } = await api.post(
                   `/api/public/ads/supgad/impressions/${encodeURIComponent(
                     delivery.impression_token
                   )}/qualify`,
@@ -485,7 +587,15 @@ export function SupgadFeaturedAdPlacement({
                       getSupgadFeaturedSessionId() || null,
                   }
                 );
-              } catch {}
+
+                if (data?.ok === true || data?.success === true) {
+                  qualifiedRef.current = true;
+                }
+              } catch {
+                qualifiedRef.current = false;
+              } finally {
+                qualificationBusyRef.current = false;
+              }
             }, 1000);
           }
         } else {
@@ -504,14 +614,27 @@ export function SupgadFeaturedAdPlacement({
       clearTimer();
       observer.disconnect();
     };
-  }, [delivery]);
+  }, [delivery, dismissed]);
+
+  useEffect(() => {
+    if (slides.length < 2 || dismissed) return undefined;
+
+    const interval = window.setInterval(() => {
+      setSlideIndex((current) => (current + 1) % slides.length);
+    }, 5000);
+
+    return () => window.clearInterval(interval);
+  }, [delivery?.delivery_token, slides.length, dismissed]);
 
   if (!delivery?.ad) return null;
 
-  const creative = getSupgadCreative(delivery.ad);
-
   async function handleClick(event) {
     event.preventDefault();
+    event.stopPropagation();
+
+    if (clickBusyRef.current) return;
+
+    clickBusyRef.current = true;
 
     try {
       const { data } = await api.post(
@@ -527,8 +650,144 @@ export function SupgadFeaturedAdPlacement({
 
       if (/^https?:\/\//i.test(redirectUrl)) {
         window.location.assign(redirectUrl);
+        return;
       }
-    } catch {}
+    } catch {
+    } finally {
+      clickBusyRef.current = false;
+    }
+  }
+
+  function previousSlide(event) {
+    event.preventDefault();
+    event.stopPropagation();
+
+    if (slides.length < 2) return;
+
+    setSlideIndex((current) =>
+      current <= 0 ? slides.length - 1 : current - 1
+    );
+  }
+
+  function nextSlide(event) {
+    event.preventDefault();
+    event.stopPropagation();
+
+    if (slides.length < 2) return;
+
+    setSlideIndex((current) => (current + 1) % slides.length);
+  }
+
+  function handleTouchStart(event) {
+    touchStartXRef.current =
+      event.touches?.[0]?.clientX ?? null;
+  }
+
+  function handleTouchEnd(event) {
+    const startX = touchStartXRef.current;
+    const endX = event.changedTouches?.[0]?.clientX;
+
+    touchStartXRef.current = null;
+
+    if (
+      slides.length < 2 ||
+      !Number.isFinite(startX) ||
+      !Number.isFinite(endX)
+    ) {
+      return;
+    }
+
+    const delta = endX - startX;
+
+    if (Math.abs(delta) < 40) return;
+
+    if (delta < 0) {
+      setSlideIndex((current) => (current + 1) % slides.length);
+    } else {
+      setSlideIndex((current) =>
+        current <= 0 ? slides.length - 1 : current - 1
+      );
+    }
+  }
+
+  const currentImage =
+    slides[slideIndex] ||
+    slides[0] ||
+    '';
+
+  const priceText = (() => {
+    const currencyPrefix = creative.currency
+      ? `${creative.currency} `
+      : '';
+
+    if (
+      creative.price !== null &&
+      creative.price !== undefined &&
+      String(creative.price).trim() !== ''
+    ) {
+      return `${currencyPrefix}${creative.price}`;
+    }
+
+    if (
+      creative.priceRangeMin !== null &&
+      creative.priceRangeMin !== undefined &&
+      creative.priceRangeMax !== null &&
+      creative.priceRangeMax !== undefined
+    ) {
+      return `${currencyPrefix}${creative.priceRangeMin} - ${creative.priceRangeMax}`;
+    }
+
+    return '';
+  })();
+
+  const ratingText =
+    creative.averageRating !== null &&
+    creative.averageRating !== undefined
+      ? `${creative.averageRating} rating${
+          creative.totalReviews !== null &&
+          creative.totalReviews !== undefined
+            ? ` (${creative.totalReviews})`
+            : ''
+        }`
+      : '';
+
+  if (dismissed) {
+    return (
+      <aside
+        ref={rootRef}
+        aria-label="Ads by Supgad"
+        style={{
+          width: '100%',
+          margin: '18px 0',
+          borderRadius: 14,
+          border: `1px solid ${darkMode ? '#2a2f35' : '#e5e7eb'}`,
+          background: darkMode ? '#111418' : '#ffffff',
+          padding: '10px 12px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 12,
+          color: darkMode ? '#cbd5e1' : '#4b5563',
+          fontSize: 12,
+          fontWeight: 700,
+        }}
+      >
+        <span>Ads by Supgad</span>
+        <button
+          type="button"
+          onClick={() => setDismissed(false)}
+          style={{
+            border: 0,
+            background: 'transparent',
+            color: darkMode ? '#f8fafc' : '#111827',
+            cursor: 'pointer',
+            fontWeight: 800,
+          }}
+        >
+          Show ad
+        </button>
+      </aside>
+    );
   }
 
   return (
@@ -542,53 +801,283 @@ export function SupgadFeaturedAdPlacement({
         border: `1px solid ${darkMode ? '#2a2f35' : '#e5e7eb'}`,
         background: darkMode ? '#111418' : '#ffffff',
         overflow: 'hidden',
+        position: 'relative',
+        color: darkMode ? '#f8fafc' : '#111827',
       }}
     >
-      <a
-        href="#"
-        onClick={handleClick}
-        rel="sponsored"
+      <style>{`
+        @media (max-width: 640px) {
+          .supgad-featured-carousel-arrow {
+            display: none !important;
+          }
+        }
+      `}</style>
+
+      <div
         style={{
-          display: 'grid',
-          gap: 12,
-          padding: 14,
-          textDecoration: 'none',
-          color: darkMode ? '#f8fafc' : '#111827',
+          minHeight: 40,
+          padding: '8px 10px 8px 12px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 10,
+          borderBottom: `1px solid ${darkMode ? '#23282e' : '#eef2f7'}`,
         }}
       >
         <span
           style={{
-            fontSize: 11,
-            fontWeight: 800,
+            display: 'inline-flex',
+            alignItems: 'center',
+            minHeight: 24,
+            padding: '0 8px',
+            borderRadius: 999,
+            fontSize: 10,
+            fontWeight: 900,
             letterSpacing: '0.08em',
-            textTransform: 'uppercase',
-            color: darkMode ? '#86efac' : '#047857',
+            background: darkMode ? '#20262d' : '#f3f4f6',
+            color: darkMode ? '#f8fafc' : '#111827',
           }}
         >
-          Sponsored
+          AD
         </span>
 
-        {creative.imageUrl ? (
-          <img
-            src={creative.imageUrl}
-            alt={creative.altText}
-            loading="lazy"
+        <button
+          type="button"
+          aria-label="Advertisement options"
+          aria-expanded={menuOpen}
+          onClick={() => setMenuOpen((open) => !open)}
+          style={{
+            width: 32,
+            height: 32,
+            border: 0,
+            borderRadius: 999,
+            background: 'transparent',
+            color: darkMode ? '#cbd5e1' : '#4b5563',
+            cursor: 'pointer',
+            fontSize: 20,
+            lineHeight: 1,
+            fontWeight: 900,
+          }}
+        >
+          ...
+        </button>
+      </div>
+
+      {menuOpen ? (
+        <div
+          role="menu"
+          style={{
+            position: 'absolute',
+            top: 42,
+            right: 10,
+            zIndex: 5,
+            minWidth: 160,
+            padding: 6,
+            borderRadius: 12,
+            border: `1px solid ${darkMode ? '#30363d' : '#e5e7eb'}`,
+            background: darkMode ? '#181d22' : '#ffffff',
+            boxShadow: '0 12px 30px rgba(15,23,42,0.14)',
+          }}
+        >
+          <div
+            style={{
+              padding: '9px 10px',
+              fontSize: 12,
+              fontWeight: 800,
+              color: darkMode ? '#f8fafc' : '#111827',
+            }}
+          >
+            Ads by Supgad
+          </div>
+
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              setMenuOpen(false);
+              setDismissed(true);
+            }}
+            style={{
+              width: '100%',
+              border: 0,
+              borderRadius: 8,
+              padding: '9px 10px',
+              background: 'transparent',
+              color: darkMode ? '#cbd5e1' : '#4b5563',
+              cursor: 'pointer',
+              textAlign: 'left',
+              fontSize: 12,
+              fontWeight: 700,
+            }}
+          >
+            Hide this ad
+          </button>
+        </div>
+      ) : null}
+
+      {currentImage ? (
+        <div
+          onTouchStart={handleTouchStart}
+          onTouchEnd={handleTouchEnd}
+          style={{
+            position: 'relative',
+            width: '100%',
+            background: darkMode ? '#0b0d10' : '#f8fafc',
+          }}
+        >
+          <button
+            type="button"
+            aria-label={`Open advertisement for ${creative.headline}`}
+            onClick={handleClick}
             style={{
               display: 'block',
               width: '100%',
-              maxHeight: 320,
-              objectFit: 'cover',
-              borderRadius: 14,
+              border: 0,
+              padding: 0,
+              margin: 0,
+              background: 'transparent',
+              cursor: 'pointer',
             }}
-          />
-        ) : null}
+          >
+            <img
+              src={currentImage}
+              alt={creative.altText}
+              loading="lazy"
+              style={{
+                display: 'block',
+                width: '100%',
+                maxHeight: 360,
+                objectFit: 'cover',
+              }}
+            />
+          </button>
 
-        <strong style={{ fontSize: 20, lineHeight: 1.25 }}>
+          {slides.length > 1 ? (
+            <>
+              <button
+                type="button"
+                className="supgad-featured-carousel-arrow"
+                aria-label="Previous advertisement image"
+                onClick={previousSlide}
+                style={{
+                  position: 'absolute',
+                  left: 10,
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  width: 36,
+                  height: 36,
+                  borderRadius: 999,
+                  border: '1px solid rgba(255,255,255,0.72)',
+                  background: 'rgba(17,24,39,0.58)',
+                  color: '#ffffff',
+                  cursor: 'pointer',
+                  fontSize: 20,
+                  lineHeight: 1,
+                }}
+              >
+                {'<'}
+              </button>
+
+              <button
+                type="button"
+                className="supgad-featured-carousel-arrow"
+                aria-label="Next advertisement image"
+                onClick={nextSlide}
+                style={{
+                  position: 'absolute',
+                  right: 10,
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  width: 36,
+                  height: 36,
+                  borderRadius: 999,
+                  border: '1px solid rgba(255,255,255,0.72)',
+                  background: 'rgba(17,24,39,0.58)',
+                  color: '#ffffff',
+                  cursor: 'pointer',
+                  fontSize: 20,
+                  lineHeight: 1,
+                }}
+              >
+                {'>'}
+              </button>
+            </>
+          ) : null}
+        </div>
+      ) : null}
+
+      {slides.length > 1 ? (
+        <div
+          aria-label="Advertisement images"
+          style={{
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            gap: 6,
+            padding: '8px 12px 0',
+          }}
+        >
+          {slides.map((image, index) => (
+            <button
+              key={`${image}-${index}`}
+              type="button"
+              aria-label={`Show advertisement image ${index + 1}`}
+              aria-current={slideIndex === index ? 'true' : undefined}
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                setSlideIndex(index);
+              }}
+              style={{
+                width: slideIndex === index ? 18 : 7,
+                height: 7,
+                border: 0,
+                borderRadius: 999,
+                padding: 0,
+                background:
+                  slideIndex === index
+                    ? darkMode
+                      ? '#f8fafc'
+                      : '#111827'
+                    : darkMode
+                      ? '#64748b'
+                      : '#cbd5e1',
+                cursor: 'pointer',
+                transition: 'width 160ms ease',
+              }}
+            />
+          ))}
+        </div>
+      ) : null}
+
+      <div
+        style={{
+          display: 'grid',
+          gap: 10,
+          padding: 14,
+        }}
+      >
+        <button
+          type="button"
+          onClick={handleClick}
+          style={{
+            border: 0,
+            padding: 0,
+            margin: 0,
+            background: 'transparent',
+            color: darkMode ? '#f8fafc' : '#111827',
+            cursor: 'pointer',
+            textAlign: 'left',
+            fontSize: 20,
+            fontWeight: 800,
+            lineHeight: 1.25,
+          }}
+        >
           {creative.headline}
-        </strong>
+        </button>
 
         {creative.description ? (
-          <span
+          <div
             style={{
               fontSize: 14,
               lineHeight: 1.6,
@@ -596,10 +1085,35 @@ export function SupgadFeaturedAdPlacement({
             }}
           >
             {creative.description}
-          </span>
+          </div>
         ) : null}
 
-        <span
+        {priceText || ratingText ? (
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+              flexWrap: 'wrap',
+              fontSize: 13,
+              color: darkMode ? '#cbd5e1' : '#4b5563',
+            }}
+          >
+            {priceText ? (
+              <strong
+                style={{
+                  color: darkMode ? '#f8fafc' : '#111827',
+                  fontSize: 16,
+                }}
+              >
+                {priceText}
+              </strong>
+            ) : null}
+            {ratingText ? <span>{ratingText}</span> : null}
+          </div>
+        ) : null}
+
+        <div
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -608,33 +1122,46 @@ export function SupgadFeaturedAdPlacement({
             flexWrap: 'wrap',
           }}
         >
-          <span
-            style={{
-              fontSize: 12,
-              color: darkMode ? '#94a3b8' : '#6b7280',
-              wordBreak: 'break-word',
-            }}
-          >
-            {creative.displayUrl}
-          </span>
+          {creative.displayUrl ? (
+            <span
+              style={{
+                fontSize: 12,
+                color: darkMode ? '#94a3b8' : '#6b7280',
+                wordBreak: 'break-word',
+              }}
+            >
+              {creative.displayUrl}
+            </span>
+          ) : (
+            <span
+              style={{
+                fontSize: 12,
+                color: darkMode ? '#94a3b8' : '#6b7280',
+              }}
+            >
+              Ads by Supgad
+            </span>
+          )}
 
-          <span
+          <button
+            type="button"
+            onClick={handleClick}
             style={{
-              display: 'inline-flex',
-              minHeight: 38,
-              alignItems: 'center',
-              padding: '0 14px',
+              minHeight: 36,
+              border: 0,
               borderRadius: 999,
+              padding: '0 14px',
               background: darkMode ? '#f8fafc' : '#111827',
               color: darkMode ? '#111827' : '#ffffff',
+              cursor: 'pointer',
               fontSize: 13,
               fontWeight: 800,
             }}
           >
             {creative.buttonText}
-          </span>
-        </span>
-      </a>
+          </button>
+        </div>
+      </div>
     </aside>
   );
 }

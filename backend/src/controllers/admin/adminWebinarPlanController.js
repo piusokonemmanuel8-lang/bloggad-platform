@@ -38,6 +38,11 @@ function normalizePlanInput(body, existing = null) {
     .trim()
     .toLowerCase();
   const sortOrder = Number(source.sort_order ?? current.sort_order ?? 0);
+  const ticketPlatformFeePercent = Number(
+    source.ticket_platform_fee_percent ??
+      current.ticket_platform_fee_percent ??
+      0
+  );
 
   if (!/^[a-z0-9][a-z0-9_-]{1,78}[a-z0-9]$/.test(planKey)) {
     const error = new Error(
@@ -75,6 +80,18 @@ function normalizePlanInput(body, existing = null) {
 
   if (!Number.isSafeInteger(sortOrder)) {
     const error = new Error('sort_order must be an integer.');
+    error.status = 400;
+    throw error;
+  }
+
+  if (
+    !Number.isFinite(ticketPlatformFeePercent) ||
+    ticketPlatformFeePercent < 0 ||
+    ticketPlatformFeePercent > 100
+  ) {
+    const error = new Error(
+      'ticket_platform_fee_percent must be between 0 and 100.'
+    );
     error.status = 400;
     throw error;
   }
@@ -126,9 +143,16 @@ function normalizePlanInput(body, existing = null) {
     bandwidth_limit_bytes: optionalPositive('bandwidth_limit_bytes'),
     storage_limit_bytes: optionalPositive('storage_limit_bytes'),
     max_webinars: optionalPositive('max_webinars'),
+    max_concurrent_attendees: optionalPositive(
+      'max_concurrent_attendees'
+    ),
+    monthly_playback_seconds_limit: optionalPositive(
+      'monthly_playback_seconds_limit'
+    ),
     max_video_duration_seconds: optionalPositive(
       'max_video_duration_seconds'
     ),
+    ticket_platform_fee_percent: ticketPlatformFeePercent.toFixed(2),
     features_json: features ? JSON.stringify(features) : null,
     status,
     sort_order: sortOrder,
@@ -203,14 +227,17 @@ async function createPlan(req, res) {
         bandwidth_limit_bytes,
         storage_limit_bytes,
         max_webinars,
+        max_concurrent_attendees,
+        monthly_playback_seconds_limit,
         max_video_duration_seconds,
+        ticket_platform_fee_percent,
         features_json,
         status,
         sort_order,
         created_at,
         updated_at
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
       `,
       [
         plan.plan_key,
@@ -220,7 +247,10 @@ async function createPlan(req, res) {
         plan.bandwidth_limit_bytes,
         plan.storage_limit_bytes,
         plan.max_webinars,
+        plan.max_concurrent_attendees,
+        plan.monthly_playback_seconds_limit,
         plan.max_video_duration_seconds,
+        plan.ticket_platform_fee_percent,
         plan.features_json,
         plan.status,
         plan.sort_order,
@@ -278,7 +308,10 @@ async function updatePlan(req, res) {
         bandwidth_limit_bytes = ?,
         storage_limit_bytes = ?,
         max_webinars = ?,
+        max_concurrent_attendees = ?,
+        monthly_playback_seconds_limit = ?,
         max_video_duration_seconds = ?,
+        ticket_platform_fee_percent = ?,
         features_json = ?,
         status = ?,
         sort_order = ?,
@@ -293,7 +326,10 @@ async function updatePlan(req, res) {
         plan.bandwidth_limit_bytes,
         plan.storage_limit_bytes,
         plan.max_webinars,
+        plan.max_concurrent_attendees,
+        plan.monthly_playback_seconds_limit,
         plan.max_video_duration_seconds,
+        plan.ticket_platform_fee_percent,
         plan.features_json,
         plan.status,
         plan.sort_order,

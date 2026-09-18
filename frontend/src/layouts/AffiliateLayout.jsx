@@ -28,6 +28,7 @@ import {
   Bell,
   Megaphone,
   Trophy,
+  Video,
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import RoleSwitcher from '../components/shared/RoleSwitcher';
@@ -68,6 +69,7 @@ const navItems = [
   { label: 'Pages', to: '/writer/pages', icon: FileText, group: 'Publish' },
   { label: 'Series and Books', to: '/writer/series', icon: FileText, group: 'Publish', paidOnly: true },
   { label: 'Courses', to: '/writer/courses', icon: LayoutTemplate, group: 'Publish', paidOnly: true },
+  { label: 'Webinars', to: '/writer/webinars', icon: Video, group: 'Publish' },
   { label: 'Community', to: '/writer/community', icon: Users, group: 'Publish', paidOnly: true },
 
   { label: 'Messages', to: '/writer/messages', icon: MessageSquare, group: 'Audience' },
@@ -341,13 +343,16 @@ export default function AffiliateLayout() {
     location.pathname === '/writer/settings' ||
     location.pathname === '/writer/leaderboard' ||
     location.pathname === '/writer/wallet' ||
-    location.pathname === '/writer/ads';
+    location.pathname === '/writer/ads' ||
+    location.pathname.startsWith('/writer/webinars');
 
   const dashboardMode =
     connectedWriterShellMode ||
     location.pathname === '/affiliate/dashboard';
 
-  const shellTitle = location.pathname === '/writer/ads'
+  const shellTitle = location.pathname.startsWith('/writer/webinars')
+    ? 'Webinars'
+    : location.pathname === '/writer/ads'
     ? 'Ads Account'
     : (location.pathname === '/writer/wallet'
     ? 'Writer Wallet'

@@ -20,7 +20,29 @@ const {
 const {
   getWebinarSubscriptionOverview,
   assertWebinarEntitlement,
+  recordWebinarUsage,
 } = require('../services/webinarUsageService');
+const {
+  openWriterRoom,
+  endWriterRoom,
+  getWriterRoomState,
+  sendWriterChatMessage,
+  moderateWriterChatMessage,
+  createWriterPoll,
+  setWriterPollStatus,
+} = require('../services/webinarRoomService');
+const {
+  applyWebinarPlaybackCookies,
+} = require('../services/webinarCloudFrontSigningService');
+const {
+  getWriterWebinarAnalyticsOverview: loadWriterWebinarAnalyticsOverview,
+  getWebinarAnalytics: loadWebinarAnalytics,
+  getWebinarSessionAnalytics: loadWebinarSessionAnalytics,
+} = require('../services/webinarAnalyticsService');
+const {
+  suggestWriterWebinarCopy,
+  generateWriterWebinarAnalyticsInsights,
+} = require('../services/webinarAiService');
 
 function sendError(res, error, fallback) {
   const status = Number(error?.status || 500);
@@ -614,6 +636,10 @@ async function updateWriterWebinar(req, res) {
 
 async function queueWebinarVideo(req, res) {
   const connection = await pool.getConnection();
+  let mediaJobId = null;
+  let sourceUsageKey = null;
+  let sourceAccounted = false;
+  let sourceDeleted = false;
 
   try {
     if (!req.file) {
@@ -713,6 +739,9 @@ async function queueWebinarVideo(req, res) {
       ]
     );
 
+    mediaJobId = Number(result.insertId);
+    sourceUsageKey = `webinar-media:${mediaJobId}:source:add`;
+
     await connection.query(
       `
       UPDATE webinars
@@ -725,19 +754,65 @@ async function queueWebinarVideo(req, res) {
     );
 
     await connection.commit();
+
+    await recordWebinarUsage({
+      writerUserId: req.user.id,
+      usageKey: sourceUsageKey,
+      eventType: 'storage',
+      storageBytesDelta: Number(req.file.size || 0),
+      enforceStorageLimit: true,
+      metadata: {
+        webinar_id: Number(webinar.id),
+        media_job_id: mediaJobId,
+        storage_kind: 'source_mp4',
+        action: 'add',
+      },
+    });
+
+    sourceAccounted = true;
+
+    await pool.query(
+      `
+      UPDATE webinar_media_jobs
+      SET
+        source_storage_accounted_at = NOW(),
+        updated_at = NOW()
+      WHERE id = ?
+      `,
+      [mediaJobId]
+    );
+
     connection.release();
 
     return res.status(202).json({
       ok: true,
       message: 'Webinar video uploaded and queued for HLS processing.',
-      media_job_id: result.insertId,
+      media_job_id: mediaJobId,
       status: 'queued',
     });
   } catch (error) {
     try {
       await connection.rollback();
     } catch {}
-    connection.release();
+
+    try {
+      connection.release();
+    } catch {}
+
+    if (!sourceAccounted && sourceUsageKey) {
+      try {
+        const [usageRows] = await pool.query(
+          `
+          SELECT id
+          FROM webinar_usage_events
+          WHERE usage_key = ?
+          LIMIT 1
+          `,
+          [sourceUsageKey]
+        );
+        sourceAccounted = Boolean(usageRows[0]);
+      } catch {}
+    }
 
     if (req.file?.bucket && req.file?.key) {
       try {
@@ -747,12 +822,59 @@ async function queueWebinarVideo(req, res) {
             Key: req.file.key,
           })
         );
+        sourceDeleted = true;
       } catch (cleanupError) {
         console.error(
           'queueWebinarVideo source cleanup error:',
           cleanupError.message
         );
       }
+    }
+
+    if (sourceDeleted && sourceAccounted && mediaJobId) {
+      try {
+        await recordWebinarUsage({
+          writerUserId: req.user.id,
+          usageKey: `webinar-media:${mediaJobId}:source:rollback`,
+          eventType: 'storage',
+          storageBytesDelta: -Number(req.file?.size || 0),
+          metadata: {
+            webinar_id: Number(req.webinar?.id || 0),
+            media_job_id: mediaJobId,
+            storage_kind: 'source_mp4',
+            action: 'rollback',
+          },
+        });
+      } catch (usageCleanupError) {
+        console.error(
+          'queueWebinarVideo usage rollback error:',
+          usageCleanupError.message
+        );
+      }
+    }
+
+    if (mediaJobId) {
+      try {
+        await pool.query(
+          `
+          UPDATE webinar_media_jobs
+          SET
+            status = 'failed',
+            source_deleted_at = CASE
+              WHEN ? = 1 THEN NOW()
+              ELSE source_deleted_at
+            END,
+            error_message = ?,
+            updated_at = NOW()
+          WHERE id = ?
+          `,
+          [
+            sourceDeleted ? 1 : 0,
+            String(error?.message || 'Webinar media accounting failed').slice(0, 10000),
+            mediaJobId,
+          ]
+        );
+      } catch {}
     }
 
     console.error('queueWebinarVideo error:', error);
@@ -792,6 +914,7 @@ async function retryWebinarMedia(req, res) {
       WHERE id = ?
         AND webinar_id = ?
         AND status = 'failed'
+        AND source_deleted_at IS NULL
       `,
       [mediaJobId, req.webinar.id]
     );
@@ -1195,6 +1318,227 @@ async function listWriterWebinarRegistrations(req, res) {
   }
 }
 
+
+async function openWriterWebinarRoom(req, res) {
+  try {
+    const room = await openWriterRoom(
+      req.webinar.id,
+      req.user.id,
+      req.body?.session_id || null
+    );
+
+    return res.status(200).json({
+      ok: true,
+      room,
+    });
+  } catch (error) {
+    console.error('openWriterWebinarRoom error:', error);
+    return sendError(res, error, 'Failed to open webinar room.');
+  }
+}
+
+async function endWriterWebinarRoom(req, res) {
+  try {
+    const room = await endWriterRoom(
+      req.webinar.id,
+      req.user.id,
+      req.params.sessionId
+    );
+
+    return res.status(200).json({
+      ok: true,
+      room,
+    });
+  } catch (error) {
+    console.error('endWriterWebinarRoom error:', error);
+    return sendError(res, error, 'Failed to end webinar room.');
+  }
+}
+
+async function getWriterWebinarRoom(req, res) {
+  try {
+    const room = await getWriterRoomState(
+      req.webinar.id,
+      req.user.id,
+      req.params.sessionId,
+      req.query?.cursor || 0
+    );
+
+    applyWebinarPlaybackCookies(res, room);
+
+    return res.status(200).json({
+      ok: true,
+      room,
+    });
+  } catch (error) {
+    console.error('getWriterWebinarRoom error:', error);
+    return sendError(res, error, 'Failed to load webinar room.');
+  }
+}
+
+async function sendWriterWebinarRoomChat(req, res) {
+  try {
+    const message = await sendWriterChatMessage(
+      req.webinar.id,
+      req.user.id,
+      req.params.sessionId,
+      req.body?.message
+    );
+
+    return res.status(201).json({
+      ok: true,
+      message,
+    });
+  } catch (error) {
+    console.error('sendWriterWebinarRoomChat error:', error);
+    return sendError(res, error, 'Failed to send webinar chat message.');
+  }
+}
+
+async function moderateWriterWebinarRoomChat(req, res) {
+  try {
+    const message = await moderateWriterChatMessage(
+      req.webinar.id,
+      req.user.id,
+      req.params.sessionId,
+      req.params.messageId,
+      req.body?.status
+    );
+
+    return res.status(200).json({
+      ok: true,
+      message,
+    });
+  } catch (error) {
+    console.error('moderateWriterWebinarRoomChat error:', error);
+    return sendError(res, error, 'Failed to moderate webinar chat message.');
+  }
+}
+
+async function createWriterWebinarPoll(req, res) {
+  try {
+    const poll = await createWriterPoll(
+      req.webinar.id,
+      req.user.id,
+      req.params.sessionId,
+      req.body?.question,
+      req.body?.options
+    );
+
+    return res.status(201).json({
+      ok: true,
+      poll,
+    });
+  } catch (error) {
+    console.error('createWriterWebinarPoll error:', error);
+    return sendError(res, error, 'Failed to create webinar poll.');
+  }
+}
+
+async function setWriterWebinarPollStatus(req, res) {
+  try {
+    const poll = await setWriterPollStatus(
+      req.webinar.id,
+      req.user.id,
+      req.params.sessionId,
+      req.params.pollId,
+      req.body?.status
+    );
+
+    return res.status(200).json({
+      ok: true,
+      poll,
+    });
+  } catch (error) {
+    console.error('setWriterWebinarPollStatus error:', error);
+    return sendError(res, error, 'Failed to update webinar poll.');
+  }
+}
+
+async function getWriterWebinarAnalyticsOverview(req, res) {
+  try {
+    const analytics = await loadWriterWebinarAnalyticsOverview(req.user.id);
+
+    return res.status(200).json({
+      ok: true,
+      analytics,
+    });
+  } catch (error) {
+    console.error('getWriterWebinarAnalyticsOverview error:', error);
+    return sendError(res, error, 'Failed to load webinar analytics overview.');
+  }
+}
+
+async function getWriterWebinarAnalytics(req, res) {
+  try {
+    const analytics = await loadWebinarAnalytics(req.webinar.id);
+
+    return res.status(200).json({
+      ok: true,
+      analytics,
+    });
+  } catch (error) {
+    console.error('getWriterWebinarAnalytics error:', error);
+    return sendError(res, error, 'Failed to load webinar analytics.');
+  }
+}
+
+async function getWriterWebinarSessionAnalytics(req, res) {
+  try {
+    const analytics = await loadWebinarSessionAnalytics(
+      req.webinar.id,
+      req.params.sessionId
+    );
+
+    return res.status(200).json({
+      ok: true,
+      analytics,
+    });
+  } catch (error) {
+    console.error('getWriterWebinarSessionAnalytics error:', error);
+    return sendError(res, error, 'Failed to load webinar session analytics.');
+  }
+}
+
+async function suggestWriterWebinarAiCopy(req, res) {
+  try {
+    const result = await suggestWriterWebinarCopy({
+      webinar: req.webinar,
+      audience: req.body?.audience,
+      tone: req.body?.tone,
+      goal: req.body?.goal,
+    });
+
+    return res.status(200).json({
+      ok: true,
+      ai: result,
+    });
+  } catch (error) {
+    console.error('suggestWriterWebinarAiCopy error:', error);
+    return sendError(res, error, 'Failed to generate webinar copy suggestions.');
+  }
+}
+
+async function getWriterWebinarAiAnalyticsInsights(req, res) {
+  try {
+    const result = await generateWriterWebinarAnalyticsInsights(
+      req.webinar
+    );
+
+    return res.status(200).json({
+      ok: true,
+      ai: result,
+    });
+  } catch (error) {
+    console.error('getWriterWebinarAiAnalyticsInsights error:', error);
+    return sendError(
+      res,
+      error,
+      'Failed to generate webinar analytics insights.'
+    );
+  }
+}
+
 function buildSourceFilename(req, file) {
   const original = cleanText(file.originalname, 255);
   const extension = original.toLowerCase().endsWith('.mp4')
@@ -1218,5 +1562,17 @@ module.exports = {
   returnWriterWebinarToDraft,
   archiveWriterWebinar,
   listWriterWebinarRegistrations,
+  openWriterWebinarRoom,
+  endWriterWebinarRoom,
+  getWriterWebinarRoom,
+  sendWriterWebinarRoomChat,
+  moderateWriterWebinarRoomChat,
+  createWriterWebinarPoll,
+  setWriterWebinarPollStatus,
+  getWriterWebinarAnalyticsOverview,
+  getWriterWebinarAnalytics,
+  getWriterWebinarSessionAnalytics,
+  suggestWriterWebinarAiCopy,
+  getWriterWebinarAiAnalyticsInsights,
   buildSourceFilename,
 };

@@ -14,6 +14,17 @@ const {
   markWebinarRegistrationPurchaseCancelled,
   loadPurchaseByReference,
 } = require('../services/webinarRegistrationPaymentService');
+const {
+  joinRoomByRegistrationToken,
+  getAttendeeRoomState,
+  heartbeatRoom,
+  leaveRoom,
+  sendAttendeeChatMessage,
+  voteInPoll,
+} = require('../services/webinarRoomService');
+const {
+  applyWebinarPlaybackCookies,
+} = require('../services/webinarCloudFrontSigningService');
 
 function frontendOrigin() {
   const raw = String(process.env.FRONTEND_URL || 'http://localhost:5173')
@@ -428,6 +439,99 @@ async function paypalCancel(req, res) {
   }
 }
 
+
+async function joinWebinarRoom(req, res) {
+  try {
+    const result = await joinRoomByRegistrationToken(req.params.token);
+
+    applyWebinarPlaybackCookies(res, result);
+
+    return res.status(200).json({
+      ok: true,
+      ...result,
+    });
+  } catch (error) {
+    return sendError(res, error, 'Failed to enter webinar room.');
+  }
+}
+
+async function getWebinarRoomState(req, res) {
+  try {
+    const result = await getAttendeeRoomState(
+      req.params.visitorToken,
+      req.query?.cursor || 0
+    );
+
+    applyWebinarPlaybackCookies(res, result);
+
+    return res.status(200).json({
+      ok: true,
+      ...result,
+    });
+  } catch (error) {
+    return sendError(res, error, 'Failed to load webinar room.');
+  }
+}
+
+async function heartbeatWebinarRoom(req, res) {
+  try {
+    const attendance = await heartbeatRoom(req.params.visitorToken);
+
+    return res.status(200).json({
+      ok: true,
+      attendance,
+    });
+  } catch (error) {
+    return sendError(res, error, 'Failed to update webinar presence.');
+  }
+}
+
+async function leaveWebinarRoom(req, res) {
+  try {
+    const attendance = await leaveRoom(req.params.visitorToken);
+
+    return res.status(200).json({
+      ok: true,
+      attendance,
+    });
+  } catch (error) {
+    return sendError(res, error, 'Failed to leave webinar room.');
+  }
+}
+
+async function sendWebinarRoomChat(req, res) {
+  try {
+    const message = await sendAttendeeChatMessage(
+      req.params.visitorToken,
+      req.body?.message
+    );
+
+    return res.status(201).json({
+      ok: true,
+      message,
+    });
+  } catch (error) {
+    return sendError(res, error, 'Failed to send webinar chat message.');
+  }
+}
+
+async function voteWebinarRoomPoll(req, res) {
+  try {
+    const result = await voteInPoll(
+      req.params.visitorToken,
+      req.params.pollId,
+      req.body?.option_id
+    );
+
+    return res.status(201).json({
+      ok: true,
+      ...result,
+    });
+  } catch (error) {
+    return sendError(res, error, 'Failed to record webinar poll vote.');
+  }
+}
+
 module.exports = {
   getPublicWebinar,
   registerForWebinar,
@@ -438,4 +542,10 @@ module.exports = {
   flutterwaveCallback,
   paypalCallback,
   paypalCancel,
+  joinWebinarRoom,
+  getWebinarRoomState,
+  heartbeatWebinarRoom,
+  leaveWebinarRoom,
+  sendWebinarRoomChat,
+  voteWebinarRoomPoll,
 };

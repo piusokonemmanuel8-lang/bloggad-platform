@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import api from '../../api/axios';
 import WriterVerificationBadge from '../../components/common/WriterVerificationBadge';
+import { SupgadFeaturedAdPlacement } from '../../components/monetization/MonetizationAdSlot';
 import './PublicWriterPageApproved.css';
 
 function compactNumber(value) {
@@ -792,7 +793,7 @@ export default function PublicWriterPage() {
 
             <div className="pwp-feed">
               {posts.length ? (
-                filteredPosts.map((post) => (
+                filteredPosts.map((post, index) => [
                   <PostCard
                     key={post.id}
                     onReact={toggleReaction}
@@ -802,8 +803,19 @@ export default function PublicWriterPage() {
                     reactionBusy={reactionBusy}
                     reactionState={reactionState}
                     writer={writer}
-                  />
-                ))
+                  />,
+                  (index + 1) % 3 === 0 ? (
+                    <SupgadFeaturedAdPlacement
+                      key={`supgad-writer-page-${post.id}`}
+                      placementKey="bloggad_feed"
+                      keywordContext={
+                        page?.title ||
+                        writer?.public_name ||
+                        ''
+                      }
+                    />
+                  ) : null,
+                ])
               ) : (
                 <section className="pwp-empty-card">
                   {activeContentType

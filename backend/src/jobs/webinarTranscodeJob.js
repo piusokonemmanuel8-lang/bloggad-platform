@@ -6,9 +6,18 @@ let timer = null;
 let running = false;
 
 function isEnabled() {
-  return String(process.env.WEBINAR_TRANSCODE_ENABLED || '')
+  const provider = String(
+    process.env.WEBINAR_TRANSCODE_PROVIDER || 'local_ffmpeg'
+  )
     .trim()
-    .toLowerCase() === 'true';
+    .toLowerCase();
+
+  return (
+    provider !== 'mediaconvert' &&
+    String(process.env.WEBINAR_TRANSCODE_ENABLED || '')
+      .trim()
+      .toLowerCase() === 'true'
+  );
 }
 
 async function runWebinarTranscodeJob() {

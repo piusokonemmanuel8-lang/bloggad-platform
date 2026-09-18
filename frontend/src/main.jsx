@@ -95,6 +95,7 @@ import CategoryPage from './pages/public/CategoryPage';
 import ProductPage from './pages/public/ProductPage';
 import PostPage from './pages/public/PostPage';
 import WriterProfilePage from './pages/public/WriterProfilePage';
+import PublicWebinarRegistrationPage from './pages/public/PublicWebinarRegistrationPage';
 import WebsitePostsPage from './pages/public/WebsitePostsPage';
 import WebsiteCategoryPage from './pages/public/WebsiteCategoryPage';
 import WebsitePostCategoryPage from './pages/public/WebsitePostCategoryPage';
@@ -115,6 +116,11 @@ import CustomerSettingsPage from './pages/customer/CustomerSettingsPage';
 
 import WriterSeriesPage from './pages/writer/WriterSeriesPage';
 import WriterCoursesPage from './pages/writer/WriterCoursesPage';
+import WriterWebinarsPage from './pages/writer/WriterWebinarsPage';
+import WriterCreateWebinarPage from './pages/writer/WriterCreateWebinarPage';
+import WriterManageWebinarPage from './pages/writer/WriterManageWebinarPage';
+import WriterWebinarPlansPage from './pages/writer/WriterWebinarPlansPage';
+import WriterWebinarHostRoomPage from './pages/writer/WriterWebinarHostRoomPage';
 import WriterCommunityPage from './pages/writer/WriterCommunityPage';
 import WriterWalletPage from './pages/writer/WriterWalletPage';
 import WriterMembershipsPage from './pages/writer/WriterMembershipsPage';
@@ -207,6 +213,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
               <Route path="topic/:slug" element={<PublicTopicPage />} />
               <Route path="page/:pageSlug" element={<PublicWriterPage />} />
               <Route path="page/:pageSlug/post/:postSlug" element={<WriterPagePostPage />} />
+              <Route path="webinars/:writerPageSlug/:webinarSlug" element={<PublicWebinarRegistrationPage />} />
               <Route path=":websiteSlug" element={<WebsiteStorefrontPage />} />
               <Route path=":websiteSlug/posts" element={<WebsitePostsPage />} />
               <Route
@@ -317,6 +324,11 @@ ReactDOM.createRoot(document.getElementById('root')).render(
             <Route path="/writer/settings" element={<AffiliateSettingsPage />} />
             <Route path="/writer/series" element={<WriterPaidPlanGate feature="Series and Books"><WriterSeriesPage /></WriterPaidPlanGate>} />
             <Route path="/writer/courses" element={<WriterPaidPlanGate feature="Courses"><WriterCoursesPage /></WriterPaidPlanGate>} />
+                <Route path="/writer/webinars" element={<WriterWebinarsPage />} />
+                <Route path="/writer/webinars/plans" element={<WriterWebinarPlansPage />} />
+                <Route path="/writer/webinars/:id/room" element={<WriterWebinarHostRoomPage />} />
+                <Route path="/writer/webinars/create" element={<WriterCreateWebinarPage />} />
+                <Route path="/writer/webinars/:id" element={<WriterManageWebinarPage />} />
             <Route path="/writer/community" element={<WriterPaidPlanGate feature="Community"><WriterCommunityPage /></WriterPaidPlanGate>} />
             <Route path="/writer/wallet" element={<WriterPaidPlanGate feature="Writer Wallet"><WriterWalletPage /></WriterPaidPlanGate>} />
             <Route path="/writer/memberships" element={<WriterPaidPlanGate feature="Memberships"><WriterMembershipsPage /></WriterPaidPlanGate>} />
