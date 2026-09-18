@@ -329,6 +329,46 @@ function ArticleField({ field, index }) {
   ));
 }
 
+const MAX_SUPGAD_INLINE_POST_ADS = 5;
+
+function getSupgadInlineAdIndexes(fieldCount, requestedAdCount) {
+  const availableBreaks = Math.max(0, Number(fieldCount || 0) - 1);
+  const count = Math.max(
+    0,
+    Math.min(
+      MAX_SUPGAD_INLINE_POST_ADS,
+      Number(requestedAdCount || 0),
+      availableBreaks
+    )
+  );
+
+  if (!count) return new Set();
+
+  const indexes = [];
+  let previous = -1;
+
+  for (let slot = 1; slot <= count; slot += 1) {
+    let index =
+      Math.round((slot * Number(fieldCount || 0)) / (count + 1)) - 1;
+
+    index = Math.max(
+      0,
+      Math.min(availableBreaks - 1, index)
+    );
+
+    if (index <= previous) {
+      index = Math.min(availableBreaks - 1, previous + 1);
+    }
+
+    if (index > previous) {
+      indexes.push(index);
+      previous = index;
+    }
+  }
+
+  return new Set(indexes);
+}
+
 function Avatar({ src, name, className = '' }) {
   if (src) {
     return <img className={`wpp-avatar ${className}`} src={src} alt="" />;
@@ -592,6 +632,47 @@ export default function WriterPagePostPage() {
         return String(fieldValue(field) || '').trim();
       }),
     [fields]
+  );
+
+  const visibleReadSeconds = useMemo(() => {
+    const estimated = Math.max(
+      0,
+      Number(access?.estimated_read_seconds || 0)
+    );
+
+    const preview = Math.max(
+      0,
+      Number(access?.free_preview_seconds || 0)
+    );
+
+    if (access?.locked && preview > 0) {
+      return preview;
+    }
+
+    return estimated;
+  }, [access]);
+
+  const requestedInlineSupgadAds = useMemo(() => {
+    if (visibleReadSeconds > 0) {
+      return Math.max(
+        1,
+        Math.min(
+          MAX_SUPGAD_INLINE_POST_ADS,
+          Math.ceil(visibleReadSeconds / 60)
+        )
+      );
+    }
+
+    return bodyFields.length > 1 ? 1 : 0;
+  }, [visibleReadSeconds, bodyFields.length]);
+
+  const inlineSupgadAdIndexes = useMemo(
+    () =>
+      getSupgadInlineAdIndexes(
+        bodyFields.length,
+        requestedInlineSupgadAds
+      ),
+    [bodyFields.length, requestedInlineSupgadAds]
   );
 
   function openLegacy(target) {
@@ -964,10 +1045,9 @@ export default function WriterPagePostPage() {
                   index={index}
                   key={field?.id || index}
                 />,
-                bodyFields.length > 1 &&
-                index === Math.ceil(bodyFields.length / 2) - 1 ? (
+                inlineSupgadAdIndexes.has(index) ? (
                   <SupgadFeaturedAdPlacement
-                    key={`supgad-post-mid-${postId}-${index}`}
+                    key={`supgad-post-inline-${postId}-${index}`}
                     placementKey="bloggad_post_detail"
                     postId={postId}
                     keywordContext={post?.title || ''}
