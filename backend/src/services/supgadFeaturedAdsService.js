@@ -473,6 +473,10 @@ async function requestSupgadFeaturedAd(req) {
     ok: true,
     partner_request_id: partnerRequestId,
     reader_ads_allowed: true,
+    campaign_target_id:
+      positiveInt(response.body?.campaign_target_id) ||
+      positiveInt(response.body?.ad?.campaign_target_id) ||
+      null,
     delivery_token:
       cleanText(response.body?.delivery_token, 2048) || null,
     impression_token:

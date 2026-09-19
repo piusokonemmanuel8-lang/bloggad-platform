@@ -606,6 +606,8 @@ export default function AffiliateEditPostPage() {
     seo_description: '',
     featured_image: '',
     status: 'draft',
+
+    comments_enabled: true,
     scheduled_at: '',
     template_fields: [],
     cta_buttons: [],
@@ -837,6 +839,8 @@ export default function AffiliateEditPostPage() {
             seo_description: post.seo_description || '',
             featured_image: post.featured_image || '',
             status: post.status || 'draft',
+
+            comments_enabled: post.comments_enabled !== false && Number(post.comments_enabled) !== 0,
             scheduled_at: toDateTimeLocalValue(post.scheduled_at),
             template_fields: preset
               ? mergePresetFields(preset.fields, post.template_fields || [])
@@ -1123,6 +1127,8 @@ export default function AffiliateEditPostPage() {
         seo_description: form.seo_description,
         featured_image: form.featured_image,
         status: form.status,
+
+        comments_enabled: !!form.comments_enabled,
         scheduled_at: form.scheduled_at || null,
         template_fields: form.template_fields.map((field, idx) => ({
           field_key: field.field_key,
@@ -1427,6 +1433,23 @@ export default function AffiliateEditPostPage() {
                   <option value="published">Published</option>
                   <option value="inactive">Inactive</option>
                 </select>
+              </label>
+
+              <label className="affiliate-edit-post-field">
+                <span className="affiliate-edit-post-label">Comments</span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 10, minHeight: 42 }}>
+                  <input
+                    type="checkbox"
+                    checked={!!form.comments_enabled}
+                    onChange={(event) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        comments_enabled: event.target.checked,
+                      }))
+                    }
+                  />
+                  <span>{form.comments_enabled ? 'Comments allowed' : 'Comments turned off'}</span>
+                </span>
               </label>
 
               <label className="affiliate-edit-post-field">

@@ -316,6 +316,70 @@ function NativeAdCard({
 }
 
 
+const supgadDiversityRequestChains = new Map();
+const supgadDiversityShownTargetIds = new Map();
+
+function getSupgadDiversityScope(placementKey) {
+  const path =
+    typeof window !== 'undefined'
+      ? String(window.location?.pathname || '')
+      : '';
+
+  return `${path}|${String(placementKey || '')}`;
+}
+
+function getSupgadExcludedTargetIds(scope) {
+  const shown = supgadDiversityShownTargetIds.get(scope);
+
+  if (!(shown instanceof Set)) return [];
+
+  return Array.from(shown)
+    .map((value) => Number(value))
+    .filter((value) => Number.isInteger(value) && value > 0)
+    .slice(-50);
+}
+
+function rememberSupgadCampaignTarget(scope, payload) {
+  const targetId = Number(
+    payload?.campaign_target_id ||
+      payload?.ad?.campaign_target_id ||
+      0
+  );
+
+  if (!Number.isInteger(targetId) || targetId <= 0) return;
+
+  let shown = supgadDiversityShownTargetIds.get(scope);
+
+  if (!(shown instanceof Set)) {
+    shown = new Set();
+    supgadDiversityShownTargetIds.set(scope, shown);
+  }
+
+  shown.add(targetId);
+
+  if (shown.size > 50) {
+    const values = Array.from(shown).slice(-50);
+    supgadDiversityShownTargetIds.set(scope, new Set(values));
+  }
+}
+
+function queueSupgadDiversityRequest(scope, requestFactory) {
+  const previous =
+    supgadDiversityRequestChains.get(scope) ||
+    Promise.resolve();
+
+  const current = previous
+    .catch(() => {})
+    .then(requestFactory);
+
+  supgadDiversityRequestChains.set(
+    scope,
+    current.catch(() => {})
+  );
+
+  return current;
+}
+
 function getSupgadFeaturedSessionId() {
   if (typeof window === 'undefined') return '';
 
@@ -474,12 +538,41 @@ export function SupgadFeaturedAdPlacement({
       setDismissed(false);
 
       try {
-        const { data } = await api.post('/api/public/ads/supgad/request', {
-          placement_key: placementKey,
-          post_id: postId || null,
-          keyword_context: keywordContext || null,
-          session_id: getSupgadFeaturedSessionId() || null,
-        });
+        const diversityScope =
+          getSupgadDiversityScope(placementKey);
+
+        const data = await queueSupgadDiversityRequest(
+          diversityScope,
+          async () => {
+            const response = await api.post(
+              '/api/public/ads/supgad/request',
+              {
+                placement_key: placementKey,
+                post_id: postId || null,
+                keyword_context: keywordContext || null,
+                session_id: getSupgadFeaturedSessionId() || null,
+                exclude_campaign_target_ids:
+                  getSupgadExcludedTargetIds(diversityScope),
+              }
+            );
+
+            const payload = response?.data || null;
+
+            if (
+              payload?.ok &&
+              payload?.ad &&
+              payload?.delivery_token &&
+              payload?.impression_token
+            ) {
+              rememberSupgadCampaignTarget(
+                diversityScope,
+                payload
+              );
+            }
+
+            return payload;
+          }
+        );
 
         if (!ignore) {
           setDelivery(

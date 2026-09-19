@@ -614,6 +614,15 @@ export default function WriterPagePostPage() {
       ? social.comments
       : [];
 
+  const commentsEnabledRaw =
+    readerState?.comments_enabled ??
+    social?.comments_enabled ??
+    post?.comments_enabled ??
+    true;
+  const commentsEnabled =
+    commentsEnabledRaw !== false &&
+    Number(commentsEnabledRaw) !== 0;
+
   const bodyFields = useMemo(
     () =>
       fields.filter((field) => {
@@ -818,6 +827,11 @@ export default function WriterPagePostPage() {
 
   async function submitComment(event) {
     event.preventDefault();
+
+    if (!commentsEnabled) {
+      setNotice('Comments are turned off for this post.');
+      return;
+    }
 
     const body = commentText.trim();
     if (!body || !postId) return;
@@ -1204,7 +1218,8 @@ export default function WriterPagePostPage() {
             <small>Top</small>
           </div>
 
-          <form className="wpp-comment-form" onSubmit={submitComment}>
+          {commentsEnabled ? (
+<form className="wpp-comment-form" onSubmit={submitComment}>
             {quoteDraft ? (
               <div className="wpp-quote-draft">
                 Replying to {quoteDraft.author}
@@ -1231,6 +1246,9 @@ export default function WriterPagePostPage() {
               </button>
             ) : null}
           </form>
+          ) : (
+            <p className="wpp-empty-responses">Comments are turned off for this post.</p>
+          )}
 
           <div className="wpp-comment-list">
             {comments.length ? (
@@ -1238,7 +1256,7 @@ export default function WriterPagePostPage() {
                 <CommentThread
                   comment={comment}
                   key={comment.id}
-                  onReply={beginReply}
+                  onReply={commentsEnabled ? beginReply : () => setNotice('Comments are turned off for this post.')}
                 />
               ))
             ) : (

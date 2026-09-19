@@ -24,6 +24,8 @@ async function getPublishedPost(postId) {
       pp.title,
       pp.slug,
       pp.status,
+
+      pp.comments_enabled,
       u.name AS writer_name,
       aw.website_name,
       aw.slug AS website_slug
@@ -391,6 +393,8 @@ async function getPublicPostSocial(req, res) {
         verification_badge: verificationBadge,
       },
       writer_can_receive_gifts: !!giftAccess.allowed,
+
+      comments_enabled: Boolean(post.comments_enabled),
       counts: {
         love: reactionCounts.love_count,
         applaud: reactionCounts.applaud_count,
@@ -570,6 +574,8 @@ async function getReaderPostState(req, res) {
         can_receive_gifts: !!giftAccess.allowed,
       },
       writer_can_receive_gifts: !!giftAccess.allowed,
+
+      comments_enabled: Boolean(post.comments_enabled),
       state: {
         following: followRows[0].length > 0,
         loved: reactionTypes.includes('love'),
@@ -957,6 +963,14 @@ async function createReaderComment(req, res) {
     }
 
 
+    if (!Boolean(post.comments_enabled)) {
+      return res.status(403).json({
+        ok: false,
+        code: 'POST_COMMENTS_DISABLED',
+        message: 'Comments are turned off for this post.',
+      });
+    }
+
     if (parentCommentId) {
       const [parentRows] = await pool.query(
         `
@@ -1129,7 +1143,9 @@ async function createWriterReply(req, res) {
         pc.status,
         pp.user_id AS writer_id,
         pp.title AS post_title,
-        pp.status AS post_status
+        pp.status AS post_status,
+
+        pp.comments_enabled
       FROM post_comments pc
       INNER JOIN product_posts pp
         ON pp.id = pc.post_id
@@ -1159,6 +1175,14 @@ async function createWriterReply(req, res) {
       return res.status(403).json({
         ok: false,
         message: 'You can only reply to comments on your own posts.',
+      });
+    }
+
+    if (!Boolean(comment.comments_enabled)) {
+      return res.status(403).json({
+        ok: false,
+        code: 'POST_COMMENTS_DISABLED',
+        message: 'Comments are turned off for this post.',
       });
     }
 

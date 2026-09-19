@@ -80,6 +80,7 @@ function sanitizePost(row) {
     featured_image: row.featured_image,
     media_id: row.media_id,
     status: row.status,
+    comments_enabled: row.comments_enabled !== 0 && row.comments_enabled !== false,
     review_status: row.review_status || 'not_checked',
     quality_score: Number(row.quality_score || 0),
     risk_score: Number(row.risk_score || 0),
@@ -118,6 +119,16 @@ function normalizeNullable(value) {
   if (value === undefined || value === null) return null;
   const str = String(value).trim();
   return str ? str : null;
+}
+
+function normalizeBooleanFlag(value, fallback = true) {
+  if (value === undefined || value === null || value === '') return fallback;
+  if (typeof value === 'boolean') return value;
+
+  const normalized = String(value).trim().toLowerCase();
+  if (['0', 'false', 'off', 'no'].includes(normalized)) return false;
+  if (['1', 'true', 'on', 'yes'].includes(normalized)) return true;
+  return fallback;
 }
 
 function normalizeFieldValue(value) {
@@ -782,6 +793,7 @@ async function getOwnedPostById(postId, userId) {
       pp.featured_image,
       pp.media_id,
       pp.status,
+      pp.comments_enabled,
       pp.review_status,
       pp.quality_score,
       pp.risk_score,
@@ -1720,6 +1732,7 @@ async function getMyPosts(req, res) {
         pp.featured_image,
         pp.media_id,
         pp.status,
+        pp.comments_enabled,
         pp.review_status,
         pp.quality_score,
         pp.risk_score,
@@ -1809,6 +1822,7 @@ async function getMyPostsByProductId(req, res) {
         pp.featured_image,
         pp.media_id,
         pp.status,
+        pp.comments_enabled,
         pp.review_status,
         pp.quality_score,
         pp.risk_score,
@@ -1929,6 +1943,7 @@ async function createPost(req, res) {
       featured_image,
       media_id,
       status,
+      comments_enabled,
       scheduled_at,
       template_fields = [],
       cta_buttons = [],
@@ -2058,6 +2073,7 @@ async function createPost(req, res) {
     const qualityContextTitle = product?.title || cleanTitle;
     const requestedStatus = ['draft', 'published', 'inactive'].includes(status) ? status : 'draft';
     const cleanScheduledAt = normalizeScheduledAt(scheduled_at);
+    const cleanCommentsEnabled = normalizeBooleanFlag(comments_enabled, true);
 
     if (scheduled_at && !cleanScheduledAt) {
       return res.status(400).json({
@@ -2134,8 +2150,8 @@ async function createPost(req, res) {
     const postId = result.insertId;
 
     await pool.query(
-      `UPDATE product_posts SET show_on_storefront=?,updated_at=NOW() WHERE id=? AND user_id=?`,
-      [placement.show_on_storefront ? 1 : 0,postId,userId]
+      `UPDATE product_posts SET show_on_storefront=?,comments_enabled=?,updated_at=NOW() WHERE id=? AND user_id=?`,
+      [placement.show_on_storefront ? 1 : 0,cleanCommentsEnabled ? 1 : 0,postId,userId]
     );
     await replacePostPagePlacements({postId,writerUserId:userId,pageIds:placement.page_ids});
 
@@ -2236,6 +2252,7 @@ async function updatePost(req, res) {
       featured_image,
       media_id,
       status,
+      comments_enabled,
       scheduled_at,
       template_fields,
       cta_buttons,
@@ -2413,6 +2430,10 @@ async function updatePost(req, res) {
 
     const shouldSchedule = !!cleanScheduledAt;
     const safeStatus = requestedStatus === 'inactive' ? 'inactive' : 'draft';
+    const cleanCommentsEnabled =
+      comments_enabled === undefined
+        ? normalizeBooleanFlag(existingPost.comments_enabled, true)
+        : normalizeBooleanFlag(comments_enabled, true);
 
     await pool.query(
       `
@@ -2456,8 +2477,8 @@ async function updatePost(req, res) {
     );
 
     await pool.query(
-      `UPDATE product_posts SET website_id=?,show_on_storefront=?,updated_at=NOW() WHERE id=? AND user_id=?`,
-      [postWebsiteId,placement.show_on_storefront ? 1 : 0,existingPost.id,userId]
+      `UPDATE product_posts SET website_id=?,show_on_storefront=?,comments_enabled=?,updated_at=NOW() WHERE id=? AND user_id=?`,
+      [postWebsiteId,placement.show_on_storefront ? 1 : 0,cleanCommentsEnabled ? 1 : 0,existingPost.id,userId]
     );
     await replacePostPagePlacements({postId:existingPost.id,writerUserId:userId,pageIds:placement.page_ids});
 

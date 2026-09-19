@@ -551,6 +551,8 @@ export default function AffiliateCreatePostPage() {
     seo_description: '',
     featured_image: '',
     status: 'draft',
+
+    comments_enabled: true,
     scheduled_at: '',
     template_fields: buildGenericDefaultFields(),
     cta_buttons: buildGenericDefaultButtons(),
@@ -993,6 +995,8 @@ export default function AffiliateCreatePostPage() {
         seo_description: form.seo_description,
         featured_image: form.featured_image,
         status: form.status,
+
+        comments_enabled: !!form.comments_enabled,
         scheduled_at: form.scheduled_at || null,
         template_fields: form.template_fields.map((field, idx) => ({
           field_key: field.field_key,
@@ -1284,6 +1288,23 @@ export default function AffiliateCreatePostPage() {
                   <option value="published">Published</option>
                   <option value="inactive">Inactive</option>
                 </select>
+              </label>
+
+              <label className="affiliate-create-post-field">
+                <span className="affiliate-create-post-label">Comments</span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 10, minHeight: 42 }}>
+                  <input
+                    type="checkbox"
+                    checked={!!form.comments_enabled}
+                    onChange={(event) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        comments_enabled: event.target.checked,
+                      }))
+                    }
+                  />
+                  <span>{form.comments_enabled ? 'Comments allowed' : 'Comments turned off'}</span>
+                </span>
               </label>
 
               <label className="affiliate-create-post-field">

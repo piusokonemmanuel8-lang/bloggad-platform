@@ -454,6 +454,11 @@ export default function PublicWriterReaderActions({
   async function submitComment(event) {
     event.preventDefault();
 
+    if (!commentsEnabled) {
+      setNotice('Comments are turned off for this post.');
+      return;
+    }
+
     if (!commentText.trim()) return;
 
     try {
@@ -637,6 +642,14 @@ export default function PublicWriterReaderActions({
   const state = readerState?.state || {};
   const counts = readerState?.counts || social?.counts || {};
   const comments = readerState?.comments || social?.comments || [];
+  const commentsEnabledRaw =
+    readerState?.comments_enabled ??
+    social?.comments_enabled ??
+    post?.comments_enabled ??
+    true;
+  const commentsEnabled =
+    commentsEnabledRaw !== false &&
+    Number(commentsEnabledRaw) !== 0;
   const profilePath = `/${encodeURIComponent(websiteSlug || '')}/writer/${writerId}`;
   const locked = !!access?.locked;
   const membershipAvailable = !!membership?.available && !!membership?.offer;
@@ -877,8 +890,9 @@ export default function PublicWriterReaderActions({
               <span className="brt-count-pill">{Number(counts.comments || 0)}</span>
             </div>
 
-            {readerSession ? (
-              <form onSubmit={submitComment} className="brt-comment-form">
+            {commentsEnabled ? (
+              readerSession ? (
+<form onSubmit={submitComment} className="brt-comment-form">
                 {quoteDraft ? (
                   <div className="brt-quote-draft">
                     <span>
@@ -907,11 +921,14 @@ export default function PublicWriterReaderActions({
                   {busy === 'comment' ? 'Posting...' : 'Post comment'}
                 </button>
               </form>
-            ) : null}
+              ) : null
+            ) : (
+              <div className="brt-info-banner quiet">Comments are turned off for this post.</div>
+            )}
 
             <div className="brt-comment-list">
               {comments.map((comment) => (
-                <CommentCard key={comment.id} comment={comment} onQuote={beginQuote} />
+                <CommentCard key={comment.id} comment={comment} onQuote={commentsEnabled ? beginQuote : () => setNotice('Comments are turned off for this post.')} />
               ))}
               {!comments.length ? (
                 <div className="brt-empty-comments">
