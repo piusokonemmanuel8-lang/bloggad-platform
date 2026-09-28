@@ -1,5 +1,6 @@
 const pool = require('../../config/db');
 const { resolveWriterVerificationBadges } = require('../../services/writerVerificationBadgeService');
+const { getWriterGiftPlanAccess } = require('../../services/writerReaderFinanceService');
 
 function safeImageUrl(value) {
   const raw = String(value || '').trim();
@@ -521,14 +522,40 @@ async function hydrateHomepageStorySocialCounts(rows) {
     current.gift_count = Number(row.gift_count || 0);
   }
 
-  return storyRows.map((row) =>
+  const sanitizedStories = storyRows.map((row) =>
     sanitizeHomepageStory({
       ...row,
       ...(countsByPost.get(Number(row?.id || 0)) || {}),
     })
   );
-}
 
+  const writerIds = [
+    ...new Set(
+      sanitizedStories
+        .map((story) => Number(story?.user_id || 0))
+        .filter((writerId) => Number.isInteger(writerId) && writerId > 0)
+    ),
+  ];
+
+  const giftAccessEntries = await Promise.all(
+    writerIds.map(async (writerId) => {
+      try {
+        const access = await getWriterGiftPlanAccess(writerId);
+        return [writerId, access?.allowed === true];
+      } catch {
+        return [writerId, false];
+      }
+    })
+  );
+
+  const giftAccessByWriter = new Map(giftAccessEntries);
+
+  return sanitizedStories.map((story) => ({
+    ...story,
+    writer_can_receive_gifts:
+      giftAccessByWriter.get(Number(story.user_id)) === true,
+  }));
+}
 async function getHomepageStories(limit = 40) {
   const safeLimit =
     Number.isInteger(Number(limit)) && Number(limit) > 0
@@ -647,17 +674,33 @@ async function getHomepageStories(limit = 40) {
     const badges = await resolveWriterVerificationBadges(stories.map((story) => story.user_id));
     return stories.map((story) => ({ ...story, verification_badge: badges[story.user_id] || null }));  }
 }
+const HOMEPAGE_CACHE_TTL_MS = 15000;
+let homepageResponseCache = null;
+let homepageResponseCacheExpiresAt = 0;
+
 async function getHomepage(req, res) {
   try {
-    const [posts, products, categories, featured_websites, stats] = await Promise.all([
-      getHomepageStories(),
-      getHomepageProducts(),
-      getHomepageCategories(),
-      getHomepageFeaturedWebsites(),
-      getHomepageStats(),
-    ]);
+    res.set(
+      'Cache-Control',
+      'public, max-age=0, s-maxage=20, stale-while-revalidate=60'
+    );
 
-    return res.status(200).json({
+    const now = Date.now();
+
+    if (homepageResponseCache && now < homepageResponseCacheExpiresAt) {
+      return res.status(200).json(homepageResponseCache);
+    }
+
+    const [posts, products, categories, featured_websites, stats] =
+      await Promise.all([
+        getHomepageStories(),
+        getHomepageProducts(),
+        getHomepageCategories(),
+        getHomepageFeaturedWebsites(),
+        getHomepageStats(),
+      ]);
+
+    const payload = {
       ok: true,
       page: {
         name: 'Bloggad Homepage',
@@ -668,7 +711,12 @@ async function getHomepage(req, res) {
       featured_websites,
       posts,
       products,
-    });
+    };
+
+    homepageResponseCache = payload;
+    homepageResponseCacheExpiresAt = now + HOMEPAGE_CACHE_TTL_MS;
+
+    return res.status(200).json(payload);
   } catch (error) {
     console.error('getHomepage error:', error);
 
@@ -679,7 +727,6 @@ async function getHomepage(req, res) {
     });
   }
 }
-
 async function getHomepageFeaturedProducts(req, res) {
   try {
     const limit =

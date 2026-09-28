@@ -1,13 +1,3 @@
-import WriterPagesPage from './pages/writer/WriterPagesPage';
-import PublicWriterPage from './pages/public/PublicWriterPage';
-import WriterPagePostPage from './pages/public/WriterPagePostPage';
-import PublicTopicsPage from './pages/public/PublicTopicsPage';
-import PublicCategoriesPage from './pages/public/PublicCategoriesPage';
-import PublicTopicPage from './pages/public/PublicTopicPage';
-import AdminReadingCorePage from './pages/admin/AdminReadingCorePage';
-import ReaderFeedPage from './pages/reader/ReaderFeedPage';
-import ReaderInterestsPage from './pages/reader/ReaderInterestsPage';
-import ReaderReadingControlsPage from './pages/reader/ReaderReadingControlsPage';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
@@ -23,116 +13,129 @@ import AffiliateLayout from './layouts/AffiliateLayout';
 import AdminLayout from './layouts/AdminLayout';
 import PublicLayout from './layouts/PublicLayout';
 
-import LoginPage from './pages/auth/LoginPage';
-import AdminLoginPage from './pages/auth/AdminLoginPage';
-import RegisterPage from './pages/auth/RegisterPage';
-import CustomerLoginPage from './pages/auth/CustomerLoginPage';
-import CustomerRegisterPage from './pages/auth/CustomerRegisterPage';
-import SupgadSsoPage from './pages/auth/SupgadSsoPage';
 
-import AffiliateDashboardPage from './pages/affiliate/AffiliateDashboardPage';
-import AffiliateWebsitePage from './pages/affiliate/AffiliateWebsitePage';
-import AffiliateProductsPage from './pages/affiliate/AffiliateProductsPage';
-import AffiliateCreateProductPage from './pages/affiliate/AffiliateCreateProductPage';
-import AffiliateEditProductPage from './pages/affiliate/AffiliateEditProductPage';
-import AffiliateProductPostsPage from './pages/affiliate/AffiliateProductPostsPage';
-import AffiliatePostsPage from './pages/affiliate/AffiliatePostsPage';
-import AffiliateCreatePostPage from './pages/affiliate/AffiliateCreatePostPage';
-import AffiliateEditPostPage from './pages/affiliate/AffiliateEditPostPage';
-import AffiliateChooseTemplatePage from './pages/affiliate/AffiliateChooseTemplatePage';
-import AffiliateMenusPage from './pages/affiliate/AffiliateMenusPage';
-import AffiliateSlidersPage from './pages/affiliate/AffiliateSlidersPage';
-import AffiliateDesignPage from './pages/affiliate/AffiliateDesignPage';
-import AffiliateAnalyticsPage from './pages/affiliate/AffiliateAnalyticsPage';
-import AffiliateMediaLibraryPage from './pages/affiliate/AffiliateMediaLibraryPage';
-import AffiliateSubscriptionPage from './pages/affiliate/AffiliateSubscriptionPage';
-import AffiliateSettingsPage from './pages/affiliate/AffiliateSettingsPage';
-import AffiliateChatsPage from './pages/affiliate/AffiliateChatsPage';
-import AffiliateCustomersPage from './pages/affiliate/AffiliateCustomersPage';
-import AffiliateEmailListsPage from './pages/affiliate/AffiliateEmailListsPage';
-import AffiliateMonetizationEligibilityPage from './pages/affiliate/AffiliateMonetizationEligibilityPage';
-import AffiliateMyAdsPage from './pages/affiliate/AffiliateMyAdsPage';
-import AffiliateBlogPulseAnalyticsPage from './pages/affiliate/AffiliateBlogPulseAnalyticsPage';
-import AffiliateBlogPulseWalletPage from './pages/affiliate/AffiliateBlogPulseWalletPage';
-import AffiliateAdPlacementPage from './pages/affiliate/AffiliateAdPlacementPage';
-import AffiliateMonetizationAnalyticsOverviewPage from './pages/affiliate/AffiliateMonetizationAnalyticsOverviewPage';
-import AffiliateNotificationsPage from './pages/affiliate/AffiliateNotificationsPage';
-import AffiliateAdsPage from './pages/affiliate/AffiliateAdsPage';
-import WriterAdsPage from './pages/writer/WriterAdsPage';
-import AffiliateLeaderboardPage from './pages/affiliate/AffiliateLeaderboardPage';
 
-import AdminDashboardPage from './pages/admin/AdminDashboardPage';
-import AdminCategoriesPage from './pages/admin/AdminCategoriesPage';
-import AdminTemplatesPage from './pages/admin/AdminTemplatesPage';
-import AdminPlansPage from './pages/admin/AdminPlansPage';
-import AdminAffiliatesPage from './pages/admin/AdminAffiliatesPage';
-import AdminProductsPage from './pages/admin/AdminProductsPage';
-import AdminPostsPage from './pages/admin/AdminPostsPage';
-import AdminLinkValidationPage from './pages/admin/AdminLinkValidationPage';
-import AdminChatsPage from './pages/admin/AdminChatsPage';
-import AdminUsersPage from './pages/admin/AdminUsersPage';
-import AdminEmailListsPage from './pages/admin/AdminEmailListsPage';
-import AdminBlogPulsePage from './pages/admin/AdminBlogPulsePage';
-import AdminCampaignModerationPage from './pages/admin/AdminCampaignModerationPage';
-import AdminCampaignModerationDetailsPage from './pages/admin/AdminCampaignModerationDetailsPage';
-import AdminPaymentModerationPage from './pages/admin/AdminPaymentModerationPage';
-import AdminPaymentModerationDetailsPage from './pages/admin/AdminPaymentModerationDetailsPage';
-import AdminWriterWithdrawalsPage from './pages/admin/AdminWriterWithdrawalsPage';
-import AdminPaymentGatewaysPage from './pages/admin/AdminPaymentGatewaysPage';
-import AdminSupgadIntegrationPage from './pages/admin/AdminSupgadIntegrationPage';
-import AdminWebinarInfrastructurePage from './pages/admin/AdminWebinarInfrastructurePage';
-import AdminNotificationsPage from './pages/admin/AdminNotificationsPage';
-import AdminAffiliateAdsPage from './pages/admin/AdminAffiliateAdsPage';
-import AdminAffiliateAdsSettingsPage from './pages/admin/AdminAffiliateAdsSettingsPage';
-import AdminBannerHomeSlidesPage from './pages/admin/AdminBannerHomeSlidesPage';
-import AdminBannerHomeAdCampaignsPage from './pages/admin/AdminBannerHomeAdCampaignsPage';
-import AdminLeaderboardPage from './pages/admin/AdminLeaderboardPage';
-import AdminCurrenciesPage from './pages/admin/AdminCurrenciesPage';
 
 import HomePage from './pages/public/HomePage';
-import WebsiteStorefrontPage from './pages/public/WebsiteStorefrontPage';
-import CategoryPage from './pages/public/CategoryPage';
-import ProductPage from './pages/public/ProductPage';
-import PostPage from './pages/public/PostPage';
-import WriterProfilePage from './pages/public/WriterProfilePage';
-import PublicWebinarRegistrationPage from './pages/public/PublicWebinarRegistrationPage';
-import WebsitePostsPage from './pages/public/WebsitePostsPage';
-import WebsiteCategoryPage from './pages/public/WebsiteCategoryPage';
-import WebsitePostCategoryPage from './pages/public/WebsitePostCategoryPage';
-import LegalPage from './pages/public/legal/LegalPage';
 
-import CustomerDashboardPage from './pages/customer/CustomerDashboardPage';
-import CustomerAdvertiserDashboardPage from './pages/customer/CustomerAdvertiserDashboardPage';
-import CustomerAdvertiserProfilePage from './pages/customer/CustomerAdvertiserProfilePage';
-import CustomerAdvertiserWalletPage from './pages/customer/CustomerAdvertiserWalletPage';
-import CustomerAdvertiserCampaignsPage from './pages/customer/CustomerAdvertiserCampaignsPage';
-import CustomerAdvertiserCreateCampaignPage from './pages/customer/CustomerAdvertiserCreateCampaignPage';
-import CustomerAdvertiserCampaignDetailsPage from './pages/customer/CustomerAdvertiserCampaignDetailsPage';
-import CustomerAdvertiserCreativesPage from './pages/customer/CustomerAdvertiserCreativesPage';
-import CustomerSavedPostsPage from './pages/customer/CustomerSavedPostsPage';
-import CustomerSavedProductsPage from './pages/customer/CustomerSavedProductsPage';
-import CustomerMessagesPage from './pages/customer/CustomerMessagesPage';
-import CustomerSettingsPage from './pages/customer/CustomerSettingsPage';
 
-import WriterSeriesPage from './pages/writer/WriterSeriesPage';
-import WriterCoursesPage from './pages/writer/WriterCoursesPage';
-import WriterWebinarsPage from './pages/writer/WriterWebinarsPage';
-import WriterCreateWebinarPage from './pages/writer/WriterCreateWebinarPage';
-import WriterManageWebinarPage from './pages/writer/WriterManageWebinarPage';
-import WriterWebinarPlansPage from './pages/writer/WriterWebinarPlansPage';
-import WriterWebinarHostRoomPage from './pages/writer/WriterWebinarHostRoomPage';
-import WriterCommunityPage from './pages/writer/WriterCommunityPage';
-import WriterWalletPage from './pages/writer/WriterWalletPage';
-import WriterMembershipsPage from './pages/writer/WriterMembershipsPage';
-import WriterSocialNotificationsPage from './pages/writer/WriterSocialNotificationsPage';
 
-import ReaderFollowingPage from './pages/reader/ReaderFollowingPage';
-import ReaderNotificationsPage from './pages/reader/ReaderNotificationsPage';
-import ReaderCreditsPage from './pages/reader/ReaderCreditsPage';
-import ReaderPremiumPage from './pages/reader/ReaderPremiumPage';
-import ReaderCoursesPage from './pages/reader/ReaderCoursesPage';
-import ReaderAppreciationsPage from './pages/reader/ReaderAppreciationsPage';
-import SharedProfilePage from './pages/shared/SharedProfilePage';
+
+
+// Route-level code splitting: keep homepage eager, defer other pages.
+const WriterPagesPage = React.lazy(() => import('./pages/writer/WriterPagesPage'));
+const PublicWriterPage = React.lazy(() => import('./pages/public/PublicWriterPage'));
+const WriterPagePostPage = React.lazy(() => import('./pages/public/WriterPagePostPage'));
+const PublicTopicsPage = React.lazy(() => import('./pages/public/PublicTopicsPage'));
+const PublicCategoriesPage = React.lazy(() => import('./pages/public/PublicCategoriesPage'));
+const PublicTopicPage = React.lazy(() => import('./pages/public/PublicTopicPage'));
+const AdminReadingCorePage = React.lazy(() => import('./pages/admin/AdminReadingCorePage'));
+const ReaderFeedPage = React.lazy(() => import('./pages/reader/ReaderFeedPage'));
+const ReaderInterestsPage = React.lazy(() => import('./pages/reader/ReaderInterestsPage'));
+const ReaderReadingControlsPage = React.lazy(() => import('./pages/reader/ReaderReadingControlsPage'));
+const LoginPage = React.lazy(() => import('./pages/auth/LoginPage'));
+const AdminLoginPage = React.lazy(() => import('./pages/auth/AdminLoginPage'));
+const RegisterPage = React.lazy(() => import('./pages/auth/RegisterPage'));
+const CustomerLoginPage = React.lazy(() => import('./pages/auth/CustomerLoginPage'));
+const CustomerRegisterPage = React.lazy(() => import('./pages/auth/CustomerRegisterPage'));
+const SupgadSsoPage = React.lazy(() => import('./pages/auth/SupgadSsoPage'));
+const AffiliateDashboardPage = React.lazy(() => import('./pages/affiliate/AffiliateDashboardPage'));
+const AffiliateWebsitePage = React.lazy(() => import('./pages/affiliate/AffiliateWebsitePage'));
+const AffiliateProductsPage = React.lazy(() => import('./pages/affiliate/AffiliateProductsPage'));
+const AffiliateCreateProductPage = React.lazy(() => import('./pages/affiliate/AffiliateCreateProductPage'));
+const AffiliateEditProductPage = React.lazy(() => import('./pages/affiliate/AffiliateEditProductPage'));
+const AffiliateProductPostsPage = React.lazy(() => import('./pages/affiliate/AffiliateProductPostsPage'));
+const AffiliatePostsPage = React.lazy(() => import('./pages/affiliate/AffiliatePostsPage'));
+const AffiliateCreatePostPage = React.lazy(() => import('./pages/affiliate/AffiliateCreatePostPage'));
+const AffiliateEditPostPage = React.lazy(() => import('./pages/affiliate/AffiliateEditPostPage'));
+const AffiliateChooseTemplatePage = React.lazy(() => import('./pages/affiliate/AffiliateChooseTemplatePage'));
+const AffiliateMenusPage = React.lazy(() => import('./pages/affiliate/AffiliateMenusPage'));
+const AffiliateSlidersPage = React.lazy(() => import('./pages/affiliate/AffiliateSlidersPage'));
+const AffiliateDesignPage = React.lazy(() => import('./pages/affiliate/AffiliateDesignPage'));
+const AffiliateAnalyticsPage = React.lazy(() => import('./pages/affiliate/AffiliateAnalyticsPage'));
+const AffiliateMediaLibraryPage = React.lazy(() => import('./pages/affiliate/AffiliateMediaLibraryPage'));
+const AffiliateSubscriptionPage = React.lazy(() => import('./pages/affiliate/AffiliateSubscriptionPage'));
+const AffiliateSettingsPage = React.lazy(() => import('./pages/affiliate/AffiliateSettingsPage'));
+const AffiliateChatsPage = React.lazy(() => import('./pages/affiliate/AffiliateChatsPage'));
+const AffiliateCustomersPage = React.lazy(() => import('./pages/affiliate/AffiliateCustomersPage'));
+const AffiliateEmailListsPage = React.lazy(() => import('./pages/affiliate/AffiliateEmailListsPage'));
+const AffiliateMonetizationEligibilityPage = React.lazy(() => import('./pages/affiliate/AffiliateMonetizationEligibilityPage'));
+const AffiliateMyAdsPage = React.lazy(() => import('./pages/affiliate/AffiliateMyAdsPage'));
+const AffiliateBlogPulseAnalyticsPage = React.lazy(() => import('./pages/affiliate/AffiliateBlogPulseAnalyticsPage'));
+const AffiliateBlogPulseWalletPage = React.lazy(() => import('./pages/affiliate/AffiliateBlogPulseWalletPage'));
+const AffiliateAdPlacementPage = React.lazy(() => import('./pages/affiliate/AffiliateAdPlacementPage'));
+const AffiliateMonetizationAnalyticsOverviewPage = React.lazy(() => import('./pages/affiliate/AffiliateMonetizationAnalyticsOverviewPage'));
+const AffiliateNotificationsPage = React.lazy(() => import('./pages/affiliate/AffiliateNotificationsPage'));
+const AffiliateAdsPage = React.lazy(() => import('./pages/affiliate/AffiliateAdsPage'));
+const WriterAdsPage = React.lazy(() => import('./pages/writer/WriterAdsPage'));
+const AffiliateLeaderboardPage = React.lazy(() => import('./pages/affiliate/AffiliateLeaderboardPage'));
+const AdminDashboardPage = React.lazy(() => import('./pages/admin/AdminDashboardPage'));
+const AdminCategoriesPage = React.lazy(() => import('./pages/admin/AdminCategoriesPage'));
+const AdminTemplatesPage = React.lazy(() => import('./pages/admin/AdminTemplatesPage'));
+const AdminPlansPage = React.lazy(() => import('./pages/admin/AdminPlansPage'));
+const AdminAffiliatesPage = React.lazy(() => import('./pages/admin/AdminAffiliatesPage'));
+const AdminProductsPage = React.lazy(() => import('./pages/admin/AdminProductsPage'));
+const AdminPostsPage = React.lazy(() => import('./pages/admin/AdminPostsPage'));
+const AdminLinkValidationPage = React.lazy(() => import('./pages/admin/AdminLinkValidationPage'));
+const AdminChatsPage = React.lazy(() => import('./pages/admin/AdminChatsPage'));
+const AdminUsersPage = React.lazy(() => import('./pages/admin/AdminUsersPage'));
+const AdminEmailListsPage = React.lazy(() => import('./pages/admin/AdminEmailListsPage'));
+const AdminBlogPulsePage = React.lazy(() => import('./pages/admin/AdminBlogPulsePage'));
+const AdminCampaignModerationPage = React.lazy(() => import('./pages/admin/AdminCampaignModerationPage'));
+const AdminCampaignModerationDetailsPage = React.lazy(() => import('./pages/admin/AdminCampaignModerationDetailsPage'));
+const AdminPaymentModerationPage = React.lazy(() => import('./pages/admin/AdminPaymentModerationPage'));
+const AdminPaymentModerationDetailsPage = React.lazy(() => import('./pages/admin/AdminPaymentModerationDetailsPage'));
+const AdminWriterWithdrawalsPage = React.lazy(() => import('./pages/admin/AdminWriterWithdrawalsPage'));
+const AdminPaymentGatewaysPage = React.lazy(() => import('./pages/admin/AdminPaymentGatewaysPage'));
+const AdminSupgadIntegrationPage = React.lazy(() => import('./pages/admin/AdminSupgadIntegrationPage'));
+const AdminWebinarInfrastructurePage = React.lazy(() => import('./pages/admin/AdminWebinarInfrastructurePage'));
+const AdminNotificationsPage = React.lazy(() => import('./pages/admin/AdminNotificationsPage'));
+const AdminAffiliateAdsPage = React.lazy(() => import('./pages/admin/AdminAffiliateAdsPage'));
+const AdminAffiliateAdsSettingsPage = React.lazy(() => import('./pages/admin/AdminAffiliateAdsSettingsPage'));
+const AdminBannerHomeSlidesPage = React.lazy(() => import('./pages/admin/AdminBannerHomeSlidesPage'));
+const AdminBannerHomeAdCampaignsPage = React.lazy(() => import('./pages/admin/AdminBannerHomeAdCampaignsPage'));
+const AdminLeaderboardPage = React.lazy(() => import('./pages/admin/AdminLeaderboardPage'));
+const AdminCurrenciesPage = React.lazy(() => import('./pages/admin/AdminCurrenciesPage'));
+const WebsiteStorefrontPage = React.lazy(() => import('./pages/public/WebsiteStorefrontPage'));
+const CategoryPage = React.lazy(() => import('./pages/public/CategoryPage'));
+const ProductPage = React.lazy(() => import('./pages/public/ProductPage'));
+const PostPage = React.lazy(() => import('./pages/public/PostPage'));
+const WriterProfilePage = React.lazy(() => import('./pages/public/WriterProfilePage'));
+const PublicWebinarRegistrationPage = React.lazy(() => import('./pages/public/PublicWebinarRegistrationPage'));
+const WebsitePostsPage = React.lazy(() => import('./pages/public/WebsitePostsPage'));
+const WebsiteCategoryPage = React.lazy(() => import('./pages/public/WebsiteCategoryPage'));
+const WebsitePostCategoryPage = React.lazy(() => import('./pages/public/WebsitePostCategoryPage'));
+const LegalPage = React.lazy(() => import('./pages/public/legal/LegalPage'));
+const CustomerDashboardPage = React.lazy(() => import('./pages/customer/CustomerDashboardPage'));
+const CustomerAdvertiserDashboardPage = React.lazy(() => import('./pages/customer/CustomerAdvertiserDashboardPage'));
+const CustomerAdvertiserProfilePage = React.lazy(() => import('./pages/customer/CustomerAdvertiserProfilePage'));
+const CustomerAdvertiserWalletPage = React.lazy(() => import('./pages/customer/CustomerAdvertiserWalletPage'));
+const CustomerAdvertiserCampaignsPage = React.lazy(() => import('./pages/customer/CustomerAdvertiserCampaignsPage'));
+const CustomerAdvertiserCreateCampaignPage = React.lazy(() => import('./pages/customer/CustomerAdvertiserCreateCampaignPage'));
+const CustomerAdvertiserCampaignDetailsPage = React.lazy(() => import('./pages/customer/CustomerAdvertiserCampaignDetailsPage'));
+const CustomerAdvertiserCreativesPage = React.lazy(() => import('./pages/customer/CustomerAdvertiserCreativesPage'));
+const CustomerSavedPostsPage = React.lazy(() => import('./pages/customer/CustomerSavedPostsPage'));
+const CustomerSavedProductsPage = React.lazy(() => import('./pages/customer/CustomerSavedProductsPage'));
+const CustomerMessagesPage = React.lazy(() => import('./pages/customer/CustomerMessagesPage'));
+const CustomerSettingsPage = React.lazy(() => import('./pages/customer/CustomerSettingsPage'));
+const WriterSeriesPage = React.lazy(() => import('./pages/writer/WriterSeriesPage'));
+const WriterCoursesPage = React.lazy(() => import('./pages/writer/WriterCoursesPage'));
+const WriterWebinarsPage = React.lazy(() => import('./pages/writer/WriterWebinarsPage'));
+const WriterCreateWebinarPage = React.lazy(() => import('./pages/writer/WriterCreateWebinarPage'));
+const WriterManageWebinarPage = React.lazy(() => import('./pages/writer/WriterManageWebinarPage'));
+const WriterWebinarPlansPage = React.lazy(() => import('./pages/writer/WriterWebinarPlansPage'));
+const WriterWebinarHostRoomPage = React.lazy(() => import('./pages/writer/WriterWebinarHostRoomPage'));
+const WriterCommunityPage = React.lazy(() => import('./pages/writer/WriterCommunityPage'));
+const WriterWalletPage = React.lazy(() => import('./pages/writer/WriterWalletPage'));
+const WriterMembershipsPage = React.lazy(() => import('./pages/writer/WriterMembershipsPage'));
+const WriterSocialNotificationsPage = React.lazy(() => import('./pages/writer/WriterSocialNotificationsPage'));
+const ReaderFollowingPage = React.lazy(() => import('./pages/reader/ReaderFollowingPage'));
+const ReaderNotificationsPage = React.lazy(() => import('./pages/reader/ReaderNotificationsPage'));
+const ReaderCreditsPage = React.lazy(() => import('./pages/reader/ReaderCreditsPage'));
+const ReaderPremiumPage = React.lazy(() => import('./pages/reader/ReaderPremiumPage'));
+const ReaderCoursesPage = React.lazy(() => import('./pages/reader/ReaderCoursesPage'));
+const ReaderAppreciationsPage = React.lazy(() => import('./pages/reader/ReaderAppreciationsPage'));
+const SharedProfilePage = React.lazy(() => import('./pages/shared/SharedProfilePage'));
 
 function CustomerProtectedRoute({ children }) {
   const token =
@@ -202,7 +205,8 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     <AuthProvider>
       <BrowserRouter>
                 <BloggadGlobalLoader />
-        <Routes>
+        <React.Suspense fallback={null}>
+<Routes>
           <Route element={<PublicLayout />}>
             <Route path="/" element={<App />}>
               <Route index element={<HomePage />} />
@@ -645,6 +649,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
 
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+</React.Suspense>
       </BrowserRouter>
     </AuthProvider>
   </React.StrictMode>

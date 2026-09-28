@@ -142,7 +142,7 @@ function StoryCard({
             title={`${author} profile`}
           >
             {post?.writer_avatar_url ? (
-              <img src={post.writer_avatar_url} alt="" />
+              <img src={post.writer_avatar_url} alt="" loading="lazy" decoding="async" />
             ) : (
               <span>{String(author || 'W').slice(0, 1).toUpperCase()}</span>
             )}
@@ -309,7 +309,7 @@ function StoryCard({
 
       {post?.featured_image ? (
         <Link className="bh-story-thumb" to={url}>
-          <img src={post.featured_image} alt="" />
+          <img src={post.featured_image} alt="" decoding="async" />
         </Link>
       ) : null}
     </article>
@@ -506,50 +506,30 @@ const allPosts = useMemo(() => {
   );
 
   useEffect(() => {
-    const ids = visiblePosts
-      .map((post) => Number(post?.id || 0))
-      .filter((id) => id > 0 && !postStats[id]);
+  if (!visiblePosts.length) return;
 
-    if (!ids.length) return;
+  setPostStats((current) => {
+    let changed = false;
+    const next = { ...current };
 
-    let active = true;
+    visiblePosts.forEach((post) => {
+      const id = Number(post?.id || 0);
+      if (!id || next[id]) return;
 
-    Promise.all(
-      ids.map((id) =>
-        api
-          .get(`/api/public/social/posts/${id}`, {
-            skipGlobalLoader: true,
-          })
-          .then(({ data }) => ({ id, data }))
-          .catch(() => ({ id, data: null }))
-      )
-    ).then((results) => {
-      if (!active) return;
-
-      setPostStats((current) => {
-        const next = { ...current };
-
-        results.forEach(({ id, data }) => {
-          next[id] = {
-            love: Number(data?.counts?.love || 0),
-            applaud: Number(data?.counts?.applaud || 0),
-            comments: Number(data?.counts?.comments || 0),
-            gifts: Number(data?.counts?.gifts || 0),
-            writer_id: Number(data?.writer?.id || 0),
-            can_receive_gifts:
-              data?.writer_can_receive_gifts === true ||
-              data?.writer?.can_receive_gifts === true,
-          };
-        });
-
-        return next;
-      });
+      next[id] = {
+        love: Number(post?.love_count || 0),
+        applaud: Number(post?.applaud_count || 0),
+        comments: Number(post?.comment_count || 0),
+        gifts: Number(post?.gift_count || 0),
+        writer_id: Number(post?.user_id || 0),
+        can_receive_gifts: post?.writer_can_receive_gifts === true,
+      };
+      changed = true;
     });
 
-    return () => {
-      active = false;
-    };
-  }, [visiblePosts, postStats]);
+    return changed ? next : current;
+  });
+}, [visiblePosts]);
 
   useEffect(() => {
     if (!loaderRef.current || visibleCount >= filteredPosts.length) return;
