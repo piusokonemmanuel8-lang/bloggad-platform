@@ -1,4 +1,5 @@
 import React from 'react';
+const PublicSalesLandingPage = React.lazy(() => import('./pages/public/PublicSalesLandingPage'));
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import BloggadGlobalLoader from './components/shared/BloggadGlobalLoader';
@@ -17,8 +18,31 @@ import PublicLayout from './layouts/PublicLayout';
 
 
 import HomePage from './pages/public/HomePage';
+import WebsiteStorefrontPage from './pages/public/WebsiteStorefrontPage';
+import CategoryPage from './pages/public/CategoryPage';
+import ProductPage from './pages/public/ProductPage';
+import PostPage from './pages/public/PostPage';
+import WriterProfilePage from './pages/public/WriterProfilePage';
+import PublicWebinarRegistrationPage from './pages/public/PublicWebinarRegistrationPage';
+
+import WebsitePostsPage from './pages/public/WebsitePostsPage';
+import WebsiteCategoryPage from './pages/public/WebsiteCategoryPage';
+import WebsitePostCategoryPage from './pages/public/WebsitePostCategoryPage';
+import LegalPage from './pages/public/legal/LegalPage';
 
 
+import WriterSeriesPage from './pages/writer/WriterSeriesPage';
+import WriterSalesLandingPagesPage from './pages/writer/WriterSalesLandingPagesPage';
+import WriterCoursesPage from './pages/writer/WriterCoursesPage';
+import WriterWebinarsPage from './pages/writer/WriterWebinarsPage';
+import WriterCreateWebinarPage from './pages/writer/WriterCreateWebinarPage';
+import WriterManageWebinarPage from './pages/writer/WriterManageWebinarPage';
+import WriterWebinarPlansPage from './pages/writer/WriterWebinarPlansPage';
+import WriterWebinarHostRoomPage from './pages/writer/WriterWebinarHostRoomPage';
+import WriterCommunityPage from './pages/writer/WriterCommunityPage';
+import WriterWalletPage from './pages/writer/WriterWalletPage';
+import WriterMembershipsPage from './pages/writer/WriterMembershipsPage';
+import WriterSocialNotificationsPage from './pages/writer/WriterSocialNotificationsPage';
 
 
 
@@ -215,6 +239,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
               <Route path="topics" element={<PublicTopicsPage />} />
               <Route path="categories" element={<PublicCategoriesPage />} />
               <Route path="topic/:slug" element={<PublicTopicPage />} />
+              <Route path="/sales/:landingSlug" element={<React.Suspense fallback={<main className="public-sales-landing state">Loading...</main>}><PublicSalesLandingPage /></React.Suspense>} />
               <Route path="page/:pageSlug" element={<PublicWriterPage />} />
               <Route path="page/:pageSlug/post/:postSlug" element={<WriterPagePostPage />} />
               <Route path="webinars/:writerPageSlug/:webinarSlug" element={<PublicWebinarRegistrationPage />} />
@@ -251,6 +276,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
           <Route element={<AffiliateLayout />}>
             <Route path="/writer/dashboard" element={<AffiliateDashboardPage />} />
             <Route path="/writer/pages" element={<WriterPagesPage />} />
+            <Route path="/writer/sales-landing" element={<WriterPaidPlanGate feature="Sales Landing Pages"><WriterSalesLandingPagesPage /></WriterPaidPlanGate>} />
             <Route
               path="/writer/website"
               element={

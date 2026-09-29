@@ -79,6 +79,7 @@ const navItems = [
 
   { label: 'Storefront', to: '/writer/website', icon: Globe, group: 'Store', paidOnly: true },
   { label: 'Products', to: '/writer/products', icon: ShoppingBag, group: 'Store', paidOnly: true },
+  { label: 'Sales Landing Page', to: '/writer/sales-landing', icon: LayoutTemplate, group: 'Store', paidOnly: true },
   { label: 'Templates', to: '/writer/templates/choose', icon: LayoutTemplate, group: 'Store', paidOnly: true },
   { label: 'Menus', to: '/writer/menus', icon: MenuSquare, group: 'Store', paidOnly: true },
   { label: 'Sliders', to: '/writer/sliders', icon: SlidersHorizontal, group: 'Store', paidOnly: true },
@@ -316,6 +317,7 @@ export default function AffiliateLayout() {
   const connectedWriterShellMode =
   location.pathname === '/writer/plan' ||
   (location.pathname === '/writer/dashboard' ||
+      location.pathname.startsWith('/writer/sales-landing') ||
     location.pathname === '/writer/notifications' ||
     location.pathname === '/writer/posts' ||
     location.pathname === '/writer/posts/create' ||

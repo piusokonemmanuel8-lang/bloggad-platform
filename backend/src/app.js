@@ -1,4 +1,4 @@
-const express = require('express');
+﻿const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
@@ -446,6 +446,10 @@ mount(app, '/api/admin/supgad-integration', 'adminSupgadIntegrationRoutes', [
 
   mount(app, '/api/writer/analytics', 'writerAnalyticsRoutes', [
     './routes/writerAnalyticsRoutes',
+  ]);
+
+  mount(app, '/api/writer/sales-landing', 'writerSalesLandingRoutes', [
+    './routes/writerSalesLandingRoutes',
   ]);
 
   mount(app, '/api/writer/pages', 'writerPageRoutes', [

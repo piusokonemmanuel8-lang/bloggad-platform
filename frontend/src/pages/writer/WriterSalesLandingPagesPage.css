@@ -1,0 +1,200 @@
+.sales-landing-admin{max-width:1180px;margin:0 auto;padding:24px;color:#172033}
+.sales-landing-head{display:flex;align-items:flex-start;justify-content:space-between;gap:24px;margin-bottom:18px}
+.sales-landing-head h2,.sales-landing-section-title h3{margin:4px 0 6px}.sales-landing-head p,.sales-landing-section-title p{margin:0;color:#687386}
+.sales-landing-kicker{text-transform:uppercase;letter-spacing:.08em;font-size:12px;font-weight:700;color:#5b61d6}
+.sales-landing-primary,.sales-landing-secondary,.sales-landing-empty button,.sales-landing-actions button{border:0;border-radius:9px;padding:10px 14px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:7px}
+.sales-landing-primary,.sales-landing-empty button{background:#172033;color:#fff}.sales-landing-secondary,.sales-landing-actions button{background:#eef1f6;color:#273247}
+button:disabled{opacity:.5;cursor:not-allowed}
+.sales-landing-entitlement{display:flex;align-items:center;gap:7px;padding:12px 15px;background:#f7f8fb;border:1px solid #e7eaf0;border-radius:10px;margin-bottom:18px}
+.sales-landing-alert{padding:12px 14px;border-radius:9px;margin-bottom:14px}.sales-landing-alert.error{background:#fff0f0;color:#9b2525}.sales-landing-alert.success{background:#edf9f0;color:#246b36}
+.sales-landing-section-title{display:flex;justify-content:space-between;margin:22px 0 14px}
+.sales-landing-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:16px}
+.sales-landing-card,.sales-landing-template,.sales-landing-editor,.sales-landing-empty{border:1px solid #e2e6ed;border-radius:14px;background:#fff;padding:18px}
+.sales-landing-card-top{display:flex;justify-content:space-between;gap:12px;font-size:12px;color:#758095}.sales-landing-card h3{margin:16px 0 5px}.sales-landing-slug{color:#697488;word-break:break-all}
+.sales-landing-status{text-transform:capitalize;font-weight:800}.sales-landing-status.published{color:#26743a}.sales-landing-status.draft{color:#9a6716}
+.sales-landing-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:18px}.sales-landing-actions .danger{color:#a52d2d;background:#fff0f0}
+.sales-landing-empty{text-align:center;padding:48px 22px}.sales-landing-empty h3{margin-top:0}.sales-landing-empty p{color:#6b7587}
+.sales-landing-template{text-align:left;cursor:pointer}.sales-landing-template img,.sales-landing-template-preview{width:100%;height:150px;object-fit:cover;border-radius:9px;margin-bottom:12px;background:#f2f4f8;display:flex;align-items:center;justify-content:center;color:#788396}
+.sales-landing-template strong,.sales-landing-template span{display:block}.sales-landing-template span{margin-top:5px;color:#6b7587}
+.sales-landing-form-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}.sales-landing-form-grid label{font-size:13px;font-weight:700}.sales-landing-form-grid .wide{grid-column:1/-1}
+.sales-landing-form-grid input,.sales-landing-form-grid textarea{width:100%;box-sizing:border-box;margin-top:7px;border:1px solid #d9dee8;border-radius:9px;padding:11px 12px;font:inherit;font-weight:400}
+.sales-landing-editor-actions{display:flex;gap:10px;margin-top:18px}.sales-landing-loading{padding:50px;text-align:center}
+@media(max-width:700px){.sales-landing-admin{padding:16px}.sales-landing-head{display:block}.sales-landing-head>button{margin-top:14px}.sales-landing-form-grid{grid-template-columns:1fr}.sales-landing-form-grid .wide{grid-column:auto}}
+/* VXL section builder UI V36 */
+.vxl-builder{
+  margin-top:18px;
+  padding:22px;
+  border:1px solid #e3e7ee;
+  border-radius:14px;
+  background:#f8fafc;
+}
+.vxl-builder-head{
+  display:flex;
+  align-items:flex-end;
+  justify-content:space-between;
+  gap:18px;
+  margin-bottom:18px;
+}
+.vxl-builder-head h4{margin:0 0 5px;font-size:18px;color:#111827}
+.vxl-builder-head p{margin:0;color:#64748b;font-size:13px}
+.vxl-builder-head select{
+  min-width:190px;
+  height:42px;
+  padding:0 12px;
+  border:1px solid #cbd5e1;
+  border-radius:9px;
+  background:#111827;
+  color:#fff;
+  font-weight:700;
+  cursor:pointer;
+}
+.vxl-section-editor{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:14px;
+  margin-top:16px;
+  padding:20px;
+  border:1px solid #dce2ea;
+  border-radius:12px;
+  background:#fff;
+  box-shadow:0 2px 8px rgba(15,23,42,.04);
+}
+.vxl-section-editor .wide{grid-column:1/-1}
+.vxl-section-toolbar{
+  grid-column:1/-1;
+  display:flex;
+  align-items:center;
+  gap:8px;
+  padding-bottom:14px;
+  border-bottom:1px solid #edf0f4;
+}
+.vxl-section-toolbar strong{
+  margin-right:auto;
+  font-size:13px;
+  letter-spacing:.05em;
+  color:#111827;
+}
+.vxl-section-toolbar label{
+  display:flex;
+  flex-direction:row;
+  align-items:center;
+  gap:6px;
+  margin:0 8px 0 0;
+  font-size:12px;
+  font-weight:700;
+}
+.vxl-section-toolbar input[type=checkbox]{width:16px;height:16px;margin:0}
+.vxl-section-toolbar button,
+.vxl-review-editor button,
+.vxl-review-editor + button,
+.vxl-section-editor .wide > button{
+  border:1px solid #cbd5e1;
+  border-radius:8px;
+  background:#fff;
+  color:#334155;
+  min-height:34px;
+  padding:7px 11px;
+  font-weight:700;
+  cursor:pointer;
+}
+.vxl-section-toolbar button:hover,
+.vxl-review-editor button:hover,
+.vxl-section-editor .wide > button:hover{background:#f1f5f9}
+.vxl-section-toolbar button:last-child{
+  color:#b42318;
+  border-color:#fecaca;
+  background:#fff7f7;
+}
+.vxl-section-editor label{
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+  color:#334155;
+  font-size:12px;
+  font-weight:700;
+}
+.vxl-section-editor input:not([type=checkbox]):not([type=color]),
+.vxl-section-editor textarea{
+  width:100%;
+  border:1px solid #cbd5e1;
+  border-radius:9px;
+  background:#fff;
+  padding:10px 12px;
+  font:inherit;
+  color:#0f172a;
+  box-sizing:border-box;
+}
+.vxl-section-editor input[type=color]{
+  width:54px;
+  height:40px;
+  padding:3px;
+  border:1px solid #cbd5e1;
+  border-radius:8px;
+  background:#fff;
+}
+.vxl-review-editor{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:12px;
+  margin-bottom:12px;
+  padding:16px;
+  border:1px solid #e2e8f0;
+  border-radius:10px;
+  background:#f8fafc;
+}
+.vxl-review-editor .wide{grid-column:1/-1}
+.vxl-review-editor button{
+  width:max-content;
+  color:#b42318;
+  border-color:#fecaca;
+  background:#fff;
+}
+.vxl-section-editor .wide > button{
+  margin-top:2px;
+  background:#111827;
+  color:#fff;
+  border-color:#111827;
+}
+@media(max-width:760px){
+  .vxl-builder{padding:14px}
+  .vxl-builder-head{display:block}
+  .vxl-builder-head select{width:100%;margin-top:12px}
+  .vxl-section-editor,.vxl-review-editor{grid-template-columns:1fr;padding:14px}
+  .vxl-section-editor .wide,.vxl-review-editor .wide{grid-column:1}
+  .vxl-section-toolbar{flex-wrap:wrap}
+  .vxl-section-toolbar strong{width:100%;margin-bottom:4px}
+}
+/* VXL review column selector V48 */
+.vxl-section-editor .wide > label:first-child{
+  max-width:260px;
+  margin:0 0 18px;
+}
+.vxl-section-editor .wide > label:first-child select{
+  width:100%;
+  height:42px;
+  padding:0 38px 0 12px;
+  border:1px solid #cbd5e1;
+  border-radius:9px;
+  background:#fff;
+  color:#0f172a;
+  font-size:13px;
+  font-weight:700;
+  cursor:pointer;
+}
+.vxl-section-editor .wide > label:first-child select:focus{
+  outline:2px solid #111827;
+  outline-offset:1px;
+}
+@media(max-width:760px){
+  .vxl-section-editor .wide > label:first-child{
+    max-width:100%;
+  }
+}
+/* VXL padding stepper V54 */
+.vxl-padding-control{display:flex;flex-direction:column;gap:7px;min-width:0;}
+.vxl-padding-control>span{color:#334155;font-size:12px;font-weight:700;}
+.vxl-padding-stepper{display:grid;grid-template-columns:40px 76px 40px;align-items:center;width:max-content;overflow:hidden;border:1px solid #cbd5e1;border-radius:9px;background:#fff;}
+.vxl-padding-stepper button{height:38px;border:0;background:#f8fafc;color:#0f172a;font-size:20px;font-weight:700;cursor:pointer;}
+.vxl-padding-stepper button:hover{background:#e2e8f0;}
+.vxl-padding-stepper strong{display:flex;align-items:center;justify-content:center;height:38px;border-left:1px solid #e2e8f0;border-right:1px solid #e2e8f0;font-size:13px;color:#0f172a;}
+@media(max-width:560px){.vxl-padding-stepper{grid-template-columns:44px 76px 44px;}}
