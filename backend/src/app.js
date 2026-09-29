@@ -52,6 +52,14 @@ function createApp() {
   const app = express();
 
   app.use('/api', (req, res, next) => {
+    const isPublicHomepageRequest =
+      req.method === 'GET' &&
+      /^\/api\/public\/home\/?(?:\?|$)/.test(req.originalUrl || '');
+
+    if (isPublicHomepageRequest) {
+      return next();
+    }
+
     delete req.headers['if-none-match'];
     delete req.headers['if-modified-since'];
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
@@ -494,9 +502,7 @@ mount(app, '/api/admin/supgad-integration', 'adminSupgadIntegrationRoutes', [
         maxAge: '1d',
         setHeaders: (res, filePath) => {
           if (path.basename(filePath) === 'index.html') {
-            res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
-            res.setHeader('Pragma', 'no-cache');
-            res.setHeader('Expires', '0');
+            res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=30, must-revalidate');
             return;
           }
 
@@ -508,9 +514,7 @@ mount(app, '/api/admin/supgad-integration', 'adminSupgadIntegrationRoutes', [
     );
 
     app.get(/^\/(?!api).*/, (req, res) => {
-      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
-      res.setHeader('Pragma', 'no-cache');
-      res.setHeader('Expires', '0');
+      res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=30, must-revalidate');
       return res.sendFile(path.join(frontendDistPath, 'index.html'));
     });
 
