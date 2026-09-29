@@ -18,31 +18,10 @@ import PublicLayout from './layouts/PublicLayout';
 
 
 import HomePage from './pages/public/HomePage';
-import WebsiteStorefrontPage from './pages/public/WebsiteStorefrontPage';
-import CategoryPage from './pages/public/CategoryPage';
-import ProductPage from './pages/public/ProductPage';
-import PostPage from './pages/public/PostPage';
-import WriterProfilePage from './pages/public/WriterProfilePage';
-import PublicWebinarRegistrationPage from './pages/public/PublicWebinarRegistrationPage';
-
-import WebsitePostsPage from './pages/public/WebsitePostsPage';
-import WebsiteCategoryPage from './pages/public/WebsiteCategoryPage';
-import WebsitePostCategoryPage from './pages/public/WebsitePostCategoryPage';
-import LegalPage from './pages/public/legal/LegalPage';
 
 
-import WriterSeriesPage from './pages/writer/WriterSeriesPage';
+
 import WriterSalesLandingPagesPage from './pages/writer/WriterSalesLandingPagesPage';
-import WriterCoursesPage from './pages/writer/WriterCoursesPage';
-import WriterWebinarsPage from './pages/writer/WriterWebinarsPage';
-import WriterCreateWebinarPage from './pages/writer/WriterCreateWebinarPage';
-import WriterManageWebinarPage from './pages/writer/WriterManageWebinarPage';
-import WriterWebinarPlansPage from './pages/writer/WriterWebinarPlansPage';
-import WriterWebinarHostRoomPage from './pages/writer/WriterWebinarHostRoomPage';
-import WriterCommunityPage from './pages/writer/WriterCommunityPage';
-import WriterWalletPage from './pages/writer/WriterWalletPage';
-import WriterMembershipsPage from './pages/writer/WriterMembershipsPage';
-import WriterSocialNotificationsPage from './pages/writer/WriterSocialNotificationsPage';
 
 
 
