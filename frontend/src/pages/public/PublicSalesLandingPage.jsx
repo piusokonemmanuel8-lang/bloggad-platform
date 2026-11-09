@@ -34,6 +34,7 @@ export default function PublicSalesLandingPage() {
   const content = useMemo(() => readJson(page?.content_json), [page]);
   const video = youtubeEmbed(content.video_url);
   const [trackingConsentPage, setTrackingConsentPage] = useState('');
+  const [trackingDeclinedPage, setTrackingDeclinedPage] = useState('');
 
   const trackingGoogleId =
     typeof content.tracking?.google_ads_id === 'string' &&
@@ -189,28 +190,6 @@ export default function PublicSalesLandingPage() {
 
   return (
     <main className="public-sales-landing">
-      {trackingConfigured && !trackingAllowed ? (
-        <section className="public-sales-tracking-consent" style={{
-          padding: '16px',
-          margin: '16px auto',
-          maxWidth: '900px',
-          border: '1px solid #999',
-          borderRadius: '8px',
-        }}>
-          <p>
-            This landing page uses Google Ads or Meta advertising
-            measurement when you agree.
-          </p>
-          <button
-            type="button"
-            onClick={() => setTrackingConsentPage(
-              String(page.id) + ':' + String(page.slug)
-            )}
-          >
-            Accept advertising measurement
-          </button>
-        </section>
-      ) : null}
       {content.urgency_text ? <div className="public-sales-urgency">{content.urgency_text}</div> : null}
       <section className="public-sales-hero">
         <div className="public-sales-copy">
@@ -260,6 +239,55 @@ export default function PublicSalesLandingPage() {
       ))}
       {content.cta_text && content.cta_url ? (
         <section className="public-sales-bottom-cta"><a className="public-sales-cta" href={content.cta_url} onClick={handleCheckoutClick}>{content.cta_text}</a></section>
+      ) : null}
+          {trackingConfigured &&
+      !trackingAllowed &&
+      trackingDeclinedPage !== trackingPageKey ? (
+        <section
+          className="public-sales-tracking-consent"
+          aria-label="Advertising privacy choices"
+          style={{
+            boxSizing: 'border-box',
+            maxWidth: '680px',
+            margin: '24px auto 8px',
+            padding: '8px 12px',
+            border: '1px solid #555',
+            borderRadius: '6px',
+            background: '#171717',
+            color: '#ddd',
+            fontSize: '11px',
+            lineHeight: 1.45,
+            textAlign: 'center',
+          }}
+        >
+          <span style={{ marginRight: '10px' }}>
+            Optional advertising measurement.
+          </span>
+          <button
+            type="button"
+            onClick={() => setTrackingConsentPage(trackingPageKey)}
+            style={{
+              padding: '4px 8px',
+              margin: '3px',
+              fontSize: '11px',
+              cursor: 'pointer',
+            }}
+          >
+            Accept
+          </button>
+          <button
+            type="button"
+            onClick={() => setTrackingDeclinedPage(trackingPageKey)}
+            style={{
+              padding: '4px 8px',
+              margin: '3px',
+              fontSize: '11px',
+              cursor: 'pointer',
+            }}
+          >
+            Reject
+          </button>
+        </section>
       ) : null}
     </main>
   );
