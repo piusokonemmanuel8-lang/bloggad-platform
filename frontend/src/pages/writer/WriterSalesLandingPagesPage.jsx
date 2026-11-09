@@ -21,6 +21,7 @@ const blankForm = {
   seo_title: '',
   seo_description: '',
   google_ads_id: '',
+  google_conversion_label: '',
   meta_pixel_id: '',
 };
 
@@ -127,6 +128,7 @@ export default function WriterSalesLandingPagesPage() {
         seo_title: row.seo_title || '',
         seo_description: row.seo_description || '',
         google_ads_id: content.tracking?.google_ads_id || '',
+        google_conversion_label: content.tracking?.google_conversion_label || '',
         meta_pixel_id: content.tracking?.meta_pixel_id || '',
       });
       setStep('editor');
@@ -250,6 +252,7 @@ export default function WriterSalesLandingPagesPage() {
           vxl_sections: form.vxl_sections || [],
           tracking: {
             google_ads_id: form.google_ads_id.trim(),
+            google_conversion_label: form.google_conversion_label.trim(),
             meta_pixel_id: form.meta_pixel_id.trim(),
           },
         },
@@ -523,6 +526,16 @@ export default function WriterSalesLandingPagesPage() {
     autoComplete="off"
   />
   <small>Meta Pixel ID only. No HTML or JavaScript.</small>
+</label><label className="wide">
+  Google Ads conversion label (optional)
+  <input
+    value={form.google_conversion_label}
+    onChange={(e) => update('google_conversion_label', e.target.value)}
+    placeholder="Conversion label from Google Ads"
+    maxLength={100}
+    autoComplete="off"
+  />
+  <small>Enter only the label after AW-ID/. Do not paste JavaScript.</small>
 </label><label>SEO title<input value={form.seo_title} onChange={(e) => update('seo_title', e.target.value)} /></label>
             <label>SEO description<input value={form.seo_description} onChange={(e) => update('seo_description', e.target.value)} /></label>
           </div>

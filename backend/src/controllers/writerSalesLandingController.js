@@ -12,7 +12,7 @@ function validateLandingTracking(content) {
     throw fail('Tracking settings must be an object.');
   }
 
-  const allowedKeys = new Set(['google_ads_id', 'meta_pixel_id']);
+  const allowedKeys = new Set(['google_ads_id', 'google_conversion_label', 'meta_pixel_id']);
 
   for (const key of Object.keys(tracking)) {
     if (!allowedKeys.has(key)) {
@@ -41,6 +41,11 @@ function validateLandingTracking(content) {
         tracking.google_ads_id,
         /^AW-[0-9]{6,15}$/,
         'Google Ads ID'
+      ),
+      google_conversion_label: validId(
+        tracking.google_conversion_label,
+        /^[A-Za-z0-9_-]{1,100}$/,
+        'Google Ads conversion label'
       ),
       meta_pixel_id: validId(
         tracking.meta_pixel_id,

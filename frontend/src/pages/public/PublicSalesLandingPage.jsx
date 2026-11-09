@@ -42,6 +42,13 @@ export default function PublicSalesLandingPage() {
       ? content.tracking.google_ads_id
       : '';
 
+  const trackingGoogleConversionLabel =
+    trackingGoogleId &&
+    typeof content.tracking?.google_conversion_label === 'string' &&
+    /^[A-Za-z0-9_-]{1,100}$/.test(content.tracking.google_conversion_label)
+      ? content.tracking.google_conversion_label
+      : '';
+
   const trackingMetaId =
     typeof content.tracking?.meta_pixel_id === 'string' &&
     /^[0-9]{6,20}$/.test(content.tracking.meta_pixel_id)
@@ -163,7 +170,7 @@ export default function PublicSalesLandingPage() {
     meta.setAttribute('content', description);
   }, [page, content.subheadline]);
 
-  const handleCheckoutClick = () => {
+  const handleCheckoutClick = (event) => {
     if (
       !trackingAllowed ||
       !trackingConfigured ||
@@ -183,6 +190,49 @@ export default function PublicSalesLandingPage() {
 
     if (trackingMetaId && typeof window.fbq === 'function') {
       window.fbq('trackSingle', trackingMetaId, 'InitiateCheckout');
+    }
+
+    if (
+      trackingGoogleId &&
+      trackingGoogleConversionLabel &&
+      typeof window.gtag === 'function'
+    ) {
+      const link = event?.currentTarget;
+      const normalClick = Boolean(
+        event &&
+        link?.href &&
+        event.button === 0 &&
+        !event.ctrlKey &&
+        !event.metaKey &&
+        !event.shiftKey &&
+        !event.altKey &&
+        !event.defaultPrevented &&
+        (!link.target || link.target === '_self')
+      );
+
+      let completed = false;
+
+      const continueToCheckout = () => {
+        if (completed || !normalClick) return;
+        completed = true;
+        window.location.assign(link.href);
+      };
+
+      if (normalClick) {
+        event.preventDefault();
+        window.setTimeout(continueToCheckout, 1200);
+      }
+
+      try {
+        window.gtag('event', 'conversion', {
+          send_to:
+            trackingGoogleId + '/' + trackingGoogleConversionLabel,
+          event_callback: normalClick ? continueToCheckout : undefined,
+          event_timeout: 1000,
+        });
+      } catch {
+        continueToCheckout();
+      }
     }
   };
   if (loading) return <main className="public-sales-landing state">Loading...</main>;
