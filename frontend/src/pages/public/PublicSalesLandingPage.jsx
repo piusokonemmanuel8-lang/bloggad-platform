@@ -33,6 +33,121 @@ export default function PublicSalesLandingPage() {
 
   const content = useMemo(() => readJson(page?.content_json), [page]);
   const video = youtubeEmbed(content.video_url);
+  const [trackingConsentPage, setTrackingConsentPage] = useState('');
+
+  const trackingGoogleId =
+    typeof content.tracking?.google_ads_id === 'string' &&
+    /^AW-[0-9]{6,15}$/.test(content.tracking.google_ads_id)
+      ? content.tracking.google_ads_id
+      : '';
+
+  const trackingMetaId =
+    typeof content.tracking?.meta_pixel_id === 'string' &&
+    /^[0-9]{6,20}$/.test(content.tracking.meta_pixel_id)
+      ? content.tracking.meta_pixel_id
+      : '';
+
+  const trackingConfigured = Boolean(trackingGoogleId || trackingMetaId);
+
+  const trackingPageKey = page?.id && page?.slug
+    ? String(page.id) + ':' + String(page.slug)
+    : '';
+
+  const trackingAllowed =
+    Boolean(trackingPageKey) &&
+    trackingConsentPage === trackingPageKey;
+
+  useEffect(() => {
+    if (!trackingAllowed || !trackingConfigured || !trackingPageKey) {
+      return;
+    }
+
+    const pageUrl = window.location.href;
+
+    if (trackingGoogleId) {
+      if (!Array.isArray(window.dataLayer)) {
+        window.dataLayer = [];
+      }
+
+      if (typeof window.gtag !== 'function') {
+        window.gtag = function () {
+          window.dataLayer.push(arguments);
+        };
+      }
+
+      if (!document.querySelector('script[data-bloggad-google-tag]')) {
+        const script = document.createElement('script');
+        script.async = true;
+        script.dataset.bloggadGoogleTag = 'true';
+        script.src =
+          'https://www.googletagmanager.com/gtag/js?id=' +
+          encodeURIComponent(trackingGoogleId);
+        document.head.appendChild(script);
+      }
+
+      window.gtag('js', new Date());
+      window.gtag('config', trackingGoogleId, {
+        send_page_view: true,
+        page_location: pageUrl,
+      });
+    }
+
+    if (trackingMetaId) {
+      if (typeof window.fbq !== 'function') {
+        const fbq = function () {
+          if (fbq.callMethod) {
+            fbq.callMethod.apply(fbq, arguments);
+          } else {
+            fbq.queue.push(arguments);
+          }
+        };
+
+        fbq.queue = [];
+        fbq.loaded = true;
+        fbq.version = '2.0';
+        window.fbq = fbq;
+      }
+
+      if (!document.querySelector('script[data-bloggad-meta-tag]')) {
+        const script = document.createElement('script');
+        script.async = true;
+        script.dataset.bloggadMetaTag = 'true';
+        script.src = 'https://connect.facebook.net/en_US/fbevents.js';
+        document.head.appendChild(script);
+      }
+
+      window.fbq('init', trackingMetaId);
+      window.fbq('trackSingle', trackingMetaId, 'PageView');
+    }
+  }, [
+    trackingAllowed,
+    trackingConfigured,
+    trackingGoogleId,
+    trackingMetaId,
+    trackingPageKey,
+  ]);
+
+  useEffect(() => {
+    const initialUrl = window.location.href;
+
+    return () => {
+      const currentUrl = window.location.href;
+
+      if (currentUrl === initialUrl) {
+        return;
+      }
+
+      const bloggadTagsExist = Boolean(
+        document.querySelector(
+          'script[data-bloggad-google-tag],script[data-bloggad-meta-tag]'
+        )
+      );
+
+      if (bloggadTagsExist) {
+        window.location.replace(currentUrl);
+      }
+    };
+  }, [landingSlug]);
 
   useEffect(() => {
     if (!page) return;
@@ -47,11 +162,55 @@ export default function PublicSalesLandingPage() {
     meta.setAttribute('content', description);
   }, [page, content.subheadline]);
 
+  const handleCheckoutClick = () => {
+    if (
+      !trackingAllowed ||
+      !trackingConfigured ||
+      !trackingPageKey ||
+      !page ||
+      page.slug !== landingSlug
+    ) {
+      return;
+    }
+
+    if (trackingGoogleId && typeof window.gtag === 'function') {
+      window.gtag('event', 'begin_checkout', {
+        send_to: trackingGoogleId,
+        page_location: window.location.href,
+      });
+    }
+
+    if (trackingMetaId && typeof window.fbq === 'function') {
+      window.fbq('trackSingle', trackingMetaId, 'InitiateCheckout');
+    }
+  };
   if (loading) return <main className="public-sales-landing state">Loading...</main>;
   if (error || !page) return <main className="public-sales-landing state"><h1>Page unavailable</h1><p>{error}</p></main>;
 
   return (
     <main className="public-sales-landing">
+      {trackingConfigured && !trackingAllowed ? (
+        <section className="public-sales-tracking-consent" style={{
+          padding: '16px',
+          margin: '16px auto',
+          maxWidth: '900px',
+          border: '1px solid #999',
+          borderRadius: '8px',
+        }}>
+          <p>
+            This landing page uses Google Ads or Meta advertising
+            measurement when you agree.
+          </p>
+          <button
+            type="button"
+            onClick={() => setTrackingConsentPage(
+              String(page.id) + ':' + String(page.slug)
+            )}
+          >
+            Accept advertising measurement
+          </button>
+        </section>
+      ) : null}
       {content.urgency_text ? <div className="public-sales-urgency">{content.urgency_text}</div> : null}
       <section className="public-sales-hero">
         <div className="public-sales-copy">
@@ -62,7 +221,7 @@ export default function PublicSalesLandingPage() {
           </h1>
           {content.subheadline ? <p className="public-sales-subheadline">{content.subheadline}</p> : null}
           {content.cta_text && content.cta_url ? (
-            <a className="public-sales-cta" href={content.cta_url}>{content.cta_text}</a>
+            <a className="public-sales-cta" href={content.cta_url} onClick={handleCheckoutClick}>{content.cta_text}</a>
           ) : null}
         </div>
         {content.image_url ? <img className="public-sales-image" src={content.image_url} alt="" loading="lazy" decoding="async" /> : null}
@@ -100,7 +259,7 @@ export default function PublicSalesLandingPage() {
         </section>
       ))}
       {content.cta_text && content.cta_url ? (
-        <section className="public-sales-bottom-cta"><a className="public-sales-cta" href={content.cta_url}>{content.cta_text}</a></section>
+        <section className="public-sales-bottom-cta"><a className="public-sales-cta" href={content.cta_url} onClick={handleCheckoutClick}>{content.cta_text}</a></section>
       ) : null}
     </main>
   );

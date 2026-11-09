@@ -20,6 +20,8 @@ const blankForm = {
   vxl_sections: [],
   seo_title: '',
   seo_description: '',
+  google_ads_id: '',
+  meta_pixel_id: '',
 };
 
 function readContent(value) {
@@ -124,6 +126,8 @@ export default function WriterSalesLandingPagesPage() {
         vxl_sections: Array.isArray(content.vxl_sections) ? content.vxl_sections : [],
         seo_title: row.seo_title || '',
         seo_description: row.seo_description || '',
+        google_ads_id: content.tracking?.google_ads_id || '',
+        meta_pixel_id: content.tracking?.meta_pixel_id || '',
       });
       setStep('editor');
     } catch (err) {
@@ -244,6 +248,10 @@ export default function WriterSalesLandingPagesPage() {
           badge_text: form.badge_text.trim(),
           highlight_text: form.highlight_text.trim(),
           vxl_sections: form.vxl_sections || [],
+          tracking: {
+            google_ads_id: form.google_ads_id.trim(),
+            meta_pixel_id: form.meta_pixel_id.trim(),
+          },
         },
       };
       const { data } = editingId
@@ -494,7 +502,28 @@ export default function WriterSalesLandingPagesPage() {
                   )}
                 </div>
               ))}
-            </section>            <label>SEO title<input value={form.seo_title} onChange={(e) => update('seo_title', e.target.value)} /></label>
+            </section>            <label className="wide">
+  Google Ads tracking ID
+  <input
+    value={form.google_ads_id}
+    onChange={(e) => update('google_ads_id', e.target.value)}
+    placeholder="AW-123456789"
+    maxLength={18}
+    autoComplete="off"
+  />
+  <small>Google Ads ID only. No HTML or JavaScript.</small>
+</label>
+<label className="wide">
+  Meta Pixel ID
+  <input
+    value={form.meta_pixel_id}
+    onChange={(e) => update('meta_pixel_id', e.target.value)}
+    placeholder="123456789012345"
+    maxLength={20}
+    autoComplete="off"
+  />
+  <small>Meta Pixel ID only. No HTML or JavaScript.</small>
+</label><label>SEO title<input value={form.seo_title} onChange={(e) => update('seo_title', e.target.value)} /></label>
             <label>SEO description<input value={form.seo_description} onChange={(e) => update('seo_description', e.target.value)} /></label>
           </div>
           <div className="sales-landing-editor-actions">

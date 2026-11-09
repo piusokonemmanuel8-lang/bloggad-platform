@@ -1,6 +1,55 @@
 const pool = require('../config/db');
 const { getCurrentPaidWriterSubscription } = require('../services/writerReaderAccessService');
 
+function validateLandingTracking(content) {
+  if (!content || typeof content !== 'object' || Array.isArray(content)) {
+    throw fail('Landing page content must be an object.');
+  }
+
+  const tracking = content.tracking === undefined ? {} : content.tracking;
+
+  if (!tracking || typeof tracking !== 'object' || Array.isArray(tracking)) {
+    throw fail('Tracking settings must be an object.');
+  }
+
+  const allowedKeys = new Set(['google_ads_id', 'meta_pixel_id']);
+
+  for (const key of Object.keys(tracking)) {
+    if (!allowedKeys.has(key)) {
+      throw fail('Unsupported tracking configuration.');
+    }
+  }
+
+  function validId(value, pattern, name) {
+    if (value === undefined || value === null || value === '') {
+      return '';
+    }
+
+    if (typeof value !== 'string' ||
+        value !== value.trim() ||
+        !pattern.test(value)) {
+      throw fail('Invalid ' + name + '. Enter an ID only. HTML and scripts are prohibited.');
+    }
+
+    return value;
+  }
+
+  return {
+    ...content,
+    tracking: {
+      google_ads_id: validId(
+        tracking.google_ads_id,
+        /^AW-[0-9]{6,15}$/,
+        'Google Ads ID'
+      ),
+      meta_pixel_id: validId(
+        tracking.meta_pixel_id,
+        /^[0-9]{6,20}$/,
+        'Meta Pixel ID'
+      ),
+    },
+  };
+}
 function cleanText(value, max = 255) {
   if (value === undefined || value === null) return null;
   return String(value).trim().slice(0, max);
@@ -109,7 +158,7 @@ async function createPage(req, res) {
     const slug = makeSlug(req.body?.slug || title);
     if (!slug) throw fail('A valid landing page URL could not be generated.');
     await uniqueSlug(slug, null, db);
-    const content = req.body?.content_json === undefined ? {} : parseJson(req.body.content_json, {});
+    const content = validateLandingTracking(req.body?.content_json === undefined ? {} : parseJson(req.body.content_json, {}));
     const [result] = await db.query(
       `INSERT INTO writer_sales_landing_pages
        (writer_user_id,template_id,title,slug,content_json,seo_title,seo_description,status,published_at,created_at,updated_at)
@@ -167,7 +216,7 @@ async function updatePage(req, res) {
       );
       if (!templates.length) throw fail('Selected landing page template is unavailable.', 404);
     }
-    const content = req.body?.content_json !== undefined ? parseJson(req.body.content_json,{}) : parseJson(old.content_json,{});
+    const content = validateLandingTracking(req.body?.content_json !== undefined ? parseJson(req.body.content_json,{}) : parseJson(old.content_json,{}));
     await db.query(
       `UPDATE writer_sales_landing_pages
        SET template_id=?,title=?,slug=?,content_json=?,seo_title=?,seo_description=?,updated_at=NOW()
