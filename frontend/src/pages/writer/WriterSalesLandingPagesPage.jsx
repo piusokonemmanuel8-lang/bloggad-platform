@@ -168,6 +168,10 @@ export default function WriterSalesLandingPagesPage() {
       title: '',
       text: '',
       text_color: '#ffffff',
+      button_text: '',
+      button_url: '',
+      button_color: '#25D366',
+      button_text_color: '#ffffff',
       image_url: '',
       image_url_2: '',
       footer_text: '',
@@ -416,6 +420,7 @@ export default function WriterSalesLandingPagesPage() {
                 <select defaultValue="" onChange={(e) => { if (e.target.value) addVxlSection(e.target.value); e.target.value = ''; }}>
                   <option value="">+ Add section</option>
                   <option value="text">Text</option>
+                  <option value="button">Button</option>
                   <option value="image">Image</option>
                   <option value="text-image">Text + Image</option>
                   <option value="two-column">Two Columns</option>
@@ -438,7 +443,15 @@ export default function WriterSalesLandingPagesPage() {
                       <label>Text color<input type="color" value={section.text_color || '#ffffff'} onChange={(e) => updateVxlSection(index, 'text_color', e.target.value)} /></label>
                     </>
                   )}
-                  {['text','text-image','two-column'].includes(section.type) && <label className="wide">Text<textarea rows="4" value={section.text || ''} onChange={(e) => updateVxlSection(index, 'text', e.target.value)} /></label>}
+                  {['text','text-image','two-column','button'].includes(section.type) && <label className="wide">Text<textarea rows="4" value={section.text || ''} onChange={(e) => updateVxlSection(index, 'text', e.target.value)} /></label>}
+                  {section.type === 'button' && (
+                    <>
+                      <label>Button text<input value={section.button_text || ''} onChange={(e) => updateVxlSection(index, 'button_text', e.target.value)} placeholder="Send Payment Receipt on WhatsApp" maxLength={120} /></label>
+                      <label className="wide">Button URL<input type="url" value={section.button_url || ''} onChange={(e) => updateVxlSection(index, 'button_url', e.target.value)} placeholder="https://wa.me/234..." /></label>
+                      <label>Button background color<input type="color" value={section.button_color || '#25D366'} onChange={(e) => updateVxlSection(index, 'button_color', e.target.value)} /></label>
+                      <label>Button text color<input type="color" value={section.button_text_color || '#ffffff'} onChange={(e) => updateVxlSection(index, 'button_text_color', e.target.value)} /></label>
+                    </>
+                  )}
                   {['image','text-image','two-column'].includes(section.type) && <>
                     <label className="wide">Image URL<input value={section.image_url || ''} onChange={(e) => updateVxlSection(index, 'image_url', e.target.value)} placeholder="https://..." /></label>
                     <label className="wide">Upload image from device<input type="file" accept="image/*" disabled={busy === 'image-upload'} onChange={(e) => { const file = e.target.files?.[0]; uploadVxlImage(file, (url) => updateVxlSection(index, 'image_url', url)); e.target.value = ''; }} /></label>

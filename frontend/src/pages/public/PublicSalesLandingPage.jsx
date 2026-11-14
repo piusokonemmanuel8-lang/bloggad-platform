@@ -263,7 +263,41 @@ export default function PublicSalesLandingPage() {
       {content.body ? <section className="public-sales-body">{content.body.split('\n').map((line, index) => <p key={index}>{line}</p>)}</section> : null}
       {(Array.isArray(content.vxl_sections) ? content.vxl_sections : []).filter((section) => section?.enabled !== false).map((section, index) => (
         <section className={`vxl-dynamic-section vxl-section-${section.type || 'text'}`} key={section.id || index} style={{ color: section.text_color || '#ffffff', paddingTop: `${section.padding_top ?? 48}px`, paddingBottom: `${section.padding_bottom ?? 48}px`, paddingLeft: `${section.padding_left ?? 0}px`, paddingRight: `${section.padding_right ?? 0}px` }}>
-          {section.type === 'testimonials' ? (
+          {section.type === 'button' ? (
+            <div style={{ textAlign: 'center' }}>
+              {section.title ? <h2>{section.title}</h2> : null}
+              {section.text ? <p style={{ whiteSpace: 'pre-line' }}>{section.text}</p> : null}
+              {section.button_text && (() => {
+                try {
+                  const url = new URL(section.button_url || '');
+                  return url.protocol === 'https:' && !url.username && !url.password && url.hostname.includes('.');
+                } catch {
+                  return false;
+                }
+              })() ? (
+                <a
+                  href={section.button_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    display: 'inline-block',
+                    padding: '14px 24px',
+                    borderRadius: '8px',
+                    backgroundColor: /^#[0-9a-fA-F]{6}$/.test(section.button_color || '') ? section.button_color : '#25D366',
+                    color: /^#[0-9a-fA-F]{6}$/.test(section.button_text_color || '') ? section.button_text_color : '#ffffff',
+                    textDecoration: 'none',
+                    fontWeight: 700,
+                    textAlign: 'center',
+                    maxWidth: '100%',
+                    boxSizing: 'border-box',
+                    overflowWrap: 'anywhere'
+                  }}
+                >
+                  {section.button_text}
+                </a>
+              ) : null}
+            </div>
+          ) : section.type === 'testimonials' ? (
             <div className="vxl-testimonial-grid" style={{ '--review-columns': Math.min(4, Math.max(2, Number(section.review_columns) || 4)) }}>
               {(section.testimonials || []).map((review, reviewIndex) => (
                 <article className="vxl-testimonial" key={reviewIndex}>
