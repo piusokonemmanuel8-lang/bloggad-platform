@@ -4,6 +4,8 @@ import api from '../../api/axios';
 import WriterVerificationBadge from '../../components/common/WriterVerificationBadge';
 import MonetizationAdSlot, { SupgadFeaturedAdPlacement } from '../../components/monetization/MonetizationAdSlot';
 import usePostBehaviorAnalytics from '../../hooks/usePostBehaviorAnalytics';
+import usePostVideoWatchAnalytics from '../../hooks/usePostVideoWatchAnalyticsV173';
+import useEmbeddedVideoWatchAnalyticsV176 from '../../hooks/useEmbeddedVideoWatchAnalyticsV176';
 import PublicWriterReaderActions from '../../components/writerReader/PublicWriterReaderActions';
 import ReaderReadingTools from '../../components/writerReader/ReaderReadingTools';
 import PostVideoEmbed from '../../components/writer/PostVideoEmbed';
@@ -526,6 +528,8 @@ export default function WriterPagePostPage() {
     postId,
     contentSelector: '[data-bloggad-post-content]',
   });
+  usePostVideoWatchAnalytics({ postId });
+  useEmbeddedVideoWatchAnalyticsV176({ postId });
 
   const websiteSlug =
     post?.website?.slug ||

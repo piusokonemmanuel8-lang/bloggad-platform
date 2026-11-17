@@ -14,6 +14,8 @@ import {
 import { useParams } from 'react-router-dom';
 import api from '../../api/axios';
 import usePostBehaviorAnalytics from '../../hooks/usePostBehaviorAnalytics';
+import usePostVideoWatchAnalytics from '../../hooks/usePostVideoWatchAnalyticsV173';
+import useEmbeddedVideoWatchAnalyticsV176 from '../../hooks/useEmbeddedVideoWatchAnalyticsV176';
 import { resolvePostTemplateComponent } from './templates/posts';
 import PublicWriterReaderActions from '../../components/writerReader/PublicWriterReaderActions';
 
@@ -1178,6 +1180,8 @@ export default function PostPage() {
     postId,
     contentSelector: '[data-bloggad-post-content]',
   });
+  usePostVideoWatchAnalytics({ postId });
+  useEmbeddedVideoWatchAnalyticsV176({ postId });
 
   const templateFields = postData?.template_fields || [];
   const ctaButtons = postData?.cta_buttons || [];

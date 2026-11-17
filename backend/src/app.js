@@ -190,6 +190,10 @@ function createApp() {
     './routes/affiliate/affiliateDesignRoutes',
   ]);
 
+  mount(app, '/api/public/video-watch', 'bloggadVideoWatchRoutesV173', [
+    './routes/public/bloggadVideoWatchRoutesV173',
+  ]);
+
   mount(app, '/api/affiliate/analytics', 'affiliateAnalyticsRoutes', [
     './routes/affiliate/affiliateAnalyticsRoutes',
   ]);

@@ -1,4 +1,5 @@
 // BLOGGAD_PRO_POST_ANALYTICS_V1
+import WriterVideoAnalyticsV174 from './WriterVideoAnalyticsV174';
 import {
   BarChart3,
   Clock3,
@@ -139,6 +140,8 @@ export default function WriterPostAnalyticsDrawer({
                 icon={BarChart3}
               />
             </section>
+
+            <WriterVideoAnalyticsV174 postId={post.id} />
 
             {!access?.advanced_post_analytics ? (
               <section className="wpa-lock">
