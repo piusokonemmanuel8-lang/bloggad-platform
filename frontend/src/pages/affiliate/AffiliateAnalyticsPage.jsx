@@ -1111,7 +1111,6 @@ function WriterAnalyticsWorkspace() {
         <div className="wa-panel-head">
           <div>
             <p>Traffic trend</p>
-            <h2>Rise and fall</h2>
             <span>Real daily activity for the selected period compared with the previous period.</span>
           </div>
         </div>

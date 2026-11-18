@@ -142,7 +142,6 @@ function SalesVideoTrend({ daily, metrics, sources, days, metricKey, onMetricCha
     <section className="blg-video-trend" aria-label="Video performance trend">
       <div className="blg-video-trend-heading">
         <p className="blg-video-trend-eyebrow">VIDEO PERFORMANCE TREND</p>
-        <h3>Rise and fall</h3>
         <p>Recorded daily video engagement for the selected sales landing page.</p>
       </div>
 
