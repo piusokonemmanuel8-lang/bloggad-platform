@@ -15,6 +15,9 @@ import {
 } from 'lucide-react';
 import api from '../../api/axios';
 import WriterPostAnalyticsDrawer from '../../components/writer/WriterPostAnalyticsDrawer';
+import SalesLandingAnalyticsSection from '../../components/writer/SalesLandingAnalyticsSection';
+// BLOGGAD_V76_SALES_LANDING_DASHBOARD
+const SALES_LANDING_REPORT_UI_ENABLED = true;
 
 function StatCard({ title, value, icon: Icon, hint }) {
   return (
@@ -1040,6 +1043,10 @@ function WriterAnalyticsWorkspace() {
     <div className="wa-page">
       <style>{writerAnalyticsStyles}</style>
 
+      {/* BLOGGAD_V76_SALES_LANDING_ANALYTICS_SECTION */}
+      {SALES_LANDING_REPORT_UI_ENABLED ? (
+        <SalesLandingAnalyticsSection enabled />
+      ) : null}
       <div className="wa-command">
         <div>
           <p>Performance</p>
