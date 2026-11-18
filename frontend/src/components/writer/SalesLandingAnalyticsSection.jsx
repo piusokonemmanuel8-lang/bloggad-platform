@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import api from '../../api/axios';
+import './SalesLandingAnalyticsSection.css';
 
 const sectionStyle = {
   padding: 20,
@@ -68,7 +69,7 @@ function duration(value) {
 
 function Metric({ title, value, hint }) {
   return (
-    <div style={cardStyle}>
+    <div className="blg-sales-metric" style={cardStyle}>
       <div style={{ fontSize: 12, color: '#526273' }}>{title}</div>
       <strong style={{ display: 'block', fontSize: 24, marginTop: 6 }}>
         {value}
@@ -163,7 +164,7 @@ export default function SalesLandingAnalyticsSection({ enabled = false }) {
   const daily = Array.isArray(report?.daily) ? report.daily : [];
 
   return (
-    <section style={sectionStyle} aria-label="Sales landing analytics">
+    <section className="blg-sales-analytics" style={sectionStyle} aria-label="Sales landing analytics">
       <div style={{
         display: 'flex',
         alignItems: 'center',
@@ -221,7 +222,7 @@ export default function SalesLandingAnalyticsSection({ enabled = false }) {
 
       {report ? (
         <>
-          <div style={gridStyle}>
+          <div className="blg-sales-metrics" style={gridStyle}>
             <Metric title="Page views" value={formatted(metrics.page_views)} />
             <Metric title="Visitor sessions" value={formatted(metrics.visitor_sessions)} />
             <Metric
@@ -248,7 +249,7 @@ export default function SalesLandingAnalyticsSection({ enabled = false }) {
           </div>
 
           <h3 style={{ margin: '24px 0 10px', fontSize: 16 }}>YouTube cumulative watch milestones</h3>
-          <div style={gridStyle}>
+          <div className="blg-sales-milestones" style={gridStyle}>
             <Metric title="25% milestone" value={formatted(metrics.video_25)} />
             <Metric title="50% milestone" value={formatted(metrics.video_50)} />
             <Metric title="75% milestone" value={formatted(metrics.video_75)} />
