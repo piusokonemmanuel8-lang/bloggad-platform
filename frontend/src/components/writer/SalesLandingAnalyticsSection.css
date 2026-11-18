@@ -633,3 +633,59 @@
     gap: 0 12px;
   }
 }
+
+/* BLOGGAD V210: collapsible analytics details. */
+
+.blg-sales-analytics .blg-video-trend-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  margin: 12px 0 4px;
+}
+
+.blg-sales-analytics .blg-video-summary-toggle {
+  min-height: 35px;
+  padding: 7px 14px !important;
+  border: 1px solid #20242a !important;
+  border-radius: 6px !important;
+  background: #20242a !important;
+  color: #fff !important;
+  font-size: 12px !important;
+  font-weight: 650 !important;
+  cursor: pointer;
+}
+
+.blg-sales-analytics .blg-video-summary-toggle:hover:not(:disabled) {
+  background: #364152 !important;
+  border-color: #364152 !important;
+  color: #fff !important;
+}
+
+.blg-sales-analytics .blg-video-trend-layout {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.blg-sales-analytics .blg-video-trend-layout.is-summary-open {
+  grid-template-columns: minmax(0, 1.7fr) minmax(300px, 1fr);
+}
+
+.blg-sales-analytics .blg-video-trend-layout:not(.is-summary-open)
+.blg-video-trend-main {
+  width: 100%;
+}
+
+@media (max-width: 1100px) {
+  .blg-sales-analytics .blg-video-trend-layout.is-summary-open {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 480px) {
+  .blg-sales-analytics .blg-video-trend-actions {
+    justify-content: stretch;
+  }
+
+  .blg-sales-analytics .blg-video-summary-toggle {
+    width: 100%;
+  }
+}

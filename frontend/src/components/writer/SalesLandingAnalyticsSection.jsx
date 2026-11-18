@@ -74,6 +74,7 @@ const videoTrendOptions = [
 ];
 
 function SalesVideoTrend({ daily, metrics, sources, days, metricKey, onMetricChange }) {
+  const [summaryOpen, setSummaryOpen] = useState(false);
   const selected = videoTrendOptions.find(
     (item) => item.key === metricKey
   ) || videoTrendOptions[0];
@@ -164,7 +165,20 @@ function SalesVideoTrend({ daily, metrics, sources, days, metricKey, onMetricCha
         ))}
       </div>
 
-      <div className="blg-video-trend-layout">
+      <div className="blg-video-trend-actions">
+              <button
+                type="button"
+                className="blg-video-summary-toggle"
+                aria-expanded={summaryOpen}
+                aria-controls="blg-video-summary-panel"
+                onClick={() => setSummaryOpen((open) => !open)}
+              >
+                {summaryOpen ? 'Hide analytics' : 'Show full analytics'}
+              </button>
+            </div>
+            <div className={summaryOpen
+              ? 'blg-video-trend-layout is-summary-open'
+              : 'blg-video-trend-layout'}>
         <div className="blg-video-trend-main">
       <div className="blg-video-trend-total">
         <span>Selected period</span>
@@ -251,7 +265,12 @@ function SalesVideoTrend({ daily, metrics, sources, days, metricKey, onMetricCha
       </div>
 
         </div>
-        <aside className="blg-video-summary" aria-label="Video analytics summary">
+        {summaryOpen ? (
+                <aside
+                  id="blg-video-summary-panel"
+                  className="blg-video-summary"
+                  aria-label="Video analytics summary"
+                >
           <div className="blg-video-summary-heading">
             <strong>Performance summary</strong>
             <span>Selected sales landing page</span>
@@ -326,6 +345,7 @@ function SalesVideoTrend({ daily, metrics, sources, days, metricKey, onMetricCha
             Clicks do not represent verified purchases.
           </p>
         </aside>
+        ) : null}
       </div>
     </section>
   );
