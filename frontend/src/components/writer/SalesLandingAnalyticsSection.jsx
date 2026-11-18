@@ -67,6 +67,189 @@ function duration(value) {
   return remaining + 's';
 }
 
+const videoTrendOptions = [
+  { key: 'video_watched_seconds', label: 'Watch time', unit: 'time' },
+  { key: 'visitor_sessions', label: 'Visitor sessions', unit: 'count' },
+  { key: 'active_seconds', label: 'Active engagement', unit: 'time' }
+];
+
+function SalesVideoTrend({ daily, days, metricKey, onMetricChange }) {
+  const selected = videoTrendOptions.find(
+    (item) => item.key === metricKey
+  ) || videoTrendOptions[0];
+
+  const range = rangeForDays(days);
+  const rows = new Map(
+    daily.map((item) => [String(item.day).slice(0, 10), item])
+  );
+
+  const start = new Date(range.from + 'T12:00:00');
+  const values = Array.from({ length: days }, (_, index) => {
+    const date = new Date(start);
+    date.setDate(start.getDate() + index);
+    const day = isoDay(date);
+    const row = rows.get(day) || {};
+    return { day, value: number(row[selected.key]) };
+  });
+
+  const total = values.reduce((sum, item) => sum + item.value, 0);
+
+  const width = 1000;
+  const height = 278;
+  const left = 48;
+  const right = 18;
+  const top = 18;
+  const bottom = 44;
+  const plotWidth = width - left - right;
+  const plotHeight = height - top - bottom;
+
+  const maximum = Math.max(4, ...values.map((item) => item.value));
+  const scale = Math.ceil(maximum / 4) * 4;
+
+  const plotted = values.map((item, index) => {
+    const x = left + (values.length <= 1
+      ? 0
+      : (index / (values.length - 1)) * plotWidth);
+    const y = top + plotHeight - (item.value / scale) * plotHeight;
+    return { ...item, x, y };
+  });
+
+  const line = plotted.map((point, index) =>
+    (index === 0 ? 'M ' : 'L ') + point.x + ' ' + point.y
+  ).join(' ');
+
+  const bottomY = top + plotHeight;
+
+  const area = plotted.length
+    ? line + ' L ' + plotted[plotted.length - 1].x + ' ' +
+      bottomY + ' L ' + plotted[0].x + ' ' + bottomY + ' Z'
+    : '';
+
+  const labelIndexes = [...new Set([
+    0,
+    Math.floor((days - 1) / 4),
+    Math.floor((days - 1) / 2),
+    Math.floor(3 * (days - 1) / 4),
+    days - 1
+  ])];
+
+  const displayTotal = selected.unit === 'time'
+    ? duration(total)
+    : formatted(total);
+
+  return (
+    <section className="blg-video-trend" aria-label="Video performance trend">
+      <div className="blg-video-trend-heading">
+        <p className="blg-video-trend-eyebrow">VIDEO PERFORMANCE TREND</p>
+        <h3>Rise and fall</h3>
+        <p>Recorded daily video engagement for the selected sales landing page.</p>
+      </div>
+
+      <div
+        className="blg-video-trend-tabs"
+        role="tablist"
+        aria-label="Video trend metric"
+      >
+        {videoTrendOptions.map((option) => (
+          <button
+            key={option.key}
+            type="button"
+            role="tab"
+            aria-selected={selected.key === option.key}
+            className={selected.key === option.key ? 'is-active' : ''}
+            onClick={() => onMetricChange(option.key)}
+          >
+            {option.label}
+          </button>
+        ))}
+      </div>
+
+      <div className="blg-video-trend-total">
+        <span>Selected period</span>
+        <strong>{displayTotal}</strong>
+      </div>
+
+      <div className="blg-video-trend-chart">
+        <svg
+          viewBox={'0 0 ' + width + ' ' + height}
+          role="img"
+          aria-label={'Daily ' + selected.label.toLowerCase() + ' chart'}
+        >
+          {Array.from({ length: 5 }, (_, index) => {
+            const tick = (scale / 4) * index;
+            const y = bottomY - (tick / scale) * plotHeight;
+
+            return (
+              <g key={index}>
+                <line
+                  className="blg-video-trend-gridline"
+                  x1={left}
+                  x2={width - right}
+                  y1={y}
+                  y2={y}
+                />
+                <text
+                  className="blg-video-trend-axis"
+                  x={left - 11}
+                  y={y + 4}
+                  textAnchor="end"
+                >
+                  {formatted(tick)}
+                </text>
+              </g>
+            );
+          })}
+
+          {area ? (
+            <path className="blg-video-trend-area" d={area} />
+          ) : null}
+
+          {line ? (
+            <path className="blg-video-trend-line" d={line} />
+          ) : null}
+
+          {plotted.map((point, index) => (
+            <circle
+              key={point.day}
+              className="blg-video-trend-point"
+              cx={point.x}
+              cy={point.y}
+              r={days > 35 ? 2.3 : 3.2}
+            >
+              <title>
+                {point.day + ': ' + (
+                  selected.unit === 'time'
+                    ? duration(point.value)
+                    : formatted(point.value)
+                )}
+              </title>
+            </circle>
+          ))}
+
+          {labelIndexes.map((index) => {
+            const point = plotted[index];
+            if (!point) return null;
+
+            return (
+              <text
+                key={'date-' + point.day}
+                className="blg-video-trend-axis"
+                x={point.x}
+                y={height - 12}
+                textAnchor={
+                  index === 0 ? 'start' :
+                  index === days - 1 ? 'end' : 'middle'
+                }
+              >
+                {point.day.slice(5)}
+              </text>
+            );
+          })}
+        </svg>
+      </div>
+    </section>
+  );
+}
 function Metric({ title, value, hint }) {
   return (
     <div className="blg-sales-metric" style={cardStyle}>
@@ -92,6 +275,7 @@ export default function SalesLandingAnalyticsSection({ enabled = false }) {
   const [loadingReport, setLoadingReport] = useState(false);
   const [error, setError] = useState('');
   const [refreshKey, setRefreshKey] = useState(0);
+  const [trendMetric, setTrendMetric] = useState('video_watched_seconds');
 
   useEffect(() => {
     if (!enabled) return undefined;
@@ -222,6 +406,12 @@ export default function SalesLandingAnalyticsSection({ enabled = false }) {
 
       {report ? (
         <>
+          <SalesVideoTrend
+            daily={daily}
+            days={days}
+            metricKey={trendMetric}
+            onMetricChange={setTrendMetric}
+          />
           <div className="blg-sales-metrics" style={gridStyle}>
             <Metric title="Page views" value={formatted(metrics.page_views)} />
             <Metric title="Visitor sessions" value={formatted(metrics.visitor_sessions)} />

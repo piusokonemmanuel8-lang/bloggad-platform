@@ -316,3 +316,163 @@
     padding: 9px 5px !important;
   }
 }
+
+/* BLOGGAD V206 - Video trend using the Writer Analytics visual language. */
+
+.blg-sales-analytics .blg-video-trend {
+  width: 100%;
+  min-width: 0;
+  margin: 22px 0 20px;
+  padding: 20px 20px 16px;
+  border: 1px solid #dfe3e8;
+  border-radius: 9px;
+  background: #ffffff;
+}
+
+.blg-sales-analytics .blg-video-trend-heading {
+  margin: 0 0 14px;
+}
+
+.blg-sales-analytics .blg-video-trend-eyebrow {
+  margin: 0 0 4px;
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.035em;
+}
+
+.blg-sales-analytics .blg-video-trend-heading h3 {
+  margin: 0 0 5px !important;
+  color: #20242a;
+  font-size: 16px !important;
+  font-weight: 700;
+}
+
+.blg-sales-analytics .blg-video-trend-heading > p:last-child {
+  margin: 0;
+  color: #83909d;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.blg-sales-analytics .blg-video-trend-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin: 14px 0 12px;
+}
+
+.blg-sales-analytics .blg-video-trend-tabs button {
+  width: auto;
+  min-width: 0;
+  min-height: 32px;
+  padding: 6px 13px !important;
+  border: 1px solid #dfe3e8 !important;
+  border-radius: 999px !important;
+  background: #fff !important;
+  color: #536171 !important;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.blg-sales-analytics .blg-video-trend-tabs button.is-active {
+  background: #20242a !important;
+  border-color: #20242a !important;
+  color: #fff !important;
+}
+
+.blg-sales-analytics .blg-video-trend-total {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 12px 0 8px;
+}
+
+.blg-sales-analytics .blg-video-trend-total span {
+  color: #84909d;
+  font-size: 11px;
+}
+
+.blg-sales-analytics .blg-video-trend-total strong {
+  color: #20242a;
+  font-size: 23px;
+  font-weight: 700;
+}
+
+.blg-sales-analytics .blg-video-trend-chart {
+  width: 100%;
+  overflow: hidden;
+}
+
+.blg-sales-analytics .blg-video-trend-chart svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 300px;
+  overflow: visible;
+}
+
+.blg-sales-analytics .blg-video-trend-gridline {
+  stroke: #e2e6eb;
+  stroke-width: 1;
+}
+
+.blg-sales-analytics .blg-video-trend-axis {
+  fill: #84909d;
+  font-family: inherit;
+  font-size: 12px;
+}
+
+.blg-sales-analytics .blg-video-trend-area {
+  fill: #20242a;
+  fill-opacity: 0.06;
+}
+
+.blg-sales-analytics .blg-video-trend-line {
+  fill: none;
+  stroke: #20242a;
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.blg-sales-analytics .blg-video-trend-point {
+  fill: #fff;
+  stroke: #20242a;
+  stroke-width: 2;
+}
+
+.blg-sales-analytics .blg-sales-metrics {
+  margin-top: 0 !important;
+}
+
+.blg-sales-analytics .blg-sales-metrics .blg-sales-metric {
+  min-height: 86px !important;
+  padding: 13px 15px !important;
+}
+
+.blg-sales-analytics .blg-sales-metrics .blg-sales-metric > strong {
+  font-size: 22px !important;
+}
+
+@media (max-width: 800px) {
+  .blg-sales-analytics .blg-video-trend {
+    padding: 16px 12px 12px;
+  }
+
+  .blg-sales-analytics .blg-video-trend-chart svg {
+    min-height: 180px;
+  }
+}
+
+@media (max-width: 480px) {
+  .blg-sales-analytics .blg-video-trend {
+    padding: 14px 8px 10px;
+  }
+
+  .blg-sales-analytics .blg-video-trend-axis {
+    font-size: 14px;
+  }
+}
