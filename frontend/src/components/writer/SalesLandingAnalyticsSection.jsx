@@ -73,7 +73,7 @@ const videoTrendOptions = [
   { key: 'active_seconds', label: 'Active engagement', unit: 'time' }
 ];
 
-function SalesVideoTrend({ daily, days, metricKey, onMetricChange }) {
+function SalesVideoTrend({ daily, metrics, sources, days, metricKey, onMetricChange }) {
   const selected = videoTrendOptions.find(
     (item) => item.key === metricKey
   ) || videoTrendOptions[0];
@@ -164,6 +164,8 @@ function SalesVideoTrend({ daily, days, metricKey, onMetricChange }) {
         ))}
       </div>
 
+      <div className="blg-video-trend-layout">
+        <div className="blg-video-trend-main">
       <div className="blg-video-trend-total">
         <span>Selected period</span>
         <strong>{displayTotal}</strong>
@@ -246,6 +248,84 @@ function SalesVideoTrend({ daily, days, metricKey, onMetricChange }) {
             );
           })}
         </svg>
+      </div>
+
+        </div>
+        <aside className="blg-video-summary" aria-label="Video analytics summary">
+          <div className="blg-video-summary-heading">
+            <strong>Performance summary</strong>
+            <span>Selected sales landing page</span>
+          </div>
+
+          <div className="blg-video-summary-stats">
+            <div><span>Page views</span><strong>{formatted(metrics.page_views)}</strong></div>
+            <div><span>Visitor sessions</span><strong>{formatted(metrics.visitor_sessions)}</strong></div>
+            <div><span>Session-scoped visitors</span><strong>{formatted(metrics.session_scoped_visitors)}</strong></div>
+            <div><span>Watch time</span><strong>{duration(metrics.video_watched_seconds)}</strong></div>
+            <div><span>Active engagement</span><strong>{duration(metrics.active_seconds)}</strong></div>
+            <div><span>Video starts</span><strong>{formatted(metrics.video_starts)}</strong></div>
+            <div><span>Pay To Join clicks</span><strong>{formatted(metrics.checkout_clicks)}</strong></div>
+            <div><span>WhatsApp clicks</span><strong>{formatted(metrics.whatsapp_clicks)}</strong></div>
+            <div><span>Other CTA clicks</span><strong>{formatted(metrics.external_cta_clicks)}</strong></div>
+            <div><span>Clicks per 100 views</span><strong>{number(metrics.checkout_click_rate_percent).toFixed(2)}</strong></div>
+          </div>
+
+          <div className="blg-video-summary-group">
+            <h4>Watch milestones</h4>
+            <div className="blg-video-milestone-line">
+              <span>25%: {formatted(metrics.video_25)}</span>
+              <span>50%: {formatted(metrics.video_50)}</span>
+              <span>75%: {formatted(metrics.video_75)}</span>
+              <span>Completed: {formatted(metrics.video_completions)}</span>
+            </div>
+          </div>
+
+          <div className="blg-video-summary-group">
+            <h4>Traffic sources</h4>
+            {sources.length === 0 ? (
+              <p>No traffic recorded.</p>
+            ) : (
+              <div className="blg-video-source-list">
+                {sources.map((item, index) => (
+                  <div key={item.source + index}>
+                    <span>{item.source}</span>
+                    <strong>{formatted(item.visitor_sessions)}</strong>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="blg-video-summary-group">
+            <h4>Recent daily activity</h4>
+            {daily.length === 0 ? (
+              <p>No daily activity recorded.</p>
+            ) : (
+              <div className="blg-video-daily-list">
+                {daily.slice(-5).reverse().map((item, index) => (
+                  <div key={String(item.day) + index}>
+                    <span>{String(item.day).slice(0, 10)}</span>
+                    <strong>{duration(item.video_watched_seconds)}</strong>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="blg-video-summary-group">
+            <h4>Verified purchases</h4>
+            <p>
+              {metrics.verified_payments == null
+                ? 'Unavailable - requires verified payment data'
+                : formatted(metrics.verified_payments)}
+            </p>
+          </div>
+
+          <p className="blg-video-summary-note">
+            Visitors are session-scoped. Watch time includes replayed video.
+            Clicks do not represent verified purchases.
+          </p>
+        </aside>
       </div>
     </section>
   );
@@ -408,103 +488,12 @@ export default function SalesLandingAnalyticsSection({ enabled = false }) {
         <>
           <SalesVideoTrend
             daily={daily}
+            metrics={metrics}
+            sources={sources}
             days={days}
             metricKey={trendMetric}
             onMetricChange={setTrendMetric}
           />
-          <div className="blg-sales-metrics" style={gridStyle}>
-            <Metric title="Page views" value={formatted(metrics.page_views)} />
-            <Metric title="Visitor sessions" value={formatted(metrics.visitor_sessions)} />
-            <Metric
-              title="Session-scoped visitors"
-              value={formatted(metrics.session_scoped_visitors)}
-              hint="New ID per tracking session; not unique people"
-            />
-            <Metric title="Active engagement" value={duration(metrics.active_seconds)} />
-            <Metric title="YouTube time watched" value={duration(metrics.video_watched_seconds)} />
-            <Metric title="Video starts" value={formatted(metrics.video_starts)} />
-            <Metric title="Pay To Join clicks" value={formatted(metrics.checkout_clicks)} />
-            <Metric title="WhatsApp clicks" value={formatted(metrics.whatsapp_clicks)} />
-            <Metric title="Other CTA clicks" value={formatted(metrics.external_cta_clicks)} />
-            <Metric
-              title="Pay To Join clicks per 100 views"
-              value={number(metrics.checkout_click_rate_percent).toFixed(2)}
-              hint="Repeat clicks count; can exceed 100 per 100 views"
-            />
-            <Metric
-              title="Verified purchases"
-              value={metrics.verified_payments == null ? 'Unavailable' : formatted(metrics.verified_payments)}
-              hint="Requires server-side payment verification"
-            />
-          </div>
-
-          <h3 style={{ margin: '24px 0 10px', fontSize: 16 }}>YouTube cumulative watch milestones</h3>
-          <div className="blg-sales-milestones" style={gridStyle}>
-            <Metric title="25% milestone" value={formatted(metrics.video_25)} />
-            <Metric title="50% milestone" value={formatted(metrics.video_50)} />
-            <Metric title="75% milestone" value={formatted(metrics.video_75)} />
-            <Metric title="Completed" value={formatted(metrics.video_completions)} />
-          </div>
-
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
-            gap: 20,
-            marginTop: 24
-          }}>
-            <div>
-              <h3 style={{ fontSize: 16 }}>Traffic sources</h3>
-              {sources.length === 0 ? <p>No source data recorded.</p> : (
-                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                  <thead>
-                    <tr>
-                      <th style={{ textAlign: 'left' }}>Source</th>
-                      <th style={{ textAlign: 'right' }}>Sessions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {sources.map((item, index) => (
-                      <tr key={item.source + index}>
-                        <td style={{ padding: '8px 0' }}>{item.source}</td>
-                        <td style={{ textAlign: 'right' }}>{formatted(item.visitor_sessions)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
-            </div>
-
-            <div>
-              <h3 style={{ fontSize: 16 }}>Daily activity by session start</h3>
-              {daily.length === 0 ? <p>No daily activity recorded.</p> : (
-                <div style={{ overflowX: 'auto' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                    <thead>
-                      <tr>
-                        <th style={{ textAlign: 'left' }}>Day</th>
-                        <th style={{ textAlign: 'right' }}>Sessions</th>
-                        <th style={{ textAlign: 'right' }}>Watch time</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {daily.map((item, index) => (
-                        <tr key={String(item.day) + index}>
-                          <td style={{ padding: '8px 0' }}>{String(item.day)}</td>
-                          <td style={{ textAlign: 'right' }}>{formatted(item.visitor_sessions)}</td>
-                          <td style={{ textAlign: 'right' }}>{duration(item.video_watched_seconds)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-          </div>
-
-          <p style={{ fontSize: 12, color: '#64748b', marginTop: 20 }}>
-            Each tracking session gets a new visitor ID. Milestones use cumulative playback time,
-            including rewatching, not furthest video position. Button clicks are not verified payments.
-          </p>
         </>
       ) : null}
     </section>
