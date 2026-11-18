@@ -1,4 +1,56 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { createLandingAnalyticsLifecycle } from '../../utils/salesLandingAnalyticsLifecycle.mjs';
+import { createYoutubeWatchEngine } from '../../utils/salesLandingYoutubeWatch.mjs';
+import { createYoutubeIframeBridge } from '../../utils/salesLandingYoutubeBridge.mjs';
+
+// Disabled until the analytics database and endpoint are verified.
+const SALES_ANALYTICS_ENABLED = true;
+
+// Shared YouTube API loader. It does not run while tracking is disabled.
+let salesYoutubeApiPromise = null;
+
+function loadSalesYoutubeApi() {
+  if (window.YT?.Player && window.YT?.PlayerState) {
+    return Promise.resolve(window.YT);
+  }
+
+  if (salesYoutubeApiPromise) return salesYoutubeApiPromise;
+
+  salesYoutubeApiPromise = new Promise((resolve, reject) => {
+    const previousReady = window.onYouTubeIframeAPIReady;
+
+    window.onYouTubeIframeAPIReady = () => {
+      try {
+        if (typeof previousReady === 'function') previousReady();
+      } catch {
+        // An unrelated callback must not prevent player initialization.
+      }
+
+      if (window.YT?.Player && window.YT?.PlayerState) {
+        resolve(window.YT);
+      } else {
+        reject(new Error('YOUTUBE_IFRAME_API_UNAVAILABLE'));
+      }
+    };
+
+    const existing = document.querySelector(
+      'script[src="https://www.youtube.com/iframe_api"]'
+    );
+
+    if (!existing) {
+      const script = document.createElement('script');
+      script.src = 'https://www.youtube.com/iframe_api';
+      script.async = true;
+      script.onerror = () => {
+        salesYoutubeApiPromise = null;
+        reject(new Error('YOUTUBE_IFRAME_API_LOAD_FAILED'));
+      };
+      document.head.appendChild(script);
+    }
+  });
+
+  return salesYoutubeApiPromise;
+}
 import { useParams } from 'react-router-dom';
 import api from '../../api/axios';
 import './PublicSalesLandingPage.css';
@@ -17,6 +69,7 @@ function youtubeEmbed(value) {
 
 export default function PublicSalesLandingPage() {
   const { landingSlug } = useParams();
+  const analyticsRef = useRef(null);
   const [page, setPage] = useState(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
@@ -170,7 +223,165 @@ export default function PublicSalesLandingPage() {
     meta.setAttribute('content', description);
   }, [page, content.subheadline]);
 
+  // First-party landing-page tracking is independent of ad pixels.
+  // It remains disabled until the corresponding API is deployed.
+  useEffect(() => {
+    if (
+      !SALES_ANALYTICS_ENABLED ||
+      !page?.id ||
+      page.slug !== landingSlug ||
+      typeof window === 'undefined' ||
+      !window.crypto?.randomUUID
+    ) {
+      return undefined;
+    }
+
+    const tracker = createLandingAnalyticsLifecycle({
+      pageId: Number(page.id),
+      locationUrl: window.location.href,
+      referrer: document.referrer,
+      makeUuid: () => window.crypto.randomUUID(),
+      send: async (pageId, event) => {
+        const response = await fetch(
+          '/api/sales-landing-analytics/public/' +
+            encodeURIComponent(pageId) + '/events',
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'omit',
+            keepalive: true,
+            body: JSON.stringify(event)
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error('ANALYTICS_EVENT_DELIVERY_FAILED');
+        }
+      }
+    });
+
+    analyticsRef.current = tracker;
+    void tracker.start();
+
+    const syncVisibility = () => {
+      tracker.visibility(
+        document.visibilityState === 'visible',
+        document.hasFocus()
+      );
+    };
+
+    document.addEventListener('visibilitychange', syncVisibility);
+    window.addEventListener('focus', syncVisibility);
+    window.addEventListener('blur', syncVisibility);
+
+    syncVisibility();
+
+    const interval = window.setInterval(() => {
+      void tracker.sample();
+      void tracker.retryPending();
+    }, 10000);
+
+    return () => {
+      window.clearInterval(interval);
+      document.removeEventListener('visibilitychange', syncVisibility);
+      window.removeEventListener('focus', syncVisibility);
+      window.removeEventListener('blur', syncVisibility);
+      tracker.stop();
+
+      if (analyticsRef.current === tracker) {
+        analyticsRef.current = null;
+      }
+    };
+  }, [page?.id, page?.slug, landingSlug]);
+
+  // Only enable after the analytics endpoint and database migration pass.
+  // Existing video rendering is unchanged while the feature is disabled.
+  useEffect(() => {
+    if (
+      !SALES_ANALYTICS_ENABLED ||
+      !page?.id ||
+      page.slug !== landingSlug ||
+      !video ||
+      typeof window === 'undefined'
+    ) {
+      return undefined;
+    }
+
+    const iframe = document.querySelector(
+      '.public-sales-video iframe'
+    );
+
+    if (!iframe) return undefined;
+
+    let cancelled = false;
+    let bridge = null;
+
+    try {
+      const url = new URL(iframe.src);
+      url.searchParams.set('enablejsapi', '1');
+      url.searchParams.set('origin', window.location.origin);
+      iframe.src = url.toString();
+    } catch {
+      return undefined;
+    }
+
+    void loadSalesYoutubeApi().then((YT) => {
+      if (cancelled || !iframe.isConnected) return;
+
+      const engine = createYoutubeWatchEngine({
+        emit: async (type, data) => {
+          if (!cancelled && analyticsRef.current) {
+            await analyticsRef.current.event(type, data);
+          }
+        }
+      });
+
+      bridge = createYoutubeIframeBridge({
+        YT,
+        mount: iframe,
+        engine
+      });
+
+      bridge.start();
+    }).catch(() => {
+      // The video remains usable if its analytics API is unavailable.
+    });
+
+    return () => {
+      cancelled = true;
+      if (bridge) bridge.destroy();
+    };
+  }, [page?.id, page?.slug, landingSlug, video]);
+
+  const handleLandingButtonClick = (buttonUrl, sectionId) => {
+    if (!analyticsRef.current) return;
+
+    let eventType = 'external_cta_click';
+
+    try {
+      const url = new URL(buttonUrl);
+      const host = url.hostname.toLowerCase();
+
+      if (
+        host === 'wa.me' ||
+        host === 'wa.link' ||
+        host === 'walink.com' ||
+        host === 'api.whatsapp.com' ||
+        host === 'web.whatsapp.com'
+      ) {
+        eventType = 'whatsapp_click';
+      }
+    } catch {
+      return;
+    }
+
+    void analyticsRef.current.event(eventType, {
+      section_id: String(sectionId || '').slice(0, 100)
+    });
+  };
+
   const handleCheckoutClick = (event) => {
+    void analyticsRef.current?.event('checkout_click');
     if (
       !trackingAllowed ||
       !trackingConfigured ||
@@ -277,6 +488,10 @@ export default function PublicSalesLandingPage() {
               })() ? (
                 <a
                   href={section.button_url}
+                  onClick={() => handleLandingButtonClick(
+                    section.button_url,
+                    section.id || 'sales-landing-button'
+                  )}
                   target="_blank"
                   rel="noopener noreferrer"
                   style={{

@@ -452,6 +452,13 @@ mount(app, '/api/admin/supgad-integration', 'adminSupgadIntegrationRoutes', [
     './routes/writerAnalyticsRoutes',
   ]);
 
+// BLOGGAD_V69C_ANALYTICS_MOUNT
+// Disabled unless explicitly enabled after database verification.
+if (process.env.BLOGGAD_SALES_LANDING_ANALYTICS_ENABLED === 'true') {
+  mount(app, '/api/sales-landing-analytics', 'salesLandingAnalyticsRoutes', [
+    './routes/salesLandingAnalyticsRoutes'
+  ]);
+}
   mount(app, '/api/writer/sales-landing', 'writerSalesLandingRoutes', [
     './routes/writerSalesLandingRoutes',
   ]);
